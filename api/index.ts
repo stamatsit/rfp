@@ -206,7 +206,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .limit(50)
         }
 
-        return res.json({ answers: answerResults, photos: photoResults })
+        return res.json({
+          answers: answerResults,
+          photos: photoResults,
+          totalAnswers: answerResults.length,
+          totalPhotos: photoResults.length
+        })
       }
     }
 
@@ -336,8 +341,8 @@ Instructions:
     // 404 for unmatched routes
     return res.status(404).json({ error: "Not found", path })
 
-  } catch (error) {
-    console.error("API Error:", error)
-    return res.status(500).json({ error: "Internal server error" })
+  } catch (error: any) {
+    console.error("API Error:", error?.message || error, error?.stack)
+    return res.status(500).json({ error: "Internal server error", details: error?.message })
   }
 }
