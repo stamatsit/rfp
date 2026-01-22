@@ -106,7 +106,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end()
   }
 
-  const path = req.url?.replace(/^\/api/, "") || "/"
+  // Parse path - handle both /api/health and /health patterns
+  const rawPath = req.url?.split("?")[0] || "/"
+  const path = rawPath.replace(/^\/api/, "") || "/"
   const method = req.method || "GET"
   const sessionId = getCookie(req, "rfp-session")
   const session = getSession(sessionId)
