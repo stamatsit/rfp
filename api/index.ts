@@ -50,8 +50,8 @@ const queryClient = DATABASE_URL ? postgres(DATABASE_URL) : null
 const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets } }) : null
 
 // Supabase client
-const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? ""
+const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
+const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY ?? "").trim()
 const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null
