@@ -4,7 +4,8 @@
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "includeFiles": "packages/server/src/**"
     }
   },
   "rewrites": [

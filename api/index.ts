@@ -1,11 +1,14 @@
+import type { VercelRequest, VercelResponse } from "@vercel/node"
 import "dotenv/config"
 import express from "express"
 import cors from "cors"
 import session from "express-session"
-import routes from "../packages/server/src/routes/index.js"
-import authRoutes from "../packages/server/src/routes/auth.js"
-import { requireAuth } from "../packages/server/src/middleware/auth.js"
-import { initializeDatabase } from "../packages/server/src/db/index.js"
+
+// Import server modules
+import routes from "../packages/server/src/routes/index"
+import authRoutes from "../packages/server/src/routes/auth"
+import { requireAuth } from "../packages/server/src/middleware/auth"
+import { initializeDatabase } from "../packages/server/src/db/index"
 
 const app = express()
 const SESSION_SECRET = process.env.SESSION_SECRET || "rfp-library-secret-key-change-in-production"
@@ -36,10 +39,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: true,
+    secure: process.env.NODE_ENV === "production",
     httpOnly: true,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    sameSite: "strict",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
   },
 }))
 
@@ -58,4 +61,7 @@ app.use("/api", requireAuth)
 // API routes
 app.use("/api", routes)
 
-export default app
+// Vercel serverless handler
+export default function handler(req: VercelRequest, res: VercelResponse) {
+  return app(req as any, res as any)
+}

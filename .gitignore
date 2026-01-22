@@ -38,3 +38,4 @@ storage/photos/*
 # Misc
 *.tsbuildinfo
 .vercel
+.env*.local
