@@ -310,28 +310,58 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if ((path === "/search" || path === "/search/") && method === "GET") {
         const query = (req.query?.q as string) || ""
         const type = (req.query?.type as string) || "all"
+        const topicId = req.query?.topicId as string
+        const status = req.query?.status as string
+        const limit = parseInt(req.query?.limit as string) || 10000
 
         let answerResults: any[] = []
         let photoResults: any[] = []
 
         if (type === "all" || type === "answers") {
-          answerResults = await db.select().from(answerItems)
-            .where(or(
+          const conditions = []
+          if (query) {
+            conditions.push(or(
               ilike(answerItems.question, `%${query}%`),
               ilike(answerItems.answer, `%${query}%`)
             ))
-            .orderBy(desc(answerItems.createdAt))
-            .limit(50)
+          }
+          if (topicId) conditions.push(eq(answerItems.topicId, topicId))
+          if (status) conditions.push(eq(answerItems.status, status))
+
+          if (conditions.length > 0) {
+            answerResults = await db.select().from(answerItems)
+              .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+              .orderBy(desc(answerItems.createdAt))
+              .limit(limit)
+          } else {
+            answerResults = await db.select().from(answerItems)
+              .orderBy(desc(answerItems.createdAt))
+              .limit(limit)
+          }
         }
 
         if (type === "all" || type === "photos") {
-          photoResults = await db.select().from(photoAssets)
-            .where(or(
+          const conditions = []
+          if (query) {
+            conditions.push(or(
+              ilike(photoAssets.displayTitle, `%${query}%`),
               ilike(photoAssets.description, `%${query}%`),
               ilike(photoAssets.originalFilename, `%${query}%`)
             ))
-            .orderBy(desc(photoAssets.createdAt))
-            .limit(50)
+          }
+          if (topicId) conditions.push(eq(photoAssets.topicId, topicId))
+          if (status) conditions.push(eq(photoAssets.status, status))
+
+          if (conditions.length > 0) {
+            photoResults = await db.select().from(photoAssets)
+              .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+              .orderBy(desc(photoAssets.createdAt))
+              .limit(limit)
+          } else {
+            photoResults = await db.select().from(photoAssets)
+              .orderBy(desc(photoAssets.createdAt))
+              .limit(limit)
+          }
         }
 
         return res.json({
