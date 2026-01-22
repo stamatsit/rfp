@@ -59,26 +59,46 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
 // OpenAI client
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
 
-// Session storage (in-memory for serverless - will reset on cold start)
-const sessions = new Map<string, { authenticated: boolean; expires: number }>()
+// Stateless session using signed tokens (works across serverless instances)
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.APP_PASSWORD || "fallback-secret"
 
-function getSession(sessionId: string | undefined) {
-  if (!sessionId) return null
-  const session = sessions.get(sessionId)
-  if (!session || session.expires < Date.now()) {
-    if (session) sessions.delete(sessionId)
-    return null
-  }
-  return session
+async function createHmac(data: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(SESSION_SECRET),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  )
+  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(data))
+  return Buffer.from(signature).toString("base64url")
 }
 
-function createSession(): string {
-  const sessionId = crypto.randomUUID()
-  sessions.set(sessionId, {
+async function verifySession(token: string | undefined): Promise<boolean> {
+  if (!token) return false
+  try {
+    const [payload, signature] = token.split(".")
+    if (!payload || !signature) return false
+
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString())
+    if (decoded.expires < Date.now()) return false
+
+    const expectedSig = await createHmac(payload)
+    return signature === expectedSig
+  } catch {
+    return false
+  }
+}
+
+async function createSession(): Promise<string> {
+  const payload = {
     authenticated: true,
     expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
-  })
-  return sessionId
+  }
+  const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url")
+  const signature = await createHmac(payloadStr)
+  return `${payloadStr}.${signature}`
 }
 
 // Parse cookies from request
@@ -108,8 +128,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rawPath = req.url?.split("?")[0] || "/"
   const path = rawPath.replace(/^\/api/, "") || "/"
   const method = req.method || "GET"
-  const sessionId = getCookie(req, "rfp-session")
-  const session = getSession(sessionId)
+  const sessionToken = getCookie(req, "rfp-session")
+  const isAuthenticated = await verifySession(sessionToken)
 
   try {
     // Health check (no auth required)
@@ -127,26 +147,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { password } = req.body || {}
         const appPassword = (process.env.APP_PASSWORD || "").trim()
         if (password === appPassword) {
-          const newSessionId = createSession()
-          res.setHeader("Set-Cookie", `rfp-session=${newSessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+          const newSessionToken = await createSession()
+          res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
           return res.json({ success: true })
         }
         return res.status(401).json({ error: "Invalid password" })
       }
 
       if (path === "/auth/logout" && method === "POST") {
-        if (sessionId) sessions.delete(sessionId)
         res.setHeader("Set-Cookie", "rfp-session=; Path=/; HttpOnly; Max-Age=0")
         return res.json({ success: true })
       }
 
       if (path === "/auth/status") {
-        return res.json({ authenticated: !!session })
+        return res.json({ authenticated: isAuthenticated })
       }
     }
 
     // All other routes require authentication
-    if (!session) {
+    if (!isAuthenticated) {
       return res.status(401).json({ error: "Unauthorized" })
     }
 
