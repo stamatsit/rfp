@@ -496,6 +496,37 @@ Instructions:
       }
     }
 
+    // Photo file serving - redirect to Supabase Storage
+    const photoFileMatch = path.match(/^\/photos\/file\/([^/]+)$/)
+    if (photoFileMatch && method === "GET") {
+      const storageKey = photoFileMatch[1]
+      const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.storageKey, storageKey))
+
+      if (!photo) {
+        return res.status(404).json({ error: "Photo not found" })
+      }
+
+      // Get file extension from original filename or mime type
+      let ext = ""
+      if (photo.originalFilename) {
+        const match = photo.originalFilename.match(/\.([^.]+)$/)
+        if (match) ext = match[1]
+      }
+      if (!ext && photo.mimeType) {
+        const mimeMap: Record<string, string> = {
+          "image/png": "png",
+          "image/jpeg": "jpg",
+          "image/gif": "gif",
+          "image/webp": "webp"
+        }
+        ext = mimeMap[photo.mimeType] || "png"
+      }
+
+      // Redirect to Supabase Storage public URL
+      const supabaseStorageUrl = `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${storageKey}.${ext}`
+      return res.redirect(302, supabaseStorageUrl)
+    }
+
     // 404 for unmatched routes
     return res.status(404).json({ error: "Not found", path })
 
