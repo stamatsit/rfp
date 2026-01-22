@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+
+# Database (local dev)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+
+# Uploaded files (local dev)
+storage/photos/*
+!storage/photos/.gitkeep
+
+# Misc
+*.tsbuildinfo
