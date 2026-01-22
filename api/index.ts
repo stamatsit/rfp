@@ -210,43 +210,119 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // AI route
-    if (path === "/ai/ask" && method === "POST") {
-      if (!openai) {
-        return res.status(500).json({ error: "OpenAI not configured" })
+    // AI routes
+    if (path.startsWith("/ai")) {
+      // AI status check
+      if (path === "/ai/status" && method === "GET") {
+        return res.json({
+          configured: !!openai,
+          model: openai ? "gpt-4o-mini" : null,
+          message: openai ? "AI service is configured" : "OpenAI API key not configured"
+        })
       }
 
-      const { question, context } = req.body || {}
+      // AI query
+      if (path === "/ai/query" && method === "POST") {
+        if (!openai) {
+          return res.json({
+            response: "",
+            sources: [],
+            photos: [],
+            refused: true,
+            refusalReason: "AI service is not configured"
+          })
+        }
 
-      // Get relevant answers for context
-      const relevantAnswers = await db.select().from(answers)
-        .where(or(
-          ilike(answers.question, `%${question}%`),
-          ilike(answers.answer, `%${question}%`)
-        ))
-        .limit(5)
+        const { query, topicId, maxSources = 5 } = req.body || {}
 
-      const systemPrompt = `You are a helpful assistant for RFP proposals. Use the following context from our knowledge base to answer questions:
+        // Get relevant answers for context
+        const relevantAnswers = await db.select().from(answers)
+          .where(or(
+            ilike(answers.question, `%${query}%`),
+            ilike(answers.answer, `%${query}%`)
+          ))
+          .limit(maxSources)
 
+        if (relevantAnswers.length === 0) {
+          return res.json({
+            response: "I couldn't find any relevant information in the knowledge base for your query.",
+            sources: [],
+            photos: [],
+            refused: false
+          })
+        }
+
+        const systemPrompt = `You are a helpful assistant for RFP proposals. Use ONLY the following context from our knowledge base to answer questions. Do not make up information.
+
+Available knowledge:
 ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}
 
-${context ? `Additional context: ${context}` : ""}
+Instructions:
+- Only use information from the provided knowledge base
+- If the answer isn't in the provided context, say you don't have that information
+- Be helpful and professional`
 
-Provide helpful, accurate responses based on this information. If you don't have enough information, say so.`
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: query }
+          ],
+          max_tokens: 1000
+        })
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: question }
-        ],
-        max_tokens: 1000
-      })
+        return res.json({
+          response: completion.choices[0]?.message?.content || "No response generated",
+          sources: relevantAnswers.map(a => ({ id: a.id, question: a.question, answer: a.answer })),
+          photos: [],
+          refused: false
+        })
+      }
 
-      return res.json({
-        answer: completion.choices[0]?.message?.content || "No response generated",
-        sources: relevantAnswers.map(a => ({ id: a.id, question: a.question }))
-      })
+      // AI adapt
+      if (path === "/ai/adapt" && method === "POST") {
+        if (!openai) {
+          return res.json({
+            adaptedContent: "",
+            originalContent: "",
+            instruction: "",
+            refused: true,
+            refusalReason: "AI service is not configured"
+          })
+        }
+
+        const { content, adaptationType, customInstruction, targetWordCount, clientName, industry } = req.body || {}
+
+        let instruction = ""
+        switch (adaptationType) {
+          case "shorten": instruction = `Shorten this content${targetWordCount ? ` to approximately ${targetWordCount} words` : ""}`; break
+          case "expand": instruction = `Expand this content with more detail${targetWordCount ? ` to approximately ${targetWordCount} words` : ""}`; break
+          case "bullets": instruction = "Convert this content into bullet points"; break
+          case "formal": instruction = "Rewrite this content in a more formal, professional tone"; break
+          case "casual": instruction = "Rewrite this content in a more casual, conversational tone"; break
+          case "custom": instruction = customInstruction || "Improve this content"; break
+          default: instruction = "Improve this content"
+        }
+
+        if (clientName) instruction += `. The client is ${clientName}.`
+        if (industry) instruction += `. The industry is ${industry}.`
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are a professional content editor. Apply the requested changes while maintaining the core message and accuracy." },
+            { role: "user", content: `${instruction}\n\nOriginal content:\n${content}` }
+          ],
+          max_tokens: 2000
+        })
+
+        return res.json({
+          adaptedContent: completion.choices[0]?.message?.content || content,
+          originalContent: content,
+          instruction,
+          refused: false
+        })
+      }
     }
 
     // Photos routes
