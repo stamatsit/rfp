@@ -127,7 +127,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (path.startsWith("/auth")) {
       if (path === "/auth/login" && method === "POST") {
         const { password } = req.body || {}
-        if (password === process.env.APP_PASSWORD) {
+        const appPassword = (process.env.APP_PASSWORD || "").trim()
+        if (password === appPassword) {
           const newSessionId = createSession()
           res.setHeader("Set-Cookie", `rfp-session=${newSessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
           return res.json({ success: true })
