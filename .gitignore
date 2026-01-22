@@ -39,3 +39,6 @@ storage/photos/*
 *.tsbuildinfo
 .vercel
 .env*.local
+
+# Vercel API build output
+api/index.js

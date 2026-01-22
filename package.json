@@ -11,12 +11,14 @@
     "dev:client": "npm run dev -w @rfp-proposals/client",
     "dev:server": "npm run dev -w @rfp-proposals/server",
     "build": "npm run build -w @rfp-proposals/client && npm run build -w @rfp-proposals/server",
-    "vercel-build": "npm run build -w @rfp-proposals/client",
+    "vercel-build": "npm run build -w @rfp-proposals/client && npm run build:api",
+    "build:api": "esbuild api/index.ts --bundle --platform=node --target=node18 --outfile=api/index.js --format=esm --external:@supabase/supabase-js --external:drizzle-orm --external:postgres --external:express --external:express-session --external:cors --external:dotenv --external:openai --external:multer --external:mammoth --external:xlsx --external:uuid --external:zod",
     "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
     "@vercel/node": "^3.0.0",
     "concurrently": "^8.2.2",
+    "esbuild": "^0.20.0",
     "typescript": "^5.3.3"
   },
   "dependencies": {

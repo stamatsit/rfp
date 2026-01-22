@@ -3,9 +3,8 @@
   "outputDirectory": "packages/client/dist",
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
-    "api/**/*.ts": {
-      "maxDuration": 30,
-      "includeFiles": "packages/server/src/**"
+    "api/index.js": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
