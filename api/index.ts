@@ -161,8 +161,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(allTopics)
       }
       if (method === "POST") {
-        const { name, description } = req.body || {}
-        const [newTopic] = await db.insert(topics).values({ name, description }).returning()
+        const { name, displayName } = req.body || {}
+        const [newTopic] = await db.insert(topics).values({ name, displayName: displayName || name }).returning()
         return res.json(newTopic)
       }
     }
