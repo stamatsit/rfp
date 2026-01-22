@@ -194,9 +194,120 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Search route
-    if (path === "/search" || path === "/search/") {
-      if (method === "GET") {
+    // Search routes
+    if (path.startsWith("/search")) {
+      // GET /search/answers - list/search answers
+      if ((path === "/search/answers" || path === "/search/answers/") && method === "GET") {
+        const query = (req.query?.q as string) || ""
+        const topicId = req.query?.topicId as string
+        const status = req.query?.status as string
+        const limit = parseInt(req.query?.limit as string) || 0
+
+        let queryBuilder = db.select().from(answerItems)
+
+        const conditions = []
+        if (query) {
+          conditions.push(or(
+            ilike(answerItems.question, `%${query}%`),
+            ilike(answerItems.answer, `%${query}%`)
+          ))
+        }
+        if (topicId) {
+          conditions.push(eq(answerItems.topicId, topicId))
+        }
+        if (status) {
+          conditions.push(eq(answerItems.status, status))
+        }
+
+        let results
+        if (conditions.length > 0) {
+          const whereClause = conditions.length === 1 ? conditions[0] : sql`${conditions[0]} AND ${conditions.slice(1).map(c => c).join(' AND ')}`
+          results = await db.select().from(answerItems)
+            .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+            .orderBy(desc(answerItems.createdAt))
+            .limit(limit || 10000)
+        } else {
+          results = await db.select().from(answerItems)
+            .orderBy(desc(answerItems.createdAt))
+            .limit(limit || 10000)
+        }
+
+        return res.json(results)
+      }
+
+      // GET /search/photos - list/search photos
+      if ((path === "/search/photos" || path === "/search/photos/") && method === "GET") {
+        const query = (req.query?.q as string) || ""
+        const topicId = req.query?.topicId as string
+        const status = req.query?.status as string
+        const limit = parseInt(req.query?.limit as string) || 0
+
+        const conditions = []
+        if (query) {
+          conditions.push(or(
+            ilike(photoAssets.displayTitle, `%${query}%`),
+            ilike(photoAssets.description, `%${query}%`),
+            ilike(photoAssets.originalFilename, `%${query}%`)
+          ))
+        }
+        if (topicId) {
+          conditions.push(eq(photoAssets.topicId, topicId))
+        }
+        if (status) {
+          conditions.push(eq(photoAssets.status, status))
+        }
+
+        let results
+        if (conditions.length > 0) {
+          results = await db.select().from(photoAssets)
+            .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+            .orderBy(desc(photoAssets.createdAt))
+            .limit(limit || 10000)
+        } else {
+          results = await db.select().from(photoAssets)
+            .orderBy(desc(photoAssets.createdAt))
+            .limit(limit || 10000)
+        }
+
+        return res.json(results)
+      }
+
+      // GET /search/answers/:id - get single answer
+      const answerMatch = path.match(/^\/search\/answers\/([^/]+)$/)
+      if (answerMatch && method === "GET") {
+        const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, answerMatch[1]))
+        if (!answer) return res.status(404).json({ error: "Answer not found" })
+        return res.json({ ...answer, linkedPhotos: [] })
+      }
+
+      // GET /search/photos/:id - get single photo
+      const photoMatch = path.match(/^\/search\/photos\/([^/]+)$/)
+      if (photoMatch && method === "GET") {
+        const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, photoMatch[1]))
+        if (!photo) return res.status(404).json({ error: "Photo not found" })
+        return res.json({ ...photo, linkedAnswers: [] })
+      }
+
+      // POST /search/answers/:id/copy - log copy event (just acknowledge)
+      const copyMatch = path.match(/^\/search\/answers\/([^/]+)\/copy$/)
+      if (copyMatch && method === "POST") {
+        return res.json({ success: true })
+      }
+
+      // GET /search/answers/:id/photos - get linked photos (placeholder)
+      const linkedPhotosMatch = path.match(/^\/search\/answers\/([^/]+)\/photos$/)
+      if (linkedPhotosMatch && method === "GET") {
+        return res.json([])
+      }
+
+      // GET /search/photos/:id/answers - get linked answers (placeholder)
+      const linkedAnswersMatch = path.match(/^\/search\/photos\/([^/]+)\/answers$/)
+      if (linkedAnswersMatch && method === "GET") {
+        return res.json([])
+      }
+
+      // Combined search (original route)
+      if ((path === "/search" || path === "/search/") && method === "GET") {
         const query = (req.query?.q as string) || ""
         const type = (req.query?.type as string) || "all"
 
