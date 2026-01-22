@@ -95,8 +95,8 @@ function getCookie(req: VercelRequest, name: string): string | undefined {
 
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS headers
-  const origin = process.env.CORS_ORIGIN || "*"
+  // CORS headers - trim to remove any whitespace/newlines from env var
+  const origin = (process.env.CORS_ORIGIN || "*").trim()
   res.setHeader("Access-Control-Allow-Origin", origin)
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
