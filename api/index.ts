@@ -6,50 +6,48 @@ import { pgTable, text, timestamp, uuid, integer } from "drizzle-orm/pg-core"
 import { eq, ilike, or, desc, sql } from "drizzle-orm"
 import OpenAI from "openai"
 
-// Schema definitions (copied from server for standalone function)
+// Schema definitions (matching actual Supabase tables)
+import { jsonb } from "drizzle-orm/pg-core"
+
 export const topics = pgTable("topics", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
-  description: text("description"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  displayName: text("display_name").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const answers = pgTable("answers", {
+export const answerItems = pgTable("answer_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  topicId: uuid("topic_id").references(() => topics.id),
   question: text("question").notNull(),
   answer: text("answer").notNull(),
-  tags: text("tags").array(),
-  source: text("source"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  topicId: uuid("topic_id").notNull().references(() => topics.id),
+  subtopic: text("subtopic"),
+  status: text("status").notNull().default("Approved"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  fingerprint: text("fingerprint").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
-export const photos = pgTable("photos", {
+export const photoAssets = pgTable("photo_assets", {
   id: uuid("id").primaryKey().defaultRandom(),
-  filename: text("filename").notNull(),
-  originalName: text("original_name").notNull(),
-  mimeType: text("mime_type").notNull(),
-  size: integer("size").notNull(),
-  url: text("url"),
+  displayTitle: text("display_title").notNull(),
+  topicId: uuid("topic_id").notNull().references(() => topics.id),
+  status: text("status").notNull().default("Approved"),
+  tags: jsonb("tags").$type<string[]>().default([]),
   description: text("description"),
-  tags: text("tags").array(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
-
-export const photoAnswerLinks = pgTable("photo_answer_links", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  photoId: uuid("photo_id").references(() => photos.id).notNull(),
-  answerId: uuid("answer_id").references(() => answers.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  storageKey: text("storage_key").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answers, photos, photoAnswerLinks } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets } }) : null
 
 // Supabase client
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
@@ -172,7 +170,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Answers routes
     if (path === "/answers" || path === "/answers/") {
       if (method === "GET") {
-        const allAnswers = await db.select().from(answers).orderBy(desc(answers.createdAt))
+        const allAnswers = await db.select().from(answerItems).orderBy(desc(answerItems.createdAt))
         return res.json(allAnswers)
       }
     }
@@ -187,22 +185,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let photoResults: any[] = []
 
         if (type === "all" || type === "answers") {
-          answerResults = await db.select().from(answers)
+          answerResults = await db.select().from(answerItems)
             .where(or(
-              ilike(answers.question, `%${query}%`),
-              ilike(answers.answer, `%${query}%`)
+              ilike(answerItems.question, `%${query}%`),
+              ilike(answerItems.answer, `%${query}%`)
             ))
-            .orderBy(desc(answers.createdAt))
+            .orderBy(desc(answerItems.createdAt))
             .limit(50)
         }
 
         if (type === "all" || type === "photos") {
-          photoResults = await db.select().from(photos)
+          photoResults = await db.select().from(photoAssets)
             .where(or(
-              ilike(photos.description, `%${query}%`),
-              ilike(photos.originalName, `%${query}%`)
+              ilike(photoAssets.description, `%${query}%`),
+              ilike(photoAssets.originalFilename, `%${query}%`)
             ))
-            .orderBy(desc(photos.createdAt))
+            .orderBy(desc(photoAssets.createdAt))
             .limit(50)
         }
 
@@ -241,10 +239,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { query, topicId, maxSources = 5 } = req.body || {}
 
         // Get relevant answers for context
-        const relevantAnswers = await db.select().from(answers)
+        const relevantAnswers = await db.select().from(answerItems)
           .where(or(
-            ilike(answers.question, `%${query}%`),
-            ilike(answers.answer, `%${query}%`)
+            ilike(answerItems.question, `%${query}%`),
+            ilike(answerItems.answer, `%${query}%`)
           ))
           .limit(maxSources)
 
@@ -333,7 +331,7 @@ Instructions:
     // Photos routes
     if (path === "/photos" || path === "/photos/") {
       if (method === "GET") {
-        const allPhotos = await db.select().from(photos).orderBy(desc(photos.createdAt))
+        const allPhotos = await db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt))
         return res.json(allPhotos)
       }
     }
