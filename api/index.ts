@@ -306,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json([])
       }
 
-      // Combined search (original route)
+      // Combined search (original route) with relevance scoring
       if ((path === "/search" || path === "/search/") && method === "GET") {
         const query = (req.query?.q as string) || ""
         const type = (req.query?.type as string) || "all"
@@ -314,6 +314,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const status = req.query?.status as string
         const limit = parseInt(req.query?.limit as string) || 50
         const offset = parseInt(req.query?.offset as string) || 0
+
+        // Helper function to count occurrences of a word in text (case-insensitive)
+        const countOccurrences = (text: string, word: string): number => {
+          const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
+          return (text.match(regex) || []).length
+        }
+
+        // Helper function to score an item based on search query
+        const scoreItem = (title: string, body: string, searchQuery: string): number => {
+          if (!searchQuery.trim()) return 0
+
+          const queryLower = searchQuery.toLowerCase().trim()
+          const titleLower = title.toLowerCase()
+          const bodyLower = body.toLowerCase()
+          const searchWords = queryLower.split(/\s+/).filter(w => w.length > 0)
+
+          let score = 0
+
+          // Exact phrase match in title = highest priority (+50)
+          if (titleLower.includes(queryLower)) {
+            score += 50
+          }
+
+          // Exact phrase match in body (+25)
+          if (bodyLower.includes(queryLower)) {
+            score += 25
+          }
+
+          // Each search word found in title (+10 each)
+          for (const word of searchWords) {
+            if (titleLower.includes(word)) {
+              score += 10
+            }
+          }
+
+          // Count occurrences of each search word in body (+2 per occurrence)
+          for (const word of searchWords) {
+            const occurrences = countOccurrences(bodyLower, word)
+            score += occurrences * 2
+          }
+
+          return score
+        }
 
         let answerResults: any[] = []
         let photoResults: any[] = []
@@ -323,10 +366,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (type === "all" || type === "answers") {
           const conditions = []
           if (query) {
-            conditions.push(or(
-              ilike(answerItems.question, `%${query}%`),
-              ilike(answerItems.answer, `%${query}%`)
-            ))
+            // Split query into words and match any word in question or answer
+            const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 0)
+            const wordConditions = searchWords.flatMap(word => [
+              ilike(answerItems.question, `%${word}%`),
+              ilike(answerItems.answer, `%${word}%`)
+            ])
+            if (wordConditions.length > 0) {
+              conditions.push(or(...wordConditions))
+            }
           }
           if (topicId) conditions.push(eq(answerItems.topicId, topicId))
           if (status) conditions.push(eq(answerItems.status, status))
@@ -339,29 +387,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const [countResult] = await countQuery
           totalAnswers = countResult?.count || 0
 
-          // Get paginated results
+          // Get all matching results (we'll sort and paginate after scoring)
+          let allAnswers: any[] = []
           if (conditions.length > 0) {
-            answerResults = await db.select().from(answerItems)
+            allAnswers = await db.select().from(answerItems)
               .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-              .orderBy(desc(answerItems.createdAt))
-              .limit(limit)
-              .offset(offset)
           } else {
-            answerResults = await db.select().from(answerItems)
-              .orderBy(desc(answerItems.createdAt))
-              .limit(limit)
-              .offset(offset)
+            allAnswers = await db.select().from(answerItems)
+          }
+
+          // Score and sort answers by relevance
+          if (query) {
+            const scoredAnswers = allAnswers.map(answer => ({
+              ...answer,
+              _score: scoreItem(answer.question, answer.answer, query)
+            }))
+            scoredAnswers.sort((a, b) => b._score - a._score)
+            // Remove score from results and apply pagination
+            answerResults = scoredAnswers.slice(offset, offset + limit).map(({ _score, ...rest }) => rest)
+          } else {
+            // No query = sort by date
+            allAnswers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            answerResults = allAnswers.slice(offset, offset + limit)
           }
         }
 
         if (type === "all" || type === "photos") {
           const conditions = []
           if (query) {
-            conditions.push(or(
-              ilike(photoAssets.displayTitle, `%${query}%`),
-              ilike(photoAssets.description, `%${query}%`),
-              ilike(photoAssets.originalFilename, `%${query}%`)
-            ))
+            // Split query into words and match any word
+            const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 0)
+            const wordConditions = searchWords.flatMap(word => [
+              ilike(photoAssets.displayTitle, `%${word}%`),
+              ilike(photoAssets.description, `%${word}%`),
+              ilike(photoAssets.originalFilename, `%${word}%`)
+            ])
+            if (wordConditions.length > 0) {
+              conditions.push(or(...wordConditions))
+            }
           }
           if (topicId) conditions.push(eq(photoAssets.topicId, topicId))
           if (status) conditions.push(eq(photoAssets.status, status))
@@ -374,18 +437,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const [countResult] = await countQuery
           totalPhotos = countResult?.count || 0
 
-          // Get paginated results
+          // Get all matching results (we'll sort and paginate after scoring)
+          let allPhotos: any[] = []
           if (conditions.length > 0) {
-            photoResults = await db.select().from(photoAssets)
+            allPhotos = await db.select().from(photoAssets)
               .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-              .orderBy(desc(photoAssets.createdAt))
-              .limit(limit)
-              .offset(offset)
           } else {
-            photoResults = await db.select().from(photoAssets)
-              .orderBy(desc(photoAssets.createdAt))
-              .limit(limit)
-              .offset(offset)
+            allPhotos = await db.select().from(photoAssets)
+          }
+
+          // Score and sort photos by relevance
+          if (query) {
+            const scoredPhotos = allPhotos.map(photo => ({
+              ...photo,
+              _score: scoreItem(photo.displayTitle, (photo.description || '') + ' ' + photo.originalFilename, query)
+            }))
+            scoredPhotos.sort((a, b) => b._score - a._score)
+            // Remove score from results and apply pagination
+            photoResults = scoredPhotos.slice(offset, offset + limit).map(({ _score, ...rest }) => rest)
+          } else {
+            // No query = sort by date
+            allPhotos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+            photoResults = allPhotos.slice(offset, offset + limit)
           }
         }
 
@@ -423,13 +496,87 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const { query, topicId, maxSources = 5 } = req.body || {}
 
-        // Get relevant answers for context
-        const relevantAnswers = await db.select().from(answerItems)
-          .where(or(
-            ilike(answerItems.question, `%${query}%`),
-            ilike(answerItems.answer, `%${query}%`)
-          ))
-          .limit(maxSources)
+        // Step 1: Extract key concepts/keywords from the user's query using AI
+        let searchKeywords: string[] = []
+        try {
+          const keywordExtraction = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Extract the key topic keywords from user queries for database searching.
+Return ONLY a JSON array of 1-5 important keywords/phrases, no explanation.
+Focus on nouns, topics, and concepts - ignore filler words like "give me", "describe", "what is", etc.
+Example: "give a description of governance" -> ["governance"]
+Example: "what are our data privacy policies" -> ["data privacy", "privacy policies", "data"]
+Example: "how do we handle customer complaints" -> ["customer complaints", "complaints", "customer service"]`
+              },
+              { role: "user", content: query }
+            ],
+            max_tokens: 100
+          })
+          const extracted = keywordExtraction.choices[0]?.message?.content || "[]"
+          searchKeywords = JSON.parse(extracted.replace(/```json\n?|\n?```/g, "").trim())
+        } catch (err) {
+          console.error("Keyword extraction failed:", err)
+          // Fallback: use the original query split into words, filtering common words
+          const stopWords = new Set(["give", "me", "a", "an", "the", "what", "is", "are", "how", "do", "we", "our", "describe", "description", "of", "about", "tell", "explain"])
+          searchKeywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.has(w))
+        }
+
+        // If no keywords extracted, use original query
+        if (searchKeywords.length === 0) {
+          searchKeywords = [query]
+        }
+
+        // Step 2: Search with extracted keywords, prioritizing question/headline matches
+        const searchConditions = searchKeywords.flatMap(keyword => [
+          ilike(answerItems.question, `%${keyword}%`),
+          ilike(answerItems.answer, `%${keyword}%`)
+        ])
+
+        // Get a larger pool of potential matches
+        let potentialMatches: typeof answerItems.$inferSelect[] = []
+        if (searchConditions.length > 0) {
+          potentialMatches = await db.select().from(answerItems)
+            .where(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions))
+            .limit(20)
+        } else {
+          // Fallback: get recent items if no search conditions
+          potentialMatches = await db.select().from(answerItems)
+            .orderBy(desc(answerItems.createdAt))
+            .limit(20)
+        }
+
+        // Step 3: Score and rank results - prioritize headline/question matches
+        const scoredResults = potentialMatches.map(item => {
+          let score = 0
+          const questionLower = item.question.toLowerCase()
+          const answerLower = item.answer.toLowerCase()
+
+          for (const keyword of searchKeywords) {
+            const keywordLower = keyword.toLowerCase()
+            // Heavy weight for question/headline matches
+            if (questionLower.includes(keywordLower)) {
+              score += 10
+              // Extra points for exact or near-exact question match
+              if (questionLower.startsWith(keywordLower) || questionLower === keywordLower) {
+                score += 5
+              }
+            }
+            // Lower weight for answer body matches
+            if (answerLower.includes(keywordLower)) {
+              score += 3
+            }
+          }
+          return { ...item, score }
+        })
+
+        // Sort by score (highest first) and take top results
+        const relevantAnswers = scoredResults
+          .sort((a, b) => b.score - a.score)
+          .slice(0, maxSources)
+          .filter(item => item.score > 0)
 
         if (relevantAnswers.length === 0) {
           return res.json({
