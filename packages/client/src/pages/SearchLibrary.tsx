@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import {
   Search,
   Copy,
@@ -126,6 +126,13 @@ export function SearchLibrary() {
   const [linkPickerSearch, setLinkPickerSearch] = useState("")
   const [linkPickerLoading, setLinkPickerLoading] = useState(false)
 
+
+  // Accordion state for topic grouping
+  const [expandedAnswerTopics, setExpandedAnswerTopics] = useState<Set<string>>(new Set())
+  const [expandedPhotoTopics, setExpandedPhotoTopics] = useState<Set<string>>(new Set())
+  const [answerLimits, setAnswerLimits] = useState<Record<string, number>>({})
+  const [photoLimits, setPhotoLimits] = useState<Record<string, number>>({})
+  const ITEMS_PER_PAGE = 5
 
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -279,6 +286,77 @@ export function SearchLibrary() {
         return 0
     }
   })
+
+  // Group answers by topic
+  const answersByTopic = useMemo(() => {
+    const grouped: Record<string, AnswerResponse[]> = {}
+    for (const answer of sortedAnswers) {
+      const topicId = answer.topicId
+      if (!grouped[topicId]) grouped[topicId] = []
+      grouped[topicId].push(answer)
+    }
+    return grouped
+  }, [sortedAnswers])
+
+  // Group photos by topic
+  const photosByTopic = useMemo(() => {
+    const grouped: Record<string, PhotoResponse[]> = {}
+    for (const photo of sortedPhotos) {
+      const topicId = photo.topicId
+      if (!grouped[topicId]) grouped[topicId] = []
+      grouped[topicId].push(photo)
+    }
+    return grouped
+  }, [sortedPhotos])
+
+  // Sort topic IDs by count (most results first)
+  const sortedAnswerTopicIds = useMemo(() => {
+    return Object.keys(answersByTopic).sort((a, b) => answersByTopic[b].length - answersByTopic[a].length)
+  }, [answersByTopic])
+
+  const sortedPhotoTopicIds = useMemo(() => {
+    return Object.keys(photosByTopic).sort((a, b) => photosByTopic[b].length - photosByTopic[a].length)
+  }, [photosByTopic])
+
+  // Toggle accordion expansion
+  const toggleAnswerTopic = (topicId: string) => {
+    setExpandedAnswerTopics(prev => {
+      const next = new Set(prev)
+      if (next.has(topicId)) {
+        next.delete(topicId)
+      } else {
+        next.add(topicId)
+      }
+      return next
+    })
+  }
+
+  const togglePhotoTopic = (topicId: string) => {
+    setExpandedPhotoTopics(prev => {
+      const next = new Set(prev)
+      if (next.has(topicId)) {
+        next.delete(topicId)
+      } else {
+        next.add(topicId)
+      }
+      return next
+    })
+  }
+
+  // Show more items within a topic
+  const showMoreAnswers = (topicId: string) => {
+    setAnswerLimits(prev => ({
+      ...prev,
+      [topicId]: (prev[topicId] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
+    }))
+  }
+
+  const showMorePhotos = (topicId: string) => {
+    setPhotoLimits(prev => ({
+      ...prev,
+      [topicId]: (prev[topicId] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
+    }))
+  }
 
   // Load linked items when detail view opens
   useEffect(() => {
@@ -844,7 +922,7 @@ export function SearchLibrary() {
           {/* Results - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
             {/* Answers Column - Takes up 3 columns */}
-            <div className="lg:col-span-3 space-y-4">
+            <div className="lg:col-span-3 space-y-3">
               {/* Answers Header */}
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -856,122 +934,122 @@ export function SearchLibrary() {
                 </h2>
               </div>
 
-              {/* Answers - List View */}
-              {viewMode === "list" && sortedAnswers.length > 0 && sortedAnswers.map((answer) => {
-                const topicColor = getTopicColor(answer.topicId, getTopicIndex(answer.topicId))
+              {/* Answers - Grouped by Topic Accordions */}
+              {sortedAnswers.length > 0 && sortedAnswerTopicIds.map((topicId) => {
+                const topicAnswers = answersByTopic[topicId] || []
+                if (topicAnswers.length === 0) return null
+                const topic = topics.find(t => t.id === topicId)
+                const topicColor = getTopicColor(topicId, getTopicIndex(topicId))
+                const isExpanded = expandedAnswerTopics.has(topicId)
+                const limit = answerLimits[topicId] || ITEMS_PER_PAGE
+                const visibleAnswers = topicAnswers.slice(0, limit)
+                const hasMore = topicAnswers.length > limit
+                const remaining = topicAnswers.length - limit
+
                 return (
-                  <Card
-                    key={answer.id}
-                    className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-200 ease-out"
-                    onClick={() => setSelectedAnswer(answer)}
-                  >
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4">
-                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/80 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-200 group-hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
-                          <FileText size={20} className="text-blue-600" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
-                            {answer.question}
-                          </h3>
-                          <p className="text-slate-500 dark:text-slate-400 mt-1.5 text-sm line-clamp-2 leading-relaxed">
-                            {answer.answer}
-                          </p>
-                          <div className="flex items-center gap-2 mt-3 flex-wrap">
-                            <Badge
-                              variant="secondary"
-                              className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
+                  <div key={topicId} className="rounded-2xl border border-slate-200/60 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                    {/* Accordion Header */}
+                    <button
+                      onClick={() => toggleAnswerTopic(topicId)}
+                      className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <ChevronRight
+                        size={18}
+                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                      <Badge
+                        variant="secondary"
+                        className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
+                      >
+                        {topic?.displayName || "Unknown"}
+                      </Badge>
+                      <span className="text-slate-500 dark:text-slate-400 text-sm">
+                        ({topicAnswers.length} {topicAnswers.length === 1 ? 'answer' : 'answers'})
+                      </span>
+                    </button>
+
+                    {/* Accordion Content */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-200/60 dark:border-slate-700">
+                        <div className="p-3 space-y-3">
+                          {visibleAnswers.map((answer) => (
+                            <Card
+                              key={answer.id}
+                              className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-900 transition-all duration-200 ease-out"
+                              onClick={() => setSelectedAnswer(answer)}
                             >
-                              {topics.find((t) => t.id === answer.topicId)?.displayName || "Unknown"}
-                            </Badge>
-                            {answer.status === "Approved" ? (
-                              <Badge variant="success" className="text-xs">Approved</Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-xs">Draft</Badge>
-                            )}
-                            {answer.tags.slice(0, 2).map((tag, i) => (
-                              <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-xs">
-                                {tag}
-                              </Badge>
-                            ))}
-                            {answer.tags.length > 2 && (
-                              <Badge variant="outline" className="text-xs">+{answer.tags.length - 2}</Badge>
-                            )}
-                            {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
-                              <Badge variant="outline" className="text-xs ml-auto">
-                                <ImageIcon size={10} className="mr-1" />
-                                {answer.linkedPhotosCount}
-                              </Badge>
-                            )}
+                              <CardContent className="p-4">
+                                <div className="flex items-start gap-3">
+                                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100/80 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-200">
+                                    <FileText size={16} className="text-blue-600" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug text-sm">
+                                      {answer.question}
+                                    </h3>
+                                    <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm line-clamp-2 leading-relaxed">
+                                      {answer.answer}
+                                    </p>
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                      {answer.status === "Approved" ? (
+                                        <Badge variant="success" className="text-xs">Approved</Badge>
+                                      ) : (
+                                        <Badge variant="warning" className="text-xs">Draft</Badge>
+                                      )}
+                                      {answer.tags.slice(0, 2).map((tag, i) => (
+                                        <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-xs">
+                                          {tag}
+                                        </Badge>
+                                      ))}
+                                      {answer.tags.length > 2 && (
+                                        <Badge variant="outline" className="text-xs">+{answer.tags.length - 2}</Badge>
+                                      )}
+                                      {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
+                                        <Badge variant="outline" className="text-xs ml-auto">
+                                          <ImageIcon size={10} className="mr-1" />
+                                          {answer.linkedPhotosCount}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleCopy(answer.answer, answer.id)}
+                                      className="h-8 w-8 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                                    >
+                                      {copiedId === answer.id ? (
+                                        <Check size={14} className="text-emerald-500" />
+                                      ) : (
+                                        <Copy size={14} className="text-slate-400" />
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+
+                        {/* Show More Button */}
+                        {hasMore && (
+                          <div className="px-3 pb-3">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => showMoreAnswers(topicId)}
+                              className="w-full h-9 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
+                            >
+                              Show {Math.min(ITEMS_PER_PAGE, remaining)} more
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleCopy(answer.answer, answer.id)}
-                            className="h-9 w-9 p-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          >
-                            {copiedId === answer.id ? (
-                              <Check size={16} className="text-emerald-500" />
-                            ) : (
-                              <Copy size={16} className="text-slate-400" />
-                            )}
-                          </Button>
-                          <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700">
-                            <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-                          </Button>
-                        </div>
+                        )}
                       </div>
-                    </CardContent>
-                  </Card>
+                    )}
+                  </div>
                 )
               })}
-
-              {/* Answers - Grid View */}
-              {viewMode === "grid" && sortedAnswers.length > 0 && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {sortedAnswers.map((answer) => {
-                    const topicColor = getTopicColor(answer.topicId, getTopicIndex(answer.topicId))
-                    return (
-                      <Card
-                        key={answer.id}
-                        className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.06)] hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-200 ease-out hover:-translate-y-0.5"
-                        onClick={() => setSelectedAnswer(answer)}
-                      >
-                        <CardContent className="p-5">
-                          <div className="flex items-start gap-3 mb-3">
-                            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/80 flex items-center justify-center flex-shrink-0 group-hover:shadow-[0_2px_6px_rgba(59,130,246,0.15)] transition-shadow duration-200">
-                              <FileText size={16} className="text-blue-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-slate-900 dark:text-white text-sm leading-snug line-clamp-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                                {answer.question}
-                              </h3>
-                            </div>
-                          </div>
-                          <p className="text-slate-500 dark:text-slate-400 text-sm line-clamp-3 mb-3 leading-relaxed">
-                            {answer.answer}
-                          </p>
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <Badge
-                              variant="secondary"
-                              className={`text-xs ${topicColor.bg} ${topicColor.text}`}
-                            >
-                              {topics.find((t) => t.id === answer.topicId)?.displayName || "Unknown"}
-                            </Badge>
-                            {answer.status === "Approved" ? (
-                              <Badge variant="success" className="text-xs">Approved</Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-xs">Draft</Badge>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )
-                  })}
-                </div>
-              )}
 
               {sortedAnswers.length === 0 && (
                 <div className="text-center py-14 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
@@ -984,7 +1062,7 @@ export function SearchLibrary() {
             </div>
 
             {/* Photos Column - Takes up 2 columns */}
-            <div className="lg:col-span-2 space-y-4">
+            <div className="lg:col-span-2 space-y-3">
               {/* Photos Header */}
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -996,75 +1074,123 @@ export function SearchLibrary() {
                 </h2>
               </div>
 
-              {/* Photos Grid */}
-              {sortedPhotos.length > 0 ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {sortedPhotos.map((photo) => {
-                    const topicColor = getTopicColor(photo.topicId, getTopicIndex(photo.topicId))
-                    return (
-                      <Card
-                        key={photo.id}
-                        className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-300 ease-out hover:-translate-y-1"
-                        onClick={() => setSelectedPhoto(photo)}
+              {/* Photos - Grouped by Topic Accordions */}
+              {sortedPhotos.length > 0 && sortedPhotoTopicIds.map((topicId) => {
+                const topicPhotos = photosByTopic[topicId] || []
+                if (topicPhotos.length === 0) return null
+                const topic = topics.find(t => t.id === topicId)
+                const topicColor = getTopicColor(topicId, getTopicIndex(topicId))
+                const isExpanded = expandedPhotoTopics.has(topicId)
+                const limit = photoLimits[topicId] || ITEMS_PER_PAGE
+                const visiblePhotos = topicPhotos.slice(0, limit)
+                const hasMore = topicPhotos.length > limit
+                const remaining = topicPhotos.length - limit
+
+                return (
+                  <div key={topicId} className="rounded-2xl border border-slate-200/60 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                    {/* Accordion Header */}
+                    <button
+                      onClick={() => togglePhotoTopic(topicId)}
+                      className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                    >
+                      <ChevronRight
+                        size={16}
+                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                      />
+                      <Badge
+                        variant="secondary"
+                        className={`text-xs ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
                       >
-                        <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
-                          <img
-                            src={photosApi.getFileUrl(photo.storageKey)}
-                            alt={photo.displayTitle}
-                            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none"
-                              e.currentTarget.nextElementSibling?.classList.remove("hidden")
-                            }}
-                          />
-                          <div className="hidden absolute inset-0 flex items-center justify-center">
-                            <ImageIcon size={32} className="text-slate-300 dark:text-slate-500" />
+                        {topic?.displayName || "Unknown"}
+                      </Badge>
+                      <span className="text-slate-500 dark:text-slate-400 text-sm">
+                        ({topicPhotos.length})
+                      </span>
+                    </button>
+
+                    {/* Accordion Content */}
+                    {isExpanded && (
+                      <div className="border-t border-slate-200/60 dark:border-slate-700">
+                        <div className="p-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            {visiblePhotos.map((photo) => (
+                              <Card
+                                key={photo.id}
+                                className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-900 transition-all duration-300 ease-out hover:-translate-y-0.5"
+                                onClick={() => setSelectedPhoto(photo)}
+                              >
+                                <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
+                                  <img
+                                    src={photosApi.getFileUrl(photo.storageKey)}
+                                    alt={photo.displayTitle}
+                                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none"
+                                      e.currentTarget.nextElementSibling?.classList.remove("hidden")
+                                    }}
+                                  />
+                                  <div className="hidden absolute inset-0 flex items-center justify-center">
+                                    <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
+                                  </div>
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                                  <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      className="w-full h-7 bg-white/95 backdrop-blur-sm hover:bg-white text-[10px] rounded-lg shadow-lg"
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleDownload(photo)
+                                      }}
+                                    >
+                                      <Download size={10} className="mr-1" />
+                                      Download
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="p-2">
+                                  <p className="font-medium text-xs text-slate-900 dark:text-white truncate">
+                                    {photo.displayTitle}
+                                  </p>
+                                  <div className="flex items-center gap-1 mt-1 flex-wrap">
+                                    {photo.status === "Approved" ? (
+                                      <Badge variant="success" className="text-[9px] px-1 py-0">Approved</Badge>
+                                    ) : (
+                                      <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
+                                    )}
+                                    {photo.linkedAnswersCount != null && photo.linkedAnswersCount > 0 && (
+                                      <Badge variant="outline" className="text-[9px] px-1 py-0">
+                                        <Link2 size={7} className="mr-0.5" />
+                                        {photo.linkedAnswersCount}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </Card>
+                            ))}
                           </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2.5 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
+                        </div>
+
+                        {/* Show More Button */}
+                        {hasMore && (
+                          <div className="px-3 pb-3">
                             <Button
-                              variant="secondary"
+                              variant="outline"
                               size="sm"
-                              className="w-full h-8 bg-white/95 backdrop-blur-sm hover:bg-white text-xs rounded-lg shadow-lg"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDownload(photo)
-                              }}
+                              onClick={() => showMorePhotos(topicId)}
+                              className="w-full h-8 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs"
                             >
-                              <Download size={12} className="mr-1.5" />
-                              Download
+                              Show {Math.min(ITEMS_PER_PAGE, remaining)} more
                             </Button>
                           </div>
-                        </div>
-                        <div className="p-2.5">
-                          <p className="font-medium text-sm text-slate-900 dark:text-white truncate">
-                            {photo.displayTitle}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-                            <Badge
-                              variant="secondary"
-                              className={`text-[10px] px-1.5 py-0 ${topicColor.bg} ${topicColor.text}`}
-                            >
-                              {topics.find((t) => t.id === photo.topicId)?.displayName || "Unknown"}
-                            </Badge>
-                            {photo.status === "Approved" ? (
-                              <Badge variant="success" className="text-[10px] px-1.5 py-0">Approved</Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-[10px] px-1.5 py-0">Draft</Badge>
-                            )}
-                            {photo.linkedAnswersCount != null && photo.linkedAnswersCount > 0 && (
-                              <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                                <Link2 size={8} className="mr-0.5" />
-                                {photo.linkedAnswersCount}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </Card>
-                    )
-                  })}
-                </div>
-              ) : (
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+
+              {sortedPhotos.length === 0 && (
                 <div className="text-center py-14 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
                   <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
                     <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
