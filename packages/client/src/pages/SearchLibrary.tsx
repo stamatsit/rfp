@@ -259,33 +259,37 @@ export function SearchLibrary() {
     performSearch()
   }, [performSearch])
 
-  // Sort answers
-  const sortedAnswers = [...answers].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      case "oldest":
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      case "alphabetical":
-        return a.question.localeCompare(b.question)
-      default:
-        return 0
-    }
-  })
+  // Sort answers - for "relevance", preserve API order (already sorted by score)
+  const sortedAnswers = sortBy === "relevance"
+    ? answers
+    : [...answers].sort((a, b) => {
+        switch (sortBy) {
+          case "newest":
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          case "oldest":
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          case "alphabetical":
+            return a.question.localeCompare(b.question)
+          default:
+            return 0
+        }
+      })
 
-  // Sort photos
-  const sortedPhotos = [...photos].sort((a, b) => {
-    switch (sortBy) {
-      case "newest":
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      case "oldest":
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-      case "alphabetical":
-        return a.displayTitle.localeCompare(b.displayTitle)
-      default:
-        return 0
-    }
-  })
+  // Sort photos - for "relevance", preserve API order (already sorted by score)
+  const sortedPhotos = sortBy === "relevance"
+    ? photos
+    : [...photos].sort((a, b) => {
+        switch (sortBy) {
+          case "newest":
+            return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          case "oldest":
+            return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          case "alphabetical":
+            return a.displayTitle.localeCompare(b.displayTitle)
+          default:
+            return 0
+        }
+      })
 
   // Group answers by topic
   const answersByTopic = useMemo(() => {
