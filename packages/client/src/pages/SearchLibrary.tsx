@@ -106,6 +106,12 @@ export function SearchLibrary() {
   const [isSearching, setIsSearching] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
 
+  // Pagination state
+  const PAGE_SIZE = 50
+  const [totalAnswers, setTotalAnswers] = useState(0)
+  const [totalPhotos, setTotalPhotos] = useState(0)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
   // Detail view state
   const [selectedAnswer, setSelectedAnswer] = useState<AnswerResponse | null>(null)
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null)
@@ -212,7 +218,7 @@ export function SearchLibrary() {
     loadTopics()
   }, [])
 
-  // Search function
+  // Search function - resets pagination
   const performSearch = useCallback(async () => {
     setIsSearching(true)
     try {
@@ -221,9 +227,13 @@ export function SearchLibrary() {
         type: typeFilter === "all" ? undefined : typeFilter,
         topicId: topicFilter === "all" ? undefined : topicFilter,
         status: statusFilter === "all" ? undefined : statusFilter,
+        limit: PAGE_SIZE,
+        offset: 0,
       })
       setAnswers(result.answers)
       setPhotos(result.photos)
+      setTotalAnswers(result.totalAnswers)
+      setTotalPhotos(result.totalPhotos)
     } catch (err) {
       console.error("Search failed:", err)
     } finally {
@@ -231,6 +241,27 @@ export function SearchLibrary() {
       setIsLoading(false)
     }
   }, [searchQuery, typeFilter, topicFilter, statusFilter])
+
+  // Load more function - appends to existing results
+  const loadMore = useCallback(async () => {
+    setIsLoadingMore(true)
+    try {
+      const result = await searchApi.search({
+        q: searchQuery || undefined,
+        type: typeFilter === "all" ? undefined : typeFilter,
+        topicId: topicFilter === "all" ? undefined : topicFilter,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        limit: PAGE_SIZE,
+        offset: answers.length, // Use current answers length as offset
+      })
+      setAnswers(prev => [...prev, ...result.answers])
+      setPhotos(prev => [...prev, ...result.photos])
+    } catch (err) {
+      console.error("Load more failed:", err)
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [searchQuery, typeFilter, topicFilter, statusFilter, answers.length])
 
   // Initial load and search on filter changes
   useEffect(() => {
@@ -661,19 +692,6 @@ export function SearchLibrary() {
                 </button>
               )}
             </div>
-            <Button
-              variant={showAI ? "purple" : "outline"}
-              size="lg"
-              onClick={() => setShowAI(!showAI)}
-              className={`h-12 px-5 rounded-xl transition-all duration-200 ${
-                showAI
-                  ? "shadow-[0_4px_12px_rgba(139,92,246,0.35)]"
-                  : "hover:border-purple-300 hover:text-purple-600"
-              }`}
-            >
-              <Sparkles size={18} className={showAI ? "text-white" : "text-purple-500"} />
-              <span className="ml-2">Ask AI</span>
-            </Button>
             <ContextualHelp {...searchPageHelp} />
           </div>
 
@@ -763,8 +781,8 @@ export function SearchLibrary() {
             )}
 
             <p className="text-slate-500 dark:text-slate-400 text-sm">
-              <span className="font-medium text-slate-700 dark:text-slate-300">{answers.length}</span> answers,{" "}
-              <span className="font-medium text-slate-700 dark:text-slate-300">{photos.length}</span> photos
+              <span className="font-medium text-slate-700 dark:text-slate-300">{totalAnswers}</span> answers,{" "}
+              <span className="font-medium text-slate-700 dark:text-slate-300">{totalPhotos}</span> photos
             </p>
           </div>
 
@@ -1109,7 +1127,9 @@ export function SearchLibrary() {
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                   <FileText size={18} className="text-blue-600" />
                   Answers
-                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">({sortedAnswers.length})</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">
+                    ({sortedAnswers.length}{totalAnswers > sortedAnswers.length ? ` of ${totalAnswers}` : ""})
+                  </span>
                 </h2>
               </div>
 
@@ -1247,7 +1267,9 @@ export function SearchLibrary() {
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
                   <ImageIcon size={18} className="text-purple-600" />
                   Photos
-                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">({sortedPhotos.length})</span>
+                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">
+                    ({sortedPhotos.length}{totalPhotos > sortedPhotos.length ? ` of ${totalPhotos}` : ""})
+                  </span>
                 </h2>
               </div>
 
@@ -1329,6 +1351,33 @@ export function SearchLibrary() {
               )}
             </div>
           </div>
+
+          {/* Load More Button */}
+          {(answers.length < totalAnswers || photos.length < totalPhotos) && (
+            <div className="flex justify-center pt-4">
+              <Button
+                variant="outline"
+                size="lg"
+                onClick={loadMore}
+                disabled={isLoadingMore}
+                className="h-12 px-8 rounded-xl border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
+              >
+                {isLoadingMore ? (
+                  <>
+                    <Loader2 size={18} className="mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    Load More
+                    <span className="ml-2 text-slate-500 dark:text-slate-400">
+                      ({answers.length} of {totalAnswers} answers, {photos.length} of {totalPhotos} photos)
+                    </span>
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
 
           {/* Empty state when both are empty */}
           {answers.length === 0 && photos.length === 0 && (

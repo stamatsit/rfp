@@ -23,6 +23,7 @@ function getGreeting(): string {
 
 // Random phrases for typewriter - one is chosen on page load
 const typewriterPhrases = [
+  "make proposals great again",
   "win more work",
   "find answers fast",
   "crush that RFP",
@@ -33,27 +34,65 @@ const typewriterPhrases = [
   "get it done",
   "own the pitch",
   "nail the proposal",
+  "dominate the bid",
+  "write winning content",
+  "beat the competition",
+  "streamline your workflow",
+  "level up your RFPs",
+  "work smarter today",
+  "build better proposals",
+  "capture new business",
+  "stand out from the pack",
 ]
 
-// Pick a random phrase once on module load
-const randomPhrase = typewriterPhrases[Math.floor(Math.random() * typewriterPhrases.length)] as string
+// Get a random phrase (excluding the last one used)
+function getRandomPhrase(exclude?: string): string {
+  const available = exclude
+    ? typewriterPhrases.filter(p => p !== exclude)
+    : typewriterPhrases
+  return available[Math.floor(Math.random() * available.length)] as string
+}
+
+type TypewriterPhase = "typing" | "waiting" | "deleting"
 
 function TypewriterText() {
+  const [currentPhrase, setCurrentPhrase] = useState(() => getRandomPhrase())
   const [displayedText, setDisplayedText] = useState("")
-  const [isComplete, setIsComplete] = useState(false)
+  const [phase, setPhase] = useState<TypewriterPhase>("typing")
 
   useEffect(() => {
-    if (isComplete) return
+    let timeout: ReturnType<typeof setTimeout>
 
-    if (displayedText.length < randomPhrase.length) {
-      const timeout = setTimeout(() => {
-        setDisplayedText(randomPhrase.slice(0, displayedText.length + 1))
-      }, 75)
-      return () => clearTimeout(timeout)
-    } else {
-      setIsComplete(true)
+    if (phase === "typing") {
+      if (displayedText.length < currentPhrase.length) {
+        timeout = setTimeout(() => {
+          setDisplayedText(currentPhrase.slice(0, displayedText.length + 1))
+        }, 75)
+      } else {
+        // Done typing, move to waiting phase
+        setPhase("waiting")
+      }
+    } else if (phase === "waiting") {
+      // Wait 6 seconds then start deleting
+      timeout = setTimeout(() => {
+        setPhase("deleting")
+      }, 6000)
+    } else if (phase === "deleting") {
+      if (displayedText.length > 0) {
+        timeout = setTimeout(() => {
+          setDisplayedText(displayedText.slice(0, -1))
+        }, 40)
+      } else {
+        // Done deleting, pick new phrase and start typing
+        setCurrentPhrase(getRandomPhrase(currentPhrase))
+        setPhase("typing")
+      }
     }
-  }, [displayedText, isComplete])
+
+    return () => clearTimeout(timeout)
+  }, [displayedText, phase, currentPhrase])
+
+  const showCursor = phase === "typing" || phase === "deleting"
 
   return (
     <span className="relative inline-block">
@@ -62,8 +101,8 @@ function TypewriterText() {
       >
         {displayedText}
       </span>
-      {/* Blinking cursor - hide when animation is complete */}
-      {!isComplete && (
+      {/* Blinking cursor - show while typing/deleting */}
+      {showCursor && (
         <span
           className="inline-block w-[3px] h-[1em] ml-1 align-middle bg-gradient-to-b from-red-500 to-rose-600 animate-blink"
         />

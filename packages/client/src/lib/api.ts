@@ -364,6 +364,7 @@ export const searchApi = {
     topicId?: string
     status?: "Approved" | "Draft"
     limit?: number
+    offset?: number
   }): Promise<SearchResult> {
     const searchParams = new URLSearchParams()
     if (params.q) searchParams.set("q", params.q)
@@ -371,6 +372,7 @@ export const searchApi = {
     if (params.topicId) searchParams.set("topicId", params.topicId)
     if (params.status) searchParams.set("status", params.status)
     if (params.limit) searchParams.set("limit", params.limit.toString())
+    if (params.offset) searchParams.set("offset", params.offset.toString())
 
     const query = searchParams.toString()
     const response = await fetchWithCredentials(`${API_BASE}/search${query ? `?${query}` : ""}`)

@@ -312,10 +312,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const type = (req.query?.type as string) || "all"
         const topicId = req.query?.topicId as string
         const status = req.query?.status as string
-        const limit = parseInt(req.query?.limit as string) || 10000
+        const limit = parseInt(req.query?.limit as string) || 50
+        const offset = parseInt(req.query?.offset as string) || 0
 
         let answerResults: any[] = []
         let photoResults: any[] = []
+        let totalAnswers = 0
+        let totalPhotos = 0
 
         if (type === "all" || type === "answers") {
           const conditions = []
@@ -328,15 +331,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (topicId) conditions.push(eq(answerItems.topicId, topicId))
           if (status) conditions.push(eq(answerItems.status, status))
 
+          // Get total count
+          const countQuery = conditions.length > 0
+            ? db.select({ count: sql<number>`count(*)::int` }).from(answerItems)
+                .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+            : db.select({ count: sql<number>`count(*)::int` }).from(answerItems)
+          const [countResult] = await countQuery
+          totalAnswers = countResult?.count || 0
+
+          // Get paginated results
           if (conditions.length > 0) {
             answerResults = await db.select().from(answerItems)
               .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
               .orderBy(desc(answerItems.createdAt))
               .limit(limit)
+              .offset(offset)
           } else {
             answerResults = await db.select().from(answerItems)
               .orderBy(desc(answerItems.createdAt))
               .limit(limit)
+              .offset(offset)
           }
         }
 
@@ -352,23 +366,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (topicId) conditions.push(eq(photoAssets.topicId, topicId))
           if (status) conditions.push(eq(photoAssets.status, status))
 
+          // Get total count
+          const countQuery = conditions.length > 0
+            ? db.select({ count: sql<number>`count(*)::int` }).from(photoAssets)
+                .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
+            : db.select({ count: sql<number>`count(*)::int` }).from(photoAssets)
+          const [countResult] = await countQuery
+          totalPhotos = countResult?.count || 0
+
+          // Get paginated results
           if (conditions.length > 0) {
             photoResults = await db.select().from(photoAssets)
               .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
               .orderBy(desc(photoAssets.createdAt))
               .limit(limit)
+              .offset(offset)
           } else {
             photoResults = await db.select().from(photoAssets)
               .orderBy(desc(photoAssets.createdAt))
               .limit(limit)
+              .offset(offset)
           }
         }
 
         return res.json({
           answers: answerResults,
           photos: photoResults,
-          totalAnswers: answerResults.length,
-          totalPhotos: photoResults.length
+          totalAnswers,
+          totalPhotos
         })
       }
     }
