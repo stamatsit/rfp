@@ -40,6 +40,7 @@ import {
   Target,
   MessageSquare,
   Award,
+  GripVertical,
 } from "lucide-react"
 
 // Tile configuration - matches HomePage cards
@@ -453,6 +454,8 @@ export function Settings() {
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("appearance")
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
+  const [draggedTile, setDraggedTile] = useState<string | null>(null)
+  const [dragOverTile, setDragOverTile] = useState<string | null>(null)
 
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     setSettings(prev => {
@@ -465,6 +468,63 @@ export function Settings() {
   const toggleTile = (id: string) => {
     const newTiles = settings.tiles.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t)
     updateSetting("tiles", newTiles)
+  }
+
+  const handleDragStart = (e: React.DragEvent, tileId: string) => {
+    setDraggedTile(tileId)
+    e.dataTransfer.effectAllowed = "move"
+    e.dataTransfer.setData("text/plain", tileId)
+  }
+
+  const handleDragOver = (e: React.DragEvent, tileId: string) => {
+    e.preventDefault()
+    if (tileId !== draggedTile) {
+      setDragOverTile(tileId)
+    }
+  }
+
+  const handleDragLeave = () => {
+    setDragOverTile(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, targetTileId: string) => {
+    e.preventDefault()
+    if (!draggedTile || draggedTile === targetTileId) {
+      setDraggedTile(null)
+      setDragOverTile(null)
+      return
+    }
+
+    // Get current order
+    const currentOrder = [...defaultTiles].sort((a, b) => {
+      const orderA = settings.tiles.find(t => t.id === a.id)?.order ?? 999
+      const orderB = settings.tiles.find(t => t.id === b.id)?.order ?? 999
+      return orderA - orderB
+    }).map(t => t.id)
+
+    // Find indices
+    const draggedIndex = currentOrder.indexOf(draggedTile)
+    const targetIndex = currentOrder.indexOf(targetTileId)
+
+    // Reorder
+    const newOrder = [...currentOrder]
+    newOrder.splice(draggedIndex, 1)
+    newOrder.splice(targetIndex, 0, draggedTile)
+
+    // Update settings with new order
+    const newTiles = settings.tiles.map(t => ({
+      ...t,
+      order: newOrder.indexOf(t.id)
+    }))
+
+    updateSetting("tiles", newTiles)
+    setDraggedTile(null)
+    setDragOverTile(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedTile(null)
+    setDragOverTile(null)
   }
 
   const resetAllSettings = () => {
@@ -847,20 +907,47 @@ export function Settings() {
 
             {/* Home Screen Settings */}
             {activeCategory === "home" && (
-              <Section title="Visible Tiles">
-                {orderedTiles.map(tile => (
-                  <div key={tile.id} className="flex items-center gap-4 p-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tile.gradient }}>
-                      <div className="text-white scale-90">{tile.icon}</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[15px] font-medium text-slate-900 dark:text-white">{tile.title}</p>
-                      <p className="text-[13px] text-slate-500 dark:text-slate-400 truncate">{tile.description}</p>
-                    </div>
-                    <Toggle enabled={tileStates[tile.id] ?? true} onChange={() => toggleTile(tile.id)} />
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[13px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Visible Tiles</h3>
+                    <p className="text-[12px] text-slate-400 dark:text-slate-500">Drag to reorder</p>
                   </div>
-                ))}
-              </Section>
+                  <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+                    {orderedTiles.map(tile => (
+                      <div
+                        key={tile.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, tile.id)}
+                        onDragOver={(e) => handleDragOver(e, tile.id)}
+                        onDragLeave={handleDragLeave}
+                        onDrop={(e) => handleDrop(e, tile.id)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center gap-3 p-4 transition-all duration-200 ${
+                          draggedTile === tile.id ? "opacity-50 bg-slate-50 dark:bg-slate-800/50" : ""
+                        } ${
+                          dragOverTile === tile.id ? "bg-blue-50 dark:bg-blue-900/20 border-l-2 border-l-blue-500" : ""
+                        }`}
+                      >
+                        <div className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500 transition-colors">
+                          <GripVertical size={18} />
+                        </div>
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: tile.gradient }}>
+                          <div className="text-white scale-90">{tile.icon}</div>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[15px] font-medium text-slate-900 dark:text-white">{tile.title}</p>
+                          <p className="text-[13px] text-slate-500 dark:text-slate-400 truncate">{tile.description}</p>
+                        </div>
+                        <Toggle enabled={tileStates[tile.id] ?? true} onChange={() => toggleTile(tile.id)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
+                  Changes are saved automatically and will appear on the home screen immediately.
+                </p>
+              </div>
             )}
 
             {/* AI Settings */}
