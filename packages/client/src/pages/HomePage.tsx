@@ -13,7 +13,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { useAuth } from "@/contexts/AuthContext"
-import { getVisibleTiles, TileConfig, loadSettings } from "./Settings"
+import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi } from "@/lib/api"
 
 // Dynamic greeting based on time of day
@@ -59,9 +59,9 @@ function TypewriterText({ phrases }: { phrases: StatPhrase[] }) {
 
   // Get current phrase safely
   const safeIndex = phraseIndex % phrases.length
-  const currentPhrase = phrases[safeIndex] ?? phrases[0]
-  const fullText = currentPhrase.number + currentPhrase.text
-  const numberLength = currentPhrase.number.length
+  const currentPhrase = phrases[safeIndex] ?? phrases[0]!
+  const fullText = currentPhrase!.number + currentPhrase!.text
+  const numberLength = currentPhrase!.number.length
 
   // Initial mount - start after a brief delay to prevent glitch
   useEffect(() => {

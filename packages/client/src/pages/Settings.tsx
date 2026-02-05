@@ -35,17 +35,11 @@ import {
   Command,
   Rocket,
   TrendingUp,
-  FileText,
-  Camera,
-  MessageSquare,
-  Activity,
-  Target,
-  Award,
   Flame,
-  Crown,
-  Star,
   Play,
-  X,
+  Target,
+  MessageSquare,
+  Award,
 } from "lucide-react"
 
 // Tile configuration - matches HomePage cards
@@ -359,94 +353,6 @@ function SegmentedControl<T extends string>({ options, value, onChange }: { opti
   )
 }
 
-// Animated stat card
-function StatCard({ icon: Icon, label, value, suffix, color, delay = 0 }: {
-  icon: React.ElementType; label: string; value: number; suffix?: string; color: string; delay?: number
-}) {
-  const [displayValue, setDisplayValue] = useState(0)
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const duration = 1000
-      const steps = 30
-      const increment = value / steps
-      let current = 0
-      const interval = setInterval(() => {
-        current += increment
-        if (current >= value) {
-          setDisplayValue(value)
-          clearInterval(interval)
-        } else {
-          setDisplayValue(Math.floor(current))
-        }
-      }, duration / steps)
-      return () => clearInterval(interval)
-    }, delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-
-  return (
-    <div className="bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-4 hover:scale-[1.02] transition-transform duration-200">
-      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${color} flex items-center justify-center mb-3`}>
-        <Icon size={20} className="text-white" />
-      </div>
-      <p className="text-[28px] font-bold text-slate-900 dark:text-white tracking-tight">
-        {displayValue.toLocaleString()}{suffix}
-      </p>
-      <p className="text-[13px] text-slate-500 dark:text-slate-400">{label}</p>
-    </div>
-  )
-}
-
-// Achievement badge
-function AchievementBadge({ id, unlocked }: { id: string; unlocked: boolean }) {
-  const achievements: Record<string, { icon: React.ElementType; label: string; color: string }> = {
-    "first-search": { icon: Search, label: "First Search", color: "from-blue-500 to-cyan-500" },
-    "ai-explorer": { icon: Sparkles, label: "AI Explorer", color: "from-purple-500 to-pink-500" },
-    "speed-demon": { icon: Zap, label: "Speed Demon", color: "from-amber-500 to-orange-500" },
-    "streak-starter": { icon: Flame, label: "On Fire", color: "from-red-500 to-orange-500" },
-    "photo-pro": { icon: Camera, label: "Photo Pro", color: "from-pink-500 to-rose-500" },
-    "rfp-master": { icon: Crown, label: "RFP Master", color: "from-amber-400 to-yellow-500" },
-  }
-
-  const achievement = achievements[id]
-  if (!achievement) return null
-  const Icon = achievement.icon
-
-  return (
-    <div className={`relative group ${!unlocked ? "opacity-40 grayscale" : ""}`}>
-      <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${achievement.color} flex items-center justify-center shadow-lg ${unlocked ? "animate-float" : ""}`}>
-        <Icon size={24} className="text-white" />
-      </div>
-      <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-        <span className="text-[11px] font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 px-2 py-1 rounded-lg shadow-lg">
-          {achievement.label}
-        </span>
-      </div>
-    </div>
-  )
-}
-
-// Activity chart
-function ActivityChart({ data }: { data: number[] }) {
-  const max = Math.max(...data)
-  const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-
-  return (
-    <div className="flex items-end justify-between gap-2 h-24 px-2">
-      {data.map((value, i) => (
-        <div key={i} className="flex-1 flex flex-col items-center gap-2">
-          <div
-            className="w-full bg-gradient-to-t from-blue-500 to-cyan-400 rounded-t-lg transition-all duration-500"
-            style={{ height: `${(value / max) * 100}%`, minHeight: '4px' }}
-          />
-          <span className="text-[10px] font-medium text-slate-400">{days[i]}</span>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 // Command Palette Demo
 function CommandPaletteDemo({ onClose }: { onClose: () => void }) {
   const [query, setQuery] = useState("")
@@ -540,7 +446,7 @@ const categories = [
 ]
 
 export function Settings() {
-  const { theme, setTheme } = useTheme()
+  const { setTheme } = useTheme()
   const { logout } = useAuth()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [stats] = useState<UsageStats>(() => loadStats())
