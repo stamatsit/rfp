@@ -311,11 +311,11 @@ export function SearchLibrary() {
 
   // Sort topic IDs by count (most results first)
   const sortedAnswerTopicIds = useMemo(() => {
-    return Object.keys(answersByTopic).sort((a, b) => answersByTopic[b].length - answersByTopic[a].length)
+    return Object.keys(answersByTopic).sort((a, b) => (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0))
   }, [answersByTopic])
 
   const sortedPhotoTopicIds = useMemo(() => {
-    return Object.keys(photosByTopic).sort((a, b) => photosByTopic[b].length - photosByTopic[a].length)
+    return Object.keys(photosByTopic).sort((a, b) => (photosByTopic[b]?.length || 0) - (photosByTopic[a]?.length || 0))
   }, [photosByTopic])
 
   // Toggle accordion expansion
