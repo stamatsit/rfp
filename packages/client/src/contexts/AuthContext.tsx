@@ -6,6 +6,7 @@ interface AuthContextType {
   isLoading: boolean
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
+  setAuthenticated: (value: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -23,6 +24,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true)
   const navigate = useNavigate()
   const location = useLocation()
+
+  // Alias for external use
+  const setAuthenticated = setIsAuthenticated
 
   const checkAuth = async () => {
     try {
@@ -72,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [location.pathname])
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, logout, checkAuth }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, logout, checkAuth, setAuthenticated }}>
       {children}
     </AuthContext.Provider>
   )

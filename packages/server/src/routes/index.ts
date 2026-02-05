@@ -7,6 +7,7 @@ import searchRouter from "./search.js"
 import aiRouter from "./ai.js"
 import answersRouter from "./answers.js"
 import rfpRouter from "./rfp.js"
+import proposalsRouter from "./proposals.js"
 
 const router = Router()
 
@@ -18,5 +19,6 @@ router.use("/search", searchRouter)
 router.use("/ai", aiRouter)
 router.use("/answers", answersRouter)
 router.use("/rfp", rfpRouter)
+router.use("/proposals", proposalsRouter)
 
 export default router

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import {
   FileSpreadsheet,
@@ -9,9 +9,12 @@ import {
   ArrowRight,
   FileSearch,
   LogOut,
+  TrendingUp,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { useAuth } from "@/contexts/AuthContext"
+import { getVisibleTiles, TileConfig, loadSettings } from "./Settings"
+import { topicsApi, answersApi, photosApi } from "@/lib/api"
 
 // Dynamic greeting based on time of day
 function getGreeting(): string {
@@ -21,96 +24,105 @@ function getGreeting(): string {
   return "Good evening"
 }
 
-// Random phrases for typewriter - one is chosen on page load
-const typewriterPhrases = [
-  "make proposals great again",
-  "win more work",
-  "find answers fast",
-  "crush that RFP",
-  "close the deal",
-  "make it happen",
-  "seal the win",
-  "land the contract",
-  "get it done",
-  "own the pitch",
-  "nail the proposal",
-  "dominate the bid",
-  "write winning content",
-  "beat the competition",
-  "streamline your workflow",
-  "level up your RFPs",
-  "work smarter today",
-  "build better proposals",
-  "capture new business",
-  "stand out from the pack",
-]
-
-// Get a random phrase (excluding the last one used)
-function getRandomPhrase(exclude?: string): string {
-  const available = exclude
-    ? typewriterPhrases.filter(p => p !== exclude)
-    : typewriterPhrases
-  return available[Math.floor(Math.random() * available.length)] as string
+// Stats-only phrases generator - returns objects with number and text separate
+interface StatPhrase {
+  number: string
+  text: string
 }
+
+function generateStatPhrases(stats: { topics: number; answers: number; photos: number }): StatPhrase[] | null {
+  const phrases: StatPhrase[] = []
+
+  if (stats.answers > 0) {
+    phrases.push({ number: stats.answers.toLocaleString(), text: " answers ready" })
+  }
+  if (stats.topics > 0) {
+    phrases.push({ number: stats.topics.toLocaleString(), text: " topics covered" })
+  }
+  if (stats.photos > 0) {
+    phrases.push({ number: stats.photos.toLocaleString(), text: " photos available" })
+  }
+
+  return phrases.length > 0 ? phrases : null
+}
+
+// Fallback when no stats available
+const fallbackGreeting = "Ready to win"
 
 type TypewriterPhase = "typing" | "waiting" | "deleting"
 
-function TypewriterText() {
-  const [currentPhrase, setCurrentPhrase] = useState(() => getRandomPhrase())
-  const [displayedText, setDisplayedText] = useState("")
+function TypewriterText({ phrases }: { phrases: StatPhrase[] }) {
+  const [phraseIndex, setPhraseIndex] = useState(0)
+  const [charIndex, setCharIndex] = useState(0)
   const [phase, setPhase] = useState<TypewriterPhase>("typing")
+  const [isReady, setIsReady] = useState(false)
+
+  // Get current phrase safely
+  const safeIndex = phraseIndex % phrases.length
+  const currentPhrase = phrases[safeIndex] ?? phrases[0]
+  const fullText = currentPhrase.number + currentPhrase.text
+  const numberLength = currentPhrase.number.length
+
+  // Initial mount - start after a brief delay to prevent glitch
+  useEffect(() => {
+    const timer = setTimeout(() => setIsReady(true), 50)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
+    if (!isReady) return
+
     let timeout: ReturnType<typeof setTimeout>
 
     if (phase === "typing") {
-      if (displayedText.length < currentPhrase.length) {
+      if (charIndex < fullText.length) {
         timeout = setTimeout(() => {
-          setDisplayedText(currentPhrase.slice(0, displayedText.length + 1))
+          setCharIndex(prev => prev + 1)
         }, 75)
       } else {
-        // Done typing, move to waiting phase
         setPhase("waiting")
       }
     } else if (phase === "waiting") {
-      // Wait 6 seconds then start deleting
       timeout = setTimeout(() => {
         setPhase("deleting")
-      }, 6000)
+      }, 4000)
     } else if (phase === "deleting") {
-      if (displayedText.length > 0) {
+      if (charIndex > 0) {
         timeout = setTimeout(() => {
-          setDisplayedText(displayedText.slice(0, -1))
+          setCharIndex(prev => prev - 1)
         }, 40)
       } else {
-        // Done deleting, pick new phrase and start typing
-        setCurrentPhrase(getRandomPhrase(currentPhrase))
+        // Move to next phrase
+        setPhraseIndex(prev => (prev + 1) % phrases.length)
         setPhase("typing")
       }
     }
 
     return () => clearTimeout(timeout)
-  }, [displayedText, phase, currentPhrase])
+  }, [charIndex, phase, fullText.length, phrases.length, isReady])
+
+  // Don't render anything until ready
+  if (!isReady) {
+    return <span className="inline-block min-h-[1.2em]" />
+  }
 
   const showCursor = phase === "typing" || phase === "deleting"
 
+  // Split displayed text into number part (red) and text part (black)
+  const displayedNumber = fullText.slice(0, Math.min(charIndex, numberLength))
+  const displayedText = charIndex > numberLength ? fullText.slice(numberLength, charIndex) : ""
+
   return (
     <span className="relative inline-block">
-      <span
-        className="bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent"
-      >
+      <span className="bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+        {displayedNumber}
+      </span>
+      <span className="text-slate-900 dark:text-white">
         {displayedText}
       </span>
-      {/* Blinking cursor - show while typing/deleting */}
       {showCursor && (
-        <span
-          className="inline-block w-[3px] h-[1em] ml-1 align-middle bg-gradient-to-b from-red-500 to-rose-600 animate-blink"
-        />
+        <span className="inline-block w-[3px] h-[1em] ml-1 align-middle bg-gradient-to-b from-red-500 to-rose-600 animate-blink" />
       )}
-      {/* Subtle glow effect */}
-      <span
-        className="absolute inset-0 bg-gradient-to-r from-red-500 to-rose-600 opacity-15 blur-2xl -z-10"
-      />
     </span>
   )
 }
@@ -122,9 +134,10 @@ interface CardProps {
   description: string
   gradient: string
   shadowColor: string
+  badge?: string
 }
 
-function Card({ to, icon, title, description, gradient, shadowColor }: CardProps) {
+function Card({ to, icon, title, description, gradient, shadowColor, badge }: CardProps) {
   return (
     <Link
       to={to}
@@ -142,6 +155,15 @@ function Card({ to, icon, title, description, gradient, shadowColor }: CardProps
         e.currentTarget.style.boxShadow = '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
       }}
     >
+      {/* NEW badge */}
+      {badge && (
+        <div className="absolute top-3 right-3">
+          <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-full shadow-lg animate-pulse">
+            {badge}
+          </span>
+        </div>
+      )}
+
       {/* Icon container with gradient */}
       <div
         className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-5 overflow-hidden
@@ -177,9 +199,10 @@ function Card({ to, icon, title, description, gradient, shadowColor }: CardProps
   )
 }
 
-// Card configurations with refined gradients
-const cards = [
+// Default card configurations (used as fallback if settings fail)
+const defaultCards = [
   {
+    id: "ask-ai",
     to: "/ai",
     icon: <Sparkles size={22} strokeWidth={2} />,
     title: "Ask AI",
@@ -188,6 +211,7 @@ const cards = [
     shadowColor: "rgba(139, 92, 246, 0.15)",
   },
   {
+    id: "search-library",
     to: "/search",
     icon: <Search size={22} strokeWidth={2} />,
     title: "Search Library",
@@ -196,6 +220,7 @@ const cards = [
     shadowColor: "rgba(16, 185, 129, 0.15)",
   },
   {
+    id: "import-data",
     to: "/import",
     icon: <FileSpreadsheet size={22} strokeWidth={2} />,
     title: "Import Data",
@@ -204,6 +229,7 @@ const cards = [
     shadowColor: "rgba(59, 130, 246, 0.15)",
   },
   {
+    id: "new-entry",
     to: "/new",
     icon: <PenLine size={22} strokeWidth={2} />,
     title: "New Entry",
@@ -212,6 +238,7 @@ const cards = [
     shadowColor: "rgba(99, 102, 241, 0.15)",
   },
   {
+    id: "photo-library",
     to: "/photos",
     icon: <Image size={22} strokeWidth={2} />,
     title: "Photo Library",
@@ -220,6 +247,7 @@ const cards = [
     shadowColor: "rgba(245, 158, 11, 0.15)",
   },
   {
+    id: "rfp-analyzer",
     to: "/analyze",
     icon: <FileSearch size={22} strokeWidth={2} />,
     title: "RFP Analyzer",
@@ -227,11 +255,97 @@ const cards = [
     gradient: "linear-gradient(135deg, #F43F5E 0%, #E11D48 50%, #BE123C 100%)",
     shadowColor: "rgba(244, 63, 94, 0.15)",
   },
+  {
+    id: "proposal-insights",
+    to: "/insights",
+    icon: <TrendingUp size={22} strokeWidth={2} />,
+    title: "Proposal Insights",
+    description: "AI-powered analytics on your proposal win rates and trends",
+    gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 50%, #0E7490 100%)",
+    shadowColor: "rgba(6, 182, 212, 0.15)",
+    badge: "NEW",
+  },
 ]
+
+// Load cached stats from localStorage
+function loadCachedStats(): { topics: number; answers: number; photos: number } {
+  try {
+    const cached = localStorage.getItem("stamats-library-stats")
+    if (cached) {
+      return JSON.parse(cached)
+    }
+  } catch {
+    // Ignore parse errors
+  }
+  return { topics: 0, answers: 0, photos: 0 }
+}
+
+// Save stats to localStorage
+function saveCachedStats(stats: { topics: number; answers: number; photos: number }) {
+  try {
+    localStorage.setItem("stamats-library-stats", JSON.stringify(stats))
+  } catch {
+    // Ignore storage errors
+  }
+}
 
 export function HomePage() {
   const greeting = getGreeting()
   const { logout } = useAuth()
+  const [visibleCards, setVisibleCards] = useState<TileConfig[]>(() => {
+    try {
+      return getVisibleTiles()
+    } catch {
+      return defaultCards as TileConfig[]
+    }
+  })
+  // Initialize from cached stats
+  const [stats, setStats] = useState(loadCachedStats)
+
+  // Fetch real stats from API and cache them
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [topicsRes, answersRes, photosRes] = await Promise.all([
+          topicsApi.getAll().catch(() => []),
+          answersApi.getAll().catch(() => []),
+          photosApi.getAll().catch(() => []),
+        ])
+        const newStats = {
+          topics: Array.isArray(topicsRes) ? topicsRes.length : 0,
+          answers: Array.isArray(answersRes) ? answersRes.length : 0,
+          photos: Array.isArray(photosRes) ? photosRes.length : 0,
+        }
+        // Only update if we got real data
+        if (newStats.answers > 0 || newStats.topics > 0 || newStats.photos > 0) {
+          setStats(newStats)
+          saveCachedStats(newStats)
+        }
+      } catch {
+        // Keep cached/default values on error
+      }
+    }
+    fetchStats()
+  }, [])
+
+  // Generate phrases based on stats (returns null if no stats)
+  const typewriterPhrases = useMemo(() => {
+    return generateStatPhrases(stats)
+  }, [stats])
+
+  // Listen for settings changes
+  const handleSettingsChange = useCallback(() => {
+    try {
+      setVisibleCards(getVisibleTiles())
+    } catch {
+      setVisibleCards(defaultCards as TileConfig[])
+    }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener("settings-changed", handleSettingsChange)
+    return () => window.removeEventListener("settings-changed", handleSettingsChange)
+  }, [handleSettingsChange])
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
@@ -244,7 +358,13 @@ export function HomePage() {
             {greeting}
           </p>
           <h1 className="text-[42px] font-semibold text-slate-900 dark:text-white tracking-[-0.03em] leading-[1.1] transition-colors">
-            Let's <TypewriterText />
+            {typewriterPhrases ? (
+              <TypewriterText phrases={typewriterPhrases} />
+            ) : (
+              <span className="bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+                {fallbackGreeting}
+              </span>
+            )}
           </h1>
         </div>
       </section>
@@ -253,8 +373,8 @@ export function HomePage() {
       <main className="flex-1 px-6 pb-16">
         <div className="max-w-4xl mx-auto">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
-            {cards.map((card) => (
-              <Card key={card.to} {...card} />
+            {visibleCards.map((card) => (
+              <Card key={card.id || card.to} {...card} />
             ))}
           </div>
         </div>

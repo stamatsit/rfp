@@ -8,6 +8,7 @@ import routes from "./routes/index.js"
 import authRoutes from "./routes/auth.js"
 import { requireAuth } from "./middleware/auth.js"
 import { initializeDatabase } from "./db/index.js"
+import { startSyncPolling } from "./services/proposalSyncService.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -63,6 +64,9 @@ async function start() {
   if (!dbConnected) {
     console.warn("Server starting without database connection")
     console.warn("Set DATABASE_URL, SUPABASE_URL, and SUPABASE_ANON_KEY in .env file")
+  } else {
+    // Start proposal sync polling (only if database is connected)
+    startSyncPolling()
   }
 
   app.listen(PORT, () => {

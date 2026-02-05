@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom"
-import { ChevronRight, Sparkles, HelpCircle, Sun, Moon } from "lucide-react"
+import { ChevronRight, Sparkles, HelpCircle, Sun, Moon, Settings } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
 
 interface BreadcrumbItem {
@@ -25,6 +25,7 @@ const pageConfig: Record<string, { title: string }> = {
   "/documents": { title: "Documents" },
   "/help": { title: "Help" },
   "/support": { title: "Support" },
+  "/settings": { title: "Settings" },
 }
 
 // Beautiful dark mode toggle component
@@ -193,6 +194,20 @@ export function AppHeader({
                   title="Help"
                 >
                   <HelpCircle size={18} strokeWidth={1.75} />
+                </button>
+              </Link>
+            )}
+            {location.pathname !== "/settings" && (
+              <Link to="/settings">
+                <button
+                  className="inline-flex items-center justify-center w-9 h-9
+                             text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
+                             rounded-xl
+                             transition-all duration-200 ease-out
+                             hover:bg-slate-100/80 dark:hover:bg-slate-800/80 active:scale-95"
+                  title="Settings"
+                >
+                  <Settings size={18} strokeWidth={1.75} />
                 </button>
               </Link>
             )}

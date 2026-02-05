@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments } from "./pages"
+import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights } from "./pages"
 import Login from "./pages/Login"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
@@ -24,6 +24,8 @@ function App() {
           <Route path="/documents" element={<ProtectedRoute><SavedDocuments /></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
           <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+          <Route path="/insights" element={<ProtectedRoute><ProposalInsights /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
       </ThemeProvider>

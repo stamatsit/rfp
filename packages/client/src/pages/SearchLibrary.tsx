@@ -14,11 +14,6 @@ import {
   ChevronRight,
   Filter,
   ArrowUpDown,
-  LayoutGrid,
-  List,
-  Calendar,
-  SortAsc,
-  Clock,
   CheckCircle2,
   AlertCircle,
   Pencil,
@@ -29,10 +24,10 @@ import {
   RotateCcw,
   AlertTriangle,
   Trash2,
+  FolderOpen,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { RelatedContent } from "@/components/RelatedContent"
-import { ContextualHelp, searchPageHelp } from "@/components/ContextualHelp"
 import {
   Button,
   Card,
@@ -89,21 +84,58 @@ function getTopicColor(topicId: string, index: number): { bg: string; text: stri
 }
 
 type SortOption = "relevance" | "newest" | "oldest" | "alphabetical"
-type ViewMode = "list" | "grid"
+
+// Skeleton loader for answer cards
+function AnswerCardSkeleton() {
+  return (
+    <Card className="p-4 rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800">
+      <div className="animate-pulse space-y-3">
+        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+        <div className="space-y-2">
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-5/6" />
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-4/6" />
+        </div>
+        <div className="flex gap-2 pt-1">
+          <div className="h-5 w-16 bg-slate-200 dark:bg-slate-700 rounded-full" />
+          <div className="h-5 w-14 bg-slate-200 dark:bg-slate-700 rounded-full" />
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+// Skeleton loader for photo cards
+function PhotoCardSkeleton() {
+  return (
+    <Card className="overflow-hidden rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800">
+      <div className="animate-pulse">
+        <div className="aspect-square bg-slate-200 dark:bg-slate-700" />
+        <div className="p-2 space-y-2">
+          <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
+          <div className="flex gap-1">
+            <div className="h-4 w-12 bg-slate-200 dark:bg-slate-700 rounded-full" />
+            <div className="h-4 w-10 bg-slate-200 dark:bg-slate-700 rounded-full" />
+          </div>
+        </div>
+      </div>
+    </Card>
+  )
+}
 
 export function SearchLibrary() {
   const [searchQuery, setSearchQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<SearchItemType>("all")
   const [topicFilter, setTopicFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<ItemStatus | "all">("all")
   const [sortBy, setSortBy] = useState<SortOption>("relevance")
-  const [viewMode, setViewMode] = useState<ViewMode>("list")
   const [answers, setAnswers] = useState<AnswerResponse[]>([])
   const [photos, setPhotos] = useState<PhotoResponse[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSearching, setIsSearching] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
+  // showFilters state removed - filters now inline
 
   // Pagination state
   const PAGE_SIZE = 50
@@ -129,9 +161,9 @@ export function SearchLibrary() {
 
   // Accordion state for topic grouping
   const [expandedAnswerTopics, setExpandedAnswerTopics] = useState<Set<string>>(new Set())
-  const [expandedPhotoTopics, setExpandedPhotoTopics] = useState<Set<string>>(new Set())
+  // Photo accordion state removed - now showing flat list
   const [answerLimits, setAnswerLimits] = useState<Record<string, number>>({})
-  const [photoLimits, setPhotoLimits] = useState<Record<string, number>>({})
+  // photoLimits removed - photos now shown as flat list
   const ITEMS_PER_PAGE = 5
 
   // Copy feedback
@@ -209,12 +241,12 @@ export function SearchLibrary() {
     loadTopics()
   }, [])
 
-  // Search function - resets pagination
+  // Search function - resets pagination (uses debounced query)
   const performSearch = useCallback(async () => {
     setIsSearching(true)
     try {
       const result = await searchApi.search({
-        q: searchQuery || undefined,
+        q: debouncedQuery || undefined,
         type: typeFilter === "all" ? undefined : typeFilter,
         topicId: topicFilter === "all" ? undefined : topicFilter,
         status: statusFilter === "all" ? undefined : statusFilter,
@@ -231,14 +263,14 @@ export function SearchLibrary() {
       setIsSearching(false)
       setIsLoading(false)
     }
-  }, [searchQuery, typeFilter, topicFilter, statusFilter])
+  }, [debouncedQuery, typeFilter, topicFilter, statusFilter])
 
   // Load more function - appends to existing results
   const loadMore = useCallback(async () => {
     setIsLoadingMore(true)
     try {
       const result = await searchApi.search({
-        q: searchQuery || undefined,
+        q: debouncedQuery || undefined,
         type: typeFilter === "all" ? undefined : typeFilter,
         topicId: topicFilter === "all" ? undefined : topicFilter,
         status: statusFilter === "all" ? undefined : statusFilter,
@@ -252,7 +284,15 @@ export function SearchLibrary() {
     } finally {
       setIsLoadingMore(false)
     }
-  }, [searchQuery, typeFilter, topicFilter, statusFilter, answers.length])
+  }, [debouncedQuery, typeFilter, topicFilter, statusFilter, answers.length])
+
+  // Debounce search query (300ms delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // Initial load and search on filter changes
   useEffect(() => {
@@ -302,25 +342,10 @@ export function SearchLibrary() {
     return grouped
   }, [sortedAnswers])
 
-  // Group photos by topic
-  const photosByTopic = useMemo(() => {
-    const grouped: Record<string, PhotoResponse[]> = {}
-    for (const photo of sortedPhotos) {
-      const topicId = photo.topicId
-      if (!grouped[topicId]) grouped[topicId] = []
-      grouped[topicId].push(photo)
-    }
-    return grouped
-  }, [sortedPhotos])
-
-  // Sort topic IDs by count (most results first)
+  // Sort topic IDs by count (most results first) - for answers only
   const sortedAnswerTopicIds = useMemo(() => {
     return Object.keys(answersByTopic).sort((a, b) => (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0))
   }, [answersByTopic])
-
-  const sortedPhotoTopicIds = useMemo(() => {
-    return Object.keys(photosByTopic).sort((a, b) => (photosByTopic[b]?.length || 0) - (photosByTopic[a]?.length || 0))
-  }, [photosByTopic])
 
   // Toggle accordion expansion
   const toggleAnswerTopic = (topicId: string) => {
@@ -335,28 +360,9 @@ export function SearchLibrary() {
     })
   }
 
-  const togglePhotoTopic = (topicId: string) => {
-    setExpandedPhotoTopics(prev => {
-      const next = new Set(prev)
-      if (next.has(topicId)) {
-        next.delete(topicId)
-      } else {
-        next.add(topicId)
-      }
-      return next
-    })
-  }
-
   // Show more items within a topic
   const showMoreAnswers = (topicId: string) => {
     setAnswerLimits(prev => ({
-      ...prev,
-      [topicId]: (prev[topicId] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
-    }))
-  }
-
-  const showMorePhotos = (topicId: string) => {
-    setPhotoLimits(prev => ({
       ...prev,
       [topicId]: (prev[topicId] || ITEMS_PER_PAGE) + ITEMS_PER_PAGE
     }))
@@ -653,13 +659,34 @@ export function SearchLibrary() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 flex items-center justify-center shadow-[0_4px_12px_rgba(20,184,166,0.35)] animate-pulse">
-            <Loader2 className="w-7 h-7 animate-spin text-white" />
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+        <AppHeader />
+        <main className="flex-1">
+          <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+            {/* Skeleton search bar */}
+            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
+
+            {/* Skeleton content grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+              {/* Answers skeleton */}
+              <div className="lg:col-span-3 space-y-4">
+                <div className="h-6 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                {[...Array(5)].map((_, i) => (
+                  <AnswerCardSkeleton key={i} />
+                ))}
+              </div>
+              {/* Photos skeleton */}
+              <div className="lg:col-span-2 space-y-3">
+                <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                <div className="grid grid-cols-2 gap-3">
+                  {[...Array(4)].map((_, i) => (
+                    <PhotoCardSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="text-slate-500 dark:text-slate-400 text-[14px] font-medium">Loading library...</p>
-        </div>
+        </main>
       </div>
     )
   }
@@ -670,9 +697,10 @@ export function SearchLibrary() {
 
       <main className="flex-1">
         <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
-          {/* Search bar */}
-          <div className="flex gap-3 items-center">
-            <div className="flex-1 relative group">
+          {/* Search bar + Filters (same row) */}
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Search input - left side */}
+            <div className="flex-1 min-w-[200px] relative group">
               <Search
                 size={18}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500"
@@ -681,7 +709,7 @@ export function SearchLibrary() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search answers and photos..."
-                className="pl-11 h-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                className="pl-11 h-11 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
                 onKeyDown={(e) => e.key === "Enter" && performSearch()}
               />
               {searchQuery && (
@@ -693,235 +721,112 @@ export function SearchLibrary() {
                 </button>
               )}
             </div>
-            <ContextualHelp {...searchPageHelp} />
-          </div>
 
-          {/* Filter bar */}
-          <div className="flex flex-wrap gap-3 items-center">
-            <Button
-              variant={showFilters ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowFilters(!showFilters)}
-              className={`h-10 px-4 rounded-xl transition-all duration-200 ${
-                showFilters
-                  ? "bg-slate-900 dark:bg-slate-100 dark:text-slate-900 shadow-[0_2px_8px_rgba(15,23,42,0.25)]"
-                  : "border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-              }`}
+            {/* Filters - right side */}
+            <Select
+              value={typeFilter}
+              onValueChange={(v) => setTypeFilter(v as SearchItemType)}
             >
-              <Filter size={16} className="mr-2" />
-              Filters
-              {activeFilterCount > 0 && (
-                <span className={`ml-2 w-5 h-5 rounded-full text-[11px] font-semibold flex items-center justify-center transition-colors ${
-                  showFilters ? "bg-white text-slate-900" : "bg-blue-500 text-white"
-                }`}>
-                  {activeFilterCount}
-                </span>
-              )}
-            </Button>
-
-            <div className="flex items-center gap-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200/80 dark:border-slate-700 p-1 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-              <button
-                onClick={() => setViewMode("list")}
-                className={`p-2 rounded-lg transition-all duration-150 ${
-                  viewMode === "list"
-                    ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]"
-                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                }`}
-              >
-                <List size={18} />
-              </button>
-              <button
-                onClick={() => setViewMode("grid")}
-                className={`p-2 rounded-lg transition-all duration-150 ${
-                  viewMode === "grid"
-                    ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)]"
-                    : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                }`}
-              >
-                <LayoutGrid size={18} />
-              </button>
-            </div>
-
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-44 h-10 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <ArrowUpDown size={14} className="mr-2 text-slate-400" />
-                <SelectValue placeholder="Sort by" />
+              <SelectTrigger className="w-32 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <SelectValue placeholder="Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="relevance">
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="answers">
                   <div className="flex items-center gap-2">
-                    <SortAsc size={14} />
-                    Relevance
+                    <FileText size={14} className="text-blue-500" />
+                    Answers
                   </div>
                 </SelectItem>
-                <SelectItem value="newest">
+                <SelectItem value="photos">
                   <div className="flex items-center gap-2">
-                    <Clock size={14} />
-                    Newest First
-                  </div>
-                </SelectItem>
-                <SelectItem value="oldest">
-                  <div className="flex items-center gap-2">
-                    <Calendar size={14} />
-                    Oldest First
-                  </div>
-                </SelectItem>
-                <SelectItem value="alphabetical">
-                  <div className="flex items-center gap-2">
-                    <SortAsc size={14} />
-                    A-Z
+                    <ImageIcon size={14} className="text-purple-500" />
+                    Photos
                   </div>
                 </SelectItem>
               </SelectContent>
             </Select>
 
-            <div className="flex-1" />
+            <Select value={topicFilter} onValueChange={setTopicFilter}>
+              <SelectTrigger className="w-36 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <SelectValue placeholder="Topic" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Topics</SelectItem>
+                {topics.map((topic, i) => {
+                  const color = getTopicColor(topic.id, i)
+                  return (
+                    <SelectItem key={topic.id} value={topic.id}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
+                        {topic.displayName}
+                      </div>
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}
+            >
+              <SelectTrigger className="w-32 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Approved">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 size={14} className="text-emerald-500" />
+                    Approved
+                  </div>
+                </SelectItem>
+                <SelectItem value="Draft">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={14} className="text-amber-500" />
+                    Draft
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+              <SelectTrigger className="w-36 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+                <ArrowUpDown size={14} className="mr-2 text-slate-400" />
+                <SelectValue placeholder="Sort" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="relevance">Relevance</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+                <SelectItem value="oldest">Oldest</SelectItem>
+                <SelectItem value="alphabetical">A-Z</SelectItem>
+              </SelectContent>
+            </Select>
 
             {isSearching && (
               <Loader2 className="w-5 h-5 animate-spin text-teal-500" />
             )}
+          </div>
 
+          {/* Results count */}
+          <div className="flex items-center justify-between">
             <p className="text-slate-500 dark:text-slate-400 text-sm">
               <span className="font-medium text-slate-700 dark:text-slate-300">{totalAnswers}</span> answers,{" "}
               <span className="font-medium text-slate-700 dark:text-slate-300">{totalPhotos}</span> photos
             </p>
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAllFilters}
+                className="text-slate-500 hover:text-slate-700 h-8 rounded-lg"
+              >
+                <X size={14} className="mr-1" />
+                Clear filters
+              </Button>
+            )}
           </div>
-
-          {/* Expanded Filters */}
-          {showFilters && (
-            <Card className="border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 shadow-[0_4px_12px_rgba(0,0,0,0.03),0_1px_3px_rgba(0,0,0,0.02)] rounded-2xl overflow-hidden animate-fade-in-up">
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-slate-900 dark:text-white text-[15px]">Filters</h3>
-                  {activeFilterCount > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearAllFilters}
-                      className="text-slate-500 hover:text-slate-700 h-8 rounded-lg"
-                    >
-                      <X size={14} className="mr-1" />
-                      Clear all
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
-                    <Select
-                      value={typeFilter}
-                      onValueChange={(v) => setTypeFilter(v as SearchItemType)}
-                    >
-                      <SelectTrigger className="bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white rounded-xl">
-                        <SelectValue placeholder="All Types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="answers">
-                          <div className="flex items-center gap-2">
-                            <FileText size={14} className="text-blue-500" />
-                            Answers Only
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="photos">
-                          <div className="flex items-center gap-2">
-                            <ImageIcon size={14} className="text-purple-500" />
-                            Photos Only
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Topic</label>
-                    <Select value={topicFilter} onValueChange={setTopicFilter}>
-                      <SelectTrigger className="bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white rounded-xl">
-                        <SelectValue placeholder="All Topics" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Topics</SelectItem>
-                        {topics.map((topic, i) => {
-                          const color = getTopicColor(topic.id, i)
-                          return (
-                            <SelectItem key={topic.id} value={topic.id}>
-                              <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
-                                {topic.displayName}
-                              </div>
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
-                    <Select
-                      value={statusFilter}
-                      onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}
-                    >
-                      <SelectTrigger className="bg-white dark:bg-slate-800 dark:border-slate-600 dark:text-white rounded-xl">
-                        <SelectValue placeholder="All Statuses" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        <SelectItem value="Approved">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                            Approved
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="Draft">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle size={14} className="text-amber-500" />
-                            Draft
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Active filter chips */}
-                {activeFilterCount > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    {typeFilter !== "all" && (
-                      <Badge
-                        variant="secondary"
-                        className="bg-blue-100 text-blue-700 cursor-pointer hover:bg-blue-200"
-                        onClick={() => setTypeFilter("all")}
-                      >
-                        {typeFilter === "answers" ? "Answers" : "Photos"}
-                        <X size={12} className="ml-1" />
-                      </Badge>
-                    )}
-                    {topicFilter !== "all" && (
-                      <Badge
-                        variant="secondary"
-                        className={`${getTopicColor(topicFilter, getTopicIndex(topicFilter)).bg} ${getTopicColor(topicFilter, getTopicIndex(topicFilter)).text} cursor-pointer hover:opacity-80`}
-                        onClick={() => setTopicFilter("all")}
-                      >
-                        {topics.find((t) => t.id === topicFilter)?.displayName}
-                        <X size={12} className="ml-1" />
-                      </Badge>
-                    )}
-                    {statusFilter !== "all" && (
-                      <Badge
-                        variant={statusFilter === "Approved" ? "success" : "warning"}
-                        className="cursor-pointer hover:opacity-80"
-                        onClick={() => setStatusFilter("all")}
-                      >
-                        {statusFilter}
-                        <X size={12} className="ml-1" />
-                      </Badge>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {/* Results - Two Column Layout */}
           <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -1053,8 +958,9 @@ export function SearchLibrary() {
                       />
                       <Badge
                         variant="secondary"
-                        className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
+                        className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border} flex items-center gap-1.5`}
                       >
+                        <FolderOpen size={12} />
                         {topic?.displayName || "Unknown"}
                       </Badge>
                       <span className="text-slate-500 dark:text-slate-400 text-sm">
@@ -1168,201 +1074,69 @@ export function SearchLibrary() {
                 </h2>
               </div>
 
-              {/* Top 10 Most Relevant Photos (when searching) */}
-              {searchQuery && sortedPhotos.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <Sparkles size={14} className="text-amber-500" />
-                    <span>Top results</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {sortedPhotos.slice(0, 10).map((photo) => {
-                      const topicColor = getTopicColor(photo.topicId, getTopicIndex(photo.topicId))
-                      return (
-                        <Card
-                          key={photo.id}
-                          className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-300 ease-out hover:-translate-y-0.5"
-                          onClick={() => setSelectedPhoto(photo)}
-                        >
-                          <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
-                            <img
-                              src={photosApi.getFileUrl(photo.storageKey)}
-                              alt={photo.displayTitle}
-                              className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none"
-                                e.currentTarget.nextElementSibling?.classList.remove("hidden")
-                              }}
-                            />
-                            <div className="hidden absolute inset-0 flex items-center justify-center">
-                              <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                            <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                className="w-full h-7 bg-white/95 backdrop-blur-sm hover:bg-white text-[10px] rounded-lg shadow-lg"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleDownload(photo)
-                                }}
-                              >
-                                <Download size={10} className="mr-1" />
-                                Download
-                              </Button>
-                            </div>
-                          </div>
-                          <div className="p-2">
-                            <p className="font-medium text-xs text-slate-900 dark:text-white truncate">
-                              {photo.displayTitle}
-                            </p>
-                            <div className="flex items-center gap-1 mt-1 flex-wrap">
-                              <Badge
-                                variant="secondary"
-                                className={`text-[9px] px-1 py-0 ${topicColor.bg} ${topicColor.text}`}
-                              >
-                                {topics.find((t) => t.id === photo.topicId)?.displayName || "Unknown"}
-                              </Badge>
-                              {photo.status === "Approved" ? (
-                                <Badge variant="success" className="text-[9px] px-1 py-0">Approved</Badge>
-                              ) : (
-                                <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Browse by Topic Section */}
+              {/* Photos Grid - Flat list sorted by relevance */}
               {sortedPhotos.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 pt-2">
-                    <Filter size={14} />
-                    <span>Browse by topic</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Photos - Grouped by Topic Accordions */}
-              {sortedPhotos.length > 0 && sortedPhotoTopicIds.map((topicId) => {
-                const topicPhotos = photosByTopic[topicId] || []
-                if (topicPhotos.length === 0) return null
-                const topic = topics.find(t => t.id === topicId)
-                const topicColor = getTopicColor(topicId, getTopicIndex(topicId))
-                const isExpanded = expandedPhotoTopics.has(topicId)
-                const limit = photoLimits[topicId] || ITEMS_PER_PAGE
-                const visiblePhotos = topicPhotos.slice(0, limit)
-                const hasMore = topicPhotos.length > limit
-                const remaining = topicPhotos.length - limit
-
-                return (
-                  <div key={topicId} className="rounded-2xl border border-slate-200/60 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
-                    {/* Accordion Header */}
-                    <button
-                      onClick={() => togglePhotoTopic(topicId)}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-                    >
-                      <ChevronRight
-                        size={16}
-                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-                      />
-                      <Badge
-                        variant="secondary"
-                        className={`text-xs ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
+                <div className="grid grid-cols-2 gap-2">
+                  {sortedPhotos.map((photo) => {
+                    const topicColor = getTopicColor(photo.topicId, getTopicIndex(photo.topicId))
+                    return (
+                      <Card
+                        key={photo.id}
+                        className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-300 ease-out hover:-translate-y-0.5"
+                        onClick={() => setSelectedPhoto(photo)}
                       >
-                        {topic?.displayName || "Unknown"}
-                      </Badge>
-                      <span className="text-slate-500 dark:text-slate-400 text-sm">
-                        ({topicPhotos.length})
-                      </span>
-                    </button>
-
-                    {/* Accordion Content */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-200/60 dark:border-slate-700">
-                        <div className="p-3">
-                          <div className="grid grid-cols-2 gap-2">
-                            {visiblePhotos.map((photo) => (
-                              <Card
-                                key={photo.id}
-                                className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-900 transition-all duration-300 ease-out hover:-translate-y-0.5"
-                                onClick={() => setSelectedPhoto(photo)}
-                              >
-                                <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
-                                  <img
-                                    src={photosApi.getFileUrl(photo.storageKey)}
-                                    alt={photo.displayTitle}
-                                    className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
-                                    onError={(e) => {
-                                      e.currentTarget.style.display = "none"
-                                      e.currentTarget.nextElementSibling?.classList.remove("hidden")
-                                    }}
-                                  />
-                                  <div className="hidden absolute inset-0 flex items-center justify-center">
-                                    <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
-                                  </div>
-                                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                  <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      className="w-full h-7 bg-white/95 backdrop-blur-sm hover:bg-white text-[10px] rounded-lg shadow-lg"
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDownload(photo)
-                                      }}
-                                    >
-                                      <Download size={10} className="mr-1" />
-                                      Download
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="p-2">
-                                  <p className="font-medium text-xs text-slate-900 dark:text-white truncate">
-                                    {photo.displayTitle}
-                                  </p>
-                                  <div className="flex items-center gap-1 mt-1 flex-wrap">
-                                    {photo.status === "Approved" ? (
-                                      <Badge variant="success" className="text-[9px] px-1 py-0">Approved</Badge>
-                                    ) : (
-                                      <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
-                                    )}
-                                    {photo.linkedAnswersCount != null && photo.linkedAnswersCount > 0 && (
-                                      <Badge variant="outline" className="text-[9px] px-1 py-0">
-                                        <Link2 size={7} className="mr-0.5" />
-                                        {photo.linkedAnswersCount}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </Card>
-                            ))}
+                        <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
+                          <img
+                            src={photosApi.getFileUrl(photo.storageKey)}
+                            alt={photo.displayTitle}
+                            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none"
+                              e.currentTarget.nextElementSibling?.classList.remove("hidden")
+                            }}
+                          />
+                          <div className="hidden absolute inset-0 flex items-center justify-center">
+                            <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
                           </div>
-                        </div>
-
-                        {/* Show More Button */}
-                        {hasMore && (
-                          <div className="px-3 pb-3">
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                          <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
                             <Button
-                              variant="outline"
+                              variant="secondary"
                               size="sm"
-                              onClick={() => showMorePhotos(topicId)}
-                              className="w-full h-8 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-xs"
+                              className="w-full h-7 bg-white/95 backdrop-blur-sm hover:bg-white text-[10px] rounded-lg shadow-lg"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDownload(photo)
+                              }}
                             >
-                              Show {Math.min(ITEMS_PER_PAGE, remaining)} more
+                              <Download size={10} className="mr-1" />
+                              Download
                             </Button>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                        </div>
+                        <div className="p-2">
+                          <p className="font-medium text-xs text-slate-900 dark:text-white truncate">
+                            {photo.displayTitle}
+                          </p>
+                          <div className="flex items-center gap-1 mt-1 flex-wrap">
+                            <Badge
+                              variant="secondary"
+                              className={`text-[9px] px-1 py-0 ${topicColor.bg} ${topicColor.text}`}
+                            >
+                              {topics.find((t) => t.id === photo.topicId)?.displayName || "Unknown"}
+                            </Badge>
+                            {photo.status === "Approved" ? (
+                              <Badge variant="success" className="text-[9px] px-1 py-0">Approved</Badge>
+                            ) : (
+                              <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                    )
+                  })}
+                </div>
+              )}
 
               {sortedPhotos.length === 0 && (
                 <div className="text-center py-14 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">

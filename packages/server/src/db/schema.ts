@@ -97,6 +97,48 @@ export const savedDocuments = pgTable("saved_documents", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Proposals (synced from Excel - Proposal Summary, ALL 5 sheets)
+export const proposals = pgTable("proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  date: timestamp("date", { withTimezone: true }),
+  ce: text("ce"), // Client Executive / Account Executive
+  client: text("client"), // Made nullable - some rows may not have client names
+  projectType: text("project_type"),
+  rfpNumber: text("rfp_number"),
+  won: text("won", { enum: ["Yes", "No", "Pending", "Cancelled"] }),
+  schoolType: text("school_type"), // e.g., "Community College", "University"
+  affiliation: text("affiliation"), // e.g., "Public", "Private", "Faith-Based"
+  servicesOffered: jsonb("services_offered").$type<string[]>().default([]), // Array of service names where X was marked
+  documentLinks: jsonb("document_links").$type<Record<string, string>>(), // Links to proposal docs
+  fingerprint: text("fingerprint").notNull().unique(), // for upsert deduplication
+  sourceRow: integer("source_row"), // Original Excel row number
+  // NEW: Multi-sheet support and full data capture
+  sheetName: text("sheet_name"), // Which sheet: Research, Creative & Brand, Digital Marketing, Website Redesign, PR
+  category: text("category"), // Normalized: research, creative, digital, website, pr
+  rawData: jsonb("raw_data").$type<Record<string, string>>(), // ALL cells from the row as key-value pairs
+  presentationDate: timestamp("presentation_date", { withTimezone: true }),
+  estimatedLaunchDate: timestamp("estimated_launch_date", { withTimezone: true }),
+  actualLaunchDate: timestamp("actual_launch_date", { withTimezone: true }),
+  cmsType: text("cms_type"), // For website proposals: WordPress, Drupal, etc.
+  websiteLink: text("website_link"), // Link to the actual website
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Proposal Sync Log (tracks file sync status)
+export const proposalSyncLog = pgTable("proposal_sync_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  filePath: text("file_path").notNull(),
+  fileMtime: timestamp("file_mtime", { withTimezone: true }).notNull(),
+  totalRows: integer("total_rows").notNull(),
+  imported: integer("imported").notNull(),
+  updated: integer("updated").notNull(),
+  skipped: integer("skipped").notNull(),
+  status: text("status", { enum: ["success", "partial", "failed"] }).notNull(),
+  errorMessage: text("error_message"),
+  syncedAt: timestamp("synced_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Audit Log
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -127,3 +169,7 @@ export type AuditLogEntry = typeof auditLog.$inferSelect
 export type NewAuditLogEntry = typeof auditLog.$inferInsert
 export type SavedDocument = typeof savedDocuments.$inferSelect
 export type NewSavedDocument = typeof savedDocuments.$inferInsert
+export type Proposal = typeof proposals.$inferSelect
+export type NewProposal = typeof proposals.$inferInsert
+export type ProposalSyncLogEntry = typeof proposalSyncLog.$inferSelect
+export type NewProposalSyncLogEntry = typeof proposalSyncLog.$inferInsert

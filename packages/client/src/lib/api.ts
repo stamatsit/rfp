@@ -522,6 +522,14 @@ export interface AnswerVersion {
 
 export const answersApi = {
   /**
+   * Get all answers (uses search API with no query)
+   */
+  async getAll(): Promise<AnswerResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/search/answers`)
+    return handleResponse<AnswerResponse[]>(response)
+  },
+
+  /**
    * Create a new answer entry
    */
   async create(data: CreateAnswerData): Promise<AnswerResponse> {
@@ -780,5 +788,77 @@ export const aiApi = {
       body: JSON.stringify(params),
     })
     return handleResponse<AIAdaptResponse>(response)
+  },
+}
+
+/**
+ * Proposal Insights API
+ * COMPLETELY ISOLATED from the Q&A library AI (aiApi)
+ */
+
+export interface ProposalInsightResponse {
+  response: string
+  dataUsed: {
+    totalProposals: number
+    dateRange: { from: string | null; to: string | null }
+    overallWinRate: number
+    wonCount: number
+    lostCount: number
+    pendingCount: number
+  }
+  followUpPrompts: string[]
+  refused: boolean
+  refusalReason?: string
+}
+
+export interface ProposalSyncStatus {
+  configured: boolean
+  filePath: string | null
+  fileExists: boolean
+  lastSync: string | null
+  lastSyncStatus: string | null
+  totalProposals: number
+}
+
+export interface ProposalSyncResult {
+  synced: boolean
+  message: string
+  result?: {
+    imported: number
+    updated: number
+    skipped: number
+  }
+}
+
+export const proposalInsightsApi = {
+  /**
+   * Query the Proposal Insights AI
+   * This AI ONLY analyzes proposal data - completely separate from the library AI
+   */
+  async query(query: string): Promise<ProposalInsightResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/proposals/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    })
+    return handleResponse<ProposalInsightResponse>(response)
+  },
+
+  /**
+   * Get sync status for proposal data
+   */
+  async getSyncStatus(): Promise<ProposalSyncStatus> {
+    const response = await fetchWithCredentials(`${API_BASE}/proposals/sync/status`)
+    return handleResponse<ProposalSyncStatus>(response)
+  },
+
+  /**
+   * Manually trigger a sync of proposal data
+   */
+  async triggerSync(): Promise<ProposalSyncResult> {
+    const response = await fetchWithCredentials(`${API_BASE}/proposals/sync/trigger`, {
+      method: "POST",
+    })
+    return handleResponse<ProposalSyncResult>(response)
   },
 }
