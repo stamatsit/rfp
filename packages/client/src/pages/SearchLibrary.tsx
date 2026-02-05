@@ -60,7 +60,6 @@ import {
   answersApi,
   type AnswerResponse,
   type PhotoResponse,
-  type AIQueryResponse,
   type AdaptationType,
   type AIAdaptResponse,
   type AnswerVersion,
@@ -127,21 +126,6 @@ export function SearchLibrary() {
   const [linkPickerSearch, setLinkPickerSearch] = useState("")
   const [linkPickerLoading, setLinkPickerLoading] = useState(false)
 
-  // AI state
-  const [showAI, setShowAI] = useState(false)
-  const [aiQuery, setAIQuery] = useState("")
-  const [aiResponse, setAIResponse] = useState<AIQueryResponse | null>(null)
-  const [aiLoading, setAILoading] = useState(false)
-
-  // AI response refinement state
-  const [showAIRefine, setShowAIRefine] = useState(false)
-  const [aiRefineType, setAIRefineType] = useState<AdaptationType>("shorten")
-  const [aiRefineOptions, setAIRefineOptions] = useState({
-    customInstruction: "",
-    targetWordCount: 100,
-  })
-  const [aiRefineResult, setAIRefineResult] = useState<AIAdaptResponse | null>(null)
-  const [isAIRefining, setIsAIRefining] = useState(false)
 
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null)
@@ -335,33 +319,6 @@ export function SearchLibrary() {
 
   const handleDownload = (photo: PhotoResponse) => {
     window.open(photosApi.getDownloadUrl(photo.id), "_blank")
-  }
-
-  const handleAskAI = async () => {
-    if (!aiQuery.trim()) return
-
-    setAILoading(true)
-    setAIResponse(null)
-
-    try {
-      const result = await aiApi.query({
-        query: aiQuery.trim(),
-        topicId: topicFilter !== "all" ? topicFilter : undefined,
-        maxSources: 5,
-      })
-      setAIResponse(result)
-    } catch (err) {
-      console.error("AI query failed:", err)
-      setAIResponse({
-        response: "",
-        sources: [],
-        photos: [],
-        refused: true,
-        refusalReason: "Failed to connect to AI service. Please try again.",
-      })
-    } finally {
-      setAILoading(false)
-    }
   }
 
   const openLinkPicker = async (type: "photo" | "answer", forId: string) => {
@@ -609,44 +566,6 @@ export function SearchLibrary() {
       targetWordCount: 100,
       clientName: "",
       industry: "",
-    })
-  }
-
-  const handleRefineAIResponse = async () => {
-    if (!aiResponse?.response) return
-
-    setIsAIRefining(true)
-    setAIRefineResult(null)
-
-    try {
-      const result = await aiApi.adapt({
-        content: aiResponse.response,
-        adaptationType: aiRefineType,
-        customInstruction: aiRefineType === "custom" ? aiRefineOptions.customInstruction : undefined,
-        targetWordCount: aiRefineType === "shorten" ? aiRefineOptions.targetWordCount : undefined,
-      })
-      setAIRefineResult(result)
-    } catch (err) {
-      console.error("AI response refinement failed:", err)
-      setAIRefineResult({
-        adaptedContent: "",
-        originalContent: aiResponse.response,
-        instruction: aiRefineType,
-        refused: true,
-        refusalReason: "Failed to refine response. Please try again.",
-      })
-    } finally {
-      setIsAIRefining(false)
-    }
-  }
-
-  const resetAIRefine = () => {
-    setShowAIRefine(false)
-    setAIRefineResult(null)
-    setAIRefineType("shorten")
-    setAIRefineOptions({
-      customInstruction: "",
-      targetWordCount: 100,
     })
   }
 
@@ -915,202 +834,6 @@ export function SearchLibrary() {
                         {statusFilter}
                         <X size={12} className="ml-1" />
                       </Badge>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* AI Panel */}
-          {showAI && (
-            <Card className="border-purple-200/60 dark:border-purple-900/60 bg-gradient-to-br from-purple-50/40 via-white to-blue-50/40 dark:from-purple-900/20 dark:via-slate-800 dark:to-blue-900/20 overflow-hidden shadow-[0_4px_20px_rgba(139,92,246,0.12)] rounded-2xl animate-fade-in-up">
-              <CardContent className="p-6 space-y-4">
-                <div className="flex items-center gap-3 mb-1">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: 'linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #3B82F6 100%)',
-                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.35), inset 0 1px 0 rgba(255,255,255,0.2)'
-                    }}
-                  >
-                    <Sparkles size={20} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-slate-900 dark:text-white text-[15px]">AI Assistant</p>
-                    <p className="text-slate-500 dark:text-slate-400 text-[13px]">Answers using only approved library content</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Input
-                    value={aiQuery}
-                    onChange={(e) => setAIQuery(e.target.value)}
-                    placeholder="Ask a question about your library content..."
-                    className="flex-1 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm h-12 text-[15px] border-purple-200/60 dark:border-purple-800 dark:text-white focus:border-purple-400"
-                    onKeyDown={(e) => e.key === "Enter" && handleAskAI()}
-                  />
-                  <Button
-                    onClick={handleAskAI}
-                    disabled={aiLoading}
-                    size="lg"
-                    variant="purple"
-                    className="h-12 px-6 rounded-xl shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
-                  >
-                    {aiLoading ? (
-                      <Loader2 size={18} className="animate-spin" />
-                    ) : (
-                      "Ask"
-                    )}
-                  </Button>
-                </div>
-
-                {aiResponse && (
-                  <div className="space-y-3 animate-fade-in-up">
-                    {aiResponse.refused ? (
-                      <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl">
-                        <p className="text-amber-800 dark:text-amber-200 text-sm">
-                          {aiResponse.refusalReason || "No approved content matches your question."}
-                        </p>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
-                          <p className="text-slate-700 dark:text-slate-300 text-sm leading-relaxed whitespace-pre-wrap">
-                            {aiRefineResult && !aiRefineResult.refused ? aiRefineResult.adaptedContent : aiResponse.response}
-                          </p>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs text-slate-500 dark:text-slate-400 flex-shrink-0">Sources:</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {aiResponse.sources.map((source) => (
-                                <Badge
-                                  key={source.id}
-                                  variant="outline"
-                                  className="cursor-pointer text-xs hover:bg-slate-100 dark:hover:bg-slate-700"
-                                  onClick={() => {
-                                    const answer = answers.find((a) => a.id === source.id)
-                                    if (answer) setSelectedAnswer(answer)
-                                  }}
-                                >
-                                  {source.question.slice(0, 30)}...
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          <div className="flex gap-2 flex-shrink-0">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                setShowAIRefine(!showAIRefine)
-                                if (showAIRefine) resetAIRefine()
-                              }}
-                              className={`h-8 rounded-lg ${showAIRefine ? "bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300" : ""}`}
-                            >
-                              <Wand2 size={14} />
-                              <span className="ml-1.5">Refine</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCopy(
-                                aiRefineResult && !aiRefineResult.refused ? aiRefineResult.adaptedContent : aiResponse.response,
-                                "ai-response"
-                              )}
-                              className="h-8 rounded-lg"
-                            >
-                              {copiedId === "ai-response" ? (
-                                <>
-                                  <Check size={14} className="text-emerald-500" />
-                                  <span className="ml-1.5 text-emerald-600">Copied</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy size={14} />
-                                  <span className="ml-1.5">Copy</span>
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        </div>
-
-                        {/* AI Response Refine Panel */}
-                        {showAIRefine && (
-                          <div className="p-4 bg-white dark:bg-slate-800 rounded-xl border border-purple-200 dark:border-purple-800 space-y-3 animate-fade-in-up">
-                            <div className="flex flex-wrap gap-2">
-                              {([
-                                { type: "shorten", label: "Shorten" },
-                                { type: "expand", label: "Expand" },
-                                { type: "bullets", label: "Bullets" },
-                                { type: "formal", label: "Formal" },
-                                { type: "casual", label: "Casual" },
-                                { type: "custom", label: "Custom" },
-                              ] as const).map(({ type, label }) => (
-                                <Button
-                                  key={type}
-                                  variant={aiRefineType === type ? "default" : "outline"}
-                                  size="sm"
-                                  onClick={() => setAIRefineType(type)}
-                                  className={`rounded-lg h-7 text-xs ${aiRefineType === type ? "bg-purple-600 hover:bg-purple-700" : ""}`}
-                                >
-                                  {label}
-                                </Button>
-                              ))}
-                            </div>
-
-                            {aiRefineType === "shorten" && (
-                              <div className="flex items-center gap-2">
-                                <Label htmlFor="ai-target-words" className="text-xs whitespace-nowrap">Target words:</Label>
-                                <Input
-                                  id="ai-target-words"
-                                  type="number"
-                                  value={aiRefineOptions.targetWordCount}
-                                  onChange={(e) => setAIRefineOptions({ ...aiRefineOptions, targetWordCount: parseInt(e.target.value) || 100 })}
-                                  className="h-8 w-24 text-sm rounded-lg"
-                                  min={25}
-                                  max={500}
-                                />
-                              </div>
-                            )}
-
-                            {aiRefineType === "custom" && (
-                              <Textarea
-                                value={aiRefineOptions.customInstruction}
-                                onChange={(e) => setAIRefineOptions({ ...aiRefineOptions, customInstruction: e.target.value })}
-                                placeholder="How should this be adapted?"
-                                className="rounded-lg min-h-[60px] text-sm"
-                              />
-                            )}
-
-                            <Button
-                              onClick={handleRefineAIResponse}
-                              disabled={isAIRefining || (aiRefineType === "custom" && !aiRefineOptions.customInstruction.trim())}
-                              size="sm"
-                              className="w-full rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                            >
-                              {isAIRefining ? (
-                                <>
-                                  <Loader2 size={14} className="mr-1.5 animate-spin" />
-                                  Refining...
-                                </>
-                              ) : (
-                                <>
-                                  <Sparkles size={14} className="mr-1.5" />
-                                  Apply
-                                </>
-                              )}
-                            </Button>
-
-                            {aiRefineResult?.refused && (
-                              <div className="p-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-                                <p className="text-amber-800 dark:text-amber-200 text-xs">{aiRefineResult.refusalReason}</p>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
                     )}
                   </div>
                 )}
