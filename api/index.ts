@@ -400,11 +400,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (query) {
             const scoredAnswers = allAnswers.map(answer => ({
               ...answer,
-              _score: scoreItem(answer.question, answer.answer, query)
+              _relevanceScore: scoreItem(answer.question, answer.answer, query)
             }))
-            scoredAnswers.sort((a, b) => b._score - a._score)
-            // Remove score from results and apply pagination
-            answerResults = scoredAnswers.slice(offset, offset + limit).map(({ _score, ...rest }) => rest)
+            scoredAnswers.sort((a, b) => b._relevanceScore - a._relevanceScore)
+            // Keep score in results for debugging, apply pagination
+            answerResults = scoredAnswers.slice(offset, offset + limit)
           } else {
             // No query = sort by date
             allAnswers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -450,11 +450,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (query) {
             const scoredPhotos = allPhotos.map(photo => ({
               ...photo,
-              _score: scoreItem(photo.displayTitle, (photo.description || '') + ' ' + photo.originalFilename, query)
+              _relevanceScore: scoreItem(photo.displayTitle, (photo.description || '') + ' ' + photo.originalFilename, query)
             }))
-            scoredPhotos.sort((a, b) => b._score - a._score)
-            // Remove score from results and apply pagination
-            photoResults = scoredPhotos.slice(offset, offset + limit).map(({ _score, ...rest }) => rest)
+            scoredPhotos.sort((a, b) => b._relevanceScore - a._relevanceScore)
+            // Keep score in results for debugging, apply pagination
+            photoResults = scoredPhotos.slice(offset, offset + limit)
           } else {
             // No query = sort by date
             allPhotos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
