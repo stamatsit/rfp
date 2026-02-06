@@ -296,20 +296,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Update last login
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id))
 
-        const avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
+        // Avatars are local-disk only — always null in serverless
         const newSessionToken = await createSession({
           authenticated: true,
           userId: user.id,
           userName: user.name,
           userEmail: user.email,
           mustChangePassword: user.mustChangePassword,
-          avatarUrl,
+          avatarUrl: null,
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({
           success: true,
           mustChangePassword: user.mustChangePassword,
-          user: { id: user.id, email: user.email, name: user.name, avatarUrl },
+          user: { id: user.id, email: user.email, name: user.name, avatarUrl: null },
         })
       }
 
@@ -325,22 +325,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // If session is missing userName (e.g. legacy token), look up from DB
         let userName = session.userName
         let userEmail = session.userEmail
-        let avatarUrl = session.avatarUrl || null
         if (!userName && session.userId && db) {
           const [dbUser] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
           if (dbUser) {
             userName = dbUser.name
             userEmail = dbUser.email
-            avatarUrl = dbUser.avatarUrl ? `/api/auth/avatar/${dbUser.id}` : null
           }
         }
+        // Avatars are local-disk only — always null in serverless
         return res.json({
           authenticated: true,
           user: {
             id: session.userId,
             email: userEmail || session.userEmail,
             name: userName || userEmail || "User",
-            avatarUrl,
+            avatarUrl: null,
           },
           mustChangePassword: session.mustChangePassword || false,
           loginTime: null,
