@@ -31,14 +31,865 @@ export interface ProposalInsightResult {
     lostCount: number
     pendingCount: number
     byCategory: { [key: string]: number }  // Proposals per category
+    // Phase 2: Advanced metrics
+    momentum: "accelerating" | "steady" | "decelerating"
+    rolling6Month: number
+    rolling12Month: number
+    yoyChange: number | null
   }
   followUpPrompts: string[]
+  // Phase 2: Strategic insights
+  recommendations: Recommendation[]
+  pendingScores: Array<{
+    client: string | null
+    category: string | null
+    probability: number
+    recommendation: string
+  }>
   refused: boolean
   refusalReason?: string
 }
 
 interface WinRateByDimension {
   [key: string]: { won: number; total: number; rate: number }
+}
+
+// ==================== PHASE 2: AI SUPERPOWERS ====================
+
+/**
+ * Advanced Analytics Interfaces
+ */
+interface TemporalAnalysis {
+  byQuarter: { [quarter: string]: { won: number; total: number; rate: number } }
+  byMonth: { [month: string]: { won: number; total: number; rate: number } }
+  yoyComparison: {
+    currentYear: { year: number; won: number; total: number; rate: number }
+    previousYear: { year: number; won: number; total: number; rate: number }
+    change: number
+  } | null
+  rolling6Month: number
+  rolling12Month: number
+  momentum: "accelerating" | "steady" | "decelerating"
+  momentumValue: number
+  bestQuarter: { quarter: string; rate: number; count: number } | null
+  worstQuarter: { quarter: string; rate: number; count: number } | null
+  bestMonth: { month: string; rate: number; count: number } | null
+  seasonalityPattern: string
+}
+
+interface CEDeepAnalysis {
+  [ceName: string]: {
+    winRate: number
+    totalProposals: number
+    wonCount: number
+    specializations: string[]
+    bestServices: string[]
+    trend: "improving" | "stable" | "declining"
+    recentWinRate: number
+  }
+}
+
+interface ServiceIntelligence {
+  tripleBundles: Array<{ services: string[]; count: number; winRate: number }>
+  sizeAnalysis: {
+    small: { label: string; count: number; winRate: number }
+    medium: { label: string; count: number; winRate: number }
+    large: { label: string; count: number; winRate: number }
+    optimalSize: string
+  }
+  emergingServices: string[]
+  decliningServices: string[]
+}
+
+interface AdvancedAnalytics {
+  temporal: TemporalAnalysis
+  ceDeep: CEDeepAnalysis
+  serviceIntel: ServiceIntelligence
+}
+
+interface WinProbability {
+  proposalId: string
+  client: string | null
+  category: string | null
+  probability: number
+  factors: {
+    baseRate: number
+    schoolTypeAdjustment: number
+    affiliationAdjustment: number
+    ceAdjustment: number
+    serviceAdjustment: number
+    categoryAdjustment: number
+  }
+  similarWins: Array<{ client: string; category: string; similarity: number }>
+  recommendation: "Strong opportunity" | "Good fit" | "Average" | "Challenging"
+}
+
+interface Recommendation {
+  priority: "high" | "medium" | "low"
+  category: "targeting" | "services" | "team" | "timing" | "process"
+  insight: string
+  action: string
+  expectedImpact: string
+  dataSupport: string
+}
+
+/**
+ * Calculate quarterly win rates
+ */
+function calculateQuarterlyRates(proposals: Proposal[]): { [quarter: string]: { won: number; total: number; rate: number } } {
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.date)
+  const byQuarter: { [quarter: string]: { won: number; total: number; rate: number } } = {}
+
+  for (const p of decided) {
+    const date = new Date(p.date!)
+    const year = date.getFullYear()
+    const quarter = Math.floor(date.getMonth() / 3) + 1
+    const key = `${year} Q${quarter}`
+
+    if (!byQuarter[key]) byQuarter[key] = { won: 0, total: 0, rate: 0 }
+    byQuarter[key].total++
+    if (p.won === "Yes") byQuarter[key].won++
+  }
+
+  for (const key of Object.keys(byQuarter)) {
+    const entry = byQuarter[key]
+    if (entry) {
+      entry.rate = entry.total > 0 ? entry.won / entry.total : 0
+    }
+  }
+
+  return byQuarter
+}
+
+/**
+ * Calculate monthly win rates
+ */
+function calculateMonthlyRates(proposals: Proposal[]): { [month: string]: { won: number; total: number; rate: number } } {
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.date)
+  const byMonth: { [month: string]: { won: number; total: number; rate: number } } = {}
+  const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+
+  for (const p of decided) {
+    const date = new Date(p.date!)
+    const monthIdx = date.getMonth()
+    const key = monthNames[monthIdx]
+    if (!key) continue
+
+    if (!byMonth[key]) byMonth[key] = { won: 0, total: 0, rate: 0 }
+    const entry = byMonth[key]
+    if (entry) {
+      entry.total++
+      if (p.won === "Yes") entry.won++
+    }
+  }
+
+  for (const key of Object.keys(byMonth)) {
+    const entry = byMonth[key]
+    if (entry) {
+      entry.rate = entry.total > 0 ? entry.won / entry.total : 0
+    }
+  }
+
+  return byMonth
+}
+
+/**
+ * Calculate year-over-year comparison
+ */
+function calculateYearOverYear(proposals: Proposal[]): TemporalAnalysis["yoyComparison"] {
+  const currentYear = new Date().getFullYear()
+  const previousYear = currentYear - 1
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.date)
+
+  const currentYearProposals = decided.filter((p) => new Date(p.date!).getFullYear() === currentYear)
+  const previousYearProposals = decided.filter((p) => new Date(p.date!).getFullYear() === previousYear)
+
+  if (previousYearProposals.length === 0) return null
+
+  const currentWon = currentYearProposals.filter((p) => p.won === "Yes").length
+  const previousWon = previousYearProposals.filter((p) => p.won === "Yes").length
+
+  const currentRate = currentYearProposals.length > 0 ? currentWon / currentYearProposals.length : 0
+  const previousRate = previousYearProposals.length > 0 ? previousWon / previousYearProposals.length : 0
+
+  return {
+    currentYear: { year: currentYear, won: currentWon, total: currentYearProposals.length, rate: currentRate },
+    previousYear: { year: previousYear, won: previousWon, total: previousYearProposals.length, rate: previousRate },
+    change: (currentRate - previousRate) * 100,
+  }
+}
+
+/**
+ * Calculate rolling win rates
+ */
+function calculateRollingRates(proposals: Proposal[]): { rolling6Month: number; rolling12Month: number } {
+  const now = new Date()
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
+
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.date)
+
+  const last6 = decided.filter((p) => new Date(p.date!) >= sixMonthsAgo)
+  const last12 = decided.filter((p) => new Date(p.date!) >= twelveMonthsAgo)
+
+  const won6 = last6.filter((p) => p.won === "Yes").length
+  const won12 = last12.filter((p) => p.won === "Yes").length
+
+  return {
+    rolling6Month: last6.length > 0 ? won6 / last6.length : 0,
+    rolling12Month: last12.length > 0 ? won12 / last12.length : 0,
+  }
+}
+
+/**
+ * Calculate momentum (last 3 months vs previous 3 months)
+ */
+function calculateMomentum(proposals: Proposal[]): { momentum: TemporalAnalysis["momentum"]; value: number } {
+  const now = new Date()
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1)
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.date)
+
+  const recent = decided.filter((p) => new Date(p.date!) >= threeMonthsAgo)
+  const previous = decided.filter((p) => {
+    const d = new Date(p.date!)
+    return d >= sixMonthsAgo && d < threeMonthsAgo
+  })
+
+  const recentWon = recent.filter((p) => p.won === "Yes").length
+  const previousWon = previous.filter((p) => p.won === "Yes").length
+
+  const recentRate = recent.length > 0 ? recentWon / recent.length : 0
+  const previousRate = previous.length > 0 ? previousWon / previous.length : 0
+
+  const diff = recentRate - previousRate
+
+  let momentum: TemporalAnalysis["momentum"]
+  if (diff > 0.05) momentum = "accelerating"
+  else if (diff < -0.05) momentum = "decelerating"
+  else momentum = "steady"
+
+  return { momentum, value: diff * 100 }
+}
+
+/**
+ * Find best/worst periods
+ */
+function findBestWorstPeriods(
+  byQuarter: { [q: string]: { won: number; total: number; rate: number } },
+  byMonth: { [m: string]: { won: number; total: number; rate: number } }
+): {
+  bestQuarter: TemporalAnalysis["bestQuarter"]
+  worstQuarter: TemporalAnalysis["worstQuarter"]
+  bestMonth: TemporalAnalysis["bestMonth"]
+} {
+  const quarters = Object.entries(byQuarter).filter(([_, v]) => v.total >= 3)
+  const months = Object.entries(byMonth).filter(([_, v]) => v.total >= 5)
+
+  const sortedQuarters = quarters.sort((a, b) => b[1].rate - a[1].rate)
+  const sortedMonths = months.sort((a, b) => b[1].rate - a[1].rate)
+
+  const bestQ = sortedQuarters[0]
+  const worstQ = sortedQuarters[sortedQuarters.length - 1]
+  const bestM = sortedMonths[0]
+
+  return {
+    bestQuarter: bestQ ? { quarter: bestQ[0], rate: bestQ[1].rate, count: bestQ[1].total } : null,
+    worstQuarter: worstQ ? { quarter: worstQ[0], rate: worstQ[1].rate, count: worstQ[1].total } : null,
+    bestMonth: bestM ? { month: bestM[0], rate: bestM[1].rate, count: bestM[1].total } : null,
+  }
+}
+
+/**
+ * Detect seasonality pattern
+ */
+function detectSeasonality(byMonth: { [m: string]: { won: number; total: number; rate: number } }): string {
+  const q1 = ["January", "February", "March"]
+  const q2 = ["April", "May", "June"]
+  const q3 = ["July", "August", "September"]
+  const q4 = ["October", "November", "December"]
+
+  const avgRate = (months: string[]) => {
+    const filtered = months.filter((m) => {
+      const entry = byMonth[m]
+      return entry && entry.total >= 3
+    })
+    if (filtered.length === 0) return 0
+    return filtered.reduce((sum, m) => {
+      const entry = byMonth[m]
+      return sum + (entry ? entry.rate : 0)
+    }, 0) / filtered.length
+  }
+
+  const rates = [
+    { q: "Q1", rate: avgRate(q1) },
+    { q: "Q2", rate: avgRate(q2) },
+    { q: "Q3", rate: avgRate(q3) },
+    { q: "Q4", rate: avgRate(q4) },
+  ].filter((r) => r.rate > 0)
+
+  if (rates.length < 2) return "Insufficient data for seasonality analysis"
+
+  const sorted = [...rates].sort((a, b) => b.rate - a.rate)
+  const strongest = sorted[0]
+  const weakest = sorted[sorted.length - 1]
+
+  if (!strongest || !weakest) return "Insufficient data for seasonality analysis"
+  if (strongest.rate - weakest.rate < 0.05) return "No significant seasonal pattern detected"
+
+  return `${strongest.q} strongest (${(strongest.rate * 100).toFixed(0)}%), ${weakest.q} weakest (${(weakest.rate * 100).toFixed(0)}%)`
+}
+
+/**
+ * Deep CE analysis
+ */
+function analyzeCEPerformance(proposals: Proposal[]): CEDeepAnalysis {
+  const decided = proposals.filter((p) => (p.won === "Yes" || p.won === "No") && p.ce)
+  const ceStats: CEDeepAnalysis = {}
+
+  // Calculate recent period (last 12 months)
+  const now = new Date()
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
+
+  // Group by CE
+  const byCE: { [ce: string]: Proposal[] } = {}
+  for (const p of decided) {
+    const ce = p.ce!
+    if (!byCE[ce]) byCE[ce] = []
+    byCE[ce]!.push(p)
+  }
+
+  for (const [ce, ceProposals] of Object.entries(byCE)) {
+    const wonCount = ceProposals.filter((p) => p.won === "Yes").length
+    const winRate = ceProposals.length > 0 ? wonCount / ceProposals.length : 0
+
+    // Recent performance
+    const recentProposals = ceProposals.filter((p) => p.date && new Date(p.date) >= twelveMonthsAgo)
+    const recentWon = recentProposals.filter((p) => p.won === "Yes").length
+    const recentWinRate = recentProposals.length > 0 ? recentWon / recentProposals.length : 0
+
+    // Specializations (school types they win most)
+    const schoolTypeWins: { [st: string]: number } = {}
+    const schoolTypeTotals: { [st: string]: number } = {}
+    for (const p of ceProposals) {
+      if (p.schoolType) {
+        schoolTypeTotals[p.schoolType] = (schoolTypeTotals[p.schoolType] || 0) + 1
+        if (p.won === "Yes") schoolTypeWins[p.schoolType] = (schoolTypeWins[p.schoolType] || 0) + 1
+      }
+    }
+    const specializations = Object.entries(schoolTypeTotals)
+      .filter(([st, total]) => total >= 3 && (schoolTypeWins[st] || 0) / total > winRate)
+      .sort((a, b) => ((schoolTypeWins[b[0]] || 0) / b[1]) - ((schoolTypeWins[a[0]] || 0) / a[1]))
+      .slice(0, 3)
+      .map(([st]) => st)
+
+    // Best services
+    const serviceWins: { [s: string]: number } = {}
+    const serviceTotals: { [s: string]: number } = {}
+    for (const p of ceProposals) {
+      for (const service of p.servicesOffered || []) {
+        serviceTotals[service] = (serviceTotals[service] || 0) + 1
+        if (p.won === "Yes") serviceWins[service] = (serviceWins[service] || 0) + 1
+      }
+    }
+    const bestServices = Object.entries(serviceTotals)
+      .filter(([s, total]) => total >= 3 && (serviceWins[s] || 0) / total > winRate)
+      .sort((a, b) => ((serviceWins[b[0]] || 0) / b[1]) - ((serviceWins[a[0]] || 0) / a[1]))
+      .slice(0, 3)
+      .map(([s]) => s)
+
+    // Trend
+    let trend: "improving" | "stable" | "declining" = "stable"
+    if (recentProposals.length >= 3) {
+      const diff = recentWinRate - winRate
+      if (diff > 0.05) trend = "improving"
+      else if (diff < -0.05) trend = "declining"
+    }
+
+    ceStats[ce] = {
+      winRate,
+      totalProposals: ceProposals.length,
+      wonCount,
+      specializations,
+      bestServices,
+      trend,
+      recentWinRate,
+    }
+  }
+
+  return ceStats
+}
+
+/**
+ * Calculate triple service bundles
+ */
+function calculateTripleBundles(proposals: Proposal[]): ServiceIntelligence["tripleBundles"] {
+  const bundleStats = new Map<string, { won: number; total: number }>()
+  const decided = proposals.filter((p) => p.won === "Yes" || p.won === "No")
+
+  for (const proposal of decided) {
+    const services = proposal.servicesOffered || []
+    if (services.length < 3) continue
+
+    const isWon = proposal.won === "Yes"
+
+    // Generate all triples
+    for (let i = 0; i < services.length; i++) {
+      for (let j = i + 1; j < services.length; j++) {
+        for (let k = j + 1; k < services.length; k++) {
+          const triple = [services[i], services[j], services[k]].sort().join(" + ")
+          if (!bundleStats.has(triple)) bundleStats.set(triple, { won: 0, total: 0 })
+          const stats = bundleStats.get(triple)!
+          stats.total++
+          if (isWon) stats.won++
+        }
+      }
+    }
+  }
+
+  return Array.from(bundleStats.entries())
+    .map(([key, stats]) => ({
+      services: key.split(" + "),
+      count: stats.total,
+      winRate: stats.total > 0 ? stats.won / stats.total : 0,
+    }))
+    .filter((b) => b.count >= 2)
+    .sort((a, b) => b.winRate - a.winRate)
+    .slice(0, 10)
+}
+
+/**
+ * Analyze proposal size (number of services)
+ */
+function analyzeProposalSize(proposals: Proposal[]): ServiceIntelligence["sizeAnalysis"] {
+  const decided = proposals.filter((p) => p.won === "Yes" || p.won === "No")
+
+  const small = decided.filter((p) => (p.servicesOffered || []).length <= 2)
+  const medium = decided.filter((p) => {
+    const len = (p.servicesOffered || []).length
+    return len >= 3 && len <= 5
+  })
+  const large = decided.filter((p) => (p.servicesOffered || []).length >= 6)
+
+  const calcRate = (arr: Proposal[]) => {
+    const won = arr.filter((p) => p.won === "Yes").length
+    return arr.length > 0 ? won / arr.length : 0
+  }
+
+  const smallData = { label: "1-2 services", count: small.length, winRate: calcRate(small) }
+  const mediumData = { label: "3-5 services", count: medium.length, winRate: calcRate(medium) }
+  const largeData = { label: "6+ services", count: large.length, winRate: calcRate(large) }
+
+  const rates = [smallData, mediumData, largeData]
+  const best = rates.filter((r) => r.count >= 5).sort((a, b) => b.winRate - a.winRate)[0]
+
+  return {
+    small: smallData,
+    medium: mediumData,
+    large: largeData,
+    optimalSize: best ? best.label : "Insufficient data",
+  }
+}
+
+/**
+ * Find emerging and declining services
+ */
+function analyzeServiceTrends(proposals: Proposal[]): { emerging: string[]; declining: string[] } {
+  const now = new Date()
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
+  const twentyFourMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 24, 1)
+
+  const recent = proposals.filter((p) => p.date && new Date(p.date) >= twelveMonthsAgo)
+  const previous = proposals.filter((p) => p.date && new Date(p.date) >= twentyFourMonthsAgo && new Date(p.date) < twelveMonthsAgo)
+
+  const countServices = (arr: Proposal[]) => {
+    const counts: { [s: string]: number } = {}
+    for (const p of arr) {
+      for (const s of p.servicesOffered || []) {
+        counts[s] = (counts[s] || 0) + 1
+      }
+    }
+    return counts
+  }
+
+  const recentCounts = countServices(recent)
+  const previousCounts = countServices(previous)
+
+  const allServices = new Set([...Object.keys(recentCounts), ...Object.keys(previousCounts)])
+
+  const emerging: string[] = []
+  const declining: string[] = []
+
+  for (const service of allServices) {
+    const recentPct = recent.length > 0 ? (recentCounts[service] || 0) / recent.length : 0
+    const previousPct = previous.length > 0 ? (previousCounts[service] || 0) / previous.length : 0
+
+    if (recentPct > previousPct * 1.5 && (recentCounts[service] || 0) >= 3) {
+      emerging.push(service)
+    } else if (previousPct > recentPct * 1.5 && (previousCounts[service] || 0) >= 3) {
+      declining.push(service)
+    }
+  }
+
+  return { emerging: emerging.slice(0, 5), declining: declining.slice(0, 5) }
+}
+
+/**
+ * Calculate all advanced analytics
+ */
+function calculateAdvancedAnalytics(proposals: Proposal[]): AdvancedAnalytics {
+  const byQuarter = calculateQuarterlyRates(proposals)
+  const byMonth = calculateMonthlyRates(proposals)
+  const yoyComparison = calculateYearOverYear(proposals)
+  const { rolling6Month, rolling12Month } = calculateRollingRates(proposals)
+  const { momentum, value: momentumValue } = calculateMomentum(proposals)
+  const { bestQuarter, worstQuarter, bestMonth } = findBestWorstPeriods(byQuarter, byMonth)
+  const seasonalityPattern = detectSeasonality(byMonth)
+
+  const temporal: TemporalAnalysis = {
+    byQuarter,
+    byMonth,
+    yoyComparison,
+    rolling6Month,
+    rolling12Month,
+    momentum,
+    momentumValue,
+    bestQuarter,
+    worstQuarter,
+    bestMonth,
+    seasonalityPattern,
+  }
+
+  const ceDeep = analyzeCEPerformance(proposals)
+
+  const tripleBundles = calculateTripleBundles(proposals)
+  const sizeAnalysis = analyzeProposalSize(proposals)
+  const { emerging: emergingServices, declining: decliningServices } = analyzeServiceTrends(proposals)
+
+  const serviceIntel: ServiceIntelligence = {
+    tripleBundles,
+    sizeAnalysis,
+    emergingServices,
+    decliningServices,
+  }
+
+  return { temporal, ceDeep, serviceIntel }
+}
+
+/**
+ * Score pending proposals for win probability
+ */
+function scorePendingProposals(proposals: Proposal[]): WinProbability[] {
+  const pending = proposals.filter((p) => p.won === "Pending" || !p.won)
+  const decided = proposals.filter((p) => p.won === "Yes" || p.won === "No")
+  const winRates = calculateWinRates(proposals)
+
+  const overall = winRates.overall
+
+  return pending.slice(0, 20).map((p) => {
+    let probability = overall * 100
+    const factors = {
+      baseRate: overall * 100,
+      schoolTypeAdjustment: 0,
+      affiliationAdjustment: 0,
+      ceAdjustment: 0,
+      serviceAdjustment: 0,
+      categoryAdjustment: 0,
+    }
+
+    // School type adjustment
+    if (p.schoolType) {
+      const stEntry = winRates.bySchoolType[p.schoolType]
+      if (stEntry) {
+        factors.schoolTypeAdjustment = (stEntry.rate - overall) * 100
+        probability += factors.schoolTypeAdjustment
+      }
+    }
+
+    // Affiliation adjustment
+    if (p.affiliation) {
+      const affEntry = winRates.byAffiliation[p.affiliation]
+      if (affEntry) {
+        factors.affiliationAdjustment = (affEntry.rate - overall) * 100
+        probability += factors.affiliationAdjustment
+      }
+    }
+
+    // CE adjustment
+    if (p.ce) {
+      const ceEntry = winRates.byCE[p.ce]
+      if (ceEntry) {
+        factors.ceAdjustment = (ceEntry.rate - overall) * 100
+        probability += factors.ceAdjustment
+      }
+    }
+
+    // Category adjustment
+    if (p.category) {
+      const catEntry = winRates.byCategory[p.category]
+      if (catEntry) {
+        factors.categoryAdjustment = (catEntry.rate - overall) * 100
+        probability += factors.categoryAdjustment
+      }
+    }
+
+    // Service combo adjustment (average of service rates)
+    if (p.servicesOffered && p.servicesOffered.length > 0) {
+      const serviceRates = p.servicesOffered
+        .map((s) => winRates.byService[s])
+        .filter((entry): entry is { won: number; total: number; rate: number } => entry !== undefined)
+        .map((entry) => entry.rate)
+      if (serviceRates.length > 0) {
+        const avgServiceRate = serviceRates.reduce((a, b) => a + b, 0) / serviceRates.length
+        factors.serviceAdjustment = (avgServiceRate - overall) * 100 * 0.5 // Weight at 50%
+        probability += factors.serviceAdjustment
+      }
+    }
+
+    // Clamp probability
+    probability = Math.max(5, Math.min(95, probability))
+
+    // Find similar past wins
+    const won = decided.filter((d) => d.won === "Yes")
+    const similarWins = won
+      .map((w) => {
+        let similarity = 0
+        if (w.schoolType === p.schoolType) similarity += 30
+        if (w.affiliation === p.affiliation) similarity += 20
+        if (w.category === p.category) similarity += 30
+        if (w.ce === p.ce) similarity += 10
+        const sharedServices = (p.servicesOffered || []).filter((s) => (w.servicesOffered || []).includes(s)).length
+        similarity += sharedServices * 5
+        return { client: w.client || "Unknown", category: w.category || "Unknown", similarity }
+      })
+      .filter((s) => s.similarity >= 50)
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 3)
+
+    let recommendation: WinProbability["recommendation"]
+    if (probability >= 40) recommendation = "Strong opportunity"
+    else if (probability >= 25) recommendation = "Good fit"
+    else if (probability >= 15) recommendation = "Average"
+    else recommendation = "Challenging"
+
+    return {
+      proposalId: p.id,
+      client: p.client,
+      category: p.category,
+      probability: Math.round(probability),
+      factors,
+      similarWins,
+      recommendation,
+    }
+  })
+}
+
+/**
+ * Search raw data fields (exported for potential API use)
+ */
+export function searchRawData(proposals: Proposal[], field: string, value?: string): Proposal[] {
+  return proposals.filter((p) => {
+    if (!p.rawData) return false
+    const rawData = typeof p.rawData === "string" ? JSON.parse(p.rawData) : p.rawData
+
+    if (!value) {
+      return Object.keys(rawData).some((k) => k.toLowerCase().includes(field.toLowerCase()))
+    }
+
+    return Object.entries(rawData).some(
+      ([k, v]) => k.toLowerCase().includes(field.toLowerCase()) && String(v).toLowerCase().includes(value.toLowerCase())
+    )
+  })
+}
+
+/**
+ * Get all available raw data fields
+ */
+function getAllRawDataFields(proposals: Proposal[]): string[] {
+  const allFields = new Set<string>()
+  for (const p of proposals) {
+    if (p.rawData) {
+      const raw = typeof p.rawData === "string" ? JSON.parse(p.rawData) : p.rawData
+      for (const key of Object.keys(raw)) {
+        allFields.add(key)
+      }
+    }
+  }
+  return Array.from(allFields).sort()
+}
+
+/**
+ * Detect if query wants raw data access
+ */
+function detectRawDataQuery(query: string): boolean {
+  const rawDataKeywords = [
+    "ttg",
+    "how did we get",
+    "presentation date",
+    "launch date",
+    "cms",
+    "wordpress",
+    "drupal",
+    "cascade",
+    "link to proposal",
+    "cost proposal",
+    "show me all",
+    "list all",
+    "find proposals where",
+    "raw data",
+    "all fields",
+    "what fields",
+    "columns",
+  ]
+  const lower = query.toLowerCase()
+  return rawDataKeywords.some((kw) => lower.includes(kw))
+}
+
+/**
+ * Generate strategic recommendations
+ */
+function generateRecommendations(proposals: Proposal[]): Recommendation[] {
+  const recommendations: Recommendation[] = []
+  const winRates = calculateWinRates(proposals)
+  const analytics = calculateAdvancedAnalytics(proposals)
+  const bundles = calculateServiceBundles(proposals)
+
+  // 1. Targeting recommendations - best school type
+  const schoolTypes = Object.entries(winRates.bySchoolType)
+    .filter(([_, v]) => v.total >= 5)
+    .sort((a, b) => b[1].rate - a[1].rate)
+
+  if (schoolTypes.length > 0) {
+    const best = schoolTypes[0]
+    if (best && best[1].rate > winRates.overall * 1.2) {
+      recommendations.push({
+        priority: "high",
+        category: "targeting",
+        insight: `${best[0]} wins at ${(best[1].rate * 100).toFixed(0)}% vs ${(winRates.overall * 100).toFixed(0)}% overall`,
+        action: `Prioritize ${best[0]} opportunities in your pipeline`,
+        expectedImpact: `+${((best[1].rate - winRates.overall) * 100).toFixed(0)} percentage points above average`,
+        dataSupport: `Based on ${best[1].total} proposals`,
+      })
+    }
+  }
+
+  // 2. Service bundle recommendations
+  if (bundles.length > 0) {
+    const bestBundle = bundles.sort((a, b) => b.winRate - a.winRate).find((b) => b.count >= 3 && b.winRate > winRates.overall * 1.3)
+    if (bestBundle) {
+      recommendations.push({
+        priority: "high",
+        category: "services",
+        insight: `"${bestBundle.services.join(" + ")}" bundle wins at ${(bestBundle.winRate * 100).toFixed(0)}%`,
+        action: `Actively propose this combination to appropriate clients`,
+        expectedImpact: `${((bestBundle.winRate - winRates.overall) * 100).toFixed(0)} points above average`,
+        dataSupport: `${bestBundle.count} proposals with this combination`,
+      })
+    }
+  }
+
+  // 3. Team recommendations - top CE
+  const ceEntries = Object.entries(analytics.ceDeep)
+    .filter(([_, v]) => v.totalProposals >= 5)
+    .sort((a, b) => b[1].winRate - a[1].winRate)
+
+  if (ceEntries.length > 0) {
+    const topEntry = ceEntries[0]
+    if (topEntry) {
+      const [topCE, stats] = topEntry
+      if (stats.specializations.length > 0) {
+        recommendations.push({
+          priority: "medium",
+          category: "team",
+          insight: `${topCE} excels with ${stats.specializations.slice(0, 2).join(", ")} (${(stats.winRate * 100).toFixed(0)}% win rate)`,
+          action: `Assign ${topCE} to matching opportunities`,
+          expectedImpact: `${((stats.winRate - winRates.overall) * 100).toFixed(0)} points above team average`,
+          dataSupport: `Based on ${stats.totalProposals} proposals`,
+        })
+      }
+    }
+  }
+
+  // 4. Timing recommendations
+  if (analytics.temporal.bestQuarter) {
+    recommendations.push({
+      priority: "medium",
+      category: "timing",
+      insight: `${analytics.temporal.bestQuarter.quarter} is your strongest quarter (${(analytics.temporal.bestQuarter.rate * 100).toFixed(0)}%)`,
+      action: `Front-load pipeline for this period`,
+      expectedImpact: `Seasonal advantage of ${((analytics.temporal.bestQuarter.rate - winRates.overall) * 100).toFixed(0)} points`,
+      dataSupport: `${analytics.temporal.bestQuarter.count} proposals in this period`,
+    })
+  }
+
+  // 5. Process recommendations based on momentum
+  if (analytics.temporal.momentum === "decelerating") {
+    recommendations.push({
+      priority: "high",
+      category: "process",
+      insight: `Win rate declining: ${(analytics.temporal.rolling6Month * 100).toFixed(0)}% (6mo) vs ${(analytics.temporal.rolling12Month * 100).toFixed(0)}% (12mo)`,
+      action: `Review recent losses for patterns, refresh proposal templates`,
+      expectedImpact: `Arrest declining trend before it worsens`,
+      dataSupport: `Momentum: ${analytics.temporal.momentumValue.toFixed(1)} percentage points`,
+    })
+  } else if (analytics.temporal.momentum === "accelerating") {
+    recommendations.push({
+      priority: "low",
+      category: "process",
+      insight: `Win rate improving: ${(analytics.temporal.rolling6Month * 100).toFixed(0)}% (6mo) vs ${(analytics.temporal.rolling12Month * 100).toFixed(0)}% (12mo)`,
+      action: `Document what's working and double down`,
+      expectedImpact: `Sustain positive momentum`,
+      dataSupport: `Momentum: +${analytics.temporal.momentumValue.toFixed(1)} percentage points`,
+    })
+  }
+
+  // 6. Affiliation recommendations
+  const affiliations = Object.entries(winRates.byAffiliation)
+    .filter(([_, v]) => v.total >= 5)
+    .sort((a, b) => b[1].rate - a[1].rate)
+
+  if (affiliations.length >= 2) {
+    const best = affiliations[0]
+    const worst = affiliations[affiliations.length - 1]
+    if (best && worst && best[1].rate - worst[1].rate > 0.1) {
+      recommendations.push({
+        priority: "medium",
+        category: "targeting",
+        insight: `${best[0]} institutions (${(best[1].rate * 100).toFixed(0)}%) outperform ${worst[0]} (${(worst[1].rate * 100).toFixed(0)}%)`,
+        action: `Focus marketing efforts on ${best[0]} prospects`,
+        expectedImpact: `${((best[1].rate - worst[1].rate) * 100).toFixed(0)} point advantage`,
+        dataSupport: `${best[1].total} ${best[0]} vs ${worst[1].total} ${worst[0]} proposals`,
+      })
+    }
+  }
+
+  // 7. Optimal proposal size
+  const { small, medium, large } = analytics.serviceIntel.sizeAnalysis
+  const sizes = [small, medium, large].filter((s) => s.count >= 5)
+  if (sizes.length >= 2) {
+    const sortedByBest = [...sizes].sort((a, b) => b.winRate - a.winRate)
+    const bestSize = sortedByBest[0]
+    const worstSize = sortedByBest[sortedByBest.length - 1]
+    if (bestSize && worstSize && bestSize.winRate - worstSize.winRate > 0.1) {
+      recommendations.push({
+        priority: "medium",
+        category: "services",
+        insight: `Proposals with ${bestSize.label} win at ${(bestSize.winRate * 100).toFixed(0)}% vs ${(worstSize.winRate * 100).toFixed(0)}% for ${worstSize.label}`,
+        action: `Aim for ${bestSize.label} when scoping proposals`,
+        expectedImpact: `${((bestSize.winRate - worstSize.winRate) * 100).toFixed(0)} point improvement`,
+        dataSupport: `${bestSize.count} proposals in optimal range`,
+      })
+    }
+  }
+
+  // Sort by priority and limit
+  return recommendations
+    .sort((a, b) => {
+      const priorityOrder = { high: 0, medium: 1, low: 2 }
+      return priorityOrder[a.priority] - priorityOrder[b.priority]
+    })
+    .slice(0, 6)
 }
 
 /**
@@ -126,7 +977,10 @@ function calculateWinRates(proposals: Proposal[]): {
   // Calculate rates
   const calculateRates = (dimension: WinRateByDimension) => {
     for (const key of Object.keys(dimension)) {
-      dimension[key].rate = dimension[key].total > 0 ? dimension[key].won / dimension[key].total : 0
+      const entry = dimension[key]
+      if (entry) {
+        entry.rate = entry.total > 0 ? entry.won / entry.total : 0
+      }
     }
   }
 
@@ -184,11 +1038,14 @@ function calculateServiceBundles(proposals: Proposal[]): Array<{
 }
 
 /**
- * Build rich context for the AI
+ * Build rich context for the AI (ENHANCED with Phase 2 superpowers)
  */
-function buildContext(proposals: Proposal[]): string {
+function buildContext(proposals: Proposal[], query: string = ""): string {
   const winRates = calculateWinRates(proposals)
   const bundles = calculateServiceBundles(proposals)
+  const analytics = calculateAdvancedAnalytics(proposals)
+  const pendingScores = scorePendingProposals(proposals)
+  const recommendations = generateRecommendations(proposals)
 
   // Date range
   const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
@@ -211,7 +1068,8 @@ function buildContext(proposals: Proposal[]): string {
     }
   })
 
-  return `
+  // Base context
+  let context = `
 PROPOSAL DATA SUMMARY:
 - Total Proposals: ${proposals.length}
 - Date Range: ${minDate?.toISOString().split("T")[0] || "N/A"} to ${maxDate?.toISOString().split("T")[0] || "N/A"}
@@ -246,6 +1104,58 @@ ${formatDimension(winRates.byYear) || "No data"}
 SERVICE BUNDLE ANALYSIS (pairs that appear together):
 ${bundles.map((b) => `- ${b.services.join(" + ")}: ${formatRate(b.winRate)} win rate (${b.count} proposals)`).join("\n") || "Not enough data"}
 
+===== ADVANCED ANALYTICS (PHASE 2) =====
+
+TEMPORAL TRENDS:
+- Rolling 6-month win rate: ${formatRate(analytics.temporal.rolling6Month)}
+- Rolling 12-month win rate: ${formatRate(analytics.temporal.rolling12Month)}
+- Momentum: ${analytics.temporal.momentum.toUpperCase()} (${analytics.temporal.momentumValue > 0 ? "+" : ""}${analytics.temporal.momentumValue.toFixed(1)} pts)
+${analytics.temporal.yoyComparison ? `- Year-over-Year: ${analytics.temporal.yoyComparison.currentYear.year} (${formatRate(analytics.temporal.yoyComparison.currentYear.rate)}) vs ${analytics.temporal.yoyComparison.previousYear.year} (${formatRate(analytics.temporal.yoyComparison.previousYear.rate)}) = ${analytics.temporal.yoyComparison.change > 0 ? "+" : ""}${analytics.temporal.yoyComparison.change.toFixed(1)} pts` : ""}
+${analytics.temporal.bestQuarter ? `- Best Quarter: ${analytics.temporal.bestQuarter.quarter} (${formatRate(analytics.temporal.bestQuarter.rate)}, ${analytics.temporal.bestQuarter.count} proposals)` : ""}
+${analytics.temporal.worstQuarter ? `- Weakest Quarter: ${analytics.temporal.worstQuarter.quarter} (${formatRate(analytics.temporal.worstQuarter.rate)}, ${analytics.temporal.worstQuarter.count} proposals)` : ""}
+${analytics.temporal.bestMonth ? `- Best Month: ${analytics.temporal.bestMonth.month} (${formatRate(analytics.temporal.bestMonth.rate)}, ${analytics.temporal.bestMonth.count} proposals)` : ""}
+- Seasonality: ${analytics.temporal.seasonalityPattern}
+
+QUARTERLY WIN RATES:
+${Object.entries(analytics.temporal.byQuarter)
+  .sort((a, b) => b[0].localeCompare(a[0]))
+  .slice(0, 8)
+  .map(([q, v]) => `- ${q}: ${formatRate(v.rate)} (${v.won}/${v.total})`)
+  .join("\n") || "No data"}
+
+ACCOUNT EXECUTIVE DEEP ANALYSIS:
+${Object.entries(analytics.ceDeep)
+  .sort((a, b) => b[1].totalProposals - a[1].totalProposals)
+  .slice(0, 8)
+  .map(([ce, stats]) =>
+    `- ${ce}: ${formatRate(stats.winRate)} overall (${stats.wonCount}/${stats.totalProposals}), Recent: ${formatRate(stats.recentWinRate)}, Trend: ${stats.trend}${stats.specializations.length > 0 ? `, Excels with: ${stats.specializations.join(", ")}` : ""}`
+  )
+  .join("\n") || "No data"}
+
+SERVICE INTELLIGENCE:
+- Optimal proposal size: ${analytics.serviceIntel.sizeAnalysis.optimalSize}
+- Small (1-2 services): ${formatRate(analytics.serviceIntel.sizeAnalysis.small.winRate)} (${analytics.serviceIntel.sizeAnalysis.small.count} proposals)
+- Medium (3-5 services): ${formatRate(analytics.serviceIntel.sizeAnalysis.medium.winRate)} (${analytics.serviceIntel.sizeAnalysis.medium.count} proposals)
+- Large (6+ services): ${formatRate(analytics.serviceIntel.sizeAnalysis.large.winRate)} (${analytics.serviceIntel.sizeAnalysis.large.count} proposals)
+${analytics.serviceIntel.emergingServices.length > 0 ? `- Emerging services (growing): ${analytics.serviceIntel.emergingServices.join(", ")}` : ""}
+${analytics.serviceIntel.decliningServices.length > 0 ? `- Declining services: ${analytics.serviceIntel.decliningServices.join(", ")}` : ""}
+
+TRIPLE SERVICE BUNDLES (high-performing combinations):
+${analytics.serviceIntel.tripleBundles.slice(0, 5).map((b) => `- ${b.services.join(" + ")}: ${formatRate(b.winRate)} (${b.count} proposals)`).join("\n") || "Not enough data"}
+
+PENDING PROPOSALS WITH WIN PROBABILITY:
+${pendingScores.slice(0, 10).map((p) =>
+  `- ${p.client || "Unknown"} (${p.category || "Unknown"}): ${p.probability}% - ${p.recommendation}${p.similarWins.length > 0 ? ` | Similar wins: ${p.similarWins.map(s => s.client).join(", ")}` : ""}`
+).join("\n") || "No pending proposals"}
+
+STRATEGIC RECOMMENDATIONS (auto-generated):
+${recommendations.map((r, i) =>
+  `${i + 1}. [${r.priority.toUpperCase()}] ${r.category}: ${r.insight}
+   → Action: ${r.action}
+   → Impact: ${r.expectedImpact}
+   → Data: ${r.dataSupport}`
+).join("\n\n") || "Insufficient data for recommendations"}
+
 RECENT PROPOSALS (last 15):
 ${proposals
   .slice(0, 15)
@@ -254,15 +1164,46 @@ ${proposals
       `- ${p.client || "Unknown client"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"} - ${(p.servicesOffered || []).slice(0, 3).join(", ") || "No services listed"}`
   )
   .join("\n")}
-`.trim()
+`
+
+  // Add raw data fields if query seems to want them
+  if (detectRawDataQuery(query)) {
+    const allFields = getAllRawDataFields(proposals)
+    context += `
+
+===== RAW DATA ACCESS =====
+
+AVAILABLE RAW DATA FIELDS (${allFields.length} fields):
+${allFields.slice(0, 50).join(", ")}${allFields.length > 50 ? "..." : ""}
+
+SAMPLE RAW DATA (first 3 proposals with raw data):
+${proposals
+  .filter((p) => p.rawData)
+  .slice(0, 3)
+  .map((p) => {
+    const raw = typeof p.rawData === "string" ? JSON.parse(p.rawData) : p.rawData
+    const entries = Object.entries(raw).slice(0, 10)
+    return `- ${p.client || "Unknown"}: ${entries.map(([k, v]) => `${k}="${String(v).substring(0, 30)}"`).join(", ")}`
+  })
+  .join("\n") || "No raw data available"}
+`
+  }
+
+  return context.trim()
 }
 
 /**
- * System prompt for proposal insights AI
+ * System prompt for proposal insights AI (ENHANCED with Phase 2 superpowers)
  */
 const SYSTEM_PROMPT = `You are a Proposal Analytics Assistant for a professional services company that provides marketing, research, and branding services to educational institutions.
 
-Your job is to analyze historical proposal data and provide actionable insights.
+Your job is to analyze historical proposal data and provide actionable insights. You have access to ADVANCED ANALYTICS including:
+- Temporal trends (quarterly, monthly, YoY, momentum, seasonality)
+- Deep account executive analysis (specializations, trends, performance)
+- Service intelligence (bundles, optimal proposal size, emerging/declining services)
+- Predictive scoring for pending proposals (win probability based on historical patterns)
+- Auto-generated strategic recommendations
+- Raw data access (all spreadsheet fields)
 
 CRITICAL RULES:
 1. ONLY use statistics from the provided data - NEVER make up numbers
@@ -273,6 +1214,16 @@ CRITICAL RULES:
 6. Use bullet points for clarity when listing multiple items
 7. Compare segments when relevant (e.g., "Community colleges win at 45% vs 30% for universities")
 8. Highlight notable patterns, outliers, or trends
+9. When discussing momentum or trends, explain what they mean practically
+10. For pending proposals, reference the win probability scores and similar past wins
+11. When giving recommendations, cite the auto-generated insights as supporting evidence
+
+SPECIAL CAPABILITIES:
+- If asked about trends/momentum, use the TEMPORAL TRENDS section
+- If asked about specific people/AEs, use the ACCOUNT EXECUTIVE DEEP ANALYSIS
+- If asked about pending deals, use PENDING PROPOSALS WITH WIN PROBABILITY
+- If asked for recommendations, use STRATEGIC RECOMMENDATIONS as a starting point
+- If asked about specific fields or raw data, use the RAW DATA ACCESS section
 
 RESPONSE FORMAT:
 Provide a clear, direct answer to the user's question. Use markdown formatting:
@@ -288,7 +1239,8 @@ FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 Make follow-ups:
 1. Contextual to what was just discussed
 2. Progressively deeper or lead to adjacent analysis
-3. At least one should lead toward actionable recommendations`
+3. At least one should lead toward actionable recommendations
+4. Consider suggesting predictive insights or trend analysis when relevant`
 
 /**
  * Parse follow-up prompts from AI response
@@ -296,7 +1248,7 @@ Make follow-ups:
 function parseFollowUpPrompts(response: string): { cleanResponse: string; prompts: string[] } {
   const followUpMatch = response.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
 
-  if (followUpMatch) {
+  if (followUpMatch && followUpMatch[1]) {
     try {
       const promptsJson = `[${followUpMatch[1]}]`
       const prompts = JSON.parse(promptsJson)
@@ -325,25 +1277,36 @@ function parseFollowUpPrompts(response: string): { cleanResponse: string; prompt
 }
 
 /**
- * Query the Proposal Insights AI
+ * Query the Proposal Insights AI (ENHANCED with Phase 2 superpowers)
  */
 export async function queryProposalInsights(query: string): Promise<ProposalInsightResult> {
   const openai = getOpenAI()
 
+  const emptyResult: ProposalInsightResult = {
+    response: "",
+    dataUsed: {
+      totalProposals: 0,
+      dateRange: { from: null, to: null },
+      overallWinRate: 0,
+      wonCount: 0,
+      lostCount: 0,
+      pendingCount: 0,
+      byCategory: {},
+      momentum: "steady",
+      rolling6Month: 0,
+      rolling12Month: 0,
+      yoyChange: null,
+    },
+    followUpPrompts: [],
+    recommendations: [],
+    pendingScores: [],
+    refused: true,
+    refusalReason: "",
+  }
+
   if (!openai) {
     return {
-      response: "",
-      dataUsed: {
-        totalProposals: 0,
-        dateRange: { from: null, to: null },
-        overallWinRate: 0,
-        wonCount: 0,
-        lostCount: 0,
-        pendingCount: 0,
-        byCategory: {},
-      },
-      followUpPrompts: [],
-      refused: true,
+      ...emptyResult,
       refusalReason: "AI service not configured. Please set OPENAI_API_KEY in your environment.",
     }
   }
@@ -354,33 +1317,25 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
 
     if (proposals.length === 0) {
       return {
-        response: "",
-        dataUsed: {
-          totalProposals: 0,
-          dateRange: { from: null, to: null },
-          overallWinRate: 0,
-          wonCount: 0,
-          lostCount: 0,
-          pendingCount: 0,
-          byCategory: {},
-        },
-        followUpPrompts: [],
-        refused: true,
+        ...emptyResult,
         refusalReason:
           "No proposal data found. Please configure PROPOSAL_SUMMARY_PATH and sync your Proposal Summary Excel file.",
       }
     }
 
-    // Build context
-    const context = buildContext(proposals)
+    // Build enhanced context with query for raw data detection
+    const context = buildContext(proposals, query)
     const winRates = calculateWinRates(proposals)
+    const analytics = calculateAdvancedAnalytics(proposals)
+    const pendingScores = scorePendingProposals(proposals)
+    const recommendations = generateRecommendations(proposals)
 
     // Date range for response
     const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
     const minDate = dates.length > 0 ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null
     const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null
 
-    // Call GPT-4o
+    // Call GPT-4o with enhanced context
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
@@ -394,7 +1349,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
         },
       ],
       temperature: 0.4,
-      max_tokens: 1500,
+      max_tokens: 2000, // Increased for more detailed responses
     })
 
     const rawResponse = completion.choices[0]?.message?.content || ""
@@ -418,26 +1373,28 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
         lostCount: winRates.lostCount,
         pendingCount: winRates.pendingCount,
         byCategory,
+        // Phase 2: Advanced metrics
+        momentum: analytics.temporal.momentum,
+        rolling6Month: analytics.temporal.rolling6Month,
+        rolling12Month: analytics.temporal.rolling12Month,
+        yoyChange: analytics.temporal.yoyComparison?.change ?? null,
       },
       followUpPrompts: prompts,
+      // Phase 2: Strategic insights
+      recommendations,
+      pendingScores: pendingScores.slice(0, 10).map((p) => ({
+        client: p.client,
+        category: p.category,
+        probability: p.probability,
+        recommendation: p.recommendation,
+      })),
       refused: false,
     }
   } catch (error) {
     console.error("Proposal AI query failed:", error)
 
     return {
-      response: "",
-      dataUsed: {
-        totalProposals: 0,
-        dateRange: { from: null, to: null },
-        overallWinRate: 0,
-        wonCount: 0,
-        lostCount: 0,
-        pendingCount: 0,
-        byCategory: {},
-      },
-      followUpPrompts: [],
-      refused: true,
+      ...emptyResult,
       refusalReason: "An error occurred while analyzing proposals. Please try again.",
     }
   }

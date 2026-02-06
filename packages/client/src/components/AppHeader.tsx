@@ -1,6 +1,8 @@
+import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { ChevronRight, Sparkles, HelpCircle, Sun, Moon, Settings } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
+import { SettingsPanel } from "./SettingsPanel"
 
 interface BreadcrumbItem {
   label: string
@@ -90,6 +92,7 @@ export function AppHeader({
   showAskAI = true,
 }: AppHeaderProps) {
   const location = useLocation()
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const isHomePage = location.pathname === "/"
   const currentPage = pageConfig[location.pathname]
   const displayTitle = title || currentPage?.title
@@ -197,20 +200,20 @@ export function AppHeader({
                 </button>
               </Link>
             )}
-            {location.pathname !== "/settings" && (
-              <Link to="/settings">
-                <button
-                  className="inline-flex items-center justify-center w-9 h-9
-                             text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
-                             rounded-xl
-                             transition-all duration-200 ease-out
-                             hover:bg-slate-100/80 dark:hover:bg-slate-800/80 active:scale-95"
-                  title="Settings"
-                >
-                  <Settings size={18} strokeWidth={1.75} />
-                </button>
-              </Link>
-            )}
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className={`inline-flex items-center justify-center w-9 h-9
+                         text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
+                         rounded-xl
+                         transition-all duration-200 ease-out
+                         hover:bg-slate-100/80 dark:hover:bg-slate-800/80 active:scale-95
+                         ${isSettingsOpen ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" : ""}`}
+              title="Settings"
+            >
+              <Settings size={18} strokeWidth={1.75} className={`transition-transform duration-300 ${isSettingsOpen ? "rotate-90" : ""}`} />
+            </button>
+
+            <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
             {showAskAI && location.pathname !== "/ai" && (
               <Link to="/ai">
                 <button
