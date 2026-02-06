@@ -12,6 +12,7 @@ import {
   TrendingUp,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { DashboardWidgets } from "@/components/DashboardWidgets"
 import { useAuth } from "@/contexts/AuthContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi } from "@/lib/api"
@@ -372,6 +373,10 @@ export function HomePage() {
       {/* Main Grid */}
       <main className="flex-1 px-6 pb-16">
         <div className="max-w-4xl mx-auto">
+          {/* Dashboard Widgets */}
+          <DashboardWidgets />
+
+          {/* Action Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
             {visibleCards.map((card) => (
               <Card key={card.id || card.to} {...card} />

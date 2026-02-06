@@ -29,6 +29,10 @@ import {
   Award,
   GripVertical,
   Keyboard,
+  BarChart3,
+  Clock,
+  LineChart,
+  Gauge,
 } from "lucide-react"
 
 // ============================================================================
@@ -127,8 +131,100 @@ interface TileSettings {
   order: number
 }
 
+// ============================================================================
+// Widget Types & Configurations
+// ============================================================================
+
+export type WidgetSize = "small" | "medium" | "large"
+
+export interface WidgetConfig {
+  id: string
+  type: WidgetType
+  title: string
+  description: string
+  icon: React.ReactNode
+  gradient: string
+  enabled: boolean
+  size: WidgetSize
+  order: number
+}
+
+export type WidgetType =
+  | "win-rate-chart"
+  | "recent-activity"
+  | "quick-stats"
+  | "trending-topics"
+  | "ai-suggestions"
+  | "proposal-momentum"
+
+interface WidgetSettings {
+  id: string
+  enabled: boolean
+  size: WidgetSize
+  order: number
+}
+
+const defaultWidgets: Omit<WidgetConfig, "enabled" | "order">[] = [
+  {
+    id: "win-rate-chart",
+    type: "win-rate-chart",
+    title: "Win Rate",
+    description: "Live win rate trend with animated chart",
+    icon: <LineChart size={18} />,
+    gradient: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
+    size: "medium",
+  },
+  {
+    id: "recent-activity",
+    type: "recent-activity",
+    title: "Recent Activity",
+    description: "Latest imports, edits, and searches",
+    icon: <Clock size={18} />,
+    gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
+    size: "medium",
+  },
+  {
+    id: "quick-stats",
+    type: "quick-stats",
+    title: "Quick Stats",
+    description: "At-a-glance library metrics",
+    icon: <BarChart3 size={18} />,
+    gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
+    size: "small",
+  },
+  {
+    id: "trending-topics",
+    type: "trending-topics",
+    title: "Trending Topics",
+    description: "Most searched and used topics",
+    icon: <TrendingUp size={18} />,
+    gradient: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
+    size: "small",
+  },
+  {
+    id: "ai-suggestions",
+    type: "ai-suggestions",
+    title: "AI Suggestions",
+    description: "Smart content recommendations",
+    icon: <Sparkles size={18} />,
+    gradient: "linear-gradient(135deg, #EC4899 0%, #DB2777 100%)",
+    size: "medium",
+  },
+  {
+    id: "proposal-momentum",
+    type: "proposal-momentum",
+    title: "Momentum",
+    description: "Proposal velocity and trends",
+    icon: <Gauge size={18} />,
+    gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 100%)",
+    size: "small",
+  },
+]
+
 interface AppSettings {
   tiles: TileSettings[]
+  widgets: WidgetSettings[]
+  widgetsEnabled: boolean
   theme: "light" | "dark" | "system"
   accentColor: string
   aiAutoSuggest: boolean
@@ -153,6 +249,8 @@ const SETTINGS_KEY = "stamats-app-settings"
 
 const defaultSettings: AppSettings = {
   tiles: defaultTiles.map((t, i) => ({ id: t.id, enabled: true, order: i })),
+  widgets: defaultWidgets.map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: i })),
+  widgetsEnabled: true,
   theme: "system",
   accentColor: "#3B82F6",
   aiAutoSuggest: true,
@@ -183,6 +281,7 @@ export function loadSettings(): AppSettings {
     const stored = localStorage.getItem(SETTINGS_KEY)
     if (stored) {
       const parsed = JSON.parse(stored)
+      // Merge tiles
       const tileIds = new Set(parsed.tiles?.map((t: { id: string }) => t.id) || [])
       const mergedTiles = [
         ...(parsed.tiles || []),
@@ -190,7 +289,15 @@ export function loadSettings(): AppSettings {
           .filter(t => !tileIds.has(t.id))
           .map((t, i) => ({ id: t.id, enabled: true, order: (parsed.tiles?.length || 0) + i }))
       ]
-      return { ...defaultSettings, ...parsed, tiles: mergedTiles }
+      // Merge widgets
+      const widgetIds = new Set(parsed.widgets?.map((w: { id: string }) => w.id) || [])
+      const mergedWidgets = [
+        ...(parsed.widgets || []),
+        ...defaultWidgets
+          .filter(w => !widgetIds.has(w.id))
+          .map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: (parsed.widgets?.length || 0) + i }))
+      ]
+      return { ...defaultSettings, ...parsed, tiles: mergedTiles, widgets: mergedWidgets }
     }
   } catch (e) {
     console.error("Failed to load settings:", e)
@@ -222,6 +329,28 @@ export function getVisibleTiles(): TileConfig[] {
     })
 }
 
+export function getVisibleWidgets(): WidgetConfig[] {
+  const settings = loadSettings()
+  if (!settings.widgetsEnabled) return []
+
+  return [...defaultWidgets]
+    .map(widget => {
+      const widgetSetting = settings.widgets.find(w => w.id === widget.id)
+      return {
+        ...widget,
+        enabled: widgetSetting?.enabled ?? true,
+        size: widgetSetting?.size ?? widget.size,
+        order: widgetSetting?.order ?? 999,
+      }
+    })
+    .filter(widget => widget.enabled)
+    .sort((a, b) => a.order - b.order)
+}
+
+export function getWidgetDefaults() {
+  return defaultWidgets
+}
+
 // ============================================================================
 // Accent Colors
 // ============================================================================
@@ -249,20 +378,14 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
       onClick={onChange}
       className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
         enabled
-          ? "bg-gradient-to-r from-green-400 to-green-500"
-          : "bg-white/20 dark:bg-white/10"
+          ? "bg-blue-500"
+          : "bg-slate-200 dark:bg-slate-600"
       }`}
-      style={{
-        boxShadow: enabled
-          ? "inset 0 1px 2px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.1)"
-          : "inset 0 1px 3px rgba(0,0,0,0.2), 0 0 0 1px rgba(255,255,255,0.05)"
-      }}
     >
       <div
-        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-lg transition-all duration-300 ${
+        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-all duration-300 ${
           enabled ? "left-[22px]" : "left-0.5"
         }`}
-        style={{ boxShadow: "0 2px 4px rgba(0,0,0,0.2), 0 0 0 1px rgba(0,0,0,0.05)" }}
       />
     </button>
   )
@@ -274,18 +397,15 @@ function SegmentedControl({ options, value, onChange }: {
   onChange: (value: string) => void
 }) {
   return (
-    <div className="flex rounded-lg p-0.5 gap-0.5" style={{
-      background: "rgba(255,255,255,0.1)",
-      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.1)"
-    }}>
+    <div className="flex rounded-lg p-0.5 gap-0.5 bg-slate-200 dark:bg-slate-700">
       {options.map(option => (
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
           className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-200 ${
             value === option.value
-              ? "bg-white/90 dark:bg-white/20 text-slate-900 dark:text-white shadow-sm"
-              : "text-white/60 hover:text-white/80"
+              ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
+              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
           }`}
         >
           {option.label}
@@ -357,42 +477,148 @@ function TrafficLights({ onClose }: { onClose: () => void }) {
   )
 }
 
-// ============================================================================
-// SVG Filter for Liquid Glass Distortion
-// ============================================================================
-
-function LiquidGlassFilter() {
-  return (
-    <svg width="0" height="0" style={{ position: 'absolute', overflow: 'hidden' }}>
-      <defs>
-        <filter id="liquid-glass-distortion" x="-10%" y="-10%" width="120%" height="120%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" seed="5" result="noise"/>
-          <feGaussianBlur in="noise" stdDeviation="1.5" result="blurred"/>
-          <feDisplacementMap in="SourceGraphic" in2="blurred" scale="8" xChannelSelector="R" yChannelSelector="G"/>
-        </filter>
-        <filter id="glass-glow">
-          <feGaussianBlur stdDeviation="20" result="blur"/>
-          <feComposite in="SourceGraphic" in2="blur" operator="over"/>
-        </filter>
-      </defs>
-    </svg>
-  )
-}
 
 // ============================================================================
 // Settings Categories
 // ============================================================================
 
-type SettingsCategory = "general" | "appearance" | "home" | "ai" | "accessibility" | "labs"
+type SettingsCategory = "general" | "appearance" | "home" | "widgets" | "ai" | "accessibility" | "labs"
 
 const categories = [
   { id: "general" as const, label: "General", icon: Monitor },
   { id: "appearance" as const, label: "Appearance", icon: Palette },
   { id: "home" as const, label: "Home Screen", icon: LayoutGrid },
+  { id: "widgets" as const, label: "Widgets", icon: BarChart3, badge: "New" },
   { id: "ai" as const, label: "AI", icon: Sparkles },
   { id: "accessibility" as const, label: "Accessibility", icon: Eye },
   { id: "labs" as const, label: "Labs", icon: Beaker },
 ]
+
+// ============================================================================
+// Widget Size Selector Component
+// ============================================================================
+
+function WidgetSizeSelector({ size, onChange }: { size: WidgetSize; onChange: (size: WidgetSize) => void }) {
+  const sizes: { value: WidgetSize; label: string; width: string }[] = [
+    { value: "small", label: "S", width: "w-6" },
+    { value: "medium", label: "M", width: "w-10" },
+    { value: "large", label: "L", width: "w-14" },
+  ]
+
+  return (
+    <div className="flex items-center gap-1.5">
+      {sizes.map(s => (
+        <button
+          key={s.value}
+          onClick={() => onChange(s.value)}
+          className={`h-6 ${s.width} rounded flex items-center justify-center text-[10px] font-bold transition-all duration-200 ${
+            size === s.value
+              ? "bg-blue-500 text-white shadow-sm"
+              : "bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-500"
+          }`}
+        >
+          {s.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+// ============================================================================
+// Widget Preview Component
+// ============================================================================
+
+function WidgetPreview({ widget, size }: { widget: Omit<WidgetConfig, "enabled" | "order">; size: WidgetSize }) {
+  const sizeClasses = {
+    small: "w-20 h-16",
+    medium: "w-32 h-20",
+    large: "w-44 h-24",
+  }
+
+  // Mini chart preview based on widget type
+  const renderPreview = () => {
+    switch (widget.type) {
+      case "win-rate-chart":
+        return (
+          <svg viewBox="0 0 60 30" className="w-full h-full opacity-80">
+            <path
+              d="M0 25 Q15 20, 20 22 T35 15 T50 18 T60 8"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-white/70"
+            />
+            <circle cx="60" cy="8" r="2" className="fill-white" />
+          </svg>
+        )
+      case "recent-activity":
+        return (
+          <div className="flex flex-col gap-1 w-full px-2">
+            {[0.9, 0.7, 0.5].map((opacity, i) => (
+              <div key={i} className="flex items-center gap-1.5" style={{ opacity }}>
+                <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
+                <div className="h-1 flex-1 rounded bg-white/40" />
+              </div>
+            ))}
+          </div>
+        )
+      case "quick-stats":
+        return (
+          <div className="flex gap-2 px-2">
+            {[1, 0.7, 0.5].map((h, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center justify-end">
+                <div className="w-full rounded-t bg-white/60" style={{ height: `${h * 20}px` }} />
+              </div>
+            ))}
+          </div>
+        )
+      case "trending-topics":
+        return (
+          <div className="flex items-end gap-1 px-2 h-full pb-1">
+            {[0.8, 1, 0.6, 0.9, 0.4].map((h, i) => (
+              <div key={i} className="flex-1 rounded-t bg-white/50" style={{ height: `${h * 100}%` }} />
+            ))}
+          </div>
+        )
+      case "ai-suggestions":
+        return (
+          <div className="flex items-center justify-center">
+            <Sparkles size={20} className="text-white/80 animate-pulse" />
+          </div>
+        )
+      case "proposal-momentum":
+        return (
+          <svg viewBox="0 0 40 40" className="w-8 h-8">
+            <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/30" />
+            <circle
+              cx="20" cy="20" r="16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="4"
+              strokeDasharray="75 25"
+              strokeLinecap="round"
+              className="text-white/90"
+              transform="rotate(-90 20 20)"
+            />
+          </svg>
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div
+      className={`${sizeClasses[size]} rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300`}
+      style={{ background: widget.gradient }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
+      <div className="relative w-full h-full flex items-center justify-center p-2">
+        {renderPreview()}
+      </div>
+    </div>
+  )
+}
 
 // ============================================================================
 // Main Settings Panel Component
@@ -570,14 +796,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
   return createPortal(
     <>
-      <LiquidGlassFilter />
-
       {/* Backdrop */}
       <div
         className={`fixed inset-0 z-[998] transition-opacity duration-300 ${
           isAnimatingIn ? "opacity-100" : "opacity-0"
         }`}
-        style={{ background: "rgba(0,0,0,0.2)" }}
+        style={{ background: "rgba(0,0,0,0.4)" }}
         onClick={onClose}
       />
 
@@ -600,52 +824,24 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         }}
         onMouseDown={handleMouseDown}
       >
-        {/* Liquid Glass Container */}
+        {/* Clean Panel Container */}
         <div
-          className="relative w-full h-full rounded-2xl overflow-hidden"
+          className="relative w-full h-full rounded-xl overflow-hidden bg-white dark:bg-slate-900"
           style={{
-            // Liquid glass effect
-            background: "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)",
-            backdropFilter: "blur(40px) saturate(180%)",
-            WebkitBackdropFilter: "blur(40px) saturate(180%)",
             boxShadow: `
-              0 0 0 0.5px rgba(255,255,255,0.4),
-              0 0 0 1px rgba(255,255,255,0.1),
-              0 25px 50px -12px rgba(0,0,0,0.4),
-              0 12px 24px -8px rgba(0,0,0,0.3),
-              inset 0 1px 1px rgba(255,255,255,0.4),
-              inset 0 -1px 1px rgba(0,0,0,0.1)
+              0 0 0 1px rgba(0,0,0,0.08),
+              0 4px 6px -1px rgba(0,0,0,0.1),
+              0 20px 40px -8px rgba(0,0,0,0.25)
             `,
           }}
         >
-          {/* Inner highlight layer */}
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.05) 100%)",
-            }}
-          />
-
-          {/* Refraction shimmer effect */}
-          <div
-            className="absolute inset-0 rounded-2xl pointer-events-none opacity-30"
-            style={{
-              background: "linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.2) 50%, transparent 70%)",
-              animation: "shimmer 3s ease-in-out infinite",
-            }}
-          />
-
           {/* Title Bar */}
           <div
-            className="panel-titlebar h-12 flex items-center px-4 cursor-grab active:cursor-grabbing"
-            style={{
-              background: "linear-gradient(180deg, rgba(255,255,255,0.1) 0%, transparent 100%)",
-              borderBottom: "1px solid rgba(255,255,255,0.1)",
-            }}
+            className="panel-titlebar h-12 flex items-center px-4 cursor-grab active:cursor-grabbing bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700"
           >
             <TrafficLights onClose={onClose} />
             <div className="flex-1 text-center">
-              <span className="text-[13px] font-semibold text-white/80 drop-shadow-sm">
+              <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
                 Settings
               </span>
             </div>
@@ -655,31 +851,30 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           {/* Content */}
           <div className="flex h-[calc(100%-48px)]">
             {/* Sidebar */}
-            <div
-              className="w-48 p-3 flex flex-col gap-1"
-              style={{
-                background: "rgba(0,0,0,0.1)",
-                borderRight: "1px solid rgba(255,255,255,0.08)",
-              }}
-            >
+            <div className="w-48 p-3 flex flex-col gap-1 bg-slate-50 dark:bg-slate-800/50 border-r border-slate-200 dark:border-slate-700">
               {categories.map(cat => {
                 const Icon = cat.icon
                 const isActive = activeCategory === cat.id
+                const badge = 'badge' in cat ? cat.badge : (cat.id === "labs" ? "New" : null)
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 ${
                       isActive
-                        ? "bg-white/20 text-white"
-                        : "text-white/60 hover:text-white/80 hover:bg-white/10"
+                        ? "bg-blue-500 text-white shadow-sm"
+                        : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50"
                     }`}
                   >
-                    <Icon size={16} className={isActive ? "text-white" : ""} />
+                    <Icon size={16} />
                     <span className="text-[13px] font-medium">{cat.label}</span>
-                    {cat.id === "labs" && (
-                      <span className="ml-auto px-1.5 py-0.5 text-[9px] font-bold uppercase bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full">
-                        New
+                    {badge && (
+                      <span className={`ml-auto px-1.5 py-0.5 text-[9px] font-bold uppercase text-white rounded-full ${
+                        cat.id === "widgets"
+                          ? "bg-gradient-to-r from-blue-500 to-indigo-500"
+                          : "bg-gradient-to-r from-purple-500 to-pink-500"
+                      }`}>
+                        {badge}
                       </span>
                     )}
                   </button>
@@ -688,12 +883,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar">
+            <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
               {/* General Settings */}
               {activeCategory === "general" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Theme</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Theme</h3>
                     <div className="flex gap-2">
                       {themeOptions.map(option => {
                         const Icon = option.icon
@@ -702,14 +897,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <button
                             key={option.value}
                             onClick={() => updateSetting("theme", option.value)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 ${
+                            className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl transition-all duration-200 border ${
                               isActive
-                                ? "bg-white/25 text-white"
-                                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80"
+                                ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-400"
+                                : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
                             }`}
-                            style={isActive ? {
-                              boxShadow: "inset 0 1px 1px rgba(255,255,255,0.2), 0 0 0 1px rgba(255,255,255,0.1)"
-                            } : {}}
                           >
                             <Icon size={16} />
                             <span className="text-[13px] font-medium">{option.label}</span>
@@ -720,19 +912,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Sound & Feedback</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Sound & Feedback</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          {settings.soundEnabled ? <Volume2 size={16} className="text-white/60" /> : <VolumeX size={16} className="text-white/60" />}
-                          <span className="text-[13px] text-white/80">Sound Effects</span>
+                          {settings.soundEnabled ? <Volume2 size={16} className="text-slate-500 dark:text-slate-400" /> : <VolumeX size={16} className="text-slate-500 dark:text-slate-400" />}
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Sound Effects</span>
                         </div>
                         <Toggle enabled={settings.soundEnabled} onChange={() => updateSetting("soundEnabled", !settings.soundEnabled)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Check size={16} className="text-white/60" />
-                          <span className="text-[13px] text-white/80">Copy Confirmations</span>
+                          <Check size={16} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Copy Confirmations</span>
                         </div>
                         <Toggle enabled={settings.showCopyConfirmation} onChange={() => updateSetting("showCopyConfirmation", !settings.showCopyConfirmation)} />
                       </div>
@@ -740,13 +932,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Keyboard</h3>
-                    <button className="flex items-center justify-between w-full p-3 rounded-xl bg-white/5 hover:bg-white/10 transition-colors">
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Keyboard</h3>
+                    <button className="flex items-center justify-between w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                       <div className="flex items-center gap-3">
-                        <Keyboard size={16} className="text-white/60" />
-                        <span className="text-[13px] text-white/80">Keyboard Shortcuts</span>
+                        <Keyboard size={16} className="text-slate-500 dark:text-slate-400" />
+                        <span className="text-[13px] text-slate-700 dark:text-slate-300">Keyboard Shortcuts</span>
                       </div>
-                      <span className="text-[12px] text-white/40">View all</span>
+                      <span className="text-[12px] text-slate-400 dark:text-slate-500">View all</span>
                     </button>
                   </div>
                 </div>
@@ -756,7 +948,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "appearance" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Accent Color</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Accent Color</h3>
                     <div className="grid grid-cols-5 gap-2">
                       {accentColors.map(color => {
                         const isActive = settings.accentColor === color.value
@@ -769,9 +961,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           >
                             <div
                               className={`aspect-square rounded-xl transition-all duration-200 ${
-                                isActive ? "scale-105 ring-2 ring-white/50 ring-offset-2 ring-offset-transparent" : "hover:scale-105"
+                                isActive ? "scale-105 ring-2 ring-offset-2 ring-offset-white dark:ring-offset-slate-900" : "hover:scale-105"
                               }`}
-                              style={{ background: `linear-gradient(135deg, ${color.value}, ${color.value}cc)` }}
+                              style={{
+                                background: `linear-gradient(135deg, ${color.value}, ${color.value}cc)`,
+                                ...(isActive ? { boxShadow: `0 0 0 2px ${color.value}` } : {})
+                              }}
                             >
                               {isActive && (
                                 <div className="absolute inset-0 flex items-center justify-center">
@@ -779,7 +974,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                               )}
                             </div>
-                            <p className={`text-[10px] text-center mt-1.5 ${isActive ? "text-white" : "text-white/40"}`}>
+                            <p className={`text-[10px] text-center mt-1.5 ${isActive ? "text-slate-700 dark:text-slate-300 font-medium" : "text-slate-400 dark:text-slate-500"}`}>
                               {color.name}
                             </p>
                           </button>
@@ -789,11 +984,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Typography</h3>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Typography</h3>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
-                        <Type size={16} className="text-white/60" />
-                        <span className="text-[13px] text-white/80">Font Size</span>
+                        <Type size={16} className="text-slate-500 dark:text-slate-400" />
+                        <span className="text-[13px] text-slate-700 dark:text-slate-300">Font Size</span>
                       </div>
                       <SegmentedControl
                         options={[{ value: "small", label: "S" }, { value: "medium", label: "M" }, { value: "large", label: "L" }]}
@@ -804,19 +999,19 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Display</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Display</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Maximize2 size={16} className="text-white/60" />
-                          <span className="text-[13px] text-white/80">High Contrast</span>
+                          <Maximize2 size={16} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">High Contrast</span>
                         </div>
                         <Toggle enabled={settings.highContrast} onChange={() => updateSetting("highContrast", !settings.highContrast)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Zap size={16} className="text-white/60" />
-                          <span className="text-[13px] text-white/80">Reduce Motion</span>
+                          <Zap size={16} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Reduce Motion</span>
                         </div>
                         <Toggle enabled={settings.reduceMotion} onChange={() => updateSetting("reduceMotion", !settings.reduceMotion)} />
                       </div>
@@ -829,8 +1024,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "home" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider">Tiles</h3>
-                    <span className="text-[11px] text-white/40">Drag to reorder</span>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tiles</h3>
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500">Drag to reorder</span>
                   </div>
                   <div className="space-y-2">
                     {orderedTiles.map(tile => (
@@ -842,13 +1037,15 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         onDragLeave={() => setDragOverTile(null)}
                         onDrop={(e) => handleTileDrop(e, tile.id)}
                         onDragEnd={() => { setDraggedTile(null); setDragOverTile(null) }}
-                        className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 ${
+                        className={`flex items-center gap-3 p-3 rounded-xl transition-all duration-200 border ${
                           draggedTile === tile.id ? "opacity-50" : ""
                         } ${
-                          dragOverTile === tile.id ? "bg-white/20 ring-1 ring-white/30" : "bg-white/5 hover:bg-white/10"
+                          dragOverTile === tile.id
+                            ? "bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700"
+                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                         }`}
                       >
-                        <div className="cursor-grab active:cursor-grabbing text-white/30 hover:text-white/50">
+                        <div className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500">
                           <GripVertical size={14} />
                         </div>
                         <div
@@ -858,7 +1055,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <div className="text-white scale-75">{tile.icon}</div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-medium text-white/90">{tile.title}</p>
+                          <p className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{tile.title}</p>
                         </div>
                         <Toggle
                           enabled={tileStates[tile.id] ?? true}
@@ -870,16 +1067,152 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 </div>
               )}
 
+              {/* Widgets Settings */}
+              {activeCategory === "widgets" && (
+                <div className="space-y-6">
+                  {/* Master Toggle */}
+                  <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center">
+                        <BarChart3 size={20} className="text-white" />
+                      </div>
+                      <div>
+                        <p className="text-[14px] font-semibold text-slate-800 dark:text-white">Dashboard Widgets</p>
+                        <p className="text-[12px] text-slate-500 dark:text-slate-400">Show widgets on home screen</p>
+                      </div>
+                    </div>
+                    <Toggle
+                      enabled={settings.widgetsEnabled}
+                      onChange={() => updateSetting("widgetsEnabled", !settings.widgetsEnabled)}
+                    />
+                  </div>
+
+                  {/* Widget List */}
+                  <div className={`space-y-4 transition-opacity duration-300 ${settings.widgetsEnabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Available Widgets</h3>
+                      <span className="text-[11px] text-slate-400 dark:text-slate-500">Drag to reorder</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[...defaultWidgets]
+                        .map(widget => {
+                          const widgetSetting = settings.widgets.find(w => w.id === widget.id)
+                          return { ...widget, enabled: widgetSetting?.enabled ?? true, size: widgetSetting?.size ?? widget.size, order: widgetSetting?.order ?? 999 }
+                        })
+                        .sort((a, b) => a.order - b.order)
+                        .map(widget => (
+                          <div
+                            key={widget.id}
+                            draggable
+                            onDragStart={(e) => {
+                              e.dataTransfer.setData("widget-id", widget.id)
+                              e.dataTransfer.effectAllowed = "move"
+                            }}
+                            onDragOver={(e) => e.preventDefault()}
+                            onDrop={(e) => {
+                              e.preventDefault()
+                              const draggedId = e.dataTransfer.getData("widget-id")
+                              if (draggedId && draggedId !== widget.id) {
+                                const currentOrder = [...defaultWidgets]
+                                  .map(w => {
+                                    const ws = settings.widgets.find(s => s.id === w.id)
+                                    return { id: w.id, order: ws?.order ?? 999 }
+                                  })
+                                  .sort((a, b) => a.order - b.order)
+                                  .map(w => w.id)
+                                const draggedIndex = currentOrder.indexOf(draggedId)
+                                const targetIndex = currentOrder.indexOf(widget.id)
+                                const newOrder = [...currentOrder]
+                                newOrder.splice(draggedIndex, 1)
+                                newOrder.splice(targetIndex, 0, draggedId)
+                                const newWidgets = settings.widgets.map(w => ({
+                                  ...w,
+                                  order: newOrder.indexOf(w.id)
+                                }))
+                                updateSetting("widgets", newWidgets)
+                              }
+                            }}
+                            className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing"
+                          >
+                            {/* Drag Handle */}
+                            <div className="text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500">
+                              <GripVertical size={14} />
+                            </div>
+
+                            {/* Widget Preview */}
+                            <WidgetPreview widget={widget} size={widget.size} />
+
+                            {/* Widget Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">{widget.title}</p>
+                              </div>
+                              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{widget.description}</p>
+
+                              {/* Size Selector */}
+                              <div className="mt-3">
+                                <WidgetSizeSelector
+                                  size={widget.size}
+                                  onChange={(newSize) => {
+                                    const newWidgets = settings.widgets.map(w =>
+                                      w.id === widget.id ? { ...w, size: newSize } : w
+                                    )
+                                    updateSetting("widgets", newWidgets)
+                                  }}
+                                />
+                              </div>
+                            </div>
+
+                            {/* Enable Toggle */}
+                            <Toggle
+                              enabled={widget.enabled}
+                              onChange={() => {
+                                const newWidgets = settings.widgets.map(w =>
+                                  w.id === widget.id ? { ...w, enabled: !w.enabled } : w
+                                )
+                                updateSetting("widgets", newWidgets)
+                              }}
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  {/* Preview Section */}
+                  <div className={`transition-opacity duration-300 ${settings.widgetsEnabled ? "opacity-100" : "opacity-40"}`}>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Preview</h3>
+                    <div className="p-4 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700">
+                      <div className="flex flex-wrap gap-3">
+                        {[...defaultWidgets]
+                          .map(widget => {
+                            const widgetSetting = settings.widgets.find(w => w.id === widget.id)
+                            return { ...widget, enabled: widgetSetting?.enabled ?? true, size: widgetSetting?.size ?? widget.size, order: widgetSetting?.order ?? 999 }
+                          })
+                          .filter(w => w.enabled)
+                          .sort((a, b) => a.order - b.order)
+                          .map(widget => (
+                            <WidgetPreview key={widget.id} widget={widget} size={widget.size} />
+                          ))}
+                        {settings.widgets.filter(w => w.enabled).length === 0 && (
+                          <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No widgets enabled</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* AI Settings */}
               {activeCategory === "ai" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Responses</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Responses</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Zap size={16} className="text-white/60" />
-                          <span className="text-[13px] text-white/80">Response Length</span>
+                          <Zap size={16} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Response Length</span>
                         </div>
                         <SegmentedControl
                           options={[{ value: "concise", label: "Short" }, { value: "balanced", label: "Medium" }, { value: "detailed", label: "Long" }]}
@@ -887,10 +1220,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           onChange={(v) => updateSetting("aiResponseLength", v)}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Eye size={16} className="text-white/60" />
-                          <span className="text-[13px] text-white/80">Show Sources</span>
+                          <Eye size={16} className="text-slate-500 dark:text-slate-400" />
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Show Sources</span>
                         </div>
                         <Toggle enabled={settings.aiShowSources} onChange={() => updateSetting("aiShowSources", !settings.aiShowSources)} />
                       </div>
@@ -898,11 +1231,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Suggestions</h3>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Suggestions</h3>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
-                        <Sparkles size={16} className="text-white/60" />
-                        <span className="text-[13px] text-white/80">Auto-suggest</span>
+                        <Sparkles size={16} className="text-slate-500 dark:text-slate-400" />
+                        <span className="text-[13px] text-slate-700 dark:text-slate-300">Auto-suggest</span>
                       </div>
                       <Toggle enabled={settings.aiAutoSuggest} onChange={() => updateSetting("aiAutoSuggest", !settings.aiAutoSuggest)} />
                     </div>
@@ -914,24 +1247,24 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "accessibility" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Vision</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Vision</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Maximize2 size={16} className="text-white/60" />
+                          <Maximize2 size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
-                            <p className="text-[13px] text-white/80">High Contrast</p>
-                            <p className="text-[11px] text-white/40">Increase color contrast</p>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">High Contrast</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Increase color contrast</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.highContrast} onChange={() => updateSetting("highContrast", !settings.highContrast)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Type size={16} className="text-white/60" />
+                          <Type size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
-                            <p className="text-[13px] text-white/80">Large Text</p>
-                            <p className="text-[11px] text-white/40">Increase font sizes</p>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Large Text</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Increase font sizes</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.fontSize === "large"} onChange={() => updateSetting("fontSize", settings.fontSize === "large" ? "medium" : "large")} />
@@ -940,13 +1273,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Motion</h3>
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Motion</h3>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
-                        <Zap size={16} className="text-white/60" />
+                        <Zap size={16} className="text-slate-500 dark:text-slate-400" />
                         <div>
-                          <p className="text-[13px] text-white/80">Reduce Motion</p>
-                          <p className="text-[11px] text-white/40">Minimize animations</p>
+                          <p className="text-[13px] text-slate-700 dark:text-slate-300">Reduce Motion</p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">Minimize animations</p>
                         </div>
                       </div>
                       <Toggle enabled={settings.reduceMotion} onChange={() => updateSetting("reduceMotion", !settings.reduceMotion)} />
@@ -958,51 +1291,45 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {/* Labs Settings */}
               {activeCategory === "labs" && (
                 <div className="space-y-6">
-                  <div
-                    className="p-4 rounded-xl"
-                    style={{
-                      background: "linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(236,72,153,0.2) 100%)",
-                      border: "1px solid rgba(139,92,246,0.3)"
-                    }}
-                  >
+                  <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
                     <div className="flex items-center gap-2 mb-2">
-                      <Beaker size={16} className="text-purple-400" />
-                      <span className="text-[13px] font-semibold text-purple-300">Experimental</span>
+                      <Beaker size={16} className="text-purple-500 dark:text-purple-400" />
+                      <span className="text-[13px] font-semibold text-purple-700 dark:text-purple-300">Experimental</span>
                     </div>
-                    <p className="text-[12px] text-purple-300/70">
+                    <p className="text-[12px] text-purple-600 dark:text-purple-400">
                       These features are in development and may change or be removed.
                     </p>
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Features</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Features</h3>
                     <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Command size={16} className="text-white/60" />
+                          <Command size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
-                            <p className="text-[13px] text-white/80">Command Palette</p>
-                            <p className="text-[11px] text-white/40">Quick actions with Cmd+K</p>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Command Palette</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Quick actions with Cmd+K</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.commandPaletteEnabled} onChange={() => updateSetting("commandPaletteEnabled", !settings.commandPaletteEnabled)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Rocket size={16} className="text-white/60" />
+                          <Rocket size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
-                            <p className="text-[13px] text-white/80">AI-Powered Search</p>
-                            <p className="text-[11px] text-white/40">Semantic search understanding</p>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">AI-Powered Search</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Semantic search understanding</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.aiPoweredSearch} onChange={() => updateSetting("aiPoweredSearch", !settings.aiPoweredSearch)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-white/5">
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
-                          <Target size={16} className="text-white/60" />
+                          <Target size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
-                            <p className="text-[13px] text-white/80">Smart Suggestions</p>
-                            <p className="text-[11px] text-white/40">Activity-based recommendations</p>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Smart Suggestions</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Activity-based recommendations</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.smartSuggestions} onChange={() => updateSetting("smartSuggestions", !settings.smartSuggestions)} />
@@ -1011,7 +1338,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-white/50 uppercase tracking-wider mb-3">Coming Soon</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Coming Soon</h3>
                     <div className="space-y-2">
                       {[
                         { icon: MessageSquare, label: "Team Collaboration" },
@@ -1019,10 +1346,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       ].map(item => {
                         const Icon = item.icon
                         return (
-                          <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 opacity-50">
-                            <Icon size={16} className="text-white/40" />
-                            <span className="text-[13px] text-white/60">{item.label}</span>
-                            <span className="ml-auto text-[10px] text-white/30 uppercase">Soon</span>
+                          <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 opacity-60">
+                            <Icon size={16} className="text-slate-400 dark:text-slate-500" />
+                            <span className="text-[13px] text-slate-500 dark:text-slate-400">{item.label}</span>
+                            <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 uppercase font-medium">Soon</span>
                           </div>
                         )
                       })}
@@ -1036,11 +1363,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       </div>
 
       <style>{`
-        @keyframes shimmer {
-          0%, 100% { opacity: 0.2; transform: translateX(-100%); }
-          50% { opacity: 0.4; transform: translateX(100%); }
-        }
-
         .custom-scrollbar::-webkit-scrollbar {
           width: 6px;
         }
@@ -1048,11 +1370,17 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: rgba(255,255,255,0.2);
+          background: rgba(0,0,0,0.1);
           border-radius: 3px;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: rgba(255,255,255,0.3);
+          background: rgba(0,0,0,0.2);
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.1);
+        }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(255,255,255,0.2);
         }
       `}</style>
     </>,
