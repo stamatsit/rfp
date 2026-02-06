@@ -377,8 +377,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ success: true })
       }
 
-      // Avatar routes — skip for now (file storage not supported in serverless)
+      // Avatar routes
       if (path.startsWith("/auth/avatar")) {
+        // GET /auth/avatar/:userId — serve avatar image
+        const avatarMatch = path.match(/^\/auth\/avatar\/([^/]+)$/)
+        if (avatarMatch && method === "GET") {
+          // Avatars are stored on local disk in Express mode, not accessible from serverless.
+          // Return 404 so the client's onError handler shows initials instead.
+          return res.status(404).json({ error: "Avatar not available in serverless mode" })
+        }
+        // POST/DELETE — not supported in serverless
         return res.status(501).json({ error: "Avatar upload not supported in serverless mode" })
       }
     }
@@ -1440,6 +1448,57 @@ ${csStreamContext}`
           message: totalProposals > 0
             ? `${totalProposals} proposals loaded from database`
             : "No proposal data. Sync from local development server first."
+        })
+      }
+
+      // Proposal metrics (structured data for Library browser — no AI)
+      if ((path === "/proposals/metrics" || path === "/proposals/metrics/") && method === "GET") {
+        const allProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+        if (allProposals.length === 0) {
+          return res.json({ summary: null, byService: {}, byCE: {}, bySchoolType: {}, byYear: {}, byAffiliation: {}, byCategory: {} })
+        }
+
+        type WRDim = Record<string, { won: number; total: number; rate: number }>
+        const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const wonCount = allProposals.filter(p => p.won === "Yes").length
+        const lostCount = allProposals.filter(p => p.won === "No" || p.won === "Cancelled").length
+        const pendingCount = allProposals.filter(p => p.won === "Pending" || !p.won).length
+        const overall = decided.length > 0 ? wonCount / decided.length : 0
+
+        const byService: WRDim = {}, byCE: WRDim = {}, bySchoolType: WRDim = {}
+        const byYear: WRDim = {}, byAffiliation: WRDim = {}, byCategory: WRDim = {}
+
+        for (const p of decided) {
+          const isWon = p.won === "Yes"
+          const inc = (dim: WRDim, key: string | null | undefined) => {
+            if (!key) return
+            if (!dim[key]) dim[key] = { won: 0, total: 0, rate: 0 }
+            dim[key].total++
+            if (isWon) dim[key].won++
+          }
+          inc(bySchoolType, p.schoolType)
+          inc(byAffiliation, p.affiliation)
+          inc(byCE, p.ce)
+          inc(byCategory, p.category)
+          if (p.date) inc(byYear, new Date(p.date).getFullYear().toString())
+          const services = (p.servicesOffered as string[]) || []
+          for (const svc of services) inc(byService, svc)
+        }
+
+        const calcRates = (dim: WRDim) => { for (const k of Object.keys(dim)) { dim[k].rate = dim[k].total > 0 ? dim[k].won / dim[k].total : 0 } }
+        calcRates(byService); calcRates(byCE); calcRates(bySchoolType)
+        calcRates(byYear); calcRates(byAffiliation); calcRates(byCategory)
+
+        const dates = allProposals.map(p => p.date ? new Date(p.date) : null).filter((d): d is Date => d !== null && !isNaN(d.getTime())).sort((a, b) => a.getTime() - b.getTime())
+
+        return res.json({
+          summary: {
+            total: allProposals.length,
+            won: wonCount, lost: lostCount, pending: pendingCount,
+            winRate: Math.round(overall * 100),
+            dateRange: { from: dates[0]?.toISOString() || null, to: dates[dates.length - 1]?.toISOString() || null },
+          },
+          byService, byCE, bySchoolType, byYear, byAffiliation, byCategory,
         })
       }
 
