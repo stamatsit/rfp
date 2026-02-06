@@ -1023,7 +1023,7 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
           const awards = cs.awards ? `\n  Awards: ${cs.awards.join(", ")}` : ""
           return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge}\n  Solution: ${cs.solution}\n  Metrics: ${metrics || "None recorded"}${testimonial}${awards}`
         })
-        csSections.push(`=== CASE STUDIES (${caseStudyLines.length}) ===\n${caseStudyLines.join("\n\n")}`)
+        csSections.push(`=== CLIENT RESULTS (${caseStudyLines.length}) ===\n${caseStudyLines.join("\n\n")}`)
 
         const sortedResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
         csSections.push(`=== TOP-LINE RESULTS (${sortedResults.length}) ===\n${sortedResults.map((r: any) => `${r.result} ${r.metric} — ${r.client}`).join("\n")}`)
@@ -1048,7 +1048,7 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
         const categories = new Set<string>()
         clientSuccessData.caseStudies.forEach((cs: any) => categories.add(cs.category))
 
-        const csSystemPrompt = `You are a Case Study AI for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
+        const csSystemPrompt = `You are a Client Success data assistant for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to a database of ${clientSuccessData.caseStudies.length} client results, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
 
 You operate in TWO modes based on user intent:
 
@@ -1095,7 +1095,7 @@ ${csContext}`
         const { cleanResponse: csCleanFollowUp, followUpPrompts: csFollowUps } = parseFollowUpPrompts(rawResponse, [
           "Want me to add comparable stats from similar projects?",
           "Should I draft a client testimonial for this?",
-          "Want to see similar case studies from our database?"
+          "Want to see similar client results from our database?"
         ])
         const { cleanText: cleanResponse, chartData: csChartData } = parseChartData(csCleanFollowUp)
 
@@ -1143,7 +1143,7 @@ ${csContext}`
           const awards = cs.awards ? `\n  Awards: ${cs.awards.join(", ")}` : ""
           return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge}\n  Solution: ${cs.solution}\n  Metrics: ${metrics || "None recorded"}${testimonial}${awards}`
         })
-        csStreamSections.push(`=== CASE STUDIES (${csStreamCaseStudyLines.length}) ===\n${csStreamCaseStudyLines.join("\n\n")}`)
+        csStreamSections.push(`=== CLIENT RESULTS (${csStreamCaseStudyLines.length}) ===\n${csStreamCaseStudyLines.join("\n\n")}`)
 
         const csStreamSortedResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
         csStreamSections.push(`=== TOP-LINE RESULTS (${csStreamSortedResults.length}) ===\n${csStreamSortedResults.map((r: any) => `${r.result} ${r.metric} — ${r.client}`).join("\n")}`)
@@ -1168,7 +1168,7 @@ ${csContext}`
         const csStreamCategories = new Set<string>()
         clientSuccessData.caseStudies.forEach((cs: any) => csStreamCategories.add(cs.category))
 
-        const csStreamSystemPrompt = `You are a Case Study AI for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
+        const csStreamSystemPrompt = `You are a Client Success data assistant for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to a database of ${clientSuccessData.caseStudies.length} client results, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
 
 You operate in TWO modes based on user intent:
 
@@ -1250,7 +1250,7 @@ ${csStreamContext}`
           const { cleanResponse: csCleanFU, followUpPrompts: csFollows } = parseFollowUpPrompts(fullResponse, [
             "Want me to add comparable stats from similar projects?",
             "Should I draft a client testimonial for this?",
-            "Want to see similar case studies from our database?"
+            "Want to see similar client results from our database?"
           ])
           const { cleanText: csClean, chartData: csStreamChart } = parseChartData(csCleanFU)
           res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: csClean, followUpPrompts: csFollows, ...(csStreamChart ? { chartData: csStreamChart } : {}) })}\n\n`)
@@ -1789,7 +1789,7 @@ ${pStreamContextLines.join("\n")}`
 
         const formatRate = (won: number, total: number) => total > 0 ? `${((won / total) * 100).toFixed(1)}%` : "N/A"
 
-        // Build case study context
+        // Build client results context
         const csSummary = clientSuccessData.caseStudies.map((cs: any) => {
           const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
           const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 100)}..." — ${cs.testimonial.attribution}` : ""
@@ -1822,7 +1822,7 @@ ${Object.entries(byService).sort((a, b) => b[1].total - a[1].total).slice(0, 10)
 RECENT WINS (last 20):
 ${wonProposals.slice(0, 20).map(p => `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) — ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "N/A"}`).join("\n") || "No recent wins"}
 
-━━━ SOURCE 2: CASE STUDIES (${clientSuccessData.caseStudies.length}) ━━━
+━━━ SOURCE 2: CLIENT RESULTS (${clientSuccessData.caseStudies.length}) ━━━
 
 ${csSummary}
 
@@ -1843,14 +1843,14 @@ ${libraryAnswers.map((a: any, i: number) => `[Answer ${i + 1}]\nQ: ${a.question}
         const systemPrompt = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
 
 1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service
-2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
+2. **CLIENT RESULTS**: ${clientSuccessData.caseStudies.length} client results, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
 3. **Q&A LIBRARY**: Approved answers for RFP responses
 
 YOUR SUPERPOWER: CROSS-REFERENCING — Connect the dots across all sources.
 
 RULES:
 1. ALWAYS cross-reference — don't just answer from one source
-2. FLAG DISCONNECTS — gaps between wins and case studies
+2. FLAG DISCONNECTS — gaps between wins and client results
 3. BE SPECIFIC — real client names, real numbers, real quotes
 4. NEVER INVENT — only use provided data
 5. Use **bold** for key numbers and insights
@@ -1896,7 +1896,7 @@ ${context}`
         const crossInsights: string[] = []
         if (winsWithoutCS.length >= 3) {
           const clients = [...new Set(winsWithoutCS.map(p => p.client))].slice(0, 5)
-          crossInsights.push(`${winsWithoutCS.length} recent wins don't have case studies: ${clients.join(", ")}`)
+          crossInsights.push(`${winsWithoutCS.length} recent wins don't have client results: ${clients.join(", ")}`)
         }
 
         const recentClients = wonProposals.slice(0, 10).map(p => p.client).filter((c): c is string => !!c)
@@ -1984,7 +1984,7 @@ ${context}`
 
         const uaiFormatRate = (won: number, total: number) => total > 0 ? `${((won / total) * 100).toFixed(1)}%` : "N/A"
 
-        // Build case study context
+        // Build client results context
         const uaiStreamCsSummary = clientSuccessData.caseStudies.map((cs: any) => {
           const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
           const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 100)}..." — ${cs.testimonial.attribution}` : ""
@@ -2017,7 +2017,7 @@ ${Object.entries(uaiStreamByService).sort((a, b) => b[1].total - a[1].total).sli
 RECENT WINS (last 20):
 ${uaiStreamWon.slice(0, 20).map(p => `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) — ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "N/A"}`).join("\n") || "No recent wins"}
 
-━━━ SOURCE 2: CASE STUDIES (${clientSuccessData.caseStudies.length}) ━━━
+━━━ SOURCE 2: CLIENT RESULTS (${clientSuccessData.caseStudies.length}) ━━━
 
 ${uaiStreamCsSummary}
 
@@ -2038,14 +2038,14 @@ ${uaiStreamLibraryAnswers.map((a: any, i: number) => `[Answer ${i + 1}]\nQ: ${a.
         const uaiStreamSystemPrompt = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
 
 1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service
-2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
+2. **CLIENT RESULTS**: ${clientSuccessData.caseStudies.length} client results, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
 3. **Q&A LIBRARY**: Approved answers for RFP responses
 
 YOUR SUPERPOWER: CROSS-REFERENCING — Connect the dots across all sources.
 
 RULES:
 1. ALWAYS cross-reference — don't just answer from one source
-2. FLAG DISCONNECTS — gaps between wins and case studies
+2. FLAG DISCONNECTS — gaps between wins and client results
 3. BE SPECIFIC — real client names, real numbers, real quotes
 4. NEVER INVENT — only use provided data
 5. Use **bold** for key numbers and insights
@@ -2077,7 +2077,7 @@ ${uaiStreamContext}`
         const uaiStreamCrossInsights: string[] = []
         if (uaiStreamWinsWithoutCS.length >= 3) {
           const clients = [...new Set(uaiStreamWinsWithoutCS.map(p => p.client))].slice(0, 5)
-          uaiStreamCrossInsights.push(`${uaiStreamWinsWithoutCS.length} recent wins don't have case studies: ${clients.join(", ")}`)
+          uaiStreamCrossInsights.push(`${uaiStreamWinsWithoutCS.length} recent wins don't have client results: ${clients.join(", ")}`)
         }
 
         const uaiStreamRecentClients = uaiStreamWon.slice(0, 10).map(p => p.client).filter((c): c is string => !!c)

@@ -4,7 +4,7 @@
  * Unified AI that connects the dots across:
  * - Q&A Library (answers + photos)
  * - Proposal History (win rates, trends)
- * - Case Studies (40+ case studies, testimonials, awards)
+ * - Client Results (40+ client results, testimonials, awards)
  *
  * The power: answering questions NO SINGLE SOURCE could answer.
  */
@@ -30,32 +30,32 @@ const QUICK_ACTIONS: QuickAction[] = [
   {
     icon: Sparkles,
     label: "Win Formula",
-    prompt: "Cross-reference our wins against our case studies and library. What's our true winning formula? Where do we have proof, and where are we missing it?",
+    prompt: "Cross-reference our wins against our client results and library. What's our true winning formula? Where do we have proof, and where are we missing it?",
   },
   {
     icon: FileCheck,
     label: "Proof Finder",
-    prompt: "I need to build a proposal. Find me: (1) relevant case studies with metrics, (2) testimonials from similar clients we've won, (3) library content I can use. I'll tell you the school type and services.",
+    prompt: "I need to build a proposal. Find me: (1) relevant client results with metrics, (2) testimonials from similar clients we've won, (3) library content I can use. I'll tell you the school type and services.",
   },
   {
     icon: AlertTriangle,
     label: "Gap Finder",
-    prompt: "Analyze disconnects: services we win but lack case studies for, clients we won but never got testimonials from, opportunities we're missing.",
+    prompt: "Analyze disconnects: services we win but lack client results for, clients we won but never got testimonials from, opportunities we're missing.",
   },
   {
     icon: Target,
     label: "Content Audit",
-    prompt: "Which library content appears in our winning proposals? Which case studies align with our highest win rates? Rate our proof points by performance.",
+    prompt: "Which library content appears in our winning proposals? Which client results align with our highest win rates? Rate our proof points by performance.",
   },
   {
     icon: Briefcase,
     label: "Prep Proposal",
-    prompt: "Prep me for a proposal. I'll give you the school type, services, and affiliation. Give me: win probability, best case studies to feature, key library answers, and strategic approach.",
+    prompt: "Prep me for a proposal. I'll give you the school type, services, and affiliation. Give me: win probability, best client results to feature, key library answers, and strategic approach.",
   },
   {
     icon: Search,
     label: "Smart Search",
-    prompt: "Search across ALL my data sources. Find everything related to what I'll describe — proposals we've won, case studies, testimonials, library answers, and photos.",
+    prompt: "Search across ALL my data sources. Find everything related to what I'll describe — proposals we've won, client results, testimonials, library answers, and photos.",
   },
 ]
 
@@ -122,7 +122,7 @@ export function UnifiedAI() {
         <div className="flex items-center gap-2 text-xs text-slate-500 w-full mb-2">
           <Database size={12} className="text-indigo-500" />
           <span className="font-medium">
-            {proposals?.count ?? 0} proposals &middot; {caseStudies?.count ?? 0} case studies &middot; {library?.answers ?? 0} answers
+            {proposals?.count ?? 0} proposals &middot; {caseStudies?.count ?? 0} client results &middot; {library?.answers ?? 0} answers
           </span>
         </div>
         <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
@@ -133,7 +133,7 @@ export function UnifiedAI() {
               <span className="text-slate-500 ml-1">({formatWinRate(proposals?.winRate ?? 0)} win)</span>
             </div>
             <div>
-              <span className="text-slate-400 block mb-1">Case Studies</span>
+              <span className="text-slate-400 block mb-1">Client Results</span>
               <span className="text-indigo-600 font-medium">{caseStudies?.count ?? 0}</span>
               <span className="text-slate-500 ml-1">+ {caseStudies?.testimonials ?? 0} testimonials</span>
             </div>
@@ -189,7 +189,7 @@ export function UnifiedAI() {
             Unified AI
           </h2>
           <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
-            Connect the dots across proposals, case studies, and your Q&A library.
+            Connect the dots across proposals, client results, and your Q&A library.
           </p>
 
           <div className="flex flex-wrap gap-2 justify-center mb-6">

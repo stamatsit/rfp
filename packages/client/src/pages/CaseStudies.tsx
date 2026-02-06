@@ -95,13 +95,13 @@ export function CaseStudies() {
         <div className="flex items-center gap-2 text-xs text-slate-500 w-full mb-2">
           <Database size={12} className="text-violet-500" />
           <span className="font-medium">
-            Referenced {dataUsed.totalCaseStudies} case studies, {dataUsed.totalTestimonials} testimonials, {dataUsed.totalStats} stats
+            Referenced {dataUsed.totalCaseStudies} client results, {dataUsed.totalTestimonials} testimonials, {dataUsed.totalStats} stats
           </span>
         </div>
         <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="text-slate-400">Case Studies:</span>
+              <span className="text-slate-400">Client Results:</span>
               <span className="ml-2 text-violet-600 font-medium">{dataUsed.totalCaseStudies}</span>
             </div>
             <div>

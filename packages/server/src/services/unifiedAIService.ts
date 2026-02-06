@@ -4,7 +4,7 @@
  * Combines three data sources with CROSS-REFERENCE capabilities:
  * 1. Q&A Library (approved answers + photos)
  * 2. Proposal History (win/loss, trends, team performance)
- * 3. Case Studies (40 case studies, testimonials, awards)
+ * 3. Client Results (40 client results, testimonials, awards)
  *
  * The power: answering questions that NO SINGLE SOURCE could answer alone.
  */
@@ -84,7 +84,7 @@ function findCrossReferences(proposals: Proposal[]): CrossReference[] {
   const caseStudyClients = new Set(clientSuccessData.caseStudies.map(cs => cs.client.toLowerCase().trim()))
   const testimonialClients = new Set(clientSuccessData.testimonials.map(t => t.organization.toLowerCase().trim()))
 
-  // 1. Wins without case studies
+  // 1. Wins without client results
   const winsWithoutCaseStudies = recentWins.filter(p =>
     p.client && !caseStudyClients.has(p.client.toLowerCase().trim())
   )
@@ -93,7 +93,7 @@ function findCrossReferences(proposals: Proposal[]): CrossReference[] {
     const clients = [...new Set(winsWithoutCaseStudies.map(p => p.client))].slice(0, 5)
     insights.push({
       type: "win-without-casestudy",
-      description: `You've won ${winsWithoutCaseStudies.length} projects in the last 2 years without case studies: ${clients.join(", ")}`,
+      description: `You've won ${winsWithoutCaseStudies.length} projects in the last 2 years without client results: ${clients.join(", ")}`,
       priority: "high"
     })
   }
@@ -112,7 +112,7 @@ function findCrossReferences(proposals: Proposal[]): CrossReference[] {
     })
   }
 
-  // 3. Service gaps — services we win but have few case studies for
+  // 3. Service gaps — services we win but have few client results for
   const serviceWins: Record<string, number> = {}
   recentWins.forEach(p => {
     (p.servicesOffered || []).forEach(s => {
@@ -131,13 +131,13 @@ function findCrossReferences(proposals: Proposal[]): CrossReference[] {
       if (!hasCaseStudy) {
         insights.push({
           type: "service-gap",
-          description: `You've won ${count} "${service}" projects but have few/no case studies featuring this service`,
+          description: `You've won ${count} "${service}" projects but have few/no client results featuring this service`,
           priority: "medium"
         })
       }
     })
 
-  // 4. Case studies without recent wins (may be outdated)
+  // 4. Client results without recent wins (may be outdated)
   const caseStudiesWithoutRecentWins = clientSuccessData.caseStudies.filter(cs =>
     !recentWinClients.has(cs.client.toLowerCase().trim())
   )
@@ -145,7 +145,7 @@ function findCrossReferences(proposals: Proposal[]): CrossReference[] {
   if (caseStudiesWithoutRecentWins.length > 10) {
     insights.push({
       type: "casestudy-without-recent-win",
-      description: `${caseStudiesWithoutRecentWins.length} case studies are from clients you haven't won recently — consider refreshing`,
+      description: `${caseStudiesWithoutRecentWins.length} client results are from clients you haven't won recently — consider refreshing`,
       priority: "low"
     })
   }
@@ -278,9 +278,9 @@ PIPELINE METRICS (RFP Intake):
 - Pass Rate: ${((pipelineStats.passing / pipelineStats.total) * 100).toFixed(1)}%
 ` : ""}
 
-━━━ SOURCE 2: CASE STUDIES (${clientSuccessData.caseStudies.length} total) ━━━
+━━━ SOURCE 2: CLIENT RESULTS (${clientSuccessData.caseStudies.length} total) ━━━
 
-CASE STUDY DATABASE:
+CLIENT RESULTS DATABASE:
 ${clientSuccessData.caseStudies.map(cs => {
   const metrics = cs.metrics.map(m => `${m.value} ${m.label}`).join("; ")
   const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 100)}..." — ${cs.testimonial.attribution}` : ""
@@ -336,23 +336,23 @@ ${crossRefs.length > 0
 const SYSTEM_PROMPT = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
 
 1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service/AE, pipeline data
-2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
+2. **CLIENT RESULTS**: ${clientSuccessData.caseStudies.length} client results, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
 3. **Q&A LIBRARY**: Approved answers and photos for RFP responses
 
 ═══ YOUR SUPERPOWER: CROSS-REFERENCING ═══
 
 You can answer questions that NO SINGLE SOURCE could answer:
-- "Do we have case studies for clients we've actually won?" (proposals + case studies)
+- "Do we have client results for clients we've actually won?" (proposals + client results)
 - "What testimonials are from clients we won recently?" (proposals + testimonials)
-- "What's our win rate for services we have strong case studies for?" (proposals + case studies)
-- "Prep me for a proposal" (all three: win rate + case studies + library answers)
+- "What's our win rate for services we have strong client results for?" (proposals + client results)
+- "Prep me for a proposal" (all three: win rate + client results + library answers)
 
 ═══ CRITICAL RULES ═══
 
 1. **ALWAYS CROSS-REFERENCE** — Don't just answer from one source. Connect the dots.
-2. **FLAG DISCONNECTS** — If you notice gaps (e.g., "You've won 5 but only have 1 case study"), say so.
+2. **FLAG DISCONNECTS** — If you notice gaps (e.g., "You've won 5 but only have 1 client result"), say so.
 3. **BE SPECIFIC** — Use real client names, real numbers, real quotes from the data.
-4. **LAYER YOUR ANSWERS** — For proposal prep: combine win probability + relevant case studies + library content.
+4. **LAYER YOUR ANSWERS** — For proposal prep: combine win probability + relevant client results + library content.
 5. **NEVER INVENT** — Only use data from the provided sources.
 
 ═══ RESPONSE STYLE ═══
