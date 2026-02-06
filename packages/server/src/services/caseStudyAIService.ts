@@ -151,14 +151,14 @@ If the user doesn't specify, default to a clean, scannable format.
 3. Use **bold** for key metrics, client names, and important facts
 4. Be specific — pull actual numbers from the database, always include client attribution
 5. Format metrics as compelling bullets (e.g., "**+481%** conversion growth on optimized pages — *Client Name*")
-6. This is a database of client results with metrics, not full written case studies — be honest about what you have
+6. This is a database of client results with metrics — be honest about what you have
 
 VISUALIZATIONS:${CHART_PROMPT}
 
 Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
-Follow-ups should suggest related data the user might want next (e.g., "Want similar stats from other clients?", "Need a testimonial to go with that?", "Want to see awards in this category?")`
+Follow-ups should suggest related data the user might want next (e.g., "Want similar stats from other clients?", "Need a testimonial to go with that?", "Want to see awards in this category?"). IMPORTANT: Always refer to the data as "client results" — never say "case studies".`
 
 // ─── Follow-up Prompt Parser ────────────────────────────────
 
