@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import { createClient } from "@supabase/supabase-js"
-import { pgTable, text, timestamp, uuid, integer } from "drizzle-orm/pg-core"
-import { eq, ilike, or, desc, sql } from "drizzle-orm"
+import { pgTable, text, timestamp, uuid, integer, boolean } from "drizzle-orm/pg-core"
+import { eq, ilike, or, desc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
+import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
 
 // --- Streaming helpers ---
@@ -140,10 +141,34 @@ export const proposalPipeline = pgTable("proposal_pipeline", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Users table (multi-user auth)
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name").notNull(),
+  mustChangePassword: boolean("must_change_password").notNull().default(true),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+})
+
+// Conversations table (AI chat history)
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai"] }).notNull(),
+  title: text("title").notNull(),
+  messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
+  userId: text("user_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations } }) : null
 
 // Supabase client
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -158,6 +183,16 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPE
 // Stateless session using signed tokens (works across serverless instances)
 const SESSION_SECRET = process.env.SESSION_SECRET || process.env.APP_PASSWORD || "fallback-secret"
 
+interface SessionData {
+  authenticated: boolean
+  userId?: string
+  userName?: string
+  userEmail?: string
+  mustChangePassword?: boolean
+  avatarUrl?: string | null
+  expires: number
+}
+
 async function createHmac(data: string): Promise<string> {
   const encoder = new TextEncoder()
   const key = await crypto.subtle.importKey(
@@ -171,25 +206,26 @@ async function createHmac(data: string): Promise<string> {
   return Buffer.from(signature).toString("base64url")
 }
 
-async function verifySession(token: string | undefined): Promise<boolean> {
-  if (!token) return false
+async function verifySession(token: string | undefined): Promise<SessionData | null> {
+  if (!token) return null
   try {
     const [payload, signature] = token.split(".")
-    if (!payload || !signature) return false
+    if (!payload || !signature) return null
 
-    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString())
-    if (decoded.expires < Date.now()) return false
+    const decoded = JSON.parse(Buffer.from(payload, "base64url").toString()) as SessionData
+    if (decoded.expires < Date.now()) return null
 
     const expectedSig = await createHmac(payload)
-    return signature === expectedSig
+    if (signature !== expectedSig) return null
+    return decoded
   } catch {
-    return false
+    return null
   }
 }
 
-async function createSession(): Promise<string> {
-  const payload = {
-    authenticated: true,
+async function createSession(data: Omit<SessionData, "expires">): Promise<string> {
+  const payload: SessionData = {
+    ...data,
     expires: Date.now() + 7 * 24 * 60 * 60 * 1000 // 7 days
   }
   const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url")
@@ -225,7 +261,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const path = rawPath.replace(/^\/api/, "") || "/"
   const method = req.method || "GET"
   const sessionToken = getCookie(req, "rfp-session")
-  const isAuthenticated = await verifySession(sessionToken)
+  const session = await verifySession(sessionToken)
+  const isAuthenticated = session?.authenticated === true
 
   try {
     // Health check (no auth required)
@@ -240,14 +277,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Auth routes
     if (path.startsWith("/auth")) {
       if (path === "/auth/login" && method === "POST") {
-        const { password } = req.body || {}
-        const appPassword = (process.env.APP_PASSWORD || "").trim()
-        if (password === appPassword) {
-          const newSessionToken = await createSession()
-          res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
-          return res.json({ success: true })
+        const { email, password } = req.body || {}
+        if (!email || !password) {
+          return res.status(400).json({ error: "Email and password are required" })
         }
-        return res.status(401).json({ error: "Invalid password" })
+        if (!db) return res.status(500).json({ error: "Database not configured" })
+
+        const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).limit(1)
+        if (!user) {
+          return res.status(401).json({ error: "Invalid email or password" })
+        }
+
+        const isValid = await bcrypt.compare(password, user.passwordHash)
+        if (!isValid) {
+          return res.status(401).json({ error: "Invalid email or password" })
+        }
+
+        // Update last login
+        await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id))
+
+        const avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
+        const newSessionToken = await createSession({
+          authenticated: true,
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          mustChangePassword: user.mustChangePassword,
+          avatarUrl,
+        })
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        return res.json({
+          success: true,
+          mustChangePassword: user.mustChangePassword,
+          user: { id: user.id, email: user.email, name: user.name, avatarUrl },
+        })
       }
 
       if (path === "/auth/logout" && method === "POST") {
@@ -256,7 +319,55 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (path === "/auth/status") {
-        return res.json({ authenticated: isAuthenticated })
+        if (!isAuthenticated || !session) {
+          return res.json({ authenticated: false, user: null, mustChangePassword: false, loginTime: null })
+        }
+        return res.json({
+          authenticated: true,
+          user: {
+            id: session.userId,
+            email: session.userEmail,
+            name: session.userName,
+            avatarUrl: session.avatarUrl || null,
+          },
+          mustChangePassword: session.mustChangePassword || false,
+          loginTime: null,
+        })
+      }
+
+      if (path === "/auth/change-password" && method === "POST") {
+        if (!isAuthenticated || !session?.userId || !db) {
+          return res.status(401).json({ error: "Authentication required" })
+        }
+        const { currentPassword, newPassword } = req.body || {}
+        if (!currentPassword || !newPassword) {
+          return res.status(400).json({ error: "Current and new passwords are required" })
+        }
+        if (newPassword.length < 8) {
+          return res.status(400).json({ error: "New password must be at least 8 characters" })
+        }
+        const [user] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
+        if (!user) return res.status(401).json({ error: "User not found" })
+        const isValid = await bcrypt.compare(currentPassword, user.passwordHash)
+        if (!isValid) return res.status(401).json({ error: "Current password is incorrect" })
+        const newHash = await bcrypt.hash(newPassword, 12)
+        await db.update(users).set({ passwordHash: newHash, mustChangePassword: false, updatedAt: new Date() }).where(eq(users.id, user.id))
+        // Issue new session token with mustChangePassword=false
+        const newSessionToken = await createSession({
+          authenticated: true,
+          userId: user.id,
+          userName: user.name,
+          userEmail: user.email,
+          mustChangePassword: false,
+          avatarUrl: session.avatarUrl,
+        })
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        return res.json({ success: true })
+      }
+
+      // Avatar routes — skip for now (file storage not supported in serverless)
+      if (path.startsWith("/auth/avatar")) {
+        return res.status(501).json({ error: "Avatar upload not supported in serverless mode" })
       }
     }
 
@@ -2139,6 +2250,89 @@ ${uaiStreamContext}`
           res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
           return res.end()
         }
+      }
+    }
+
+    // Conversations routes
+    if (path.startsWith("/conversations")) {
+      if (!db) return res.status(503).json({ error: "Database unavailable" })
+
+      // List conversations
+      if ((path === "/conversations" || path === "/conversations/") && method === "GET") {
+        const page = (req.query?.page as string) || undefined
+        const userId = session?.userId
+        const conditions = []
+        if (page) conditions.push(eq(conversations.page, page as any))
+        if (userId) {
+          conditions.push(or(eq(conversations.userId, userId), isNull(conversations.userId)))
+        }
+        const where = conditions.length > 0 ? and(...conditions) : undefined
+        const rows = await db
+          .select({
+            id: conversations.id,
+            page: conversations.page,
+            title: conversations.title,
+            messageCount: conversations.messages,
+            createdAt: conversations.createdAt,
+            updatedAt: conversations.updatedAt,
+          })
+          .from(conversations)
+          .where(where)
+          .orderBy(desc(conversations.updatedAt))
+          .limit(50)
+        const result = rows.map(r => ({
+          id: r.id,
+          page: r.page,
+          title: r.title,
+          messageCount: Array.isArray(r.messageCount) ? r.messageCount.length : 0,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt,
+        }))
+        return res.json(result)
+      }
+
+      // Create conversation
+      if ((path === "/conversations" || path === "/conversations/") && method === "POST") {
+        const { page, title, messages } = req.body || {}
+        if (!page || !title?.trim()) {
+          return res.status(400).json({ error: "Page and title are required" })
+        }
+        const [row] = await db.insert(conversations).values({
+          page,
+          title: title.trim(),
+          messages: messages || [],
+          userId: session?.userId || null,
+        }).returning()
+        return res.status(201).json(row)
+      }
+
+      // Get single conversation
+      const idMatch = path.match(/^\/conversations\/([^/]+)$/)
+      if (idMatch && method === "GET") {
+        const [row] = await db.select().from(conversations).where(eq(conversations.id, idMatch[1]))
+        if (!row) return res.status(404).json({ error: "Conversation not found" })
+        return res.json(row)
+      }
+
+      // Update conversation
+      if (idMatch && method === "PATCH") {
+        const { title, messages } = req.body || {}
+        const updates: Record<string, unknown> = { updatedAt: new Date() }
+        if (title !== undefined) updates.title = title.trim()
+        if (messages !== undefined) updates.messages = messages
+        const [row] = await db
+          .update(conversations)
+          .set(updates)
+          .where(eq(conversations.id, idMatch[1]))
+          .returning()
+        if (!row) return res.status(404).json({ error: "Conversation not found" })
+        return res.json(row)
+      }
+
+      // Delete conversation
+      if (idMatch && method === "DELETE") {
+        await db.delete(conversations).where(eq(conversations.id, idMatch[1]))
+        return res.json({ success: true })
       }
     }
 
