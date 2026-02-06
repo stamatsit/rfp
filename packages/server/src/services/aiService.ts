@@ -33,6 +33,7 @@ export interface AIQueryResult {
     description: string | null
     storageKey: string
   }>
+  followUpPrompts?: string[]
   refused: boolean
   refusalReason?: string
 }
@@ -122,32 +123,22 @@ Description: ${photo.description || "No description"}`
       }
     }
 
-    const systemPrompt = `You are a helpful assistant for a company's Q&A library. Your role is to answer questions using ONLY the provided approved content.
+    const systemPrompt = `You are an RFP Q&A assistant for Stamats, a marketing agency. Answer questions using ONLY the provided approved library content.
 
-CRITICAL RULES:
-1. You can ONLY use information from the provided sources below
-2. You must NOT add any information from your own knowledge
-3. You must NOT make up or infer information not explicitly stated in the sources
-4. If the sources don't fully answer the question, say so honestly
-5. Always be helpful and professional
-6. If relevant photos are available, mention them by title in your response (e.g., "See the photo titled 'XYZ' for a visual reference")
+RULES:
+1. ONLY use information from the provided sources — NEVER add your own knowledge
+2. If sources don't fully answer the question, say what you found and note the gap
+3. If relevant photos are available, mention them by title
+4. Use **bold** for key terms, names, and important facts
+5. Use bullet points or numbered lists when presenting multiple items
+6. Keep responses concise but thorough
+7. Write in polished, proposal-ready language
 
-RESPONSE FORMAT:
-Always structure your response with a visible thinking process followed by your answer. Use this format:
-
-**Thinking:**
-- First, identify which sources are most relevant to the question
-- Note key information from each relevant source
-- Consider how to best synthesize this information
-- Identify any gaps or limitations in the available sources
-
-**Answer:**
-[Your comprehensive response based on the sources]
+At the end of your response, include 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
 APPROVED CONTENT SOURCES:
-${context}
-
-Remember: Only use the information provided above. Do not add external knowledge. Show your reasoning transparently.`
+${context}`
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -156,10 +147,24 @@ Remember: Only use the information provided above. Do not add external knowledge
         { role: "user", content: query },
       ],
       temperature: 0.3,
-      max_tokens: 1500, // Increased to accommodate thinking chain
+      max_tokens: 2000,
     })
 
-    const aiResponse = completion.choices[0]?.message?.content || ""
+    const rawResponse = completion.choices[0]?.message?.content || ""
+
+    // Parse follow-up prompts
+    let aiResponse = rawResponse
+    let followUpPrompts: string[] = []
+    const followUpMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+    if (followUpMatch?.[1]) {
+      try {
+        followUpPrompts = JSON.parse(`[${followUpMatch[1]}]`)
+        aiResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+      } catch {
+        followUpPrompts = followUpMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+        aiResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+      }
+    }
 
     // Step 5: Format sources and photos
     const sources = relevantAnswers.map((answer) => ({
@@ -186,6 +191,7 @@ Remember: Only use the information provided above. Do not add external knowledge
       response: aiResponse,
       sources,
       photos,
+      followUpPrompts: followUpPrompts.length > 0 ? followUpPrompts : undefined,
       refused: false,
     }
   } catch (error) {
@@ -362,32 +368,22 @@ export async function streamAI(
   const context = answerContextParts.join("\n\n") +
     (photoContextParts.length > 0 ? "\n\nRELEVANT PHOTOS:\n" + photoContextParts.join("\n\n") : "")
 
-  const systemPrompt = `You are a helpful assistant for a company's Q&A library. Your role is to answer questions using ONLY the provided approved content.
+  const systemPrompt = `You are an RFP Q&A assistant for Stamats, a marketing agency. Answer questions using ONLY the provided approved library content.
 
-CRITICAL RULES:
-1. You can ONLY use information from the provided sources below
-2. You must NOT add any information from your own knowledge
-3. You must NOT make up or infer information not explicitly stated in the sources
-4. If the sources don't fully answer the question, say so honestly
-5. Always be helpful and professional
-6. If relevant photos are available, mention them by title in your response
+RULES:
+1. ONLY use information from the provided sources — NEVER add your own knowledge
+2. If sources don't fully answer the question, say what you found and note the gap
+3. If relevant photos are available, mention them by title
+4. Use **bold** for key terms, names, and important facts
+5. Use bullet points or numbered lists when presenting multiple items
+6. Keep responses concise but thorough
+7. Write in polished, proposal-ready language
 
-RESPONSE FORMAT:
-Always structure your response with a visible thinking process followed by your answer. Use this format:
-
-**Thinking:**
-- First, identify which sources are most relevant to the question
-- Note key information from each relevant source
-- Consider how to best synthesize this information
-- Identify any gaps or limitations in the available sources
-
-**Answer:**
-[Your comprehensive response based on the sources]
+At the end of your response, include 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
 APPROVED CONTENT SOURCES:
-${context}
-
-Remember: Only use the information provided above. Do not add external knowledge. Show your reasoning transparently.`
+${context}`
 
   const sources = relevantAnswers.map((answer) => ({
     id: answer.id,
@@ -401,9 +397,6 @@ Remember: Only use the information provided above. Do not add external knowledge
     description: photo.description,
     storageKey: photo.storageKey,
   }))
-
-  // AskAI doesn't use follow-up prompts — no-op parser
-  const noOpParser = (response: string) => ({ cleanResponse: response, prompts: [] as string[] })
 
   const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
     ? truncateHistory(conversationHistory).map(m => ({ role: m.role, content: m.content }))
@@ -419,12 +412,25 @@ Remember: Only use the information provided above. Do not add external knowledge
       { role: "user", content: query },
     ],
     temperature: 0.3,
-    maxTokens: 1500,
+    maxTokens: 2000,
     metadata: {
       sources,
       photos,
     },
-    parseFollowUpPrompts: noOpParser,
+    parseFollowUpPrompts: (response: string) => {
+      let cleanResponse = response
+      let prompts: string[] = []
+      const match = response.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+      if (match?.[1]) {
+        try {
+          prompts = JSON.parse(`[${match[1]}]`)
+        } catch {
+          prompts = match[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+        }
+        cleanResponse = response.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+      }
+      return { cleanResponse, prompts }
+    },
     res,
   })
 }

@@ -2,7 +2,7 @@
  * Ask AI — Q&A Library AI assistant.
  *
  * Uses shared chat infrastructure with purple theme.
- * Unique features: thinking chain, sources, photos, refine/adapt panels, topic filter.
+ * Unique features: sources, photos, refine/adapt panels, topic filter.
  */
 
 import { useState, useEffect, useCallback } from "react"
@@ -11,11 +11,9 @@ import {
   Sparkles,
   FileText,
   ChevronDown,
-  ChevronRight,
   ExternalLink,
   Image,
   Wand2,
-  Brain,
   Loader2,
   Send,
   Copy,
@@ -53,32 +51,10 @@ interface AdaptState {
   error?: string
 }
 
-function parseThinkingChain(content: string): { thinking: string | null; answer: string } {
-  const thinkingMatch = content.match(/\*\*Thinking:\*\*\s*([\s\S]*?)(?=\*\*Answer:\*\*|$)/i)
-  const answerMatch = content.match(/\*\*Answer:\*\*\s*([\s\S]*?)$/i)
-
-  if (thinkingMatch?.[1] && answerMatch?.[1]) {
-    return { thinking: thinkingMatch[1].trim(), answer: answerMatch[1].trim() }
-  }
-  return { thinking: null, answer: content }
-}
-
-function renderThinkingContent(content: string) {
-  const lines = content.split("\n").filter(line => line.trim())
-  return lines.map((line, i) => {
-    const text = line.replace(/^-\s*/, "")
-    return (
-      <div key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
-        <span className="text-purple-400 mt-0.5">•</span>
-        <span>{text}</span>
-      </div>
-    )
-  })
-}
 
 const parseResult = (data: Record<string, unknown>) => ({
   content: data.response as string,
-  followUpPrompts: undefined,
+  followUpPrompts: data.followUpPrompts as string[] | undefined,
   refused: data.refused as boolean | undefined,
   refusalReason: data.refusalReason as string | undefined,
   metadata: {
@@ -91,7 +67,6 @@ export function AskAI() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [topicFilter, setTopicFilter] = useState<string>("all")
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
-  const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const [adaptStates, setAdaptStates] = useState<Map<string, AdaptState>>(new Map())
   const [refineMode, setRefineMode] = useState(false)
   const [refineContent, setRefineContent] = useState("")
@@ -127,15 +102,6 @@ export function AskAI() {
     }
     loadTopics()
   }, [])
-
-  const toggleThinkingExpanded = (messageId: string) => {
-    setExpandedThinking(prev => {
-      const next = new Set(prev)
-      if (next.has(messageId)) next.delete(messageId)
-      else next.add(messageId)
-      return next
-    })
-  }
 
   const toggleSourceExpanded = (messageId: string) => {
     setExpandedSources(prev => {
@@ -218,10 +184,9 @@ export function AskAI() {
     }
   }
 
-  // Custom content renderer for thinking chain
+  // Custom content renderer with refinement badge
   const renderContent = useCallback((message: ChatMessage) => {
     const refinementLabel = message.metadata?.refinementLabel as string | undefined
-    const { thinking, answer } = parseThinkingChain(message.content)
 
     return (
       <div className="space-y-3">
@@ -234,33 +199,10 @@ export function AskAI() {
           </div>
         )}
 
-        {thinking && (
-          <div className="rounded-xl border border-purple-200/60 dark:border-purple-700/40 bg-gradient-to-br from-purple-50/40 via-white to-violet-50/30 dark:from-purple-950/30 dark:via-slate-800 dark:to-violet-950/20 overflow-hidden shadow-[0_1px_3px_rgba(139,92,246,0.06)]">
-            <button
-              onClick={() => toggleThinkingExpanded(message.id)}
-              className="w-full flex items-center gap-2 px-4 py-3 text-[13px] font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-900/30 transition-all duration-150"
-            >
-              <Brain size={16} className="text-purple-500" />
-              <span>Thinking Process</span>
-              <ChevronRight
-                size={16}
-                className={`ml-auto text-purple-400 transition-transform duration-200 ${
-                  expandedThinking.has(message.id) ? "rotate-90" : ""
-                }`}
-              />
-            </button>
-            {expandedThinking.has(message.id) && (
-              <div className="px-4 pb-4 space-y-1.5 border-t border-purple-100/60 dark:border-purple-800/40 animate-fade-in-up">
-                <div className="pt-3">{renderThinkingContent(thinking)}</div>
-              </div>
-            )}
-          </div>
-        )}
-
-        <MarkdownRenderer content={answer} />
+        <MarkdownRenderer content={message.content} />
       </div>
     )
-  }, [expandedThinking])
+  }, [])
 
   // Photos + Sources as extra content
   const renderExtraContent = useCallback((message: ChatMessage) => {

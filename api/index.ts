@@ -701,29 +701,40 @@ Example: "how do we handle customer complaints" -> ["customer complaints", "comp
           ? `\n\nRELEVANT PHOTOS:\n${relevantPhotos.map((p, i) => `[Photo ${i + 1}]\nTitle: ${p.displayTitle}\nDescription: ${p.description || "No description"}`).join("\n\n")}`
           : ""
 
-        const systemPrompt = `You are a helpful assistant for RFP proposals. Use ONLY the following context from our knowledge base to answer questions. Do not make up information.
+        const systemPrompt = `You are an RFP Q&A assistant for Stamats, a marketing agency. Answer questions using ONLY the provided approved library content.
 
-Available knowledge:
-${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}
+RULES:
+1. ONLY use information from the provided sources — NEVER add your own knowledge
+2. If sources don't fully answer the question, say what you found and note the gap
+3. If relevant photos are available, mention them by title
+4. Use **bold** for key terms, names, and important facts
+5. Use bullet points or numbered lists when presenting multiple items
+6. Keep responses concise but thorough
+7. Write in polished, proposal-ready language
 
-Instructions:
-- Only use information from the provided knowledge base
-- If the answer isn't in the provided context, say you don't have that information
-- If relevant photos are available, mention them by title in your response (e.g., "See the photo titled 'XYZ' for a visual reference")
-- Be helpful and professional`
+At the end of your response, include 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+APPROVED CONTENT SOURCES:
+${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-4o",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: query }
           ],
-          max_tokens: 1000
+          temperature: 0.3,
+          max_tokens: 2000
         })
 
+        const rawAiResponse = completion.choices[0]?.message?.content || ""
+        const { cleanResponse: aiCleanResponse, followUpPrompts: aiFollowUps } = parseFollowUpPrompts(rawAiResponse, [])
+
         return res.json({
-          response: completion.choices[0]?.message?.content || "No response generated",
+          response: aiCleanResponse,
           sources: relevantAnswers.map(a => ({ id: a.id, question: a.question, answer: a.answer })),
+          followUpPrompts: aiFollowUps.length > 0 ? aiFollowUps : undefined,
           photos: relevantPhotos.map(p => {
             let ext = ""
             if (p.originalFilename) {
@@ -883,16 +894,22 @@ Example: "how do we handle customer complaints" -> ["customer complaints", "comp
           ? `\n\nRELEVANT PHOTOS:\n${relevantPhotos.map((p, i) => `[Photo ${i + 1}]\nTitle: ${p.displayTitle}\nDescription: ${p.description || "No description"}`).join("\n\n")}`
           : ""
 
-        const systemPrompt = `You are a helpful assistant for RFP proposals. Use ONLY the following context from our knowledge base to answer questions. Do not make up information.
+        const systemPrompt = `You are an RFP Q&A assistant for Stamats, a marketing agency. Answer questions using ONLY the provided approved library content.
 
-Available knowledge:
-${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}
+RULES:
+1. ONLY use information from the provided sources — NEVER add your own knowledge
+2. If sources don't fully answer the question, say what you found and note the gap
+3. If relevant photos are available, mention them by title
+4. Use **bold** for key terms, names, and important facts
+5. Use bullet points or numbered lists when presenting multiple items
+6. Keep responses concise but thorough
+7. Write in polished, proposal-ready language
 
-Instructions:
-- Only use information from the provided knowledge base
-- If the answer isn't in the provided context, say you don't have that information
-- If relevant photos are available, mention them by title in your response (e.g., "See the photo titled 'XYZ' for a visual reference")
-- Be helpful and professional`
+At the end of your response, include 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+APPROVED CONTENT SOURCES:
+${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}`
 
         // Build messages with conversation history
         const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
@@ -909,9 +926,10 @@ Instructions:
         // Stream from OpenAI
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-4o",
             messages,
-            max_tokens: 1000,
+            temperature: 0.3,
+            max_tokens: 2000,
             stream: true
           })
 

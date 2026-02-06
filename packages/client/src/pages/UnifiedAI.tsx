@@ -82,6 +82,10 @@ export function UnifiedAI() {
     endpoint: "/unified-ai/query",
     streamEndpoint: "/unified-ai/stream",
     parseResult,
+    parseMetadata: useCallback((data: Record<string, unknown>) => ({
+      ...(data.dataUsed as Record<string, unknown> | undefined),
+      crossReferenceInsights: data.crossReferenceInsights as string[] | undefined,
+    }), []),
     errorMessage: "Failed to connect to Unified AI. Please try again.",
   })
 

@@ -18,6 +18,8 @@ interface UseChatOptions {
     chartData?: import("@/types/chat").ChartConfig
   }
   buildBody?: (query: string) => Record<string, unknown>
+  /** Transform raw SSE metadata before storing on message */
+  parseMetadata?: (data: Record<string, unknown>) => Record<string, unknown>
   errorMessage?: string
 }
 
@@ -39,7 +41,7 @@ interface UseChatReturn {
   clearMessages: () => void
 }
 
-export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, errorMessage }: UseChatOptions): UseChatReturn {
+export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, parseMetadata, errorMessage }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -121,9 +123,10 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, erro
       try {
         await fetchSSE(streamEndpoint, bodyWithHistory, {
           onMetadata: (data) => {
-            // Store metadata on the assistant message
+            // Use parseMetadata if provided, otherwise store raw
+            const metadata = parseMetadata ? parseMetadata(data) : data
             setMessages(prev => prev.map(m =>
-              m.id === assistantId ? { ...m, metadata: data } : m
+              m.id === assistantId ? { ...m, metadata } : m
             ))
           },
           onToken: (token) => {
@@ -249,7 +252,7 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, erro
       setIsLoading(false)
       inputRef.current?.focus()
     }
-  }, [inputValue, isLoading, endpoint, streamEndpoint, parseResult, buildBody, buildConversationHistory, errorMessage])
+  }, [inputValue, isLoading, endpoint, streamEndpoint, parseResult, buildBody, parseMetadata, buildConversationHistory, errorMessage])
 
   const handleCopy = useCallback(async (text: string, id: string) => {
     await navigator.clipboard.writeText(text)

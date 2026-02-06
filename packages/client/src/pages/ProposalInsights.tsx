@@ -80,6 +80,9 @@ export function ProposalInsights() {
     endpoint: "/proposals/query",
     streamEndpoint: "/proposals/stream",
     parseResult,
+    parseMetadata: useCallback((data: Record<string, unknown>) =>
+      (data.dataUsed as Record<string, unknown>) ?? data
+    , []),
     errorMessage: "Failed to connect to insights service. Please try again.",
   })
 

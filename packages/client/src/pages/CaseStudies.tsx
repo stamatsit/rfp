@@ -75,6 +75,9 @@ export function CaseStudies() {
     endpoint: "/ai/case-studies",
     streamEndpoint: "/ai/case-studies/stream",
     parseResult,
+    parseMetadata: useCallback((data: Record<string, unknown>) =>
+      (data.dataUsed as Record<string, unknown>) ?? data
+    , []),
     errorMessage: "Failed to connect to case study service. Please try again.",
   })
 
