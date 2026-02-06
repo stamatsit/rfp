@@ -53,7 +53,67 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex bg-[#f5f5f7] dark:bg-slate-950 transition-colors">
-      {/* Left — Sign-in form */}
+      {/* Left — Feature showcase (hidden on mobile) */}
+      <div
+        className="hidden md:flex flex-1 relative overflow-hidden items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%)',
+        }}
+      >
+        {/* Ambient floating orbs */}
+        <div
+          className="absolute top-20 -left-20 w-80 h-80 rounded-full opacity-[0.08] blur-3xl animate-float"
+          style={{ background: 'radial-gradient(circle, #3B82F6, transparent 70%)', animationDelay: '0s' }}
+        />
+        <div
+          className="absolute bottom-10 right-10 w-96 h-96 rounded-full opacity-[0.06] blur-3xl animate-float"
+          style={{ background: 'radial-gradient(circle, #8B5CF6, transparent 70%)', animationDelay: '1.5s' }}
+        />
+        <div
+          className="absolute top-1/2 left-1/3 w-64 h-64 rounded-full opacity-[0.05] blur-3xl animate-float"
+          style={{ background: 'radial-gradient(circle, #06B6D4, transparent 70%)', animationDelay: '3s' }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 max-w-[380px] px-10">
+          <div className="mb-10">
+            <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-[0.2em] mb-3 animate-fade-in">
+              Stamats Content Platform
+            </p>
+            <h2 className="text-[32px] font-semibold text-white tracking-tight leading-tight animate-fade-in-up">
+              Your AI-powered{" "}
+              <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
+                content library
+              </span>
+            </h2>
+            <p className="text-[15px] text-slate-400 mt-3 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+              Proposals, client results, and approved content — organized, searchable, and AI-ready.
+            </p>
+          </div>
+
+          <div className="space-y-4 stagger-children">
+            {features.map((feature) => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.text} className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                    <Icon size={18} className="text-blue-400" strokeWidth={1.75} />
+                  </div>
+                  <p className="text-[14px] text-slate-300 leading-snug">{feature.text}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          <div className="mt-12 pt-8 border-t border-white/[0.06] animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
+            <p className="text-[12px] text-slate-500">
+              100+ years of higher education &amp; healthcare marketing expertise
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Right — Sign-in form */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-[340px]">
           {/* Logo */}
@@ -166,66 +226,6 @@ export default function Login() {
           <p className="text-center text-[12px] text-slate-400 mt-10">
             &copy; {new Date().getFullYear()} Stamats
           </p>
-        </div>
-      </div>
-
-      {/* Right — Feature showcase (hidden on mobile) */}
-      <div
-        className="hidden md:flex flex-1 relative overflow-hidden items-center justify-center"
-        style={{
-          background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 40%, #0f172a 100%)',
-        }}
-      >
-        {/* Ambient floating orbs */}
-        <div
-          className="absolute top-20 -left-20 w-80 h-80 rounded-full opacity-[0.08] blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #3B82F6, transparent 70%)', animationDelay: '0s' }}
-        />
-        <div
-          className="absolute bottom-10 right-10 w-96 h-96 rounded-full opacity-[0.06] blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #8B5CF6, transparent 70%)', animationDelay: '1.5s' }}
-        />
-        <div
-          className="absolute top-1/2 left-1/3 w-64 h-64 rounded-full opacity-[0.05] blur-3xl animate-float"
-          style={{ background: 'radial-gradient(circle, #06B6D4, transparent 70%)', animationDelay: '3s' }}
-        />
-
-        {/* Content */}
-        <div className="relative z-10 max-w-[380px] px-10">
-          <div className="mb-10">
-            <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-[0.2em] mb-3 animate-fade-in">
-              Stamats Content Platform
-            </p>
-            <h2 className="text-[32px] font-semibold text-white tracking-tight leading-tight animate-fade-in-up">
-              Your AI-powered{" "}
-              <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-                content library
-              </span>
-            </h2>
-            <p className="text-[15px] text-slate-400 mt-3 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
-              Proposals, client results, and approved content — organized, searchable, and AI-ready.
-            </p>
-          </div>
-
-          <div className="space-y-4 stagger-children">
-            {features.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <div key={feature.text} className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-white/[0.06] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
-                    <Icon size={18} className="text-blue-400" strokeWidth={1.75} />
-                  </div>
-                  <p className="text-[14px] text-slate-300 leading-snug">{feature.text}</p>
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mt-12 pt-8 border-t border-white/[0.06] animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
-            <p className="text-[12px] text-slate-500">
-              100+ years of higher education &amp; healthcare marketing expertise
-            </p>
-          </div>
         </div>
       </div>
     </div>
