@@ -125,6 +125,22 @@ export const proposals = pgTable("proposals", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Proposal Pipeline (RFP intake/triage log from Proposal Planning Meeting Activity.xlsx)
+export const proposalPipeline = pgTable("proposal_pipeline", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dateReceived: timestamp("date_received", { withTimezone: true }),
+  ce: text("ce"), // Account Executive (e.g., "Becky/Michele", "Becky Morehouse")
+  client: text("client"), // School/Institution name
+  description: text("description"), // Brief Description of Products/Services
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  decision: text("decision"), // "Processed" | "Passing" | "Cancelled" | "Reviewing"
+  extraInfo: text("extra_info"), // Reason for passing, notes
+  followUp: text("follow_up"),
+  year: integer("year"), // Which year sheet it came from (2013-2026)
+  fingerprint: text("fingerprint").notNull().unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Proposal Sync Log (tracks file sync status)
 export const proposalSyncLog = pgTable("proposal_sync_log", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -173,3 +189,5 @@ export type Proposal = typeof proposals.$inferSelect
 export type NewProposal = typeof proposals.$inferInsert
 export type ProposalSyncLogEntry = typeof proposalSyncLog.$inferSelect
 export type NewProposalSyncLogEntry = typeof proposalSyncLog.$inferInsert
+export type ProposalPipelineEntry = typeof proposalPipeline.$inferSelect
+export type NewProposalPipelineEntry = typeof proposalPipeline.$inferInsert

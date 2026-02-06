@@ -791,6 +791,32 @@ export const aiApi = {
   },
 }
 
+// ─── Case Studies AI Builder ────────────────────────────────
+
+export interface CaseStudyInsightResponse {
+  response: string
+  dataUsed: {
+    totalCaseStudies: number
+    totalTestimonials: number
+    totalStats: number
+    categoriesSearched: string[]
+  }
+  followUpPrompts: string[]
+  refused: boolean
+  refusalReason?: string
+}
+
+export const caseStudiesApi = {
+  async query(query: string): Promise<CaseStudyInsightResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/ai/case-studies`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    })
+    return handleResponse<CaseStudyInsightResponse>(response)
+  },
+}
+
 /**
  * Proposal Insights API
  * COMPLETELY ISOLATED from the Q&A library AI (aiApi)

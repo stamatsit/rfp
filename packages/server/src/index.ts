@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.js"
 import { requireAuth } from "./middleware/auth.js"
 import { initializeDatabase } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
+import { startPipelineSyncPolling } from "./services/pipelineSyncService.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -67,6 +68,8 @@ async function start() {
   } else {
     // Start proposal sync polling (only if database is connected)
     startSyncPolling()
+    // Start pipeline sync polling (RFP intake data)
+    startPipelineSyncPolling()
   }
 
   app.listen(PORT, () => {

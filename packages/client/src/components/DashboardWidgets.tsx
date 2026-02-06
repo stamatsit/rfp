@@ -1,16 +1,6 @@
 import { useState, useEffect, useMemo } from "react"
 import { Link } from "react-router-dom"
-import {
-  TrendingUp,
-  TrendingDown,
-  FileSpreadsheet,
-  Search,
-  Image,
-  Clock,
-  Sparkles,
-  ArrowRight,
-  Zap,
-} from "lucide-react"
+import { TrendingUp, TrendingDown, ArrowRight, Zap } from "lucide-react"
 import { getVisibleWidgets, WidgetConfig, WidgetSize } from "./SettingsPanel"
 import { topicsApi, answersApi, photosApi } from "@/lib/api"
 
@@ -86,7 +76,7 @@ function WinRateChartWidget({ widget }: WidgetProps) {
   return (
     <Link
       to="/insights"
-      className={`${sizes.container} group block rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}
+      className={`${sizes.container} group block rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col`}
     >
       <div className="flex items-start justify-between mb-3">
         <div>
@@ -108,7 +98,7 @@ function WinRateChartWidget({ widget }: WidgetProps) {
       </div>
 
       {/* Animated Chart */}
-      <div className="relative h-16 mt-2">
+      <div className="relative flex-1 mt-1">
         <svg viewBox="0 0 200 60" className="w-full h-full" preserveAspectRatio="none">
           {/* Gradient fill */}
           <defs>
@@ -156,70 +146,13 @@ function WinRateChartWidget({ widget }: WidgetProps) {
         </svg>
       </div>
 
-      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
         View proposal insights <ArrowRight size={10} className="inline ml-1" />
       </p>
     </Link>
   )
 }
 
-// ============================================================================
-// Recent Activity Widget
-// ============================================================================
-
-interface Activity {
-  id: string
-  type: "import" | "search" | "photo" | "edit"
-  title: string
-  time: string
-  icon: React.ReactNode
-}
-
-function RecentActivityWidget({ widget }: WidgetProps) {
-  const sizes = sizeClasses[widget.size]
-
-  // Sample recent activity - in production this would come from an activity API
-  const activities: Activity[] = useMemo(() => [
-    { id: "1", type: "import", title: "Imported 24 Q&A entries", time: "2 min ago", icon: <FileSpreadsheet size={14} /> },
-    { id: "2", type: "search", title: 'Searched "brand guidelines"', time: "15 min ago", icon: <Search size={14} /> },
-    { id: "3", type: "photo", title: "Uploaded 3 photos", time: "1 hour ago", icon: <Image size={14} /> },
-    { id: "4", type: "edit", title: "Updated pricing answer", time: "2 hours ago", icon: <FileSpreadsheet size={14} /> },
-  ], [])
-
-  const visibleActivities = widget.size === "small" ? activities.slice(0, 2) : activities
-
-  return (
-    <div className={`${sizes.container} rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800`}>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recent Activity</p>
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: widget.gradient }}
-        >
-          <Clock size={14} className="text-white" />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {visibleActivities.map((activity, i) => (
-          <div
-            key={activity.id}
-            className="flex items-center gap-3 animate-fade-in"
-            style={{ animationDelay: `${i * 100}ms` }}
-          >
-            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 dark:text-slate-400">
-              {activity.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] text-slate-700 dark:text-slate-300 truncate">{activity.title}</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">{activity.time}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
 
 // ============================================================================
 // Quick Stats Widget
@@ -243,8 +176,8 @@ function QuickStatsWidget({ widget, stats }: WidgetProps) {
   const maxValue = Math.max(...statItems.map(s => s.value), 1)
 
   return (
-    <div className={`${sizes.container} rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800`}>
-      <div className="flex items-center justify-between mb-4">
+    <div className={`${sizes.container} rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col`}>
+      <div className="flex items-center justify-between mb-3">
         <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Library Stats</p>
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center"
@@ -254,13 +187,13 @@ function QuickStatsWidget({ widget, stats }: WidgetProps) {
         </div>
       </div>
 
-      <div className="flex items-end justify-between gap-3 h-20">
+      <div className="flex items-end justify-between gap-3 flex-1">
         {statItems.map((stat, i) => (
-          <div key={stat.label} className="flex-1 flex flex-col items-center">
+          <div key={stat.label} className="flex-1 flex flex-col items-center justify-end h-full">
             <span className="text-[15px] font-bold text-slate-900 dark:text-white mb-1">
               {stat.value.toLocaleString()}
             </span>
-            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-lg overflow-hidden" style={{ height: "40px" }}>
+            <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-t-lg overflow-hidden" style={{ height: "48px" }}>
               <div
                 className="w-full rounded-t-lg transition-all duration-700 ease-out"
                 style={{
@@ -278,120 +211,6 @@ function QuickStatsWidget({ widget, stats }: WidgetProps) {
   )
 }
 
-// ============================================================================
-// Trending Topics Widget
-// ============================================================================
-
-function TrendingTopicsWidget({ widget }: WidgetProps) {
-  const sizes = sizeClasses[widget.size]
-
-  // Sample trending topics - would come from search analytics
-  const topics = useMemo(() => [
-    { name: "Pricing", searches: 45, trend: 12 },
-    { name: "Team", searches: 38, trend: 8 },
-    { name: "Timeline", searches: 32, trend: -3 },
-    { name: "Experience", searches: 28, trend: 15 },
-  ], [])
-
-  const visibleTopics = widget.size === "small" ? topics.slice(0, 3) : topics
-  const maxSearches = Math.max(...topics.map(t => t.searches))
-
-  return (
-    <div className={`${sizes.container} rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800`}>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Trending Topics</p>
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: widget.gradient }}
-        >
-          <TrendingUp size={14} className="text-white" />
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {visibleTopics.map((topic, i) => (
-          <div key={topic.name} className="flex items-center gap-3">
-            <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 w-4">{i + 1}</span>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[13px] font-medium text-slate-700 dark:text-slate-300">{topic.name}</span>
-                <span className={`text-[11px] font-medium ${topic.trend >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                  {topic.trend >= 0 ? "+" : ""}{topic.trend}%
-                </span>
-              </div>
-              <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{
-                    width: `${(topic.searches / maxSearches) * 100}%`,
-                    background: widget.gradient,
-                  }}
-                />
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ============================================================================
-// AI Suggestions Widget
-// ============================================================================
-
-function AISuggestionsWidget({ widget }: WidgetProps) {
-  const sizes = sizeClasses[widget.size]
-
-  const suggestions = useMemo(() => [
-    { text: "Update outdated pricing info", priority: "high" },
-    { text: "Add more case studies", priority: "medium" },
-    { text: "Review timeline content", priority: "low" },
-  ], [])
-
-  const visibleSuggestions = widget.size === "small" ? suggestions.slice(0, 2) : suggestions
-
-  const priorityColors = {
-    high: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
-    medium: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
-    low: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400",
-  }
-
-  return (
-    <Link
-      to="/ai"
-      className={`${sizes.container} group block rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">AI Suggestions</p>
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center"
-          style={{ background: widget.gradient }}
-        >
-          <Sparkles size={14} className="text-white animate-pulse" />
-        </div>
-      </div>
-
-      <div className="space-y-2.5">
-        {visibleSuggestions.map((suggestion, i) => (
-          <div
-            key={i}
-            className="flex items-center gap-2 p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50"
-          >
-            <span className={`px-1.5 py-0.5 text-[9px] font-bold uppercase rounded ${priorityColors[suggestion.priority as keyof typeof priorityColors]}`}>
-              {suggestion.priority}
-            </span>
-            <span className="text-[12px] text-slate-600 dark:text-slate-400 truncate">{suggestion.text}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-3 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-colors">
-        Ask AI for help <ArrowRight size={10} className="inline ml-1" />
-      </p>
-    </Link>
-  )
-}
 
 // ============================================================================
 // Proposal Momentum Widget
@@ -417,14 +236,14 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
   return (
     <Link
       to="/insights"
-      className={`${sizes.container} group block rounded-2xl ${sizes.padding} bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5`}
+      className={`${sizes.container} group block rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col`}
     >
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Momentum</p>
         <span className={`text-[11px] font-bold ${statusColor}`}>{status}</span>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-1">
         {/* Circular Gauge */}
         <div className="relative w-20 h-20 flex-shrink-0">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
@@ -480,23 +299,38 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
 // Widget Renderer
 // ============================================================================
 
-function WidgetRenderer({ widget, stats }: WidgetProps) {
-  switch (widget.type) {
-    case "win-rate-chart":
-      return <WinRateChartWidget widget={widget} stats={stats} />
-    case "recent-activity":
-      return <RecentActivityWidget widget={widget} stats={stats} />
-    case "quick-stats":
-      return <QuickStatsWidget widget={widget} stats={stats} />
-    case "trending-topics":
-      return <TrendingTopicsWidget widget={widget} stats={stats} />
-    case "ai-suggestions":
-      return <AISuggestionsWidget widget={widget} stats={stats} />
-    case "proposal-momentum":
-      return <ProposalMomentumWidget widget={widget} stats={stats} />
-    default:
-      return null
-  }
+function WidgetRenderer({ widget, stats, index }: WidgetProps & { index: number }) {
+  const [isVisible, setIsVisible] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), index * 150)
+    return () => clearTimeout(timer)
+  }, [index])
+
+  const content = (() => {
+    switch (widget.type) {
+      case "win-rate-chart":
+        return <WinRateChartWidget widget={widget} stats={stats} />
+      case "quick-stats":
+        return <QuickStatsWidget widget={widget} stats={stats} />
+      case "proposal-momentum":
+        return <ProposalMomentumWidget widget={widget} stats={stats} />
+      default:
+        return null
+    }
+  })()
+
+  return (
+    <div
+      className="transition-all duration-500 ease-out"
+      style={{
+        opacity: isVisible ? 1 : 0,
+        transform: isVisible ? "translateY(0) scale(1)" : "translateY(20px) scale(0.95)",
+      }}
+    >
+      {content}
+    </div>
+  )
 }
 
 // ============================================================================
@@ -504,13 +338,11 @@ function WidgetRenderer({ widget, stats }: WidgetProps) {
 // ============================================================================
 
 export function DashboardWidgets() {
-  const [widgets, setWidgets] = useState<WidgetConfig[]>([])
+  const [widgets, setWidgets] = useState<WidgetConfig[]>(() => getVisibleWidgets())
   const [stats, setStats] = useState({ topics: 0, answers: 0, photos: 0 })
 
-  // Load widgets from settings
+  // Load widgets from settings and listen for changes
   useEffect(() => {
-    setWidgets(getVisibleWidgets())
-
     const handleSettingsChange = () => {
       setWidgets(getVisibleWidgets())
     }
@@ -545,8 +377,8 @@ export function DashboardWidgets() {
   return (
     <section className="mb-8">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {widgets.map((widget) => (
-          <WidgetRenderer key={widget.id} widget={widget} stats={stats} />
+        {widgets.map((widget, index) => (
+          <WidgetRenderer key={widget.id} widget={widget} stats={stats} index={index} />
         ))}
       </div>
     </section>

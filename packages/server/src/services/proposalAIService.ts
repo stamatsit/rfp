@@ -8,6 +8,7 @@
 
 import OpenAI from "openai"
 import { getAllProposals } from "./proposalSyncService.js"
+import { getPipelineStats } from "./pipelineSyncService.js"
 import type { Proposal } from "../db/index.js"
 
 // Lazy-initialized OpenAI client (pattern shared with aiService.ts)
@@ -1038,14 +1039,22 @@ function calculateServiceBundles(proposals: Proposal[]): Array<{
 }
 
 /**
- * Build rich context for the AI (ENHANCED with Phase 2 superpowers)
+ * Build rich context for the AI (ENHANCED with Phase 2 superpowers + Pipeline data)
  */
-function buildContext(proposals: Proposal[], query: string = ""): string {
+async function buildContext(proposals: Proposal[], query: string = ""): Promise<string> {
   const winRates = calculateWinRates(proposals)
   const bundles = calculateServiceBundles(proposals)
   const analytics = calculateAdvancedAnalytics(proposals)
   const pendingScores = scorePendingProposals(proposals)
   const recommendations = generateRecommendations(proposals)
+
+  // Get pipeline data (RFP intake/triage decisions)
+  let pipelineStats = null
+  try {
+    pipelineStats = await getPipelineStats()
+  } catch (err) {
+    console.log("[ProposalAI] Pipeline stats not available:", err instanceof Error ? err.message : String(err))
+  }
 
   // Date range
   const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
@@ -1214,6 +1223,64 @@ ${proposals
 `
   }
 
+  // Add pipeline data (RFP intake/triage decisions) if available
+  if (pipelineStats && pipelineStats.total > 0) {
+    const formatPercent = (n: number) => `${(n * 100).toFixed(1)}%`
+
+    // Sort pass reasons by frequency
+    const sortedPassReasons = Object.entries(pipelineStats.passReasons)
+      .sort((a, b) => b[1] - a[1])
+
+    // Sort years by most recent first
+    const sortedYears = Object.entries(pipelineStats.byYear)
+      .sort((a, b) => parseInt(b[0]) - parseInt(a[0]))
+      .slice(0, 5) // Last 5 years
+
+    // Sort CEs by volume
+    const sortedCEs = Object.entries(pipelineStats.byCE)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 10)
+
+    context += `
+
+===== PIPELINE ACTIVITY (RFP Intake/Triage) =====
+
+This data shows all RFPs reviewed and the decision to pursue ("Processed") or decline ("Passing").
+
+OVERALL PIPELINE METRICS:
+- Total RFPs Reviewed: ${pipelineStats.total}
+- Processed (Pursued): ${pipelineStats.processed} (${formatPercent(pipelineStats.pursuitRate)} pursuit rate)
+- Passed (Declined): ${pipelineStats.passing}
+- Cancelled: ${pipelineStats.cancelled}
+- Under Review: ${pipelineStats.reviewing}
+
+REASONS FOR PASSING (extracted from notes):
+${sortedPassReasons.map(([reason, count]) => {
+  const pct = pipelineStats.passing > 0 ? (count / pipelineStats.passing) * 100 : 0
+  return `- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`
+}).join("\n") || "No pass reason data"}
+
+PIPELINE BY YEAR:
+${sortedYears.map(([year, stats]) => {
+  const pursuitRate = stats.total > 0 ? stats.processed / stats.total : 0
+  return `- ${year}: ${stats.total} RFPs reviewed, ${stats.processed} processed (${formatPercent(pursuitRate)} pursuit rate)`
+}).join("\n") || "No yearly data"}
+
+PIPELINE BY ACCOUNT EXECUTIVE:
+${sortedCEs.map(([ce, stats]) => {
+  const pursuitRate = stats.total > 0 ? stats.processed / stats.total : 0
+  return `- ${ce}: ${stats.total} reviewed, ${stats.processed} processed (${formatPercent(pursuitRate)} pursuit rate)`
+}).join("\n") || "No CE data"}
+
+RECENT RFP INTAKE (last 20):
+${pipelineStats.recentEntries.slice(0, 20).map(e => {
+  const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
+  const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 50)}${e.extraInfo.length > 50 ? "..." : ""}"` : ""
+  return `- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`
+}).join("\n") || "No recent entries"}
+`
+  }
+
   return context.trim()
 }
 
@@ -1229,6 +1296,12 @@ Your job is to analyze historical proposal data and provide actionable insights.
 - Predictive scoring for pending proposals (win probability based on historical patterns)
 - Auto-generated strategic recommendations
 - Raw data access (all spreadsheet fields)
+- PIPELINE DATA: RFP intake/triage decisions showing pursuit rates, pass reasons, and selectivity metrics
+
+PIPELINE CONTEXT: The pipeline data shows ALL RFPs reviewed (not just ones you pursued). This reveals:
+- How selective you are (pursuit rate = % of opportunities you pursue)
+- Why you decline opportunities (budget, incumbent, HUB requirements, etc.)
+- Workload by account executive
 
 CRITICAL RULES:
 1. ONLY use statistics from the provided data - NEVER make up numbers
@@ -1351,7 +1424,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
     }
 
     // Build enhanced context with query for raw data detection
-    const context = buildContext(proposals, query)
+    const context = await buildContext(proposals, query)
     const winRates = calculateWinRates(proposals)
     const analytics = calculateAdvancedAnalytics(proposals)
     const pendingScores = scorePendingProposals(proposals)

@@ -30,9 +30,9 @@ import {
   GripVertical,
   Keyboard,
   BarChart3,
-  Clock,
   LineChart,
   Gauge,
+  BookOpen,
 } from "lucide-react"
 
 // ============================================================================
@@ -123,6 +123,17 @@ const defaultTiles: TileConfig[] = [
     enabled: true,
     badge: "NEW",
   },
+  {
+    id: "case-studies",
+    to: "/case-studies",
+    icon: <BookOpen size={22} strokeWidth={2} />,
+    title: "Case Studies",
+    description: "Browse and search 40+ client success stories",
+    gradient: "linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%)",
+    shadowColor: "rgba(100, 116, 139, 0.15)",
+    enabled: true,
+    badge: "BETA",
+  },
 ]
 
 interface TileSettings {
@@ -172,16 +183,7 @@ const defaultWidgets: Omit<WidgetConfig, "enabled" | "order">[] = [
     description: "Live win rate trend with animated chart",
     icon: <LineChart size={18} />,
     gradient: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
-    size: "medium",
-  },
-  {
-    id: "recent-activity",
-    type: "recent-activity",
-    title: "Recent Activity",
-    description: "Latest imports, edits, and searches",
-    icon: <Clock size={18} />,
-    gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)",
-    size: "medium",
+    size: "small",
   },
   {
     id: "quick-stats",
@@ -191,24 +193,6 @@ const defaultWidgets: Omit<WidgetConfig, "enabled" | "order">[] = [
     icon: <BarChart3 size={18} />,
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
     size: "small",
-  },
-  {
-    id: "trending-topics",
-    type: "trending-topics",
-    title: "Trending Topics",
-    description: "Most searched and used topics",
-    icon: <TrendingUp size={18} />,
-    gradient: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)",
-    size: "small",
-  },
-  {
-    id: "ai-suggestions",
-    type: "ai-suggestions",
-    title: "AI Suggestions",
-    description: "Smart content recommendations",
-    icon: <Sparkles size={18} />,
-    gradient: "linear-gradient(135deg, #EC4899 0%, #DB2777 100%)",
-    size: "medium",
   },
   {
     id: "proposal-momentum",
@@ -250,7 +234,7 @@ const SETTINGS_KEY = "stamats-app-settings"
 const defaultSettings: AppSettings = {
   tiles: defaultTiles.map((t, i) => ({ id: t.id, enabled: true, order: i })),
   widgets: defaultWidgets.map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: i })),
-  widgetsEnabled: true,
+  widgetsEnabled: false,
   theme: "system",
   accentColor: "#3B82F6",
   aiAutoSuggest: true,
@@ -297,7 +281,9 @@ export function loadSettings(): AppSettings {
           .filter(w => !widgetIds.has(w.id))
           .map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: (parsed.widgets?.length || 0) + i }))
       ]
-      return { ...defaultSettings, ...parsed, tiles: mergedTiles, widgets: mergedWidgets }
+      // Preserve widgetsEnabled explicitly (default to false only if not set)
+      const widgetsEnabled = parsed.widgetsEnabled !== undefined ? parsed.widgetsEnabled : defaultSettings.widgetsEnabled
+      return { ...defaultSettings, ...parsed, tiles: mergedTiles, widgets: mergedWidgets, widgetsEnabled }
     }
   } catch (e) {
     console.error("Failed to load settings:", e)
@@ -493,132 +479,6 @@ const categories = [
   { id: "accessibility" as const, label: "Accessibility", icon: Eye },
   { id: "labs" as const, label: "Labs", icon: Beaker },
 ]
-
-// ============================================================================
-// Widget Size Selector Component
-// ============================================================================
-
-function WidgetSizeSelector({ size, onChange }: { size: WidgetSize; onChange: (size: WidgetSize) => void }) {
-  const sizes: { value: WidgetSize; label: string; width: string }[] = [
-    { value: "small", label: "S", width: "w-6" },
-    { value: "medium", label: "M", width: "w-10" },
-    { value: "large", label: "L", width: "w-14" },
-  ]
-
-  return (
-    <div className="flex items-center gap-1.5">
-      {sizes.map(s => (
-        <button
-          key={s.value}
-          onClick={() => onChange(s.value)}
-          className={`h-6 ${s.width} rounded flex items-center justify-center text-[10px] font-bold transition-all duration-200 ${
-            size === s.value
-              ? "bg-blue-500 text-white shadow-sm"
-              : "bg-slate-200 dark:bg-slate-600 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-500"
-          }`}
-        >
-          {s.label}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ============================================================================
-// Widget Preview Component
-// ============================================================================
-
-function WidgetPreview({ widget, size }: { widget: Omit<WidgetConfig, "enabled" | "order">; size: WidgetSize }) {
-  const sizeClasses = {
-    small: "w-20 h-16",
-    medium: "w-32 h-20",
-    large: "w-44 h-24",
-  }
-
-  // Mini chart preview based on widget type
-  const renderPreview = () => {
-    switch (widget.type) {
-      case "win-rate-chart":
-        return (
-          <svg viewBox="0 0 60 30" className="w-full h-full opacity-80">
-            <path
-              d="M0 25 Q15 20, 20 22 T35 15 T50 18 T60 8"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-white/70"
-            />
-            <circle cx="60" cy="8" r="2" className="fill-white" />
-          </svg>
-        )
-      case "recent-activity":
-        return (
-          <div className="flex flex-col gap-1 w-full px-2">
-            {[0.9, 0.7, 0.5].map((opacity, i) => (
-              <div key={i} className="flex items-center gap-1.5" style={{ opacity }}>
-                <div className="w-1.5 h-1.5 rounded-full bg-white/80" />
-                <div className="h-1 flex-1 rounded bg-white/40" />
-              </div>
-            ))}
-          </div>
-        )
-      case "quick-stats":
-        return (
-          <div className="flex gap-2 px-2">
-            {[1, 0.7, 0.5].map((h, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center justify-end">
-                <div className="w-full rounded-t bg-white/60" style={{ height: `${h * 20}px` }} />
-              </div>
-            ))}
-          </div>
-        )
-      case "trending-topics":
-        return (
-          <div className="flex items-end gap-1 px-2 h-full pb-1">
-            {[0.8, 1, 0.6, 0.9, 0.4].map((h, i) => (
-              <div key={i} className="flex-1 rounded-t bg-white/50" style={{ height: `${h * 100}%` }} />
-            ))}
-          </div>
-        )
-      case "ai-suggestions":
-        return (
-          <div className="flex items-center justify-center">
-            <Sparkles size={20} className="text-white/80 animate-pulse" />
-          </div>
-        )
-      case "proposal-momentum":
-        return (
-          <svg viewBox="0 0 40 40" className="w-8 h-8">
-            <circle cx="20" cy="20" r="16" fill="none" stroke="currentColor" strokeWidth="4" className="text-white/30" />
-            <circle
-              cx="20" cy="20" r="16"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="4"
-              strokeDasharray="75 25"
-              strokeLinecap="round"
-              className="text-white/90"
-              transform="rotate(-90 20 20)"
-            />
-          </svg>
-        )
-      default:
-        return null
-    }
-  }
-
-  return (
-    <div
-      className={`${sizeClasses[size]} rounded-lg flex items-center justify-center overflow-hidden transition-all duration-300`}
-      style={{ background: widget.gradient }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent" />
-      <div className="relative w-full h-full flex items-center justify-center p-2">
-        {renderPreview()}
-      </div>
-    </div>
-  )
-}
 
 // ============================================================================
 // Main Settings Panel Component
@@ -1087,119 +947,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     />
                   </div>
 
-                  {/* Widget List */}
-                  <div className={`space-y-4 transition-opacity duration-300 ${settings.widgetsEnabled ? "opacity-100" : "opacity-40 pointer-events-none"}`}>
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Available Widgets</h3>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500">Drag to reorder</span>
-                    </div>
-
-                    <div className="space-y-3">
-                      {[...defaultWidgets]
-                        .map(widget => {
-                          const widgetSetting = settings.widgets.find(w => w.id === widget.id)
-                          return { ...widget, enabled: widgetSetting?.enabled ?? true, size: widgetSetting?.size ?? widget.size, order: widgetSetting?.order ?? 999 }
-                        })
-                        .sort((a, b) => a.order - b.order)
-                        .map(widget => (
-                          <div
-                            key={widget.id}
-                            draggable
-                            onDragStart={(e) => {
-                              e.dataTransfer.setData("widget-id", widget.id)
-                              e.dataTransfer.effectAllowed = "move"
-                            }}
-                            onDragOver={(e) => e.preventDefault()}
-                            onDrop={(e) => {
-                              e.preventDefault()
-                              const draggedId = e.dataTransfer.getData("widget-id")
-                              if (draggedId && draggedId !== widget.id) {
-                                const currentOrder = [...defaultWidgets]
-                                  .map(w => {
-                                    const ws = settings.widgets.find(s => s.id === w.id)
-                                    return { id: w.id, order: ws?.order ?? 999 }
-                                  })
-                                  .sort((a, b) => a.order - b.order)
-                                  .map(w => w.id)
-                                const draggedIndex = currentOrder.indexOf(draggedId)
-                                const targetIndex = currentOrder.indexOf(widget.id)
-                                const newOrder = [...currentOrder]
-                                newOrder.splice(draggedIndex, 1)
-                                newOrder.splice(targetIndex, 0, draggedId)
-                                const newWidgets = settings.widgets.map(w => ({
-                                  ...w,
-                                  order: newOrder.indexOf(w.id)
-                                }))
-                                updateSetting("widgets", newWidgets)
-                              }
-                            }}
-                            className="flex items-center gap-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200 cursor-grab active:cursor-grabbing"
-                          >
-                            {/* Drag Handle */}
-                            <div className="text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500">
-                              <GripVertical size={14} />
-                            </div>
-
-                            {/* Widget Preview */}
-                            <WidgetPreview widget={widget} size={widget.size} />
-
-                            {/* Widget Info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">{widget.title}</p>
-                              </div>
-                              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{widget.description}</p>
-
-                              {/* Size Selector */}
-                              <div className="mt-3">
-                                <WidgetSizeSelector
-                                  size={widget.size}
-                                  onChange={(newSize) => {
-                                    const newWidgets = settings.widgets.map(w =>
-                                      w.id === widget.id ? { ...w, size: newSize } : w
-                                    )
-                                    updateSetting("widgets", newWidgets)
-                                  }}
-                                />
-                              </div>
-                            </div>
-
-                            {/* Enable Toggle */}
-                            <Toggle
-                              enabled={widget.enabled}
-                              onChange={() => {
-                                const newWidgets = settings.widgets.map(w =>
-                                  w.id === widget.id ? { ...w, enabled: !w.enabled } : w
-                                )
-                                updateSetting("widgets", newWidgets)
-                              }}
-                            />
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-
-                  {/* Preview Section */}
-                  <div className={`transition-opacity duration-300 ${settings.widgetsEnabled ? "opacity-100" : "opacity-40"}`}>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Preview</h3>
-                    <div className="p-4 rounded-xl bg-gradient-to-br from-slate-100 to-slate-50 dark:from-slate-800 dark:to-slate-900 border border-slate-200 dark:border-slate-700">
-                      <div className="flex flex-wrap gap-3">
-                        {[...defaultWidgets]
-                          .map(widget => {
-                            const widgetSetting = settings.widgets.find(w => w.id === widget.id)
-                            return { ...widget, enabled: widgetSetting?.enabled ?? true, size: widgetSetting?.size ?? widget.size, order: widgetSetting?.order ?? 999 }
-                          })
-                          .filter(w => w.enabled)
-                          .sort((a, b) => a.order - b.order)
-                          .map(widget => (
-                            <WidgetPreview key={widget.id} widget={widget} size={widget.size} />
-                          ))}
-                        {settings.widgets.filter(w => w.enabled).length === 0 && (
-                          <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No widgets enabled</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                  <p className="text-[13px] text-slate-500 dark:text-slate-400">
+                    {settings.widgetsEnabled
+                      ? "Widgets are displayed on your home screen showing stats, trends, and suggestions."
+                      : "Enable widgets to see stats, trends, and suggestions on your home screen."}
+                  </p>
                 </div>
               )}
 

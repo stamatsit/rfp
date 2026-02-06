@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express"
 import { queryAI, adaptContent, type AdaptationType } from "../services/aiService.js"
+import { queryCaseStudyInsights } from "../services/caseStudyAIService.js"
 
 const router = Router()
 
@@ -73,6 +74,34 @@ router.post("/adapt", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("AI adapt endpoint failed:", error)
     res.status(500).json({ error: "Failed to adapt content" })
+  }
+})
+
+/**
+ * POST /api/ai/case-studies
+ * AI-powered case study builder — helps users craft case studies
+ */
+router.post("/case-studies", async (req: Request, res: Response) => {
+  try {
+    const { query } = req.body
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query is required" })
+    }
+
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: "Query must be at least 2 characters" })
+    }
+
+    if (query.length > 2000) {
+      return res.status(400).json({ error: "Query must be less than 2000 characters" })
+    }
+
+    const result = await queryCaseStudyInsights(query.trim())
+    res.json(result)
+  } catch (error) {
+    console.error("Case study AI failed:", error)
+    res.status(500).json({ error: "Failed to process case study request" })
   }
 })
 

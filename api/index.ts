@@ -44,10 +44,48 @@ export const photoAssets = pgTable("photo_assets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Proposals table (synced from Excel)
+export const proposals = pgTable("proposals", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  date: timestamp("date", { withTimezone: true }),
+  ce: text("ce"),
+  client: text("client"),
+  projectType: text("project_type"),
+  rfpNumber: text("rfp_number"),
+  won: text("won"),
+  schoolType: text("school_type"),
+  affiliation: text("affiliation"),
+  servicesOffered: jsonb("services_offered").$type<string[]>().default([]),
+  documentLinks: jsonb("document_links").$type<Record<string, string>>(),
+  fingerprint: text("fingerprint").notNull(),
+  sourceRow: integer("source_row"),
+  sheetName: text("sheet_name"),
+  category: text("category"),
+  rawData: jsonb("raw_data").$type<Record<string, string>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Proposal Pipeline table (RFP intake/triage log)
+export const proposalPipeline = pgTable("proposal_pipeline", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  dateReceived: timestamp("date_received", { withTimezone: true }),
+  ce: text("ce"),
+  client: text("client"),
+  description: text("description"),
+  dueDate: timestamp("due_date", { withTimezone: true }),
+  decision: text("decision"),
+  extraInfo: text("extra_info"),
+  followUp: text("follow_up"),
+  year: integer("year"),
+  fingerprint: text("fingerprint").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline } }) : null
 
 // Supabase client
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -697,6 +735,212 @@ Instructions:
       // Redirect to Supabase Storage public URL
       const supabaseStorageUrl = `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${storageKey}.${ext}`
       return res.redirect(302, supabaseStorageUrl)
+    }
+
+    // Proposals routes
+    if (path.startsWith("/proposals")) {
+      // Sync status - return status based on database content
+      if ((path === "/proposals/sync/status" || path === "/proposals/sync/status/") && method === "GET") {
+        // Get count from database
+        const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(proposals)
+        const totalProposals = countResult?.count || 0
+        return res.json({
+          configured: totalProposals > 0, // Consider "configured" if we have data
+          lastSync: new Date().toISOString(),
+          totalProposals,
+          status: totalProposals > 0 ? "synced" : "empty",
+          message: totalProposals > 0
+            ? `${totalProposals} proposals loaded from database`
+            : "No proposal data. Sync from local development server first."
+        })
+      }
+
+      // Query proposals AI
+      if ((path === "/proposals/query" || path === "/proposals/query/") && method === "POST") {
+        if (!openai) {
+          return res.json({
+            response: "",
+            dataUsed: { totalProposals: 0, dateRange: { from: null, to: null }, overallWinRate: 0, wonCount: 0, lostCount: 0, pendingCount: 0, byCategory: {}, momentum: "steady", rolling6Month: 0, rolling12Month: 0, yoyChange: null },
+            followUpPrompts: [],
+            recommendations: [],
+            pendingScores: [],
+            refused: true,
+            refusalReason: "AI service is not configured"
+          })
+        }
+
+        const { query: userQuery } = req.body || {}
+
+        // Get all proposals from database
+        const allProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+
+        if (allProposals.length === 0) {
+          return res.json({
+            response: "",
+            dataUsed: { totalProposals: 0, dateRange: { from: null, to: null }, overallWinRate: 0, wonCount: 0, lostCount: 0, pendingCount: 0, byCategory: {}, momentum: "steady", rolling6Month: 0, rolling12Month: 0, yoyChange: null },
+            followUpPrompts: [],
+            recommendations: [],
+            pendingScores: [],
+            refused: true,
+            refusalReason: "No proposal data found in database."
+          })
+        }
+
+        // Calculate basic stats
+        const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const wonCount = decided.filter(p => p.won === "Yes").length
+        const lostCount = decided.filter(p => p.won === "No").length
+        const pendingCount = allProposals.filter(p => !p.won || p.won === "Pending").length
+        const overallWinRate = decided.length > 0 ? wonCount / decided.length : 0
+
+        // Date range
+        const dates = allProposals.filter(p => p.date).map(p => new Date(p.date!))
+        const minDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null
+        const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null
+
+        // Count by category
+        const byCategory: Record<string, number> = {}
+        allProposals.forEach(p => {
+          if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1
+        })
+
+        // Get pipeline data (RFP intake decisions)
+        const pipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
+        const pipelineTotal = pipelineEntries.length
+        const pipelineProcessed = pipelineEntries.filter(e => e.decision?.toLowerCase().includes("processed")).length
+        const pipelinePassing = pipelineEntries.filter(e => e.decision?.toLowerCase().includes("pass")).length
+        const pursuitRate = pipelineTotal > 0 ? pipelineProcessed / pipelineTotal : 0
+
+        // Analyze pass reasons
+        const passReasons: Record<string, number> = {}
+        pipelineEntries
+          .filter(e => e.decision?.toLowerCase().includes("pass") && e.extraInfo)
+          .forEach(e => {
+            const info = e.extraInfo!.toLowerCase()
+            if (info.includes("budget") || info.includes("pricing")) passReasons["Budget concerns"] = (passReasons["Budget concerns"] || 0) + 1
+            else if (info.includes("not a good fit")) passReasons["Not a good fit"] = (passReasons["Not a good fit"] || 0) + 1
+            else if (info.includes("incumbent")) passReasons["Incumbent advantage"] = (passReasons["Incumbent advantage"] || 0) + 1
+            else if (info.includes("hub") || info.includes("local")) passReasons["HUB/Local preference"] = (passReasons["HUB/Local preference"] || 0) + 1
+            else if (info.includes("timeline") || info.includes("short")) passReasons["Timeline too short"] = (passReasons["Timeline too short"] || 0) + 1
+            else passReasons["Other"] = (passReasons["Other"] || 0) + 1
+          })
+
+        // Build context for AI
+        const contextLines = [
+          `PROPOSAL DATA SUMMARY:`,
+          `- Total Proposals: ${allProposals.length}`,
+          `- Date Range: ${minDate?.toISOString().split("T")[0] || "N/A"} to ${maxDate?.toISOString().split("T")[0] || "N/A"}`,
+          `- Won: ${wonCount} (${(overallWinRate * 100).toFixed(1)}% overall win rate)`,
+          `- Lost: ${lostCount}`,
+          `- Pending: ${pendingCount}`,
+          ``,
+          `PROPOSALS BY CATEGORY:`,
+          ...Object.entries(byCategory).map(([cat, count]) => `- ${cat}: ${count}`),
+          ``,
+          `RECENT PROPOSALS (last 20):`,
+          ...allProposals.slice(0, 20).map(p => {
+            const links = p.documentLinks && typeof p.documentLinks === 'object'
+              ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
+              : ""
+            return `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "No services"}${links ? ` | Links: ${links}` : ""}`
+          })
+        ]
+
+        // Add pipeline context if we have data
+        if (pipelineTotal > 0) {
+          contextLines.push(``, `===== PIPELINE ACTIVITY (RFP Intake/Triage) =====`)
+          contextLines.push(`- Total RFPs Reviewed: ${pipelineTotal}`)
+          contextLines.push(`- Processed (Pursued): ${pipelineProcessed} (${(pursuitRate * 100).toFixed(1)}% pursuit rate)`)
+          contextLines.push(`- Passed (Declined): ${pipelinePassing}`)
+          contextLines.push(``)
+          contextLines.push(`REASONS FOR PASSING:`)
+          Object.entries(passReasons).sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
+            const pct = pipelinePassing > 0 ? (count / pipelinePassing) * 100 : 0
+            contextLines.push(`- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`)
+          })
+          contextLines.push(``)
+          contextLines.push(`RECENT RFP INTAKE (last 15):`)
+          pipelineEntries.slice(0, 15).forEach(e => {
+            const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
+            const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 40)}..."` : ""
+            contextLines.push(`- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`)
+          })
+        }
+
+        const systemPrompt = `You are a Proposal Analytics Assistant. Analyze historical proposal data and provide actionable insights.
+
+PIPELINE DATA CONTEXT: You have access to RFP intake/triage decisions showing:
+- Pursuit rate: What percentage of opportunities you pursue
+- Pass reasons: Why opportunities are declined (budget, incumbent, HUB requirements, etc.)
+- This helps analyze selectivity and opportunity filtering.
+
+CRITICAL RULES:
+1. ONLY use statistics from the provided data - NEVER make up numbers
+2. Be specific with percentages and counts when available
+3. If asked about something not in the data, clearly say so
+4. Keep responses concise (150-300 words)
+5. Use bullet points for clarity
+
+At the end of your response, include 3-4 follow-up questions formatted as:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
+
+--- PROPOSAL DATA ---
+${contextLines.join("\n")}`
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userQuery }
+          ],
+          temperature: 0.4,
+          max_tokens: 2000
+        })
+
+        const rawResponse = completion.choices[0]?.message?.content || ""
+
+        // Parse follow-up prompts
+        let cleanResponse = rawResponse
+        let followUpPrompts: string[] = []
+        const followUpMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+        if (followUpMatch && followUpMatch[1]) {
+          try {
+            followUpPrompts = JSON.parse(`[${followUpMatch[1]}]`)
+            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          } catch {
+            followUpPrompts = ["What's the trend over time?", "Break down by category", "Show top performers"]
+          }
+        }
+
+        return res.json({
+          response: cleanResponse,
+          dataUsed: {
+            totalProposals: allProposals.length,
+            dateRange: { from: minDate, to: maxDate },
+            overallWinRate,
+            wonCount,
+            lostCount,
+            pendingCount,
+            byCategory,
+            momentum: "steady",
+            rolling6Month: overallWinRate,
+            rolling12Month: overallWinRate,
+            yoyChange: null
+          },
+          followUpPrompts,
+          recommendations: [],
+          pendingScores: [],
+          refused: false
+        })
+      }
+
+      // Trigger sync - not supported in serverless, return message
+      if ((path === "/proposals/sync/trigger" || path === "/proposals/sync/trigger/") && method === "POST") {
+        return res.json({
+          synced: false,
+          message: "Excel file sync is not available in the deployed version. Proposals are synced from the local development server."
+        })
+      }
     }
 
     // 404 for unmatched routes
