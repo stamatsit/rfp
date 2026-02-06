@@ -41,8 +41,8 @@ export function UserAvatar({ user, size = "md", className = "" }: UserAvatarProp
   const colorClass = AVATAR_COLORS[hashName(user.name || "user") % AVATAR_COLORS.length]
 
   if (user.avatarUrl && !imgError) {
-    // Cache-bust with a param based on URL to force reload after upload
-    const src = user.avatarUrl + (user.avatarUrl.includes("?") ? "&" : "?") + "v=1"
+    // Data URLs don't need cache-busting; only add for http URLs
+    const src = user.avatarUrl.startsWith("data:") ? user.avatarUrl : user.avatarUrl + (user.avatarUrl.includes("?") ? "&" : "?") + "v=1"
     return (
       <img
         src={src}

@@ -379,10 +379,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Avatar routes
       if (path.startsWith("/auth/avatar")) {
-        const AVATAR_BUCKET = "photo-assets"
-        const AVATAR_PREFIX = "avatars/"
-
-        // GET /auth/avatar/:userId — redirect to Supabase public URL
+        // GET /auth/avatar/:userId — redirect to stored avatar
         const avatarMatch = path.match(/^\/auth\/avatar\/([^/]+)$/)
         if (avatarMatch && method === "GET") {
           const userId = avatarMatch[1]
@@ -399,8 +396,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!isAuthenticated || !session?.userId) {
             return res.status(401).json({ error: "Authentication required" })
           }
-          if (!supabase || !db) {
-            return res.status(500).json({ error: "Storage not configured" })
+          if (!db) {
+            return res.status(500).json({ error: "Database not configured" })
           }
 
           const { image } = req.body || {}
@@ -428,47 +425,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: "File too large (max 2MB)" })
           }
 
-          const ext = fileMimeType.includes("png") ? "png" : fileMimeType.includes("gif") ? "gif" : "webp"
-          const storagePath = `${AVATAR_PREFIX}${session.userId}.${ext}`
+          // Store as data URL directly in DB (small cropped images, typically <50KB)
+          const dataUrl = `data:${fileMimeType};base64,${fileBuffer.toString("base64")}`
+          await db.update(users).set({ avatarUrl: dataUrl, updatedAt: new Date() }).where(eq(users.id, session.userId))
 
-          // Delete old avatar files first
-          await supabase.storage.from(AVATAR_BUCKET).remove([
-            `${AVATAR_PREFIX}${session.userId}.webp`,
-            `${AVATAR_PREFIX}${session.userId}.png`,
-            `${AVATAR_PREFIX}${session.userId}.gif`,
-            `${AVATAR_PREFIX}${session.userId}.jpg`,
-          ])
-
-          const { error: uploadError } = await supabase.storage
-            .from(AVATAR_BUCKET)
-            .upload(storagePath, fileBuffer, { contentType: fileMimeType, upsert: true })
-
-          if (uploadError) {
-            console.error("Avatar upload error:", uploadError)
-            return res.status(500).json({ error: "Failed to upload avatar" })
-          }
-
-          const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/${storagePath}`
-          await db.update(users).set({ avatarUrl: publicUrl, updatedAt: new Date() }).where(eq(users.id, session.userId))
-
-          return res.json({ success: true, avatarUrl: publicUrl })
+          return res.json({ success: true, avatarUrl: dataUrl })
         }
 
-        // DELETE /auth/avatar — remove from Supabase storage
+        // DELETE /auth/avatar — clear from DB
         if (method === "DELETE") {
           if (!isAuthenticated || !session?.userId) {
             return res.status(401).json({ error: "Authentication required" })
           }
-          if (!supabase || !db) {
-            return res.status(500).json({ error: "Storage not configured" })
+          if (!db) {
+            return res.status(500).json({ error: "Database not configured" })
           }
 
-          await supabase.storage.from(AVATAR_BUCKET).remove([
-            `${AVATAR_PREFIX}${session.userId}.webp`,
-            `${AVATAR_PREFIX}${session.userId}.png`,
-            `${AVATAR_PREFIX}${session.userId}.gif`,
-            `${AVATAR_PREFIX}${session.userId}.jpg`,
-          ])
           await db.update(users).set({ avatarUrl: null, updatedAt: new Date() }).where(eq(users.id, session.userId))
 
           return res.json({ success: true })
