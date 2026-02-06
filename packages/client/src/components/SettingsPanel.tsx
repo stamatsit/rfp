@@ -407,12 +407,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general")
-  const [position, setPosition] = useState({ x: 0, y: 0 })
-  const [isDragging, setIsDragging] = useState(false)
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // Use refs for dragging to avoid re-renders
+  const isDraggingRef = useRef(false)
+  const dragOffsetRef = useRef({ x: 0, y: 0 })
+  const positionRef = useRef({ x: 0, y: 0 })
 
   // Drag state for tiles
   const [draggedTile, setDraggedTile] = useState<string | null>(null)
@@ -423,7 +425,11 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     if (isOpen) {
       const centerX = (window.innerWidth - 720) / 2
       const centerY = (window.innerHeight - 520) / 2
-      setPosition({ x: Math.max(50, centerX), y: Math.max(50, centerY) })
+      positionRef.current = { x: Math.max(50, centerX), y: Math.max(50, centerY) }
+      if (panelRef.current) {
+        panelRef.current.style.left = `${positionRef.current.x}px`
+        panelRef.current.style.top = `${positionRef.current.y}px`
+      }
       setIsVisible(true)
       requestAnimationFrame(() => {
         setIsAnimatingIn(true)
@@ -445,41 +451,45 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   }, [settings.theme, setTheme])
 
-  // Handle dragging
+  // Handle dragging - optimized with refs and direct DOM manipulation
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.panel-titlebar')) {
-      setIsDragging(true)
-      setDragOffset({
-        x: e.clientX - position.x,
-        y: e.clientY - position.y
-      })
+    if ((e.target as HTMLElement).closest('.panel-titlebar') && !(e.target as HTMLElement).closest('button')) {
+      isDraggingRef.current = true
+      dragOffsetRef.current = {
+        x: e.clientX - positionRef.current.x,
+        y: e.clientY - positionRef.current.y
+      }
+      document.body.style.cursor = 'grabbing'
+      document.body.style.userSelect = 'none'
     }
-  }, [position])
+  }, [])
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (isDragging) {
-        setPosition({
-          x: Math.max(0, Math.min(window.innerWidth - 720, e.clientX - dragOffset.x)),
-          y: Math.max(0, Math.min(window.innerHeight - 520, e.clientY - dragOffset.y))
-        })
+      if (isDraggingRef.current && panelRef.current) {
+        const newX = Math.max(0, Math.min(window.innerWidth - 720, e.clientX - dragOffsetRef.current.x))
+        const newY = Math.max(0, Math.min(window.innerHeight - 520, e.clientY - dragOffsetRef.current.y))
+        positionRef.current = { x: newX, y: newY }
+        // Direct DOM manipulation - no React re-render
+        panelRef.current.style.left = `${newX}px`
+        panelRef.current.style.top = `${newY}px`
       }
     }
 
     const handleMouseUp = () => {
-      setIsDragging(false)
+      isDraggingRef.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
     }
 
-    if (isDragging) {
-      document.addEventListener('mousemove', handleMouseMove)
-      document.addEventListener('mouseup', handleMouseUp)
-    }
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [isDragging, dragOffset])
+  }, [])
 
   // Update settings
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -571,18 +581,15 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       {/* Panel */}
       <div
         ref={panelRef}
-        className={`fixed z-[999] transition-all duration-300 ease-out ${
-          isDragging ? "cursor-grabbing" : ""
-        }`}
+        className="fixed z-[999]"
         style={{
-          left: position.x,
-          top: position.y,
           width: 720,
           height: 520,
           transform: isAnimatingIn
             ? "scale(1) translateY(0)"
             : "scale(0.95) translateY(10px)",
           opacity: isAnimatingIn ? 1 : 0,
+          transition: "transform 0.3s ease-out, opacity 0.3s ease-out",
         }}
         onMouseDown={handleMouseDown}
       >

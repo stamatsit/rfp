@@ -1160,8 +1160,12 @@ RECENT PROPOSALS (last 15):
 ${proposals
   .slice(0, 15)
   .map(
-    (p) =>
-      `- ${p.client || "Unknown client"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"} - ${(p.servicesOffered || []).slice(0, 3).join(", ") || "No services listed"}`
+    (p) => {
+      const links = p.documentLinks && typeof p.documentLinks === 'object'
+        ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
+        : ""
+      return `- ${p.client || "Unknown client"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${(p.servicesOffered || []).slice(0, 3).join(", ") || "No services listed"}${links ? ` | Links: ${links}` : ""}`
+    }
   )
   .join("\n")}
 `
