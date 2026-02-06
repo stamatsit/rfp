@@ -15,6 +15,7 @@ interface UseChatOptions {
     refused?: boolean
     refusalReason?: string
     metadata?: Record<string, unknown>
+    chartData?: import("@/types/chat").ChartConfig
   }
   buildBody?: (query: string) => Record<string, unknown>
   errorMessage?: string
@@ -156,6 +157,7 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, erro
                     ...m,
                     content: data.cleanResponse || (m.content + remainingTokens),
                     followUpPrompts: data.followUpPrompts,
+                    chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
                   }
                 : m
             ))
@@ -228,6 +230,7 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, erro
         refused: parsed.refused,
         refusalReason: parsed.refusalReason,
         metadata: parsed.metadata,
+        chartData: parsed.chartData,
         timestamp: new Date(),
       }
 
@@ -255,11 +258,29 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, erro
   }, [])
 
   const handleFeedback = useCallback((messageId: string, score: "up" | "down") => {
-    setMessages(prev => prev.map(m => {
-      if (m.id !== messageId) return m
-      return { ...m, feedback: m.feedback === score ? null : score }
-    }))
-  }, [])
+    setMessages(prev => {
+      const message = prev.find(m => m.id === messageId)
+      const newScore = message?.feedback === score ? null : score
+
+      // Fire-and-forget POST to server
+      if (newScore) {
+        const userMsg = prev.slice(0, prev.indexOf(message!)).reverse().find(m => m.role === "user")
+        fetch(`${API_BASE}/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            messageId,
+            score: newScore,
+            page: endpoint,
+            query: userMsg?.content?.slice(0, 200),
+          }),
+        }).catch(() => { /* silent */ })
+      }
+
+      return prev.map(m => m.id !== messageId ? m : { ...m, feedback: newScore })
+    })
+  }, [endpoint])
 
   const toggleDataContext = useCallback((messageId: string) => {
     setShowDataContext(prev => {

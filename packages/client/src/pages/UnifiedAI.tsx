@@ -74,6 +74,7 @@ const parseResult = (data: Record<string, unknown>) => ({
     ...(data.dataUsed as Record<string, unknown> | undefined),
     crossReferenceInsights: data.crossReferenceInsights as string[] | undefined,
   },
+  chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
 })
 
 export function UnifiedAI() {

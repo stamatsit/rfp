@@ -9,7 +9,7 @@
 import OpenAI from "openai"
 import type { Response } from "express"
 import { clientSuccessData } from "../data/clientSuccessData.js"
-import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
+import { streamCompletion, truncateHistory, CHART_PROMPT, parseChartData } from "./utils/streamHelper.js"
 
 // ─── Lazy-initialized OpenAI client ─────────────────────────
 
@@ -34,6 +34,7 @@ export interface CaseStudyInsightResult {
     categoriesSearched: string[]
   }
   followUpPrompts: string[]
+  chartData?: Record<string, unknown>
   refused: boolean
   refusalReason?: string
 }
@@ -152,6 +153,8 @@ If the user doesn't specify, default to a clean, scannable format.
 5. Format metrics as compelling bullets (e.g., "**+481%** conversion growth on optimized pages — *Client Name*")
 6. This is a database of client project summaries with metrics, not full written case studies — be honest about what you have
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
@@ -250,9 +253,11 @@ export async function queryCaseStudyInsights(
 
     const rawResponse = completion.choices[0]?.message?.content || ""
     const { cleanResponse, prompts } = parseFollowUpPrompts(rawResponse)
+    const { cleanText: finalResponse, chartData } = parseChartData(cleanResponse)
 
     return {
-      response: cleanResponse,
+      response: finalResponse,
+      chartData: chartData || undefined,
       dataUsed: {
         totalCaseStudies: clientSuccessData.caseStudies.length,
         totalTestimonials: clientSuccessData.testimonials.length,

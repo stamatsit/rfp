@@ -66,14 +66,16 @@ export async function streamCompletion({
       }
     }
 
-    // Parse follow-up prompts from the complete response
+    // Parse follow-up prompts and chart data from the complete response
     const { cleanResponse, prompts } = parseFollowUpPrompts(fullResponse)
+    const { cleanText: finalResponse, chartData } = parseChartData(cleanResponse)
 
     // Send done event
     res.write(
       `event: done\ndata: ${JSON.stringify({
-        cleanResponse,
+        cleanResponse: finalResponse,
         followUpPrompts: prompts,
+        ...(chartData ? { chartData } : {}),
       })}\n\n`
     )
 
@@ -85,6 +87,41 @@ export async function streamCompletion({
     res.end()
   }
 }
+
+/**
+ * Parse CHART_DATA from AI response.
+ * Format: CHART_DATA: {"type":"bar","title":"...","data":[...],"xKey":"...","yKeys":[...]}
+ */
+export function parseChartData(response: string): { cleanText: string; chartData: Record<string, unknown> | null } {
+  const chartMatch = response.match(/CHART_DATA:\s*(\{[\s\S]*?\})\s*$/m)
+
+  if (chartMatch?.[1]) {
+    try {
+      const chartData = JSON.parse(chartMatch[1])
+      // Validate required fields
+      if (chartData.type && chartData.data && Array.isArray(chartData.data) && chartData.xKey && chartData.yKeys) {
+        const cleanText = response.replace(/CHART_DATA:\s*\{[\s\S]*?\}\s*$/m, "").trim()
+        return { cleanText, chartData }
+      }
+    } catch {
+      // Malformed chart data — ignore
+    }
+  }
+
+  return { cleanText: response, chartData: null }
+}
+
+/**
+ * Chart prompt snippet to append to system prompts.
+ * Tells the AI when and how to include chart data.
+ */
+export const CHART_PROMPT = `
+When your response discusses quantitative comparisons, trends, or distributions involving 3+ data points, include a visualization by appending this AFTER your response text (on a new line):
+CHART_DATA: {"type":"bar","title":"Chart Title","data":[{"label":"A","value":10},{"label":"B","value":20}],"xKey":"label","yKeys":["value"]}
+
+Chart types: "bar" (comparisons), "line" (trends over time), "pie" (proportions), "area" (cumulative trends).
+Only include CHART_DATA when the data is concrete and from the provided sources — never for made-up data.
+Keep data arrays under 12 items. Use short labels.`
 
 /**
  * Estimate token count for conversation history truncation.

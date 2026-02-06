@@ -9,6 +9,7 @@ import answersRouter from "./answers.js"
 import rfpRouter from "./rfp.js"
 import proposalsRouter from "./proposals.js"
 import unifiedAIRouter from "./unifiedAI.js"
+import feedbackRouter from "./feedback.js"
 
 const router = Router()
 
@@ -22,5 +23,6 @@ router.use("/answers", answersRouter)
 router.use("/rfp", rfpRouter)
 router.use("/proposals", proposalsRouter)
 router.use("/unified-ai", unifiedAIRouter)
+router.use("/feedback", feedbackRouter)
 
 export default router

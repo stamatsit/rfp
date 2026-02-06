@@ -11,7 +11,7 @@ import type { Response } from "express"
 import { getAllProposals } from "./proposalSyncService.js"
 import { getPipelineStats } from "./pipelineSyncService.js"
 import type { Proposal } from "../db/index.js"
-import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
+import { streamCompletion, truncateHistory, CHART_PROMPT, parseChartData } from "./utils/streamHelper.js"
 
 // Lazy-initialized OpenAI client (pattern shared with aiService.ts)
 let openaiClient: OpenAI | null = null
@@ -49,6 +49,7 @@ export interface ProposalInsightResult {
     probability: number
     recommendation: string
   }>
+  chartData?: Record<string, unknown>
   refused: boolean
   refusalReason?: string
 }
@@ -1333,6 +1334,8 @@ Provide a clear, direct answer to the user's question. Use markdown formatting:
 - Bullet points for lists
 - Short paragraphs for explanations
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 At the end of your response, include exactly 3-4 follow-up questions the user might want to ask next.
 Format them EXACTLY like this (on a new line after your answer):
 
@@ -1456,6 +1459,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
 
     const rawResponse = completion.choices[0]?.message?.content || ""
     const { cleanResponse, prompts } = parseFollowUpPrompts(rawResponse)
+    const { cleanText: finalResponse, chartData } = parseChartData(cleanResponse)
 
     // Count proposals per category
     const byCategory: { [key: string]: number } = {}
@@ -1466,7 +1470,8 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
     })
 
     return {
-      response: cleanResponse,
+      response: finalResponse,
+      chartData: chartData || undefined,
       dataUsed: {
         totalProposals: proposals.length,
         dateRange: { from: minDate, to: maxDate },

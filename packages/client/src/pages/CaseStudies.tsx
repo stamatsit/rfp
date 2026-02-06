@@ -67,6 +67,7 @@ const parseResult = (data: Record<string, unknown>) => ({
   refused: data.refused as boolean | undefined,
   refusalReason: data.refusalReason as string | undefined,
   metadata: data.dataUsed as Record<string, unknown> | undefined,
+  chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
 })
 
 export function CaseStudies() {

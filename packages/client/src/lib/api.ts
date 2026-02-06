@@ -938,7 +938,7 @@ export const unifiedAIApi = {
 export interface FetchSSECallbacks {
   onMetadata?: (data: Record<string, unknown>) => void
   onToken?: (token: string) => void
-  onDone?: (data: { cleanResponse: string; followUpPrompts: string[] }) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown> }) => void
   onError?: (error: string) => void
 }
 

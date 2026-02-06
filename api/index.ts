@@ -24,6 +24,28 @@ function truncateHistory(messages: Array<{ role: string; content: string }>, max
   return result
 }
 
+function parseChartData(response: string): { cleanText: string; chartData: Record<string, unknown> | null } {
+  const chartMatch = response.match(/CHART_DATA:\s*(\{[\s\S]*?\})\s*$/m)
+  if (chartMatch?.[1]) {
+    try {
+      const chartData = JSON.parse(chartMatch[1])
+      if (chartData.type && chartData.data && Array.isArray(chartData.data) && chartData.xKey && chartData.yKeys) {
+        const cleanText = response.replace(/CHART_DATA:\s*\{[\s\S]*?\}\s*$/m, "").trim()
+        return { cleanText, chartData }
+      }
+    } catch { /* ignore malformed */ }
+  }
+  return { cleanText: response, chartData: null }
+}
+
+const CHART_PROMPT = `
+When your response discusses quantitative comparisons, trends, or distributions involving 3+ data points, include a visualization by appending this AFTER your response text (on a new line):
+CHART_DATA: {"type":"bar","title":"Chart Title","data":[{"label":"A","value":10},{"label":"B","value":20}],"xKey":"label","yKeys":["value"]}
+
+Chart types: "bar" (comparisons), "line" (trends over time), "pie" (proportions), "area" (cumulative trends).
+Only include CHART_DATA when the data is concrete and from the provided sources — never for made-up data.
+Keep data arrays under 12 items. Use short labels.`
+
 function parseFollowUpPrompts(rawResponse: string, fallbacks: string[]): { cleanResponse: string; followUpPrompts: string[] } {
   let cleanResponse = rawResponse
   let followUpPrompts: string[] = []
@@ -1034,6 +1056,8 @@ RULES:
 Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- CLIENT SUCCESS DATABASE ---
 ${csContext}`
 
@@ -1049,21 +1073,13 @@ ${csContext}`
 
         const rawResponse = completion.choices[0]?.message?.content || ""
 
-        // Parse follow-up prompts
-        let cleanResponse = rawResponse
-        let csFollowUps: string[] = []
-        const csFollowUpMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
-        if (csFollowUpMatch && csFollowUpMatch[1]) {
-          try {
-            csFollowUps = JSON.parse(`[${csFollowUpMatch[1]}]`)
-            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
-          } catch {
-            csFollowUps = csFollowUpMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
-            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
-          }
-        } else {
-          csFollowUps = ["Want me to add comparable stats from similar projects?", "Should I draft a client testimonial for this?", "Want to see similar case studies from our database?"]
-        }
+        // Parse follow-up prompts and chart data
+        const { cleanResponse: csCleanFollowUp, followUpPrompts: csFollowUps } = parseFollowUpPrompts(rawResponse, [
+          "Want me to add comparable stats from similar projects?",
+          "Should I draft a client testimonial for this?",
+          "Want to see similar case studies from our database?"
+        ])
+        const { cleanText: cleanResponse, chartData: csChartData } = parseChartData(csCleanFollowUp)
 
         return res.json({
           response: cleanResponse,
@@ -1074,6 +1090,7 @@ ${csContext}`
             categoriesSearched: Array.from(categories)
           },
           followUpPrompts: csFollowUps,
+          chartData: csChartData || undefined,
           refused: false
         })
       }
@@ -1159,6 +1176,8 @@ RULES:
 Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- CLIENT SUCCESS DATABASE ---
 ${csStreamContext}`
 
@@ -1210,12 +1229,13 @@ ${csStreamContext}`
             }
           }
 
-          const { cleanResponse: csClean, followUpPrompts: csFollows } = parseFollowUpPrompts(fullResponse, [
+          const { cleanResponse: csCleanFU, followUpPrompts: csFollows } = parseFollowUpPrompts(fullResponse, [
             "Want me to add comparable stats from similar projects?",
             "Should I draft a client testimonial for this?",
             "Want to see similar case studies from our database?"
           ])
-          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: csClean, followUpPrompts: csFollows })}\n\n`)
+          const { cleanText: csClean, chartData: csStreamChart } = parseChartData(csCleanFU)
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: csClean, followUpPrompts: csFollows, ...(csStreamChart ? { chartData: csStreamChart } : {}) })}\n\n`)
           return res.end()
         } catch (streamErr: any) {
           console.error("Case study stream error:", streamErr?.message || streamErr)
@@ -1411,6 +1431,8 @@ CRITICAL RULES:
 At the end of your response, include 3-4 follow-up questions formatted as:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- PROPOSAL DATA ---
 ${contextLines.join("\n")}`
 
@@ -1426,18 +1448,11 @@ ${contextLines.join("\n")}`
 
         const rawResponse = completion.choices[0]?.message?.content || ""
 
-        // Parse follow-up prompts
-        let cleanResponse = rawResponse
-        let followUpPrompts: string[] = []
-        const followUpMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
-        if (followUpMatch && followUpMatch[1]) {
-          try {
-            followUpPrompts = JSON.parse(`[${followUpMatch[1]}]`)
-            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
-          } catch {
-            followUpPrompts = ["What's the trend over time?", "Break down by category", "Show top performers"]
-          }
-        }
+        // Parse follow-up prompts and chart data
+        const { cleanResponse: pCleanFollowUp, followUpPrompts } = parseFollowUpPrompts(rawResponse, [
+          "What's the trend over time?", "Break down by category", "Show top performers"
+        ])
+        const { cleanText: cleanResponse, chartData: pChartData } = parseChartData(pCleanFollowUp)
 
         return res.json({
           response: cleanResponse,
@@ -1455,6 +1470,7 @@ ${contextLines.join("\n")}`
             yoyChange: null
           },
           followUpPrompts,
+          chartData: pChartData || undefined,
           recommendations: [],
           pendingScores: [],
           refused: false
@@ -1584,6 +1600,8 @@ CRITICAL RULES:
 At the end of your response, include 3-4 follow-up questions formatted as:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- PROPOSAL DATA ---
 ${pStreamContextLines.join("\n")}`
 
@@ -1642,12 +1660,13 @@ ${pStreamContextLines.join("\n")}`
             }
           }
 
-          const { cleanResponse: pClean, followUpPrompts: pFollows } = parseFollowUpPrompts(fullResponse, [
+          const { cleanResponse: pCleanFU, followUpPrompts: pFollows } = parseFollowUpPrompts(fullResponse, [
             "What's the trend over time?",
             "Break down by category",
             "Show top performers"
           ])
-          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: pClean, followUpPrompts: pFollows })}\n\n`)
+          const { cleanText: pClean, chartData: pStreamChart } = parseChartData(pCleanFU)
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: pClean, followUpPrompts: pFollows, ...(pStreamChart ? { chartData: pStreamChart } : {}) })}\n\n`)
           return res.end()
         } catch (streamErr: any) {
           console.error("Proposals stream error:", streamErr?.message || streamErr)
@@ -1822,6 +1841,8 @@ RULES:
 At the end, include 3-4 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- UNIFIED DATA ---
 ${context}`
 
@@ -1837,21 +1858,13 @@ ${context}`
 
         const rawResponse = completion.choices[0]?.message?.content || ""
 
-        // Parse follow-up prompts
-        let cleanResp = rawResponse
-        let uaiFollowUps: string[] = []
-        const uaiMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
-        if (uaiMatch && uaiMatch[1]) {
-          try {
-            uaiFollowUps = JSON.parse(`[${uaiMatch[1]}]`)
-            cleanResp = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
-          } catch {
-            uaiFollowUps = uaiMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
-            cleanResp = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
-          }
-        } else {
-          uaiFollowUps = ["What gaps exist in our proof points?", "Which clients should we ask for testimonials?", "Prep me for a proposal based on this insight"]
-        }
+        // Parse follow-up prompts and chart data
+        const { cleanResponse: uaiCleanFU, followUpPrompts: uaiFollowUps } = parseFollowUpPrompts(rawResponse, [
+          "What gaps exist in our proof points?",
+          "Which clients should we ask for testimonials?",
+          "Prep me for a proposal based on this insight"
+        ])
+        const { cleanText: cleanResp, chartData: uaiChartData } = parseChartData(uaiCleanFU)
 
         // Cross-reference insights
         const caseStudyClients = new Set(clientSuccessData.caseStudies.map((cs: any) => cs.client.toLowerCase().trim()))
@@ -1881,6 +1894,7 @@ ${context}`
           },
           crossReferenceInsights: crossInsights,
           followUpPrompts: uaiFollowUps,
+          chartData: uaiChartData || undefined,
           refused: false
         })
       }
@@ -2022,6 +2036,8 @@ RULES:
 At the end, include 3-4 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 --- UNIFIED DATA ---
 ${uaiStreamContext}`
 
@@ -2092,12 +2108,13 @@ ${uaiStreamContext}`
             }
           }
 
-          const { cleanResponse: uaiClean, followUpPrompts: uaiFollows } = parseFollowUpPrompts(fullResponse, [
+          const { cleanResponse: uaiCleanFU, followUpPrompts: uaiFollows } = parseFollowUpPrompts(fullResponse, [
             "What gaps exist in our proof points?",
             "Which clients should we ask for testimonials?",
             "Prep me for a proposal based on this insight"
           ])
-          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: uaiClean, followUpPrompts: uaiFollows })}\n\n`)
+          const { cleanText: uaiClean, chartData: uaiStreamChart } = parseChartData(uaiCleanFU)
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: uaiClean, followUpPrompts: uaiFollows, ...(uaiStreamChart ? { chartData: uaiStreamChart } : {}) })}\n\n`)
           return res.end()
         } catch (streamErr: any) {
           console.error("Unified AI stream error:", streamErr?.message || streamErr)
@@ -2105,6 +2122,16 @@ ${uaiStreamContext}`
           return res.end()
         }
       }
+    }
+
+    // Feedback route
+    if (path === "/feedback" && method === "POST") {
+      const { messageId, score, page, query } = req.body || {}
+      if (!messageId || (score !== "up" && score !== "down")) {
+        return res.status(400).json({ error: "messageId and score (up/down) required" })
+      }
+      console.log(`[Feedback] ${score === "up" ? "👍" : "👎"} messageId=${messageId} page=${page || "unknown"} query="${(query || "").slice(0, 80)}"`)
+      return res.json({ success: true })
     }
 
     // 404 for unmatched routes

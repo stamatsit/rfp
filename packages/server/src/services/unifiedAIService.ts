@@ -17,7 +17,7 @@ import { getAllProposals } from "./proposalSyncService.js"
 import { getPipelineStats } from "./pipelineSyncService.js"
 import { clientSuccessData } from "../data/clientSuccessData.js"
 import type { Proposal } from "../db/index.js"
-import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
+import { streamCompletion, truncateHistory, CHART_PROMPT, parseChartData } from "./utils/streamHelper.js"
 
 // ─── Lazy-initialized OpenAI client ─────────────────────────
 
@@ -54,6 +54,7 @@ export interface UnifiedAIResult {
   }
   crossReferenceInsights: string[]
   followUpPrompts: string[]
+  chartData?: Record<string, unknown>
   refused: boolean
   refusalReason?: string
 }
@@ -361,6 +362,8 @@ You can answer questions that NO SINGLE SOURCE could answer:
 - Keep responses actionable and strategic
 - When giving recommendations, cite the data that supports them
 
+VISUALIZATIONS:${CHART_PROMPT}
+
 At the end of your response, include exactly 3-4 follow-up prompts:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
 
@@ -483,9 +486,11 @@ export async function queryUnifiedAI(query: string): Promise<UnifiedAIResult> {
 
     const rawResponse = completion.choices[0]?.message?.content || ""
     const { cleanResponse, prompts } = parseFollowUpPrompts(rawResponse)
+    const { cleanText: finalResponse, chartData } = parseChartData(cleanResponse)
 
     return {
-      response: cleanResponse,
+      response: finalResponse,
+      chartData: chartData || undefined,
       dataUsed: {
         proposals: {
           count: proposals.length,
