@@ -15,7 +15,8 @@ function hashName(name: string): number {
   return Math.abs(hash)
 }
 
-function getInitials(name: string): string {
+function getInitials(name: string | undefined): string {
+  if (!name) return "?"
   const parts = name.replace(/@.*$/, "").split(/[.\-_\s]+/).filter(Boolean)
   if (parts.length >= 2) return (parts[0]![0]! + parts[1]![0]!).toUpperCase()
   return (parts[0]?.[0] || "?").toUpperCase()
@@ -37,7 +38,7 @@ export function UserAvatar({ user, size = "md", className = "" }: UserAvatarProp
   const [imgError, setImgError] = useState(false)
   const sizeClass = sizeMap[size]
   const initials = getInitials(user.name)
-  const colorClass = AVATAR_COLORS[hashName(user.name) % AVATAR_COLORS.length]
+  const colorClass = AVATAR_COLORS[hashName(user.name || "user") % AVATAR_COLORS.length]
 
   if (user.avatarUrl && !imgError) {
     // Cache-bust with a param based on URL to force reload after upload
@@ -45,7 +46,7 @@ export function UserAvatar({ user, size = "md", className = "" }: UserAvatarProp
     return (
       <img
         src={src}
-        alt={user.name}
+        alt={user.name || "User"}
         onError={() => setImgError(true)}
         className={`${sizeClass} rounded-full object-cover flex-shrink-0 ${className}`}
       />

@@ -322,13 +322,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!isAuthenticated || !session) {
           return res.json({ authenticated: false, user: null, mustChangePassword: false, loginTime: null })
         }
+        // If session is missing userName (e.g. legacy token), look up from DB
+        let userName = session.userName
+        let userEmail = session.userEmail
+        let avatarUrl = session.avatarUrl || null
+        if (!userName && session.userId && db) {
+          const [dbUser] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
+          if (dbUser) {
+            userName = dbUser.name
+            userEmail = dbUser.email
+            avatarUrl = dbUser.avatarUrl ? `/api/auth/avatar/${dbUser.id}` : null
+          }
+        }
         return res.json({
           authenticated: true,
           user: {
             id: session.userId,
-            email: session.userEmail,
-            name: session.userName,
-            avatarUrl: session.avatarUrl || null,
+            email: userEmail || session.userEmail,
+            name: userName || userEmail || "User",
+            avatarUrl,
           },
           mustChangePassword: session.mustChangePassword || false,
           loginTime: null,
