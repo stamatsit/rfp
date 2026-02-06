@@ -82,6 +82,23 @@ router.post("/execute", upload.single("file"), async (req, res) => {
   }
 })
 
+// Security: Validate file path is within the project directory and is an Excel file
+function validateFilePath(filePath: string): string | null {
+  const resolvedPath = path.resolve(filePath)
+  const projectRoot = path.resolve(process.cwd())
+
+  if (!resolvedPath.startsWith(projectRoot)) {
+    return null // Path traversal attempt
+  }
+
+  const ext = path.extname(resolvedPath).toLowerCase()
+  if (ext !== ".xlsx" && ext !== ".xls") {
+    return null // Not an Excel file
+  }
+
+  return resolvedPath
+}
+
 /**
  * POST /api/import/preview-sample
  * Preview import using the sample file path (for development/testing)
@@ -94,22 +111,20 @@ router.post("/preview-sample", async (req, res) => {
       return res.status(400).json({ error: "filePath is required" })
     }
 
-    // Security: Only allow paths that look like legitimate Excel files
-    if (!filePath.endsWith(".xlsx") && !filePath.endsWith(".xls")) {
-      return res.status(400).json({ error: "Only Excel files are allowed" })
+    const safePath = validateFilePath(filePath)
+    if (!safePath) {
+      return res.status(400).json({ error: "Invalid file path" })
     }
 
-    const preview = await previewImport(filePath)
+    const preview = await previewImport(safePath)
 
     res.json({
       ...preview,
-      filename: path.basename(filePath),
+      filename: path.basename(safePath),
     })
   } catch (error) {
     console.error("Error previewing sample import:", error)
-
-    const message = error instanceof Error ? error.message : "Failed to preview import"
-    res.status(400).json({ error: message })
+    res.status(400).json({ error: "Failed to preview import" })
   }
 })
 
@@ -125,22 +140,20 @@ router.post("/execute-sample", async (req, res) => {
       return res.status(400).json({ error: "filePath is required" })
     }
 
-    // Security: Only allow paths that look like legitimate Excel files
-    if (!filePath.endsWith(".xlsx") && !filePath.endsWith(".xls")) {
-      return res.status(400).json({ error: "Only Excel files are allowed" })
+    const safePath = validateFilePath(filePath)
+    if (!safePath) {
+      return res.status(400).json({ error: "Invalid file path" })
     }
 
-    const result = await executeImport(filePath)
+    const result = await executeImport(safePath)
 
     res.json({
       ...result,
-      filename: path.basename(filePath),
+      filename: path.basename(safePath),
     })
   } catch (error) {
     console.error("Error executing sample import:", error)
-
-    const message = error instanceof Error ? error.message : "Failed to execute import"
-    res.status(500).json({ error: message })
+    res.status(500).json({ error: "Failed to execute import" })
   }
 })
 

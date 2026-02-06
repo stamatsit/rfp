@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies } from "./pages"
+import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, CommandCenter } from "./pages"
 import Login from "./pages/Login"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
@@ -27,6 +27,7 @@ function App() {
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/insights" element={<ProtectedRoute><ProposalInsights /></ProtectedRoute>} />
           <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
+          <Route path="/command-center" element={<ProtectedRoute><CommandCenter /></ProtectedRoute>} />
         </Routes>
       </AuthProvider>
       </ThemeProvider>

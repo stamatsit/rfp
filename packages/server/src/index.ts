@@ -1,6 +1,7 @@
 import "dotenv/config"
 import express from "express"
 import cors from "cors"
+import helmet from "helmet"
 import session from "express-session"
 import path from "path"
 import { fileURLToPath } from "url"
@@ -15,12 +16,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 const app = express()
 const PORT = process.env.PORT ?? 3001
-const SESSION_SECRET = process.env.SESSION_SECRET || "rfp-library-secret-key-change-in-production"
+
+// Require SESSION_SECRET in production, fallback only for local dev
+const SESSION_SECRET = process.env.SESSION_SECRET
+if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
+  console.error("FATAL: SESSION_SECRET must be set in production")
+  process.exit(1)
+}
+
+// Security headers
+app.use(helmet({
+  contentSecurityPolicy: false, // Let Vite/React handle CSP
+}))
 
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === "production"
-    ? process.env.CORS_ORIGIN || true
+    ? process.env.CORS_ORIGIN || false // Reject if not configured in production
     : true,
   credentials: true,
 }))
@@ -29,13 +41,13 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }))
 
 // Session middleware
 app.use(session({
-  secret: SESSION_SECRET,
+  secret: SESSION_SECRET || "dev-only-secret-not-for-production",
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === "production",
     httpOnly: true,
-    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    maxAge: 4 * 60 * 60 * 1000, // 4 hours
     sameSite: process.env.NODE_ENV === "production" ? "strict" : "lax",
   },
 }))

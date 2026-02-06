@@ -1,14 +1,17 @@
 /**
- * Case Studies — AI-powered case study builder.
+ * Command Center — Cross-Referential AI Hub
  *
- * COMPLETELY ISOLATED from Q&A library AI and Proposal Insights.
- * Same UI pattern as ProposalInsights.tsx but with violet theme.
+ * Unified AI that connects the dots across:
+ * - Q&A Library (answers + photos)
+ * - Proposal History (win rates, trends)
+ * - Case Studies (40+ case studies, testimonials, awards)
+ *
+ * The power: answering questions NO SINGLE SOURCE could answer.
  */
 
 import { useState, useEffect, useRef } from "react"
-import DOMPurify from "dompurify"
 import {
-  BookOpen,
+  Layers,
   Send,
   Copy,
   Check,
@@ -17,12 +20,17 @@ import {
   Bot,
   User,
   Lightbulb,
-  BarChart3,
-  Quote,
-  FileText,
   Sparkles,
-  Award,
+  Target,
+  AlertTriangle,
+  FileCheck,
+  Search,
+  Briefcase,
   ChevronDown,
+  TrendingUp,
+  BookOpen,
+  FileText,
+  Zap,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import {
@@ -32,78 +40,80 @@ import {
   Input,
 } from "@/components/ui"
 import {
-  caseStudiesApi,
-  type CaseStudyInsightResponse,
+  commandCenterApi,
+  type CommandCenterResponse,
+  type CommandCenterStats,
 } from "@/lib/api"
-import { clientSuccessData } from "@/data/clientSuccessData"
 
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
-  dataUsed?: CaseStudyInsightResponse["dataUsed"]
+  dataUsed?: CommandCenterResponse["dataUsed"]
+  crossReferenceInsights?: string[]
   followUpPrompts?: string[]
   refused?: boolean
   refusalReason?: string
   timestamp: Date
 }
 
-// Quick action buttons — organized by mode
-const BUILDER_ACTIONS = [
-  {
-    icon: BookOpen,
-    label: "Build One",
-    prompt: "I want to create a new case study from scratch. Walk me through it step by step.",
-  },
-  {
-    icon: FileText,
-    label: "Refine",
-    prompt: "I have a rough case study. Help me polish it into a professional format.",
-  },
+// Quick action buttons — 6 power prompts
+const QUICK_ACTIONS = [
   {
     icon: Sparkles,
-    label: "From Similar",
-    prompt: "Find existing case studies similar to what I'll describe and help me build a new one using those as reference.",
+    label: "Win Formula",
+    prompt: "Cross-reference our wins against our case studies and library. What's our true winning formula? Where do we have proof, and where are we missing it?",
+  },
+  {
+    icon: FileCheck,
+    label: "Proof Finder",
+    prompt: "I need to build a proposal. Find me: (1) relevant case studies with metrics, (2) testimonials from similar clients we've won, (3) library content I can use. I'll tell you the school type and services.",
+  },
+  {
+    icon: AlertTriangle,
+    label: "Gap Finder",
+    prompt: "Analyze disconnects: services we win but lack case studies for, clients we won but never got testimonials from, opportunities we're missing.",
+  },
+  {
+    icon: Target,
+    label: "Content Audit",
+    prompt: "Which library content appears in our winning proposals? Which case studies align with our highest win rates? Rate our proof points by performance.",
+  },
+  {
+    icon: Briefcase,
+    label: "Prep Proposal",
+    prompt: "Prep me for a proposal. I'll give you the school type, services, and affiliation. Give me: win probability, best case studies to feature, key library answers, and strategic approach.",
+  },
+  {
+    icon: Search,
+    label: "Smart Search",
+    prompt: "Search across ALL my data sources. Find everything related to what I'll describe — proposals we've won, case studies, testimonials, library answers, and photos.",
   },
 ]
 
-const GRAB_ACTIONS = [
-  {
-    icon: BarChart3,
-    label: "Grab a Stat",
-    prompt: "Show me the most compelling stats from our case study database.",
-  },
-  {
-    icon: Quote,
-    label: "Find Quote",
-    prompt: "Find a testimonial from our database that I can use.",
-  },
-  {
-    icon: Award,
-    label: "Find Proof",
-    prompt: "What awards or third-party validations do we have that I can reference?",
-  },
-]
-
-const ALL_ACTIONS = [...BUILDER_ACTIONS, ...GRAB_ACTIONS]
-
-// Starter prompts — mix of both modes
+// Starter prompts
 const STARTER_PROMPTS = [
-  "Help me build a case study for a website redesign",
-  "What enrollment growth stats do we have?",
-  "I need a healthcare marketing testimonial",
-  "Draft a case study about a brand campaign",
-  "What's our best conversion rate result?",
+  "I'm pitching a community college website project. Prep me.",
+  "Find gaps — what have we won but don't have proof for?",
+  "What's our true win formula? Where do we have the proof?",
+  "Find testimonials from clients we actually won recently",
+  "Which case studies should we use for university branding?",
 ]
 
-export function CaseStudies() {
+export function CommandCenter() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [stats, setStats] = useState<CommandCenterStats | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showDataContext, setShowDataContext] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Load stats on mount
+  useEffect(() => {
+    loadStats()
+  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -114,6 +124,15 @@ export function CaseStudies() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
+
+  const loadStats = async () => {
+    try {
+      const result = await commandCenterApi.getStats()
+      setStats(result)
+    } catch (err) {
+      console.error("Failed to load stats:", err)
+    }
+  }
 
   const handleSubmit = async (query?: string) => {
     const queryText = query || inputValue.trim()
@@ -131,13 +150,14 @@ export function CaseStudies() {
     setIsLoading(true)
 
     try {
-      const result = await caseStudiesApi.query(queryText)
+      const result = await commandCenterApi.query(queryText)
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
         role: "assistant",
         content: result.response,
         dataUsed: result.dataUsed,
+        crossReferenceInsights: result.crossReferenceInsights,
         followUpPrompts: result.followUpPrompts,
         refused: result.refused,
         refusalReason: result.refusalReason,
@@ -152,7 +172,7 @@ export function CaseStudies() {
         role: "assistant",
         content: "",
         refused: true,
-        refusalReason: "Failed to connect to case study service. Please try again.",
+        refusalReason: "Failed to connect to Command Center. Please try again.",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -180,6 +200,8 @@ export function CaseStudies() {
     })
   }
 
+  const formatWinRate = (rate: number) => `${(rate * 100).toFixed(0)}%`
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
@@ -189,11 +211,27 @@ export function CaseStudies() {
         <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2">
-              <Database size={14} className="text-violet-500" />
+              <TrendingUp size={14} className="text-indigo-500" />
               <span className="text-slate-600 dark:text-slate-300">
-                {clientSuccessData.caseStudies.length} case studies &middot; {clientSuccessData.topLineResults.length} results &middot; {clientSuccessData.testimonials.length} testimonials
+                {stats?.proposals.count || 0} proposals ({formatWinRate(stats?.proposals.winRate || 0)} win)
               </span>
             </div>
+            <div className="flex items-center gap-2">
+              <BookOpen size={14} className="text-indigo-400" />
+              <span className="text-slate-500 dark:text-slate-400">
+                {stats?.caseStudies.count || 0} case studies
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <FileText size={14} className="text-indigo-400" />
+              <span className="text-slate-500 dark:text-slate-400">
+                {stats?.library.answers || 0} answers
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-full">
+            <Zap size={12} className="text-indigo-500" />
+            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Cross-Reference Mode</span>
           </div>
         </div>
       </div>
@@ -207,19 +245,19 @@ export function CaseStudies() {
                 className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
                 style={{
                   background:
-                    "linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(124,58,237,0.1) 100%)",
+                    "linear-gradient(135deg, rgba(99,102,241,0.15) 0%, rgba(79,70,229,0.1) 100%)",
                   boxShadow:
-                    "0 4px 20px rgba(139,92,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
+                    "0 4px 20px rgba(99,102,241,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
                 }}
               >
-                <BookOpen size={36} className="text-violet-500" />
+                <Layers size={36} className="text-indigo-500" />
               </div>
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3 tracking-tight">
-                Case Studies
+                Command Center
               </h2>
               <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
-                Build a case study from scratch, refine an existing draft, or grab a quick stat
-                from our database of {clientSuccessData.caseStudies.length} client projects.
+                Cross-reference your proposals, case studies, and Q&A library.
+                Ask questions that connect the dots across all your data.
               </p>
 
               {/* Starter Prompts */}
@@ -229,61 +267,36 @@ export function CaseStudies() {
                     key={prompt}
                     onClick={() => setInputValue(prompt)}
                     className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full text-[13px] text-slate-600 dark:text-slate-300
-                               shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-violet-300 dark:hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400
-                               hover:shadow-[0_2px_8px_rgba(139,92,246,0.12)] transition-all duration-200"
+                               shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
+                               hover:shadow-[0_2px_8px_rgba(99,102,241,0.12)] transition-all duration-200"
                   >
                     {prompt}
                   </button>
                 ))}
               </div>
 
-              {/* Quick Actions — Two Groups */}
-              <div className="w-full max-w-2xl space-y-4">
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                    Build a Case Study
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {BUILDER_ACTIONS.map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleSubmit(action.prompt)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
-                                   hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all duration-200 group"
-                      >
-                        <action.icon
-                          size={20}
-                          className="text-slate-400 group-hover:text-violet-500 transition-colors"
-                        />
-                        <span className="text-[11px] font-medium text-slate-500 group-hover:text-violet-600 transition-colors">
-                          {action.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                    Grab a Quick Fact
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {GRAB_ACTIONS.map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleSubmit(action.prompt)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
-                                   hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all duration-200 group"
-                      >
-                        <action.icon
-                          size={20}
-                          className="text-slate-400 group-hover:text-violet-500 transition-colors"
-                        />
-                        <span className="text-[11px] font-medium text-slate-500 group-hover:text-violet-600 transition-colors">
-                          {action.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+              {/* Quick Actions */}
+              <div className="w-full max-w-2xl">
+                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
+                  Power Prompts
+                </p>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {QUICK_ACTIONS.map((action) => (
+                    <button
+                      key={action.label}
+                      onClick={() => handleSubmit(action.prompt)}
+                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
+                                 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 group"
+                    >
+                      <action.icon
+                        size={20}
+                        className="text-slate-400 group-hover:text-indigo-500 transition-colors"
+                      />
+                      <span className="text-[11px] font-medium text-slate-500 group-hover:text-indigo-600 transition-colors">
+                        {action.label}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
             </div>
@@ -299,9 +312,9 @@ export function CaseStudies() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                       style={{
                         background:
-                          "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
+                          "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
                         boxShadow:
-                          "0 4px 12px rgba(139,92,246,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
+                          "0 4px 12px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
                       }}
                     >
                       <Bot size={18} className="text-white" />
@@ -310,7 +323,7 @@ export function CaseStudies() {
 
                   <div className={`max-w-[80%] ${message.role === "user" ? "order-first" : ""}`}>
                     {message.role === "user" ? (
-                      <div className="bg-gradient-to-br from-violet-50 to-purple-100/80 text-slate-800 px-5 py-3.5 rounded-2xl rounded-tr-md shadow-[0_1px_3px_rgba(139,92,246,0.1)] border border-violet-200/60">
+                      <div className="bg-gradient-to-br from-indigo-50 to-violet-100/80 text-slate-800 px-5 py-3.5 rounded-2xl rounded-tr-md shadow-[0_1px_3px_rgba(99,102,241,0.1)] border border-indigo-200/60">
                         <p className="leading-relaxed text-[15px]">{message.content}</p>
                       </div>
                     ) : message.refused ? (
@@ -329,15 +342,29 @@ export function CaseStudies() {
                             <div
                               className="whitespace-pre-wrap leading-[1.7] text-slate-700 dark:text-slate-200 text-[15px]"
                               dangerouslySetInnerHTML={{
-                                __html: DOMPurify.sanitize(
-                                  message.content
-                                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                                    .replace(/\n/g, "<br />"),
-                                  { ALLOWED_TAGS: ["strong", "br", "em", "ul", "ol", "li", "p"] }
-                                ),
+                                __html: message.content
+                                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                                  .replace(/\n/g, "<br />"),
                               }}
                             />
                           </div>
+
+                          {/* Cross-Reference Insights */}
+                          {message.crossReferenceInsights && message.crossReferenceInsights.length > 0 && (
+                            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200/60 dark:border-amber-700/40 rounded-lg">
+                              <div className="flex items-center gap-2 text-xs font-medium text-amber-700 dark:text-amber-400 mb-2">
+                                <AlertTriangle size={12} />
+                                Cross-Reference Insights
+                              </div>
+                              <ul className="space-y-1">
+                                {message.crossReferenceInsights.map((insight, idx) => (
+                                  <li key={idx} className="text-xs text-amber-800 dark:text-amber-300">
+                                    {insight}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
 
                           {/* Data Context (collapsible) */}
                           {message.dataUsed && (
@@ -346,9 +373,9 @@ export function CaseStudies() {
                                 onClick={() => toggleDataContext(message.id)}
                                 className="flex items-center gap-2 text-xs text-slate-500 hover:text-slate-700 transition-colors w-full"
                               >
-                                <Database size={12} className="text-violet-500" />
+                                <Database size={12} className="text-indigo-500" />
                                 <span className="font-medium">
-                                  Referenced {message.dataUsed.totalCaseStudies} case studies, {message.dataUsed.totalTestimonials} testimonials, {message.dataUsed.totalStats} stats
+                                  {message.dataUsed.proposals.count} proposals &middot; {message.dataUsed.caseStudies.count} case studies &middot; {message.dataUsed.library.answers} answers
                                 </span>
                                 <ChevronDown
                                   size={12}
@@ -360,32 +387,43 @@ export function CaseStudies() {
 
                               {showDataContext.has(message.id) && (
                                 <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
-                                  <div className="grid grid-cols-2 gap-3 text-xs">
+                                  <div className="grid grid-cols-3 gap-3 text-xs">
                                     <div>
-                                      <span className="text-slate-400">Case Studies:</span>
-                                      <span className="ml-2 text-violet-600 font-medium">
-                                        {message.dataUsed.totalCaseStudies}
+                                      <span className="text-slate-400 block mb-1">Proposals</span>
+                                      <span className="text-indigo-600 font-medium">
+                                        {message.dataUsed.proposals.count}
+                                      </span>
+                                      <span className="text-slate-500 ml-1">
+                                        ({formatWinRate(message.dataUsed.proposals.winRate)} win)
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400">Top-Line Results:</span>
-                                      <span className="ml-2 text-violet-600 font-medium">
-                                        {message.dataUsed.totalStats}
+                                      <span className="text-slate-400 block mb-1">Case Studies</span>
+                                      <span className="text-indigo-600 font-medium">
+                                        {message.dataUsed.caseStudies.count}
+                                      </span>
+                                      <span className="text-slate-500 ml-1">
+                                        + {message.dataUsed.caseStudies.testimonials} testimonials
                                       </span>
                                     </div>
                                     <div>
-                                      <span className="text-slate-400">Testimonials:</span>
-                                      <span className="ml-2 text-violet-600 font-medium">
-                                        {message.dataUsed.totalTestimonials}
+                                      <span className="text-slate-400 block mb-1">Library</span>
+                                      <span className="text-indigo-600 font-medium">
+                                        {message.dataUsed.library.answers} answers
                                       </span>
-                                    </div>
-                                    <div>
-                                      <span className="text-slate-400">Categories:</span>
-                                      <span className="ml-2 text-slate-600 dark:text-slate-300">
-                                        {message.dataUsed.categoriesSearched.join(", ")}
+                                      <span className="text-slate-500 ml-1">
+                                        + {message.dataUsed.library.photos} photos
                                       </span>
                                     </div>
                                   </div>
+                                  {message.dataUsed.proposals.relevantClients.length > 0 && (
+                                    <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
+                                      <span className="text-slate-400 text-xs">Recent wins: </span>
+                                      <span className="text-xs text-slate-600 dark:text-slate-300">
+                                        {message.dataUsed.proposals.relevantClients.slice(0, 5).join(", ")}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -395,7 +433,7 @@ export function CaseStudies() {
                           {message.followUpPrompts && message.followUpPrompts.length > 0 && (
                             <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
                               <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
-                                <Lightbulb size={12} className="text-violet-500" />
+                                <Lightbulb size={12} className="text-indigo-500" />
                                 <span className="font-medium">Dig deeper:</span>
                               </div>
                               <div className="flex flex-wrap gap-2">
@@ -403,8 +441,8 @@ export function CaseStudies() {
                                   <button
                                     key={idx}
                                     onClick={() => handleSubmit(prompt)}
-                                    className="px-3 py-1.5 bg-violet-50 hover:bg-violet-100 dark:bg-violet-900/30 dark:hover:bg-violet-900/50
-                                               text-violet-700 dark:text-violet-300 text-xs rounded-full border border-violet-200 dark:border-violet-700
+                                    className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50
+                                               text-indigo-700 dark:text-indigo-300 text-xs rounded-full border border-indigo-200 dark:border-indigo-700
                                                transition-colors"
                                   >
                                     {prompt}
@@ -424,8 +462,8 @@ export function CaseStudies() {
                             >
                               {copiedId === message.id ? (
                                 <>
-                                  <Check size={12} className="mr-1.5 text-violet-500" />
-                                  <span className="text-violet-600">Copied</span>
+                                  <Check size={12} className="mr-1.5 text-indigo-500" />
+                                  <span className="text-indigo-600">Copied</span>
                                 </>
                               ) : (
                                 <>
@@ -461,9 +499,9 @@ export function CaseStudies() {
                   <div
                     className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                     style={{
-                      background: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
+                      background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
                       boxShadow:
-                        "0 4px 12px rgba(139,92,246,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
+                        "0 4px 12px rgba(99,102,241,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
                     }}
                   >
                     <Bot size={18} className="text-white" />
@@ -471,29 +509,29 @@ export function CaseStudies() {
                   <Card className="border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 rounded-2xl rounded-tl-md overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
                     <CardContent className="p-5">
                       <div className="flex items-center gap-3">
-                        <Loader2 size={18} className="animate-spin text-violet-500" />
+                        <Loader2 size={18} className="animate-spin text-indigo-500" />
                         <div className="flex items-center gap-1.5">
                           <span className="text-slate-600 dark:text-slate-300 text-[14px] font-medium">
-                            Building
+                            Cross-referencing
                           </span>
                           <span className="flex gap-1">
                             <span
-                              className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce"
+                              className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"
                               style={{ animationDelay: "0ms" }}
                             />
                             <span
-                              className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce"
+                              className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"
                               style={{ animationDelay: "150ms" }}
                             />
                             <span
-                              className="w-1.5 h-1.5 bg-violet-400 rounded-full animate-bounce"
+                              className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"
                               style={{ animationDelay: "300ms" }}
                             />
                           </span>
                         </div>
                       </div>
                       <p className="text-[12px] text-slate-400 mt-2">
-                        Thinking...
+                        Connecting proposals, case studies, and library...
                       </p>
                     </CardContent>
                   </Card>
@@ -513,15 +551,15 @@ export function CaseStudies() {
           {messages.length > 0 && (
             <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
               <span className="text-xs text-slate-400 whitespace-nowrap">Quick:</span>
-              {ALL_ACTIONS.slice(0, 4).map((action) => (
+              {QUICK_ACTIONS.slice(0, 4).map((action) => (
                 <button
                   key={action.label}
                   onClick={() => handleSubmit(action.prompt)}
                   disabled={isLoading}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs whitespace-nowrap rounded-full
-                             bg-slate-100 hover:bg-violet-50 dark:bg-slate-800 dark:hover:bg-violet-900/30
-                             text-slate-600 hover:text-violet-600 dark:text-slate-300 dark:hover:text-violet-400
-                             border border-transparent hover:border-violet-200 dark:hover:border-violet-700
+                             bg-slate-100 hover:bg-indigo-50 dark:bg-slate-800 dark:hover:bg-indigo-900/30
+                             text-slate-600 hover:text-indigo-600 dark:text-slate-300 dark:hover:text-indigo-400
+                             border border-transparent hover:border-indigo-200 dark:hover:border-indigo-700
                              transition-all duration-200 disabled:opacity-50"
                 >
                   <action.icon size={12} />
@@ -538,7 +576,7 @@ export function CaseStudies() {
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Build a case study or grab a quick stat..."
+                placeholder="Ask across all your data sources..."
                 className="h-12 pr-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit()}
                 disabled={isLoading}
@@ -550,7 +588,7 @@ export function CaseStudies() {
               onClick={() => handleSubmit()}
               disabled={!inputValue.trim() || isLoading}
               size="lg"
-              className="h-12 px-6 rounded-xl bg-gradient-to-r from-violet-500 to-purple-500 hover:from-violet-600 hover:to-purple-600 shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
+              className="h-12 px-6 rounded-xl bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-600 hover:to-violet-600 shadow-[0_4px_12px_rgba(99,102,241,0.3)]"
             >
               {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
             </Button>

@@ -33,6 +33,7 @@ import {
   LineChart,
   Gauge,
   BookOpen,
+  Layers,
 } from "lucide-react"
 
 // ============================================================================
@@ -133,6 +134,17 @@ const defaultTiles: TileConfig[] = [
     shadowColor: "rgba(100, 116, 139, 0.15)",
     enabled: true,
     badge: "BETA",
+  },
+  {
+    id: "command-center",
+    to: "/command-center",
+    icon: <Layers size={22} strokeWidth={2} />,
+    title: "Command Center",
+    description: "Cross-reference all your data: proposals, case studies, and library",
+    gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
+    shadowColor: "rgba(99, 102, 241, 0.15)",
+    enabled: true,
+    badge: "POWER",
   },
 ]
 

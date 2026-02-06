@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from "react"
+import DOMPurify from "dompurify"
 import {
   TrendingUp,
   Send,
@@ -373,9 +374,12 @@ export function ProposalInsights() {
                             <div
                               className="whitespace-pre-wrap leading-[1.7] text-slate-700 dark:text-slate-200 text-[15px]"
                               dangerouslySetInnerHTML={{
-                                __html: message.content
-                                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-                                  .replace(/\n/g, "<br />"),
+                                __html: DOMPurify.sanitize(
+                                  message.content
+                                    .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                                    .replace(/\n/g, "<br />"),
+                                  { ALLOWED_TAGS: ["strong", "br", "em", "ul", "ol", "li", "p"] }
+                                ),
                               }}
                             />
                           </div>

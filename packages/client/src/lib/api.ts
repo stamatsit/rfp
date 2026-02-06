@@ -888,3 +888,46 @@ export const proposalInsightsApi = {
     return handleResponse<ProposalSyncResult>(response)
   },
 }
+
+// ─── Command Center API (Unified Cross-Referential AI) ──────
+
+export interface CommandCenterResponse {
+  response: string
+  dataUsed: {
+    proposals: { count: number; winRate: number; relevantClients: string[] }
+    caseStudies: { count: number; clients: string[]; testimonials: number }
+    library: { answers: number; photos: number; topics: string[] }
+  }
+  crossReferenceInsights: string[]
+  followUpPrompts: string[]
+  refused: boolean
+  refusalReason?: string
+}
+
+export interface CommandCenterStats {
+  proposals: { count: number; winRate: number }
+  caseStudies: { count: number; testimonials: number }
+  library: { answers: number; photos: number }
+}
+
+export const commandCenterApi = {
+  /**
+   * Query the Command Center AI — cross-references all data sources
+   */
+  async query(query: string): Promise<CommandCenterResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/command-center/query`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    })
+    return handleResponse<CommandCenterResponse>(response)
+  },
+
+  /**
+   * Get stats for the status bar
+   */
+  async getStats(): Promise<CommandCenterStats> {
+    const response = await fetchWithCredentials(`${API_BASE}/command-center/stats`)
+    return handleResponse<CommandCenterStats>(response)
+  },
+}

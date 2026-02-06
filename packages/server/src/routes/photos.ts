@@ -444,15 +444,22 @@ router.post("/import-folder", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Folder path is required" })
     }
 
+    // Security: Validate folder path is within project directory
+    const resolvedFolder = path.resolve(String(folderPath))
+    const projectRoot = path.resolve(process.cwd())
+    if (!resolvedFolder.startsWith(projectRoot)) {
+      return res.status(400).json({ error: "Invalid folder path" })
+    }
+
     // Verify folder exists
     try {
-      await fs.access(folderPath)
+      await fs.access(resolvedFolder)
     } catch {
-      return res.status(400).json({ error: `Folder not found: ${folderPath}` })
+      return res.status(400).json({ error: "Folder not found" })
     }
 
     // Read all image files from the folder
-    const files = await fs.readdir(folderPath)
+    const files = await fs.readdir(resolvedFolder)
     const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
     const imageFiles = files.filter((f) =>
       imageExtensions.some((ext) => f.toLowerCase().endsWith(ext))

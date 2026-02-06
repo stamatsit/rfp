@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js"
 import { pgTable, text, timestamp, uuid, integer } from "drizzle-orm/pg-core"
 import { eq, ilike, or, desc, sql } from "drizzle-orm"
 import OpenAI from "openai"
+import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
 
 // Schema definitions (matching actual Supabase tables)
 import { jsonb } from "drizzle-orm/pg-core"
@@ -696,6 +697,127 @@ Instructions:
           refused: false
         })
       }
+
+      // AI case studies
+      if (path === "/ai/case-studies" && method === "POST") {
+        if (!openai) {
+          return res.json({
+            response: "",
+            dataUsed: { totalCaseStudies: 0, totalTestimonials: 0, totalStats: 0, categoriesSearched: [] },
+            followUpPrompts: [],
+            refused: true,
+            refusalReason: "AI service is not configured. Please set OPENAI_API_KEY in your environment."
+          })
+        }
+
+        const { query: csQuery } = req.body || {}
+        if (!csQuery || typeof csQuery !== "string" || csQuery.trim().length < 2) {
+          return res.status(400).json({ error: "Query must be at least 2 characters" })
+        }
+
+        // Build context from client success data
+        const csSections: string[] = []
+
+        const caseStudyLines = clientSuccessData.caseStudies.map((cs: any) => {
+          const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
+          const testimonial = cs.testimonial ? `\n  Testimonial: "${cs.testimonial.quote}" — ${cs.testimonial.attribution}` : ""
+          const awards = cs.awards ? `\n  Awards: ${cs.awards.join(", ")}` : ""
+          return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge}\n  Solution: ${cs.solution}\n  Metrics: ${metrics || "None recorded"}${testimonial}${awards}`
+        })
+        csSections.push(`=== CASE STUDIES (${caseStudyLines.length}) ===\n${caseStudyLines.join("\n\n")}`)
+
+        const sortedResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
+        csSections.push(`=== TOP-LINE RESULTS (${sortedResults.length}) ===\n${sortedResults.map((r: any) => `${r.result} ${r.metric} — ${r.client}`).join("\n")}`)
+
+        csSections.push(`=== TESTIMONIALS (${clientSuccessData.testimonials.length}) ===\n${clientSuccessData.testimonials.map((t: any) => `"${t.quote}" — ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`).join("\n\n")}`)
+
+        csSections.push(`=== AWARDS (${clientSuccessData.awards.length}) ===\n${clientSuccessData.awards.map((a: any) => `${a.name} (${a.year}) — ${a.clientOrProject}`).join("\n")}`)
+
+        const statLines = [
+          ...clientSuccessData.companyStats.map((s: any) => `${s.label}: ${s.value}${s.detail ? ` — ${s.detail}` : ""}`),
+          ...clientSuccessData.externallyVerifiedStats.map((s: any) => `${s.label}: ${s.value}${s.detail ? ` — ${s.detail}` : ""} (Source: ${s.source})`)
+        ]
+        csSections.push(`=== COMPANY STATS ===\n${statLines.join("\n")}`)
+        csSections.push(`=== SERVICE LINES ===\n${clientSuccessData.serviceLines.join(", ")}`)
+        csSections.push(`=== CORE VALUES ===\n${clientSuccessData.coreValues.join("\n")}`)
+        csSections.push(`=== PROPRIETARY RESEARCH ===\n${clientSuccessData.researchStudies.map((r: any) => `${r.name}: ${r.description}\n  Findings: ${r.findings.join("; ")}`).join("\n\n")}`)
+        csSections.push(`=== NOTABLE FIRSTS ===\n${clientSuccessData.notableFirsts.join("\n")}`)
+        csSections.push(`=== CONFERENCE PRESENCE ===\n${clientSuccessData.conferenceAppearances.map((c: any) => `${c.event} — ${c.role}`).join("\n")}`)
+
+        const csContext = csSections.join("\n\n")
+
+        const categories = new Set<string>()
+        clientSuccessData.caseStudies.forEach((cs: any) => categories.add(cs.category))
+
+        const csSystemPrompt = `You are a Case Study AI for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
+
+You operate in TWO modes based on user intent:
+
+MODE 1: CASE STUDY BUILDER — When the user wants to BUILD, CREATE, DRAFT, or WRITE a case study:
+1. CONFIRM first: "I'll help you build a case study. Let me ask a few questions to get started."
+2. ASK step-by-step (one at a time): Client name/industry, challenge, solution, results
+3. Draft the full case study with Challenge/Solution/Results structure
+4. Cross-reference the database for comparisons
+5. Suggest refinements
+
+MODE 2: QUICK GRAB — When the user wants a specific fact, stat, testimonial, or data point:
+- Respond DIRECTLY — no guided workflow
+- Keep it concise and formatted for instant copy-paste
+- Use **bold** for key numbers and client names
+
+RULES:
+1. Only reference real data from the provided database — NEVER invent stats or quotes
+2. When drafting testimonials, mark them as "Suggested quote:"
+3. Write in polished, proposal-ready language
+4. Use **bold** for key metrics, client names, and important facts
+5. Format metrics as compelling bullet points
+
+Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+--- CLIENT SUCCESS DATABASE ---
+${csContext}`
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: csSystemPrompt },
+            { role: "user", content: csQuery.trim() }
+          ],
+          temperature: 0.4,
+          max_tokens: 3000
+        })
+
+        const rawResponse = completion.choices[0]?.message?.content || ""
+
+        // Parse follow-up prompts
+        let cleanResponse = rawResponse
+        let csFollowUps: string[] = []
+        const csFollowUpMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+        if (csFollowUpMatch && csFollowUpMatch[1]) {
+          try {
+            csFollowUps = JSON.parse(`[${csFollowUpMatch[1]}]`)
+            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          } catch {
+            csFollowUps = csFollowUpMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+            cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          }
+        } else {
+          csFollowUps = ["Want me to add comparable stats from similar projects?", "Should I draft a client testimonial for this?", "Want to see similar case studies from our database?"]
+        }
+
+        return res.json({
+          response: cleanResponse,
+          dataUsed: {
+            totalCaseStudies: clientSuccessData.caseStudies.length,
+            totalTestimonials: clientSuccessData.testimonials.length,
+            totalStats: clientSuccessData.topLineResults.length,
+            categoriesSearched: Array.from(categories)
+          },
+          followUpPrompts: csFollowUps,
+          refused: false
+        })
+      }
     }
 
     // Photos routes
@@ -948,6 +1070,6 @@ ${contextLines.join("\n")}`
 
   } catch (error: any) {
     console.error("API Error:", error?.message || error, error?.stack)
-    return res.status(500).json({ error: "Internal server error", details: error?.message })
+    return res.status(500).json({ error: "Internal server error" })
   }
 }
