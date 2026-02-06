@@ -1168,6 +1168,27 @@ ${proposals
     }
   )
   .join("\n")}
+
+PROPOSALS WITH RFP NUMBERS:
+${proposals
+  .filter((p) => p.rfpNumber && p.rfpNumber.trim())
+  .slice(0, 20)
+  .map((p) => `- ${p.client || "Unknown"}: RFP# ${p.rfpNumber} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) - ${p.won || "Unknown"}`)
+  .join("\n") || "No RFP numbers found in data"}
+
+PROPOSALS WITH DOCUMENT LINKS:
+${proposals
+  .filter((p) => {
+    const links = p.documentLinks as Record<string, string> | null
+    return links && Object.keys(links).length > 0
+  })
+  .slice(0, 15)
+  .map((p) => {
+    const links = p.documentLinks as Record<string, string>
+    const linkList = Object.entries(links).map(([name, path]) => `${name}: ${path}`).join("; ")
+    return `- ${p.client || "Unknown"} [${p.category || ""}]: ${linkList}`
+  })
+  .join("\n") || "No document links found in data"}
 `
 
   // Add raw data fields if query seems to want them
@@ -1228,6 +1249,8 @@ SPECIAL CAPABILITIES:
 - If asked about pending deals, use PENDING PROPOSALS WITH WIN PROBABILITY
 - If asked for recommendations, use STRATEGIC RECOMMENDATIONS as a starting point
 - If asked about specific fields or raw data, use the RAW DATA ACCESS section
+- If asked about RFP numbers, use the PROPOSALS WITH RFP NUMBERS section
+- If asked about document links, URLs, paths, or proposal files, use the PROPOSALS WITH DOCUMENT LINKS section
 
 RESPONSE FORMAT:
 Provide a clear, direct answer to the user's question. Use markdown formatting:

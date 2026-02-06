@@ -426,13 +426,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       const centerX = (window.innerWidth - 720) / 2
       const centerY = (window.innerHeight - 520) / 2
       positionRef.current = { x: Math.max(50, centerX), y: Math.max(50, centerY) }
-      if (panelRef.current) {
-        panelRef.current.style.left = `${positionRef.current.x}px`
-        panelRef.current.style.top = `${positionRef.current.y}px`
-      }
       setIsVisible(true)
+      // Use double RAF to ensure DOM is ready
       requestAnimationFrame(() => {
-        setIsAnimatingIn(true)
+        requestAnimationFrame(() => {
+          if (panelRef.current) {
+            panelRef.current.style.left = `${positionRef.current.x}px`
+            panelRef.current.style.top = `${positionRef.current.y}px`
+          }
+          setIsAnimatingIn(true)
+        })
       })
     } else {
       setIsAnimatingIn(false)
@@ -583,6 +586,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         ref={panelRef}
         className="fixed z-[999]"
         style={{
+          left: positionRef.current.x || '50%',
+          top: positionRef.current.y || '50%',
+          marginLeft: positionRef.current.x ? 0 : -360,
+          marginTop: positionRef.current.y ? 0 : -260,
           width: 720,
           height: 520,
           transform: isAnimatingIn
