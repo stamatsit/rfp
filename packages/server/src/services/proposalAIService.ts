@@ -7,9 +7,11 @@
  */
 
 import OpenAI from "openai"
+import type { Response } from "express"
 import { getAllProposals } from "./proposalSyncService.js"
 import { getPipelineStats } from "./pipelineSyncService.js"
 import type { Proposal } from "../db/index.js"
+import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
 
 // Lazy-initialized OpenAI client (pattern shared with aiService.ts)
 let openaiClient: OpenAI | null = null
@@ -1498,4 +1500,78 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
       refusalReason: "An error occurred while analyzing proposals. Please try again.",
     }
   }
+}
+
+/**
+ * Stream Proposal Insights via SSE
+ */
+export async function streamProposalInsights(
+  query: string,
+  res: Response,
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<void> {
+  const openai = getOpenAI()
+
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured." })}\n\n`)
+    res.end()
+    return
+  }
+
+  const proposals = await getAllProposals()
+
+  if (proposals.length === 0) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "No proposal data found." })}\n\n`)
+    res.end()
+    return
+  }
+
+  const context = await buildContext(proposals, query)
+  const winRates = calculateWinRates(proposals)
+  const analytics = calculateAdvancedAnalytics(proposals)
+
+  const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
+  const minDate = dates.length > 0 ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null
+  const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map((d) => d.getTime()))) : null
+
+  const byCategory: { [key: string]: number } = {}
+  proposals.forEach((p) => {
+    if (p.category) {
+      byCategory[p.category] = (byCategory[p.category] || 0) + 1
+    }
+  })
+
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
+    ? truncateHistory(conversationHistory).map(m => ({ role: m.role, content: m.content }))
+    : []
+
+  await streamCompletion({
+    openai,
+    messages: [
+      { role: "system", content: `${SYSTEM_PROMPT}\n\n--- PROPOSAL DATA ---\n${context}` },
+      ...historyMessages,
+      { role: "user", content: query },
+    ],
+    temperature: 0.4,
+    maxTokens: 2000,
+    metadata: {
+      dataUsed: {
+        totalProposals: proposals.length,
+        dateRange: { from: minDate, to: maxDate },
+        overallWinRate: winRates.overall,
+        wonCount: winRates.wonCount,
+        lostCount: winRates.lostCount,
+        pendingCount: winRates.pendingCount,
+        byCategory,
+        momentum: analytics.temporal.momentum,
+        rolling6Month: analytics.temporal.rolling6Month,
+        rolling12Month: analytics.temporal.rolling12Month,
+        yoyChange: analytics.temporal.yoyComparison?.change ?? null,
+      },
+    },
+    parseFollowUpPrompts,
+    res,
+  })
 }

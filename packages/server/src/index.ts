@@ -7,6 +7,8 @@ import path from "path"
 import { fileURLToPath } from "url"
 import routes from "./routes/index.js"
 import authRoutes from "./routes/auth.js"
+import { getPhotoByStorageKey } from "./services/photoService.js"
+import fs from "fs/promises"
 import { requireAuth } from "./middleware/auth.js"
 import { initializeDatabase } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
@@ -27,6 +29,7 @@ if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
 // Security headers
 app.use(helmet({
   contentSecurityPolicy: false, // Let Vite/React handle CSP
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow img tags from Vite dev server
 }))
 
 // Middleware
@@ -59,6 +62,36 @@ if (process.env.NODE_ENV === "production") {
 
 // Auth routes (before requireAuth middleware)
 app.use("/api/auth", authRoutes)
+
+// Public photo file route (before requireAuth so img tags can load without auth)
+app.get("/api/photos/file/:storageKey", async (req, res) => {
+  try {
+    const { storageKey } = req.params
+    if (!storageKey) return res.status(400).json({ error: "Storage key required" })
+
+    const photo = await getPhotoByStorageKey(storageKey)
+    if (!photo) return res.status(404).json({ error: "Photo not found" })
+
+    const storagePhotosDir = path.resolve(__dirname, "../../../storage/photos")
+    const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
+    let filePath: string | null = null
+
+    for (const ext of extensions) {
+      const testPath = path.join(storagePhotosDir, `${storageKey}${ext}`)
+      try {
+        await fs.access(testPath)
+        filePath = testPath
+        break
+      } catch { /* try next */ }
+    }
+
+    if (!filePath) return res.status(404).json({ error: "Photo file not found" })
+    res.sendFile(filePath)
+  } catch (error) {
+    console.error("Failed to get photo file:", error)
+    res.status(500).json({ error: "Failed to get photo file" })
+  }
+})
 
 // Require authentication for all other API routes
 app.use("/api", requireAuth)

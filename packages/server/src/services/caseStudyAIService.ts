@@ -7,7 +7,9 @@
  */
 
 import OpenAI from "openai"
+import type { Response } from "express"
 import { clientSuccessData } from "../data/clientSuccessData.js"
+import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
 
 // ─── Lazy-initialized OpenAI client ─────────────────────────
 
@@ -269,4 +271,51 @@ export async function queryCaseStudyInsights(
         "An error occurred while processing your request. Please try again.",
     }
   }
+}
+
+/**
+ * Stream Case Study Insights via SSE
+ */
+export async function streamCaseStudyInsights(
+  query: string,
+  res: Response,
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<void> {
+  const openai = getOpenAI()
+
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured." })}\n\n`)
+    res.end()
+    return
+  }
+
+  const context = buildContext()
+  const categories = new Set<string>()
+  clientSuccessData.caseStudies.forEach((cs) => categories.add(cs.category))
+
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
+    ? truncateHistory(conversationHistory).map(m => ({ role: m.role, content: m.content }))
+    : []
+
+  await streamCompletion({
+    openai,
+    messages: [
+      { role: "system", content: `${SYSTEM_PROMPT}\n\n--- CLIENT SUCCESS DATABASE ---\n${context}` },
+      ...historyMessages,
+      { role: "user", content: query },
+    ],
+    temperature: 0.4,
+    maxTokens: 3000,
+    metadata: {
+      dataUsed: {
+        totalCaseStudies: clientSuccessData.caseStudies.length,
+        totalTestimonials: clientSuccessData.testimonials.length,
+        totalStats: clientSuccessData.topLineResults.length,
+        categoriesSearched: Array.from(categories),
+      },
+    },
+    parseFollowUpPrompts,
+    res,
+  })
 }

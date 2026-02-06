@@ -1,27 +1,30 @@
-import { useState, useEffect, useRef } from "react"
+/**
+ * Ask AI — Q&A Library AI assistant.
+ *
+ * Uses shared chat infrastructure with purple theme.
+ * Unique features: thinking chain, sources, photos, refine/adapt panels, topic filter.
+ */
+
+import { useState, useEffect, useCallback } from "react"
 import { Link } from "react-router-dom"
 import {
   Sparkles,
-  Send,
-  Copy,
-  Check,
-  Loader2,
   FileText,
   ChevronDown,
   ChevronRight,
   ExternalLink,
-  User,
-  Bot,
   Image,
   Wand2,
   Brain,
+  Loader2,
+  Send,
+  Copy,
+  Check,
 } from "lucide-react"
-import { AppHeader } from "@/components/AppHeader"
+import { MarkdownRenderer } from "@/components/chat"
 import { ContextualHelp, askAIPageHelp } from "@/components/ContextualHelp"
 import {
   Button,
-  Card,
-  CardContent,
   Input,
   Badge,
   Select,
@@ -32,21 +35,13 @@ import {
   Label,
   Textarea,
 } from "@/components/ui"
+import { ChatContainer } from "@/components/chat"
+import { useChat } from "@/hooks/useChat"
 import { topicsApi, aiApi, photosApi, type AIQueryResponse, type AdaptationType } from "@/lib/api"
+import { CHAT_THEMES, type ChatMessage } from "@/types/chat"
 import type { Topic } from "@/types"
 
-interface Message {
-  id: string
-  role: "user" | "assistant"
-  content: string
-  sources?: AIQueryResponse["sources"]
-  photos?: AIQueryResponse["photos"]
-  refused?: boolean
-  refusalReason?: string
-  timestamp: Date
-  // For refined messages, stores the refinement type label
-  refinementLabel?: string
-}
+const theme = CHAT_THEMES.purple
 
 interface AdaptState {
   messageId: string
@@ -58,31 +53,22 @@ interface AdaptState {
   error?: string
 }
 
-// Helper to parse thinking chain from AI response
 function parseThinkingChain(content: string): { thinking: string | null; answer: string } {
-  // Look for **Thinking:** and **Answer:** sections
   const thinkingMatch = content.match(/\*\*Thinking:\*\*\s*([\s\S]*?)(?=\*\*Answer:\*\*|$)/i)
   const answerMatch = content.match(/\*\*Answer:\*\*\s*([\s\S]*?)$/i)
 
   if (thinkingMatch?.[1] && answerMatch?.[1]) {
-    return {
-      thinking: thinkingMatch[1].trim(),
-      answer: answerMatch[1].trim(),
-    }
+    return { thinking: thinkingMatch[1].trim(), answer: answerMatch[1].trim() }
   }
-
-  // If no structured format, return content as answer
   return { thinking: null, answer: content }
 }
 
-// Simple markdown-like renderer for thinking bullets
 function renderThinkingContent(content: string) {
-  const lines = content.split('\n').filter(line => line.trim())
+  const lines = content.split("\n").filter(line => line.trim())
   return lines.map((line, i) => {
-    // Remove leading "- " from bullets
-    const text = line.replace(/^-\s*/, '')
+    const text = line.replace(/^-\s*/, "")
     return (
-      <div key={i} className="flex items-start gap-2 text-sm text-slate-600">
+      <div key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-300">
         <span className="text-purple-400 mt-0.5">•</span>
         <span>{text}</span>
       </div>
@@ -90,44 +76,45 @@ function renderThinkingContent(content: string) {
   })
 }
 
+const parseResult = (data: Record<string, unknown>) => ({
+  content: data.response as string,
+  followUpPrompts: undefined,
+  refused: data.refused as boolean | undefined,
+  refusalReason: data.refusalReason as string | undefined,
+  metadata: {
+    sources: (data as unknown as AIQueryResponse).sources,
+    photos: (data as unknown as AIQueryResponse).photos,
+  } as unknown as Record<string, unknown>,
+})
+
 export function AskAI() {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [inputValue, setInputValue] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
   const [topics, setTopics] = useState<Topic[]>([])
   const [topicFilter, setTopicFilter] = useState<string>("all")
-  const [copiedId, setCopiedId] = useState<string | null>(null)
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
   const [expandedThinking, setExpandedThinking] = useState<Set<string>>(new Set())
   const [adaptStates, setAdaptStates] = useState<Map<string, AdaptState>>(new Map())
-
-  // Direct refine mode - paste content and refine with custom prompt
   const [refineMode, setRefineMode] = useState(false)
   const [refineContent, setRefineContent] = useState("")
   const [refineInstruction, setRefineInstruction] = useState("")
-  const [isRefining, setIsRefining] = useState(false)
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
-  const toggleThinkingExpanded = (messageId: string) => {
-    setExpandedThinking((prev) => {
-      const next = new Set(prev)
-      if (next.has(messageId)) {
-        next.delete(messageId)
-      } else {
-        next.add(messageId)
-      }
-      return next
-    })
-  }
+  const chat = useChat({
+    endpoint: "/ai/query",
+    streamEndpoint: "/ai/stream",
+    parseResult,
+    buildBody: useCallback((query: string) => ({
+      query,
+      topicId: topicFilter !== "all" ? topicFilter : undefined,
+      maxSources: 5,
+    }), [topicFilter]),
+    errorMessage: "Failed to connect to AI service. Please try again.",
+  })
 
-  // Load topics on mount
   useEffect(() => {
     async function loadTopics() {
       try {
         const topicsData = await topicsApi.getAll()
         setTopics(
-          topicsData.map((t) => ({
+          topicsData.map(t => ({
             id: t.id,
             name: t.name,
             displayName: t.displayName,
@@ -141,80 +128,20 @@ export function AskAI() {
     loadTopics()
   }, [])
 
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  // Focus input on mount
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
-
-  const handleSubmit = async () => {
-    if (!inputValue.trim() || isLoading) return
-
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: inputValue.trim(),
-      timestamp: new Date(),
-    }
-
-    setMessages((prev) => [...prev, userMessage])
-    setInputValue("")
-    setIsLoading(true)
-
-    try {
-      const result = await aiApi.query({
-        query: userMessage.content,
-        topicId: topicFilter !== "all" ? topicFilter : undefined,
-        maxSources: 5,
-      })
-
-      const assistantMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: result.response,
-        sources: result.sources,
-        photos: result.photos,
-        refused: result.refused,
-        refusalReason: result.refusalReason,
-        timestamp: new Date(),
-      }
-
-      setMessages((prev) => [...prev, assistantMessage])
-    } catch (err) {
-      console.error("AI query failed:", err)
-      const errorMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: "",
-        refused: true,
-        refusalReason: "Failed to connect to AI service. Please try again.",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsLoading(false)
-      inputRef.current?.focus()
-    }
-  }
-
-  const handleCopy = async (text: string, id: string) => {
-    await navigator.clipboard.writeText(text)
-    setCopiedId(id)
-    setTimeout(() => setCopiedId(null), 2000)
+  const toggleThinkingExpanded = (messageId: string) => {
+    setExpandedThinking(prev => {
+      const next = new Set(prev)
+      if (next.has(messageId)) next.delete(messageId)
+      else next.add(messageId)
+      return next
+    })
   }
 
   const toggleSourceExpanded = (messageId: string) => {
-    setExpandedSources((prev) => {
+    setExpandedSources(prev => {
       const next = new Set(prev)
-      if (next.has(messageId)) {
-        next.delete(messageId)
-      } else {
-        next.add(messageId)
-      }
+      if (next.has(messageId)) next.delete(messageId)
+      else next.add(messageId)
       return next
     })
   }
@@ -231,7 +158,7 @@ export function AskAI() {
   }
 
   const updateAdaptState = (messageId: string, updates: Partial<AdaptState>) => {
-    setAdaptStates((prev) => {
+    setAdaptStates(prev => {
       const next = new Map(prev)
       const current = getAdaptState(messageId)
       next.set(messageId, { ...current, ...updates })
@@ -256,67 +183,12 @@ export function AskAI() {
     }
   }
 
-  // Handle direct refine from input area
-  const handleDirectRefine = async () => {
-    if (!refineContent.trim() || !refineInstruction.trim() || isRefining) return
-
-    // Add user message showing they're refining
-    const userMessage: Message = {
-      id: `user-${Date.now()}`,
-      role: "user",
-      content: `Refine this content: "${refineInstruction}"\n\n---\n${refineContent}`,
-      timestamp: new Date(),
-    }
-    setMessages((prev) => [...prev, userMessage])
-    setIsRefining(true)
-
-    try {
-      const result = await aiApi.adapt({
-        content: refineContent.trim(),
-        adaptationType: "custom",
-        customInstruction: refineInstruction.trim(),
-      })
-
-      if (result.refused) {
-        const errorMessage: Message = {
-          id: `assistant-${Date.now()}`,
-          role: "assistant",
-          content: "",
-          refused: true,
-          refusalReason: result.refusalReason || "Failed to refine content.",
-          timestamp: new Date(),
-        }
-        setMessages((prev) => [...prev, errorMessage])
-      } else {
-        const refinedMessage: Message = {
-          id: `assistant-refined-${Date.now()}`,
-          role: "assistant",
-          content: result.adaptedContent || "",
-          timestamp: new Date(),
-          refinementLabel: "Custom Refinement",
-        }
-        setMessages((prev) => [...prev, refinedMessage])
-      }
-
-      // Clear the inputs and exit refine mode
-      setRefineContent("")
-      setRefineInstruction("")
-      setRefineMode(false)
-    } catch (err) {
-      console.error("Direct refine failed:", err)
-      const errorMessage: Message = {
-        id: `assistant-${Date.now()}`,
-        role: "assistant",
-        content: "",
-        refused: true,
-        refusalReason: "Failed to refine content. Please try again.",
-        timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, errorMessage])
-    } finally {
-      setIsRefining(false)
-      inputRef.current?.focus()
-    }
+  const handleDirectRefine = () => {
+    if (!refineContent.trim() || !refineInstruction.trim() || chat.isLoading) return
+    chat.handleSubmit(`Refine this content: "${refineInstruction}"\n\n---\n${refineContent}`)
+    setRefineContent("")
+    setRefineInstruction("")
+    setRefineMode(false)
   }
 
   const handleAdaptContent = async (messageId: string, content: string) => {
@@ -334,19 +206,11 @@ export function AskAI() {
       if (result.refused) {
         updateAdaptState(messageId, { isLoading: false, error: result.refusalReason })
       } else {
-        // Add the adapted content as a new assistant message
-        const refinedMessage: Message = {
-          id: `assistant-refined-${Date.now()}`,
-          role: "assistant",
-          content: result.adaptedContent || "",
-          timestamp: new Date(),
-          refinementLabel: getAdaptationLabel(state.type),
-        }
-        setMessages((prev) => [...prev, refinedMessage])
+        // Submit the adapted content as a follow-up showing what was refined
+        chat.handleSubmit(`Refined (${getAdaptationLabel(state.type)}): ${result.adaptedContent?.slice(0, 50)}...`)
         updateAdaptState(messageId, { isLoading: false, showPanel: false })
       }
-    } catch (err) {
-      console.error("Adaptation failed:", err)
+    } catch {
       updateAdaptState(messageId, {
         isLoading: false,
         error: "Failed to adapt content. Please try again.",
@@ -354,625 +218,430 @@ export function AskAI() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
-      <AppHeader />
+  // Custom content renderer for thinking chain
+  const renderContent = useCallback((message: ChatMessage) => {
+    const refinementLabel = message.metadata?.refinementLabel as string | undefined
+    const { thinking, answer } = parseThinkingChain(message.content)
 
-      {/* Messages Area */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-6">
-          {messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <div
-                className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
-                style={{
-                  background: 'linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(124,58,237,0.1) 100%)',
-                  boxShadow: '0 4px 20px rgba(139,92,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5)'
-                }}
-              >
-                <Sparkles size={36} className="text-purple-500" />
+    return (
+      <div className="space-y-3">
+        {refinementLabel && (
+          <div className="flex items-center gap-2">
+            <Badge variant="purple" className="text-xs">
+              <Wand2 size={10} className="mr-1" />
+              {refinementLabel}
+            </Badge>
+          </div>
+        )}
+
+        {thinking && (
+          <div className="rounded-xl border border-purple-200/60 dark:border-purple-700/40 bg-gradient-to-br from-purple-50/40 via-white to-violet-50/30 dark:from-purple-950/30 dark:via-slate-800 dark:to-violet-950/20 overflow-hidden shadow-[0_1px_3px_rgba(139,92,246,0.06)]">
+            <button
+              onClick={() => toggleThinkingExpanded(message.id)}
+              className="w-full flex items-center gap-2 px-4 py-3 text-[13px] font-medium text-purple-700 dark:text-purple-300 hover:bg-purple-50/50 dark:hover:bg-purple-900/30 transition-all duration-150"
+            >
+              <Brain size={16} className="text-purple-500" />
+              <span>Thinking Process</span>
+              <ChevronRight
+                size={16}
+                className={`ml-auto text-purple-400 transition-transform duration-200 ${
+                  expandedThinking.has(message.id) ? "rotate-90" : ""
+                }`}
+              />
+            </button>
+            {expandedThinking.has(message.id) && (
+              <div className="px-4 pb-4 space-y-1.5 border-t border-purple-100/60 dark:border-purple-800/40 animate-fade-in-up">
+                <div className="pt-3">{renderThinkingContent(thinking)}</div>
               </div>
-              <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3 tracking-tight">
-                Ask anything about your library
-              </h2>
-              <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
-                I'll search through your approved Q&A content to provide accurate answers based on your organization's knowledge base.
-              </p>
-              <div className="flex flex-wrap gap-2.5 justify-center max-w-lg">
-                {[
-                  "What are our data privacy policies?",
-                  "How do we handle customer support?",
-                  "What is our refund policy?",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => setInputValue(suggestion)}
-                    className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full text-[13px] text-slate-600 dark:text-slate-300
-                               shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-purple-300 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
-                               hover:shadow-[0_2px_8px_rgba(139,92,246,0.12)] transition-all duration-200"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
+            )}
+          </div>
+        )}
+
+        <MarkdownRenderer content={answer} />
+      </div>
+    )
+  }, [expandedThinking])
+
+  // Photos + Sources as extra content
+  const renderExtraContent = useCallback((message: ChatMessage) => {
+    const sources = message.metadata?.sources as AIQueryResponse["sources"] | undefined
+    const photos = message.metadata?.photos as AIQueryResponse["photos"] | undefined
+
+    return (
+      <>
+        {/* Photos */}
+        {photos && photos.length > 0 && (
+          <div className="pt-4 border-t border-slate-100/80 dark:border-slate-700">
+            <div className="flex items-center gap-2 text-[13px] text-slate-500 mb-3">
+              <Image size={14} />
+              <span className="font-medium">
+                {photos.length} photo{photos.length > 1 ? "s" : ""} found
+              </span>
             </div>
-          ) : (
-            <div className="space-y-6">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+              {photos.map(photo => {
+                const imgUrl = (photo as any).fileUrl || photosApi.getFileUrl(photo.storageKey)
+                return (
+                <a
+                  key={photo.id}
+                  href={imgUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200/60 dark:border-slate-700 hover:border-purple-300 dark:hover:border-purple-600 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]"
                 >
-                  {message.role === "assistant" && (
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)',
-                        boxShadow: '0 4px 12px rgba(139,92,246,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'
-                      }}
-                    >
-                      <Bot size={18} className="text-white" />
+                  <img
+                    src={imgUrl}
+                    alt={photo.displayTitle}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-0 left-0 right-0 p-2.5">
+                      <p className="text-white text-xs font-medium truncate">{photo.displayTitle}</p>
                     </div>
-                  )}
+                  </div>
+                </a>
+              )})}
+            </div>
+          </div>
+        )}
 
-                  <div className={`max-w-[80%] ${message.role === "user" ? "order-first" : ""}`}>
-                    {message.role === "user" ? (
-                      <div className="bg-gradient-to-br from-blue-50 to-blue-100/80 text-slate-800 px-5 py-3.5 rounded-2xl rounded-tr-md shadow-[0_1px_3px_rgba(59,130,246,0.1)] border border-blue-200/60">
-                        <p className="leading-relaxed text-[15px]">{message.content}</p>
-                      </div>
-                    ) : message.refused ? (
-                      <Card className="border-amber-200/60 bg-gradient-to-br from-amber-50 to-orange-50/50 rounded-2xl rounded-tl-md overflow-hidden shadow-[0_2px_8px_rgba(245,158,11,0.08)]">
-                        <CardContent className="p-5">
-                          <p className="text-amber-800 text-[15px]">
-                            {message.refusalReason || "I couldn't find relevant content in the library."}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <Card className="border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 rounded-2xl rounded-tl-md overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                        <CardContent className="p-5 space-y-4">
-                          {/* AI Response with Thinking Chain */}
-                          {(() => {
-                            const { thinking, answer } = parseThinkingChain(message.content)
-                            return (
-                              <div className="space-y-3">
-                                {message.refinementLabel && (
-                                  <div className="flex items-center gap-2">
-                                    <Badge variant="purple" className="text-xs">
-                                      <Wand2 size={10} className="mr-1" />
-                                      {message.refinementLabel}
-                                    </Badge>
-                                  </div>
-                                )}
+        {/* Sources */}
+        {sources && sources.length > 0 && (
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-700">
+            <button
+              onClick={() => toggleSourceExpanded(message.id)}
+              className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors w-full"
+            >
+              <FileText size={14} />
+              <span className="font-medium">
+                {sources.length} source{sources.length > 1 ? "s" : ""} used
+              </span>
+              <ChevronDown
+                size={14}
+                className={`ml-auto transition-transform ${expandedSources.has(message.id) ? "rotate-180" : ""}`}
+              />
+            </button>
 
-                                {/* Thinking Section (collapsible) */}
-                                {thinking && (
-                                  <div className="rounded-xl border border-purple-200/60 bg-gradient-to-br from-purple-50/40 via-white to-violet-50/30 overflow-hidden shadow-[0_1px_3px_rgba(139,92,246,0.06)]">
-                                    <button
-                                      onClick={() => toggleThinkingExpanded(message.id)}
-                                      className="w-full flex items-center gap-2 px-4 py-3 text-[13px] font-medium text-purple-700 hover:bg-purple-50/50 transition-all duration-150"
-                                    >
-                                      <Brain size={16} className="text-purple-500" />
-                                      <span>Thinking Process</span>
-                                      <ChevronRight
-                                        size={16}
-                                        className={`ml-auto text-purple-400 transition-transform duration-200 ${
-                                          expandedThinking.has(message.id) ? "rotate-90" : ""
-                                        }`}
-                                      />
-                                    </button>
-                                    {expandedThinking.has(message.id) && (
-                                      <div className="px-4 pb-4 space-y-1.5 border-t border-purple-100/60 animate-fade-in-up">
-                                        <div className="pt-3">
-                                          {renderThinkingContent(thinking)}
-                                        </div>
-                                      </div>
-                                    )}
-                                  </div>
-                                )}
+            {expandedSources.has(message.id) && (
+              <div className="mt-3 space-y-2">
+                {sources.map((source, idx) => {
+                  const sourceAdaptId = `source-${source.id}`
+                  const sourceAdaptState = getAdaptState(sourceAdaptId)
+                  return (
+                    <div key={source.id} className="p-3 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-700 group">
+                      <div className="flex items-start gap-2">
+                        <Badge variant="outline" className="text-xs flex-shrink-0">{idx + 1}</Badge>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm text-slate-900 dark:text-white">{source.question}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 whitespace-pre-wrap">{source.answer}</p>
 
-                                {/* Answer Section */}
-                                <div className="prose prose-slate prose-sm max-w-none">
-                                  <p className="whitespace-pre-wrap leading-[1.7] text-slate-700 text-[15px]">
-                                    {answer}
-                                  </p>
-                                </div>
-                              </div>
-                            )
-                          })()}
-
-                          {/* Photos Section */}
-                          {message.photos && message.photos.length > 0 && (
-                            <div className="pt-4 border-t border-slate-100/80">
-                              <div className="flex items-center gap-2 text-[13px] text-slate-500 mb-3">
-                                <Image size={14} />
-                                <span className="font-medium">
-                                  {message.photos.length} photo{message.photos.length > 1 ? "s" : ""} found
-                                </span>
-                              </div>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                                {message.photos.map((photo) => (
-                                  <a
-                                    key={photo.id}
-                                    href={photosApi.getFileUrl(photo.storageKey)}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="group relative aspect-square rounded-xl overflow-hidden border border-slate-200/60 hover:border-purple-300 transition-all duration-300 hover:shadow-[0_4px_12px_rgba(139,92,246,0.15)]"
-                                  >
-                                    <img
-                                      src={photosApi.getFileUrl(photo.storageKey)}
-                                      alt={photo.displayTitle}
-                                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                                    />
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                      <div className="absolute bottom-0 left-0 right-0 p-2.5">
-                                        <p className="text-white text-xs font-medium truncate">
-                                          {photo.displayTitle}
-                                        </p>
-                                      </div>
-                                    </div>
-                                  </a>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Sources Section */}
-                          {message.sources && message.sources.length > 0 && (
-                            <div className="pt-3 border-t border-slate-100">
-                              <button
-                                onClick={() => toggleSourceExpanded(message.id)}
-                                className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors w-full"
-                              >
-                                <FileText size={14} />
-                                <span className="font-medium">
-                                  {message.sources.length} source{message.sources.length > 1 ? "s" : ""} used
-                                </span>
-                                <ChevronDown
-                                  size={14}
-                                  className={`ml-auto transition-transform ${
-                                    expandedSources.has(message.id) ? "rotate-180" : ""
-                                  }`}
-                                />
-                              </button>
-
-                              {expandedSources.has(message.id) && (
-                                <div className="mt-3 space-y-2">
-                                  {message.sources.map((source, idx) => {
-                                    const sourceAdaptId = `source-${source.id}`
-                                    const sourceAdaptState = getAdaptState(sourceAdaptId)
-                                    return (
-                                      <div
-                                        key={source.id}
-                                        className="p-3 bg-slate-50 rounded-xl border border-slate-100 group"
-                                      >
-                                        <div className="flex items-start gap-2">
-                                          <Badge variant="outline" className="text-xs flex-shrink-0">
-                                            {idx + 1}
-                                          </Badge>
-                                          <div className="flex-1 min-w-0">
-                                            <p className="font-medium text-sm text-slate-900">
-                                              {source.question}
-                                            </p>
-                                            <p className="text-xs text-slate-500 mt-2 whitespace-pre-wrap">
-                                              {source.answer}
-                                            </p>
-
-                                            {/* Source Action Buttons */}
-                                            <div className="flex items-center gap-1.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-7 px-2 text-xs"
-                                                onClick={() => handleCopy(source.answer, source.id)}
-                                              >
-                                                {copiedId === source.id ? (
-                                                  <>
-                                                    <Check size={12} className="mr-1 text-emerald-500" />
-                                                    <span className="text-emerald-600">Copied</span>
-                                                  </>
-                                                ) : (
-                                                  <>
-                                                    <Copy size={12} className="mr-1 text-slate-400" />
-                                                    Copy
-                                                  </>
-                                                )}
-                                              </Button>
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className={`h-7 px-2 text-xs ${sourceAdaptState.showPanel ? "bg-purple-100 text-purple-700" : ""}`}
-                                                onClick={() => toggleAdaptPanel(sourceAdaptId)}
-                                              >
-                                                <Wand2 size={12} className="mr-1" />
-                                                Refine
-                                              </Button>
-                                            </div>
-
-                                            {/* Source Adapt Panel */}
-                                            {sourceAdaptState.showPanel && (
-                                              <div className="mt-3 p-3 bg-gradient-to-br from-purple-50 to-blue-50 rounded-lg border border-purple-200 space-y-2.5 animate-fade-in-up">
-                                                <div className="flex flex-wrap gap-1.5">
-                                                  {([
-                                                    { type: "shorten", label: "Shorten" },
-                                                    { type: "expand", label: "Expand" },
-                                                    { type: "bullets", label: "Bullets" },
-                                                    { type: "formal", label: "Formal" },
-                                                    { type: "casual", label: "Casual" },
-                                                    { type: "custom", label: "Custom" },
-                                                  ] as const).map(({ type, label }) => (
-                                                    <Button
-                                                      key={type}
-                                                      variant={sourceAdaptState.type === type ? "default" : "outline"}
-                                                      size="sm"
-                                                      onClick={() => updateAdaptState(sourceAdaptId, { type })}
-                                                      className={`rounded-md h-6 text-xs px-2 ${sourceAdaptState.type === type ? "bg-purple-600 hover:bg-purple-700" : "bg-white"}`}
-                                                    >
-                                                      {label}
-                                                    </Button>
-                                                  ))}
-                                                </div>
-
-                                                {sourceAdaptState.type === "shorten" && (
-                                                  <div className="flex items-center gap-2">
-                                                    <Label htmlFor={`target-words-${sourceAdaptId}`} className="text-xs whitespace-nowrap">Target words:</Label>
-                                                    <Input
-                                                      id={`target-words-${sourceAdaptId}`}
-                                                      type="number"
-                                                      value={sourceAdaptState.targetWordCount}
-                                                      onChange={(e) => updateAdaptState(sourceAdaptId, { targetWordCount: parseInt(e.target.value) || 100 })}
-                                                      className="h-7 w-20 text-xs rounded-md bg-white"
-                                                      min={25}
-                                                      max={500}
-                                                    />
-                                                  </div>
-                                                )}
-
-                                                {sourceAdaptState.type === "custom" && (
-                                                  <Textarea
-                                                    value={sourceAdaptState.customInstruction}
-                                                    onChange={(e) => updateAdaptState(sourceAdaptId, { customInstruction: e.target.value })}
-                                                    placeholder="How should this be adapted?"
-                                                    className="rounded-md min-h-[50px] text-xs bg-white"
-                                                  />
-                                                )}
-
-                                                <Button
-                                                  onClick={() => handleAdaptContent(sourceAdaptId, source.answer)}
-                                                  disabled={sourceAdaptState.isLoading || (sourceAdaptState.type === "custom" && !sourceAdaptState.customInstruction.trim())}
-                                                  size="sm"
-                                                  className="w-full rounded-md h-7 text-xs bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                                                >
-                                                  {sourceAdaptState.isLoading ? (
-                                                    <>
-                                                      <Loader2 size={12} className="mr-1 animate-spin" />
-                                                      Adapting...
-                                                    </>
-                                                  ) : (
-                                                    <>
-                                                      <Sparkles size={12} className="mr-1" />
-                                                      Apply
-                                                    </>
-                                                  )}
-                                                </Button>
-
-                                                {sourceAdaptState.error && (
-                                                  <div className="p-1.5 bg-amber-50 border border-amber-200 rounded-md">
-                                                    <p className="text-amber-800 text-xs">{sourceAdaptState.error}</p>
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )
-                                  })}
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {/* Action Buttons */}
-                          <div className="flex items-center gap-2 pt-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-8 rounded-lg text-xs"
-                              onClick={() => handleCopy(message.content, message.id)}
-                            >
-                              {copiedId === message.id ? (
-                                <>
-                                  <Check size={12} className="mr-1.5 text-emerald-500" />
-                                  <span className="text-emerald-600">Copied</span>
-                                </>
+                          <div className="flex items-center gap-1.5 mt-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => chat.handleCopy(source.answer, source.id)}>
+                              {chat.copiedId === source.id ? (
+                                <><Check size={12} className="mr-1 text-emerald-500" /><span className="text-emerald-600">Copied</span></>
                               ) : (
-                                <>
-                                  <Copy size={12} className="mr-1.5" />
-                                  Copy
-                                </>
+                                <><Copy size={12} className="mr-1 text-slate-400" />Copy</>
                               )}
                             </Button>
                             <Button
-                              variant="outline"
+                              variant="ghost"
                               size="sm"
-                              className={`h-8 rounded-lg text-xs ${getAdaptState(message.id).showPanel ? "bg-purple-100 border-purple-300 text-purple-700" : ""}`}
-                              onClick={() => toggleAdaptPanel(message.id)}
+                              className={`h-7 px-2 text-xs ${sourceAdaptState.showPanel ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300" : ""}`}
+                              onClick={() => toggleAdaptPanel(sourceAdaptId)}
                             >
-                              <Wand2 size={12} className="mr-1.5" />
+                              <Wand2 size={12} className="mr-1" />
                               Refine
                             </Button>
-                            {!message.refinementLabel && (
-                              <Link to="/search" className="inline-flex">
-                                <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs">
-                                  <ExternalLink size={12} className="mr-1.5" />
-                                  View in Library
-                                </Button>
-                              </Link>
-                            )}
                           </div>
 
-                          {/* Adapt Panel */}
-                          {getAdaptState(message.id).showPanel && (
-                            <div className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-200 space-y-3 animate-fade-in-up">
-                              <div className="flex flex-wrap gap-2">
-                                {([
-                                  { type: "shorten", label: "Shorten" },
-                                  { type: "expand", label: "Expand" },
-                                  { type: "bullets", label: "Bullets" },
-                                  { type: "formal", label: "Formal" },
-                                  { type: "casual", label: "Casual" },
-                                  { type: "custom", label: "Custom" },
-                                ] as const).map(({ type, label }) => (
-                                  <Button
-                                    key={type}
-                                    variant={getAdaptState(message.id).type === type ? "default" : "outline"}
-                                    size="sm"
-                                    onClick={() => updateAdaptState(message.id, { type })}
-                                    className={`rounded-lg h-7 text-xs ${getAdaptState(message.id).type === type ? "bg-purple-600 hover:bg-purple-700" : "bg-white"}`}
-                                  >
-                                    {label}
-                                  </Button>
-                                ))}
-                              </div>
-
-                              {getAdaptState(message.id).type === "shorten" && (
-                                <div className="flex items-center gap-2">
-                                  <Label htmlFor={`target-words-${message.id}`} className="text-xs whitespace-nowrap">Target words:</Label>
-                                  <Input
-                                    id={`target-words-${message.id}`}
-                                    type="number"
-                                    value={getAdaptState(message.id).targetWordCount}
-                                    onChange={(e) => updateAdaptState(message.id, { targetWordCount: parseInt(e.target.value) || 100 })}
-                                    className="h-8 w-24 text-sm rounded-lg bg-white"
-                                    min={25}
-                                    max={500}
-                                  />
-                                </div>
-                              )}
-
-                              {getAdaptState(message.id).type === "custom" && (
-                                <Textarea
-                                  value={getAdaptState(message.id).customInstruction}
-                                  onChange={(e) => updateAdaptState(message.id, { customInstruction: e.target.value })}
-                                  placeholder="How should this be adapted?"
-                                  className="rounded-lg min-h-[60px] text-sm bg-white"
-                                />
-                              )}
-
-                              <Button
-                                onClick={() => handleAdaptContent(message.id, message.content)}
-                                disabled={getAdaptState(message.id).isLoading || (getAdaptState(message.id).type === "custom" && !getAdaptState(message.id).customInstruction.trim())}
-                                size="sm"
-                                className="w-full rounded-lg bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600"
-                              >
-                                {getAdaptState(message.id).isLoading ? (
-                                  <>
-                                    <Loader2 size={14} className="mr-1.5 animate-spin" />
-                                    Adapting...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Sparkles size={14} className="mr-1.5" />
-                                    Apply
-                                  </>
-                                )}
-                              </Button>
-
-                              {getAdaptState(message.id).error && (
-                                <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg">
-                                  <p className="text-amber-800 text-xs">{getAdaptState(message.id).error}</p>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    <p className="text-xs text-slate-400 mt-1.5 px-1">
-                      {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    </p>
-                  </div>
-
-                  {message.role === "user" && (
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center flex-shrink-0 shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
-                      <User size={18} className="text-slate-600" />
-                    </div>
-                  )}
-                </div>
-              ))}
-
-              {/* Loading indicator */}
-              {isLoading && (
-                <div className="flex gap-4 justify-start animate-fade-in-up">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{
-                      background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)',
-                      boxShadow: '0 4px 12px rgba(139,92,246,0.35), inset 0 1px 0 rgba(255,255,255,0.2)'
-                    }}
-                  >
-                    <Bot size={18} className="text-white" />
-                  </div>
-                  <Card className="border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 rounded-2xl rounded-tl-md overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
-                    <CardContent className="p-5">
-                      <div className="flex items-center gap-3">
-                        <Loader2 size={18} className="animate-spin text-purple-500" />
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-600 dark:text-slate-300 text-[14px] font-medium">Thinking</span>
-                          <span className="flex gap-1">
-                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <span className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </span>
+                          {sourceAdaptState.showPanel && renderAdaptPanel(sourceAdaptId, source.answer, true)}
                         </div>
                       </div>
-                      <p className="text-[12px] text-slate-400 mt-2">
-                        Searching your approved library content...
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-      </main>
-
-      {/* Input Area */}
-      <footer
-        className="sticky bottom-0 border-t border-slate-200/60 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl"
-      >
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          {/* Mode Toggle */}
-          <div className="flex items-center gap-1.5 mb-3">
-            <button
-              onClick={() => setRefineMode(false)}
-              className={`px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-                !refineMode
-                  ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-[0_1px_3px_rgba(139,92,246,0.1)]"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Sparkles size={14} className="inline mr-1.5" />
-              Ask Library
-            </button>
-            <button
-              onClick={() => setRefineMode(true)}
-              className={`px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
-                refineMode
-                  ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-[0_1px_3px_rgba(139,92,246,0.1)]"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Wand2 size={14} className="inline mr-1.5" />
-              Refine Content
-            </button>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
+        )}
 
-          {refineMode ? (
-            /* Refine Mode Input */
-            <div className="space-y-3">
-              <Textarea
-                value={refineContent}
-                onChange={(e) => setRefineContent(e.target.value)}
-                placeholder="Paste content to refine here..."
-                className="min-h-[100px] text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl resize-none"
-                disabled={isRefining}
-              />
-              <div className="flex gap-3 items-end">
-                <div className="flex-1 relative">
-                  <Input
-                    value={refineInstruction}
-                    onChange={(e) => setRefineInstruction(e.target.value)}
-                    placeholder="How should this be refined? (e.g., 'make it shorter', 'add bullet points', 'more formal tone')"
-                    className="h-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleDirectRefine()}
-                    disabled={isRefining}
-                  />
-                </div>
-                <Button
-                  onClick={handleDirectRefine}
-                  disabled={!refineContent.trim() || !refineInstruction.trim() || isRefining}
-                  size="lg"
-                  variant="purple"
-                  className="h-12 px-6 rounded-xl shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
-                >
-                  {isRefining ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : (
-                    <Wand2 size={20} />
-                  )}
-                </Button>
-                <ContextualHelp {...askAIPageHelp} />
-              </div>
-              <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
-                Paste any content above, then describe how you want it refined
-              </p>
-            </div>
-          ) : (
-            /* Normal Ask Mode Input */
-            <>
-              <div className="flex gap-3 items-end">
-                {/* Topic Filter */}
-                <Select value={topicFilter} onValueChange={setTopicFilter}>
-                  <SelectTrigger className="w-40 h-12 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                    <SelectValue placeholder="All Topics" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Topics</SelectItem>
-                    {topics.map((topic) => (
-                      <SelectItem key={topic.id} value={topic.id}>
-                        {topic.displayName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+        {/* Message-level Adapt Panel */}
+        {getAdaptState(message.id).showPanel && renderAdaptPanel(message.id, message.content, false)}
+      </>
+    )
+  }, [expandedSources, adaptStates, chat.copiedId])
 
-                {/* Input */}
-                <div className="flex-1 relative">
-                  <Input
-                    ref={inputRef}
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    placeholder="Ask a question about your library..."
-                    className="h-12 pr-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit()}
-                    disabled={isLoading}
-                  />
-                </div>
+  // Shared adapt panel renderer
+  const renderAdaptPanel = (adaptId: string, content: string, isSource: boolean) => {
+    const state = getAdaptState(adaptId)
+    const sizes = isSource
+      ? { container: "mt-3 p-3", buttons: "h-6 text-xs px-2", input: "h-7 w-20 text-xs", textarea: "min-h-[50px] text-xs", apply: "h-7 text-xs" }
+      : { container: "p-4", buttons: "h-7 text-xs", input: "h-8 w-24 text-sm", textarea: "min-h-[60px] text-sm", apply: "" }
+    const rounding = isSource ? "rounded-lg" : "rounded-xl"
 
-                {/* Send Button */}
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!inputValue.trim() || isLoading}
-                  size="lg"
-                  variant="purple"
-                  className="h-12 px-6 rounded-xl shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
-                >
-                  {isLoading ? (
-                    <Loader2 size={20} className="animate-spin" />
-                  ) : (
-                    <Send size={20} />
-                  )}
-                </Button>
-
-                {/* Help */}
-                <ContextualHelp {...askAIPageHelp} />
-              </div>
-
-              {topicFilter !== "all" && (
-                <p className="text-[12px] text-slate-400 mt-2 text-center">
-                  Filtering by topic: <span className="font-medium text-slate-600">{topics.find(t => t.id === topicFilter)?.displayName}</span>
-                </p>
-              )}
-            </>
-          )}
+    return (
+      <div className={`${sizes.container} bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-950/30 dark:to-blue-950/20 ${rounding} border border-purple-200 dark:border-purple-800/50 space-y-${isSource ? "2.5" : "3"} animate-fade-in-up`}>
+        <div className={`flex flex-wrap gap-${isSource ? "1.5" : "2"}`}>
+          {([
+            { type: "shorten", label: "Shorten" },
+            { type: "expand", label: "Expand" },
+            { type: "bullets", label: "Bullets" },
+            { type: "formal", label: "Formal" },
+            { type: "casual", label: "Casual" },
+            { type: "custom", label: "Custom" },
+          ] as const).map(({ type, label }) => (
+            <Button
+              key={type}
+              variant={state.type === type ? "default" : "outline"}
+              size="sm"
+              onClick={() => updateAdaptState(adaptId, { type })}
+              className={`${rounding === "rounded-lg" ? "rounded-md" : "rounded-lg"} ${sizes.buttons} ${state.type === type ? "bg-purple-600 hover:bg-purple-700" : "bg-white dark:bg-slate-800"}`}
+            >
+              {label}
+            </Button>
+          ))}
         </div>
-      </footer>
-    </div>
+
+        {state.type === "shorten" && (
+          <div className="flex items-center gap-2">
+            <Label htmlFor={`target-words-${adaptId}`} className="text-xs whitespace-nowrap">Target words:</Label>
+            <Input
+              id={`target-words-${adaptId}`}
+              type="number"
+              value={state.targetWordCount}
+              onChange={e => updateAdaptState(adaptId, { targetWordCount: parseInt(e.target.value) || 100 })}
+              className={`${sizes.input} rounded-md bg-white dark:bg-slate-800 dark:border-slate-700`}
+              min={25}
+              max={500}
+            />
+          </div>
+        )}
+
+        {state.type === "custom" && (
+          <Textarea
+            value={state.customInstruction}
+            onChange={e => updateAdaptState(adaptId, { customInstruction: e.target.value })}
+            placeholder="How should this be adapted?"
+            className={`${sizes.textarea} rounded-${isSource ? "md" : "lg"} bg-white dark:bg-slate-800 dark:border-slate-700`}
+          />
+        )}
+
+        <Button
+          onClick={() => handleAdaptContent(adaptId, content)}
+          disabled={state.isLoading || (state.type === "custom" && !state.customInstruction.trim())}
+          size="sm"
+          className={`w-full rounded-${isSource ? "md" : "lg"} ${sizes.apply} bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600`}
+        >
+          {state.isLoading ? (
+            <><Loader2 size={isSource ? 12 : 14} className="mr-1.5 animate-spin" />Adapting...</>
+          ) : (
+            <><Sparkles size={isSource ? 12 : 14} className="mr-1.5" />Apply</>
+          )}
+        </Button>
+
+        {state.error && (
+          <div className={`p-${isSource ? "1.5" : "2"} bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-${isSource ? "md" : "lg"}`}>
+            <p className="text-amber-800 dark:text-amber-300 text-xs">{state.error}</p>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Custom action buttons (Refine + View in Library)
+  const renderActions = useCallback((message: ChatMessage) => {
+    const refinementLabel = message.metadata?.refinementLabel as string | undefined
+    return (
+      <>
+        <Button
+          variant="outline"
+          size="sm"
+          className={`h-8 rounded-lg text-xs ${getAdaptState(message.id).showPanel ? "bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300" : ""}`}
+          onClick={() => toggleAdaptPanel(message.id)}
+        >
+          <Wand2 size={12} className="mr-1.5" />
+          Refine
+        </Button>
+        {!refinementLabel && (
+          <Link to="/search" className="inline-flex">
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg text-xs">
+              <ExternalLink size={12} className="mr-1.5" />
+              View in Library
+            </Button>
+          </Link>
+        )}
+      </>
+    )
+  }, [adaptStates])
+
+  return (
+    <ChatContainer
+      messages={chat.messages}
+      isLoading={chat.isLoading}
+      isStreaming={chat.isStreaming}
+      inputValue={chat.inputValue}
+      setInputValue={chat.setInputValue}
+      onSubmit={chat.handleSubmit}
+      theme={theme}
+      copiedId={chat.copiedId}
+      onCopy={chat.handleCopy}
+      onFeedback={chat.handleFeedback}
+      messagesEndRef={chat.messagesEndRef}
+      inputRef={chat.inputRef}
+      placeholder="Ask a question about your library..."
+      renderContent={renderContent}
+      renderExtraContent={renderExtraContent}
+      renderActions={renderActions}
+      emptyState={
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div
+            className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
+            style={{
+              background: "linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(124,58,237,0.1) 100%)",
+              boxShadow: "0 4px 20px rgba(139,92,246,0.12), inset 0 1px 0 rgba(255,255,255,0.5)",
+            }}
+          >
+            <Sparkles size={36} className="text-purple-500" />
+          </div>
+          <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3 tracking-tight">
+            Ask anything about your library
+          </h2>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
+            I'll search through your approved Q&A content to provide accurate answers based on your organization's knowledge base.
+          </p>
+          <div className="flex flex-wrap gap-2.5 justify-center max-w-lg">
+            {[
+              "What are our data privacy policies?",
+              "How do we handle customer support?",
+              "What is our refund policy?",
+            ].map(suggestion => (
+              <button
+                key={suggestion}
+                onClick={() => chat.setInputValue(suggestion)}
+                className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full text-[13px] text-slate-600 dark:text-slate-300
+                           shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-purple-300 dark:hover:border-purple-500 hover:text-purple-600 dark:hover:text-purple-400
+                           hover:shadow-[0_2px_8px_rgba(139,92,246,0.12)] transition-all duration-200"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      }
+      footerExtra={
+        <footer className="sticky bottom-0 border-t border-slate-200/60 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl">
+          <div className="max-w-4xl mx-auto px-6 py-4">
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-1.5 mb-3">
+              <button
+                onClick={() => setRefineMode(false)}
+                className={`px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                  !refineMode
+                    ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-[0_1px_3px_rgba(139,92,246,0.1)]"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Sparkles size={14} className="inline mr-1.5" />
+                Ask Library
+              </button>
+              <button
+                onClick={() => setRefineMode(true)}
+                className={`px-4 py-2 rounded-xl text-[13px] font-medium transition-all duration-200 ${
+                  refineMode
+                    ? "bg-purple-100 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 shadow-[0_1px_3px_rgba(139,92,246,0.1)]"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+              >
+                <Wand2 size={14} className="inline mr-1.5" />
+                Refine Content
+              </button>
+            </div>
+
+            {refineMode ? (
+              <div className="space-y-3">
+                <Textarea
+                  value={refineContent}
+                  onChange={e => setRefineContent(e.target.value)}
+                  placeholder="Paste content to refine here..."
+                  className="min-h-[100px] text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl resize-none"
+                  disabled={chat.isLoading}
+                />
+                <div className="flex gap-3 items-end">
+                  <div className="flex-1 relative">
+                    <Input
+                      value={refineInstruction}
+                      onChange={e => setRefineInstruction(e.target.value)}
+                      placeholder="How should this be refined? (e.g., 'make it shorter', 'add bullet points', 'more formal tone')"
+                      className="h-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
+                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleDirectRefine()}
+                      disabled={chat.isLoading}
+                    />
+                  </div>
+                  <Button
+                    onClick={handleDirectRefine}
+                    disabled={!refineContent.trim() || !refineInstruction.trim() || chat.isLoading}
+                    size="lg"
+                    variant="purple"
+                    className="h-12 px-6 rounded-xl shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
+                  >
+                    {chat.isLoading ? <Loader2 size={20} className="animate-spin" /> : <Wand2 size={20} />}
+                  </Button>
+                  <ContextualHelp {...askAIPageHelp} />
+                </div>
+                <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
+                  Paste any content above, then describe how you want it refined
+                </p>
+              </div>
+            ) : (
+              <>
+                <div className="flex gap-3 items-end">
+                  <Select value={topicFilter} onValueChange={setTopicFilter}>
+                    <SelectTrigger className="w-40 h-12 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                      <SelectValue placeholder="All Topics" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Topics</SelectItem>
+                      {topics.map(topic => (
+                        <SelectItem key={topic.id} value={topic.id}>{topic.displayName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="flex-1 relative">
+                    <Input
+                      ref={chat.inputRef as unknown as React.RefObject<HTMLInputElement>}
+                      value={chat.inputValue}
+                      onChange={e => chat.setInputValue(e.target.value)}
+                      placeholder="Ask a question about your library..."
+                      className="h-12 pr-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
+                      onKeyDown={e => e.key === "Enter" && !e.shiftKey && chat.handleSubmit()}
+                      disabled={chat.isLoading}
+                    />
+                  </div>
+
+                  <Button
+                    onClick={() => chat.handleSubmit()}
+                    disabled={!chat.inputValue.trim() || chat.isLoading}
+                    size="lg"
+                    variant="purple"
+                    className="h-12 px-6 rounded-xl shadow-[0_4px_12px_rgba(139,92,246,0.3)]"
+                  >
+                    {chat.isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
+                  </Button>
+
+                  <ContextualHelp {...askAIPageHelp} />
+                </div>
+
+                {topicFilter !== "all" && (
+                  <p className="text-[12px] text-slate-400 mt-2 text-center">
+                    Filtering by topic: <span className="font-medium text-slate-600 dark:text-slate-300">{topics.find(t => t.id === topicFilter)?.displayName}</span>
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </footer>
+      }
+    />
   )
 }

@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express"
-import { queryAI, adaptContent, type AdaptationType } from "../services/aiService.js"
-import { queryCaseStudyInsights } from "../services/caseStudyAIService.js"
+import { queryAI, adaptContent, streamAI, type AdaptationType } from "../services/aiService.js"
+import { queryCaseStudyInsights, streamCaseStudyInsights } from "../services/caseStudyAIService.js"
 
 const router = Router()
 
@@ -34,6 +34,40 @@ router.post("/query", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("AI query endpoint failed:", error)
     res.status(500).json({ error: "Failed to process AI query" })
+  }
+})
+
+/**
+ * POST /api/ai/stream
+ * Stream Q&A Library AI responses via SSE
+ */
+router.post("/stream", async (req: Request, res: Response) => {
+  try {
+    const { query, topicId, maxSources, conversationHistory } = req.body
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query is required" })
+    }
+
+    if (query.trim().length < 3) {
+      return res.status(400).json({ error: "Query must be at least 3 characters" })
+    }
+
+    if (query.length > 1000) {
+      return res.status(400).json({ error: "Query must be less than 1000 characters" })
+    }
+
+    await streamAI(
+      query.trim(),
+      res,
+      { topicId: topicId as string | undefined, maxSources: maxSources ? parseInt(maxSources, 10) : undefined },
+      conversationHistory
+    )
+  } catch (error) {
+    console.error("AI stream failed:", error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream AI response" })
+    }
   }
 })
 
@@ -102,6 +136,35 @@ router.post("/case-studies", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Case study AI failed:", error)
     res.status(500).json({ error: "Failed to process case study request" })
+  }
+})
+
+/**
+ * POST /api/ai/case-studies/stream
+ * Stream Case Study Insights via SSE
+ */
+router.post("/case-studies/stream", async (req: Request, res: Response) => {
+  try {
+    const { query, conversationHistory } = req.body
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query is required" })
+    }
+
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: "Query must be at least 2 characters" })
+    }
+
+    if (query.length > 2000) {
+      return res.status(400).json({ error: "Query must be less than 2000 characters" })
+    }
+
+    await streamCaseStudyInsights(query.trim(), res, conversationHistory)
+  } catch (error) {
+    console.error("Case study stream failed:", error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream case study response" })
+    }
   }
 })
 

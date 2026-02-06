@@ -10,12 +10,14 @@
  */
 
 import OpenAI from "openai"
+import type { Response } from "express"
 import { searchAnswers } from "./answerService.js"
 import { searchPhotos } from "./photoService.js"
 import { getAllProposals } from "./proposalSyncService.js"
 import { getPipelineStats } from "./pipelineSyncService.js"
 import { clientSuccessData } from "../data/clientSuccessData.js"
 import type { Proposal } from "../db/index.js"
+import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
 
 // ─── Lazy-initialized OpenAI client ─────────────────────────
 
@@ -421,11 +423,11 @@ export async function queryUnifiedAI(query: string): Promise<UnifiedAIResult> {
   }
 
   try {
-    // Load all three data sources in parallel
+    // Load all three data sources in parallel — gracefully degrade if any are unavailable
     const [proposals, libraryAnswers, libraryPhotos] = await Promise.all([
-      getAllProposals(),
-      searchAnswers(query, { status: "Approved", limit: 10 }),
-      searchPhotos(query, { status: "Approved", limit: 5 })
+      getAllProposals().catch(() => [] as Proposal[]),
+      searchAnswers(query, { status: "Approved", limit: 10 }).catch(() => [] as Array<{ id: string; question: string; answer: string; topicId: string; linkedPhotosCount?: number }>),
+      searchPhotos(query, { status: "Approved", limit: 5 }).catch(() => [] as Array<{ id: string; displayTitle: string; description: string | null; linkedAnswersCount?: number }>),
     ])
 
     // Build unified context
@@ -553,4 +555,67 @@ export async function getUnifiedAIStats(): Promise<{
       library: { answers: 0, photos: 0 }
     }
   }
+}
+
+/**
+ * Stream Unified AI via SSE
+ */
+export async function streamUnifiedAI(
+  query: string,
+  res: Response,
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<void> {
+  const openai = getOpenAI()
+
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured." })}\n\n`)
+    res.end()
+    return
+  }
+
+  // Fetch all data sources — gracefully degrade if any are unavailable
+  const [proposals, libraryAnswers, libraryPhotos] = await Promise.all([
+    getAllProposals().catch(() => [] as Proposal[]),
+    searchAnswers(query, { status: "Approved", limit: 10 }).catch(() => [] as Array<{ id: string; question: string; answer: string; topicId: string; linkedPhotosCount?: number }>),
+    searchPhotos(query, { status: "Approved", limit: 5 }).catch(() => [] as Array<{ id: string; displayTitle: string; description: string | null; linkedAnswersCount?: number }>),
+  ])
+
+  const context = await buildUnifiedContext(
+    query,
+    proposals,
+    libraryAnswers.map(a => ({ id: a.id, question: a.question, answer: a.answer, topicId: a.topicId })),
+    libraryPhotos.map(p => ({ id: p.id, displayTitle: p.displayTitle, description: p.description }))
+  )
+
+  const winRates = calculateWinRates(proposals)
+  const crossRefs = findCrossReferences(proposals)
+  const uniqueTopics = [...new Set(libraryAnswers.map(a => a.topicId))]
+  const recentClients = proposals.filter(p => p.won === "Yes").slice(0, 10).map(p => p.client).filter((c): c is string => !!c)
+  const caseStudyClients = clientSuccessData.caseStudies.slice(0, 10).map(cs => cs.client)
+
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
+    ? truncateHistory(conversationHistory).map(m => ({ role: m.role, content: m.content }))
+    : []
+
+  await streamCompletion({
+    openai,
+    messages: [
+      { role: "system", content: `${SYSTEM_PROMPT}\n\n--- UNIFIED DATA ---\n${context}` },
+      ...historyMessages,
+      { role: "user", content: query },
+    ],
+    temperature: 0.4,
+    maxTokens: 3000,
+    metadata: {
+      dataUsed: {
+        proposals: { count: proposals.length, winRate: winRates.overall, relevantClients: recentClients },
+        caseStudies: { count: clientSuccessData.caseStudies.length, clients: caseStudyClients, testimonials: clientSuccessData.testimonials.length },
+        library: { answers: libraryAnswers.length, photos: libraryPhotos.length, topics: uniqueTopics },
+      },
+      crossReferenceInsights: crossRefs.map(cr => cr.description),
+    },
+    parseFollowUpPrompts,
+    res,
+  })
 }

@@ -15,7 +15,7 @@ import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
 import { useAuth } from "@/contexts/AuthContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
-import { topicsApi, answersApi, photosApi } from "@/lib/api"
+import { topicsApi, answersApi, photosApi, healthApi } from "@/lib/api"
 
 // Dynamic greeting based on time of day
 function getGreeting(): string {
@@ -302,15 +302,17 @@ export function HomePage() {
   })
   // Initialize from cached stats
   const [stats, setStats] = useState(loadCachedStats)
+  const [systemStatus, setSystemStatus] = useState<"checking" | "online" | "degraded" | "offline">("checking")
 
-  // Fetch real stats from API and cache them
+  // Fetch real stats from API and cache them, plus check health
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [topicsRes, answersRes, photosRes] = await Promise.all([
+        const [topicsRes, answersRes, photosRes, health] = await Promise.all([
           topicsApi.getAll().catch(() => []),
           answersApi.getAll().catch(() => []),
           photosApi.getAll().catch(() => []),
+          healthApi.check().catch(() => null),
         ])
         const newStats = {
           topics: Array.isArray(topicsRes) ? topicsRes.length : 0,
@@ -322,8 +324,16 @@ export function HomePage() {
           setStats(newStats)
           saveCachedStats(newStats)
         }
+        // Set system status
+        if (health && health.status === "ok") {
+          setSystemStatus("online")
+        } else if (health) {
+          setSystemStatus("degraded")
+        } else {
+          setSystemStatus("offline")
+        }
       } catch {
-        // Keep cached/default values on error
+        setSystemStatus("offline")
       }
     }
     fetchStats()
@@ -355,9 +365,51 @@ export function HomePage() {
       {/* Hero */}
       <section className="pt-20 pb-12 px-6">
         <div className="max-w-4xl mx-auto">
-          <p className="text-[13px] font-medium text-slate-400 dark:text-slate-500 tracking-widest uppercase mb-3 animate-fade-in transition-colors">
-            {greeting}
-          </p>
+          <div className="flex items-baseline justify-between gap-4 mb-3">
+            <p className="text-[13px] font-medium text-slate-400 dark:text-slate-500 tracking-widest uppercase animate-fade-in transition-colors">
+              {greeting}
+            </p>
+            <div
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full
+                border transition-all duration-500 ease-out
+                ${systemStatus === "checking"
+                  ? "bg-slate-50 dark:bg-slate-800/50 border-slate-200/60 dark:border-slate-700/60 opacity-50"
+                  : systemStatus === "online"
+                    ? "bg-emerald-50/80 dark:bg-emerald-950/40 border-emerald-200/60 dark:border-emerald-800/40 opacity-100"
+                    : systemStatus === "degraded"
+                      ? "bg-amber-50/80 dark:bg-amber-950/40 border-amber-200/60 dark:border-amber-800/40 opacity-100"
+                      : "bg-red-50/80 dark:bg-red-950/40 border-red-200/60 dark:border-red-800/40 opacity-100"
+                }`}
+            >
+              <span className="relative flex h-2.5 w-2.5">
+                {systemStatus === "online" && (
+                  <span className="absolute inset-0 rounded-full bg-emerald-400 dark:bg-emerald-400 animate-ping opacity-75" />
+                )}
+                <span className={`relative inline-flex h-2.5 w-2.5 rounded-full transition-colors duration-500
+                  ${systemStatus === "online"
+                    ? "bg-emerald-500 dark:bg-emerald-400"
+                    : systemStatus === "degraded"
+                      ? "bg-amber-500 dark:bg-amber-400"
+                      : systemStatus === "offline"
+                        ? "bg-red-500 dark:bg-red-400"
+                        : "bg-slate-300 dark:bg-slate-600"
+                  }`}
+                />
+              </span>
+              <span className={`text-[11px] font-medium uppercase tracking-wider transition-colors duration-500
+                ${systemStatus === "online"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : systemStatus === "degraded"
+                    ? "text-amber-600 dark:text-amber-400"
+                    : systemStatus === "offline"
+                      ? "text-red-500 dark:text-red-400"
+                      : "text-slate-400 dark:text-slate-500"
+                }`}
+              >
+                {systemStatus === "checking" ? "..." : systemStatus === "online" ? "Connected" : systemStatus === "degraded" ? "Degraded" : "Contact support"}
+              </span>
+            </div>
+          </div>
           <h1 className="text-[42px] font-semibold text-slate-900 dark:text-white tracking-[-0.03em] leading-[1.1] transition-colors">
             {typewriterPhrases ? (
               <TypewriterText phrases={typewriterPhrases} />

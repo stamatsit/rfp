@@ -6,7 +6,7 @@
  */
 
 import { Router, type Request, type Response } from "express"
-import { queryProposalInsights } from "../services/proposalAIService.js"
+import { queryProposalInsights, streamProposalInsights } from "../services/proposalAIService.js"
 import { getSyncStatus, triggerSync } from "../services/proposalSyncService.js"
 
 const router = Router()
@@ -36,6 +36,35 @@ router.post("/query", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Proposal query failed:", error)
     res.status(500).json({ error: "Failed to process proposal query" })
+  }
+})
+
+/**
+ * POST /api/proposals/stream
+ * Stream Proposal Insights via SSE
+ */
+router.post("/stream", async (req: Request, res: Response) => {
+  try {
+    const { query, conversationHistory } = req.body
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query is required" })
+    }
+
+    if (query.trim().length < 3) {
+      return res.status(400).json({ error: "Query must be at least 3 characters" })
+    }
+
+    if (query.trim().length > 1000) {
+      return res.status(400).json({ error: "Query must be less than 1000 characters" })
+    }
+
+    await streamProposalInsights(query.trim(), res, conversationHistory)
+  } catch (error) {
+    console.error("Proposal stream failed:", error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream proposal insights" })
+    }
   }
 })
 

@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { ChevronRight, Sparkles, HelpCircle, Sun, Moon, Settings } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
-import { SettingsPanel } from "./SettingsPanel"
+import { SettingsPanel, loadSettings, saveSettings } from "./SettingsPanel"
 
 interface BreadcrumbItem {
   label: string
@@ -38,9 +38,17 @@ function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === "dark"
 
+  const handleToggle = () => {
+    const newTheme = isDark ? "light" : "dark"
+    toggleTheme()
+    // Keep SettingsPanel in sync so it doesn't override the toggle
+    const current = loadSettings()
+    saveSettings({ ...current, theme: newTheme })
+  }
+
   return (
     <button
-      onClick={toggleTheme}
+      onClick={handleToggle}
       className="relative w-14 h-8 rounded-full p-1 transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
       style={{
         background: isDark

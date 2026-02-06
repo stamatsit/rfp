@@ -7,6 +7,41 @@ import { eq, ilike, or, desc, sql } from "drizzle-orm"
 import OpenAI from "openai"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
 
+// --- Streaming helpers ---
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4)
+}
+
+function truncateHistory(messages: Array<{ role: string; content: string }>, maxTokens = 8000) {
+  let total = 0
+  const result: typeof messages = []
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const tokens = estimateTokens(messages[i].content)
+    if (total + tokens > maxTokens) break
+    total += tokens
+    result.unshift(messages[i])
+  }
+  return result
+}
+
+function parseFollowUpPrompts(rawResponse: string, fallbacks: string[]): { cleanResponse: string; followUpPrompts: string[] } {
+  let cleanResponse = rawResponse
+  let followUpPrompts: string[] = []
+  const match = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+  if (match && match[1]) {
+    try {
+      followUpPrompts = JSON.parse(`[${match[1]}]`)
+      cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+    } catch {
+      followUpPrompts = match[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+      cleanResponse = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+    }
+  } else {
+    followUpPrompts = fallbacks
+  }
+  return { cleanResponse, followUpPrompts }
+}
+
 // Schema definitions (matching actual Supabase tables)
 import { jsonb } from "drizzle-orm/pg-core"
 
@@ -574,18 +609,32 @@ Example: "how do we handle customer complaints" -> ["customer complaints", "comp
           ilike(answerItems.answer, `%${keyword}%`)
         ])
 
-        // Get a larger pool of potential matches
+        // Also search photos by keywords
+        const photoSearchConditions = searchKeywords.flatMap(keyword => [
+          ilike(photoAssets.displayTitle, `%${keyword}%`),
+          ilike(photoAssets.description, `%${keyword}%`)
+        ])
+
+        // Get a larger pool of potential matches (answers + photos in parallel)
         let potentialMatches: typeof answerItems.$inferSelect[] = []
-        if (searchConditions.length > 0) {
-          potentialMatches = await db.select().from(answerItems)
-            .where(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions))
-            .limit(20)
-        } else {
-          // Fallback: get recent items if no search conditions
-          potentialMatches = await db.select().from(answerItems)
-            .orderBy(desc(answerItems.createdAt))
-            .limit(20)
-        }
+        let relevantPhotos: typeof photoAssets.$inferSelect[] = []
+
+        const [answerResults, photoResults] = await Promise.all([
+          searchConditions.length > 0
+            ? db.select().from(answerItems)
+                .where(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions))
+                .limit(20)
+            : db.select().from(answerItems)
+                .orderBy(desc(answerItems.createdAt))
+                .limit(20),
+          photoSearchConditions.length > 0
+            ? db.select().from(photoAssets)
+                .where(photoSearchConditions.length === 1 ? photoSearchConditions[0]! : or(...photoSearchConditions))
+                .limit(5)
+            : Promise.resolve([])
+        ])
+        potentialMatches = answerResults
+        relevantPhotos = photoResults
 
         // Step 3: Score and rank results - prioritize headline/question matches
         const scoredResults = potentialMatches.map(item => {
@@ -626,14 +675,19 @@ Example: "how do we handle customer complaints" -> ["customer complaints", "comp
           })
         }
 
+        const photoContext = relevantPhotos.length > 0
+          ? `\n\nRELEVANT PHOTOS:\n${relevantPhotos.map((p, i) => `[Photo ${i + 1}]\nTitle: ${p.displayTitle}\nDescription: ${p.description || "No description"}`).join("\n\n")}`
+          : ""
+
         const systemPrompt = `You are a helpful assistant for RFP proposals. Use ONLY the following context from our knowledge base to answer questions. Do not make up information.
 
 Available knowledge:
-${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}
+${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}
 
 Instructions:
 - Only use information from the provided knowledge base
 - If the answer isn't in the provided context, say you don't have that information
+- If relevant photos are available, mention them by title in your response (e.g., "See the photo titled 'XYZ' for a visual reference")
 - Be helpful and professional`
 
         const completion = await openai.chat.completions.create({
@@ -648,9 +702,214 @@ Instructions:
         return res.json({
           response: completion.choices[0]?.message?.content || "No response generated",
           sources: relevantAnswers.map(a => ({ id: a.id, question: a.question, answer: a.answer })),
-          photos: [],
+          photos: relevantPhotos.map(p => {
+            let ext = ""
+            if (p.originalFilename) {
+              const m = p.originalFilename.match(/\.([^.]+)$/)
+              if (m) ext = m[1]
+            }
+            if (!ext && p.mimeType) {
+              ext = ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[p.mimeType] || "png"
+            }
+            return {
+              id: p.id,
+              displayTitle: p.displayTitle,
+              description: p.description,
+              storageKey: p.storageKey,
+              fileUrl: SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${p.storageKey}.${ext}` : undefined
+            }
+          }),
           refused: false
         })
+      }
+
+      // AI stream (streaming version of /ai/query)
+      if (path === "/ai/stream" && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured" })}\n\n`)
+          return res.end()
+        }
+
+        const { query, topicId, maxSources = 5, conversationHistory } = req.body || {}
+
+        // Step 1: Extract key concepts/keywords from the user's query using AI
+        let searchKeywords: string[] = []
+        try {
+          const keywordExtraction = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "system",
+                content: `Extract the key topic keywords from user queries for database searching.
+Return ONLY a JSON array of 1-5 important keywords/phrases, no explanation.
+Focus on nouns, topics, and concepts - ignore filler words like "give me", "describe", "what is", etc.
+Example: "give a description of governance" -> ["governance"]
+Example: "what are our data privacy policies" -> ["data privacy", "privacy policies", "data"]
+Example: "how do we handle customer complaints" -> ["customer complaints", "complaints", "customer service"]`
+              },
+              { role: "user", content: query }
+            ],
+            max_tokens: 100
+          })
+          const extracted = keywordExtraction.choices[0]?.message?.content || "[]"
+          searchKeywords = JSON.parse(extracted.replace(/```json\n?|\n?```/g, "").trim())
+        } catch (err) {
+          console.error("Keyword extraction failed:", err)
+          const stopWords = new Set(["give", "me", "a", "an", "the", "what", "is", "are", "how", "do", "we", "our", "describe", "description", "of", "about", "tell", "explain"])
+          searchKeywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.has(w))
+        }
+
+        if (searchKeywords.length === 0) {
+          searchKeywords = [query]
+        }
+
+        // Step 2: Search with extracted keywords
+        const searchConditions = searchKeywords.flatMap(keyword => [
+          ilike(answerItems.question, `%${keyword}%`),
+          ilike(answerItems.answer, `%${keyword}%`)
+        ])
+
+        const photoSearchConditions = searchKeywords.flatMap(keyword => [
+          ilike(photoAssets.displayTitle, `%${keyword}%`),
+          ilike(photoAssets.description, `%${keyword}%`)
+        ])
+
+        const [answerResults, photoResults] = await Promise.all([
+          searchConditions.length > 0
+            ? db.select().from(answerItems)
+                .where(searchConditions.length === 1 ? searchConditions[0]! : or(...searchConditions))
+                .limit(20)
+            : db.select().from(answerItems)
+                .orderBy(desc(answerItems.createdAt))
+                .limit(20),
+          photoSearchConditions.length > 0
+            ? db.select().from(photoAssets)
+                .where(photoSearchConditions.length === 1 ? photoSearchConditions[0]! : or(...photoSearchConditions))
+                .limit(5)
+            : Promise.resolve([])
+        ])
+        const potentialMatches = answerResults
+        const relevantPhotos = photoResults
+
+        // Step 3: Score and rank results
+        const scoredResults = potentialMatches.map(item => {
+          let score = 0
+          const questionLower = item.question.toLowerCase()
+          const answerLower = item.answer.toLowerCase()
+          for (const keyword of searchKeywords) {
+            const keywordLower = keyword.toLowerCase()
+            if (questionLower.includes(keywordLower)) {
+              score += 10
+              if (questionLower.startsWith(keywordLower) || questionLower === keywordLower) {
+                score += 5
+              }
+            }
+            if (answerLower.includes(keywordLower)) {
+              score += 3
+            }
+          }
+          return { ...item, score }
+        })
+
+        const relevantAnswers = scoredResults
+          .sort((a, b) => b.score - a.score)
+          .slice(0, maxSources)
+          .filter(item => item.score > 0)
+
+        // Set SSE headers
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        if (relevantAnswers.length === 0) {
+          const metadata = { sources: [], photos: [], refused: false }
+          res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`)
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: "I couldn't find any relevant information in the knowledge base for your query.", followUpPrompts: [] })}\n\n`)
+          return res.end()
+        }
+
+        // Build metadata
+        const sourcesMetadata = relevantAnswers.map(a => ({ id: a.id, question: a.question, answer: a.answer }))
+        const photosMetadata = relevantPhotos.map(p => {
+          let ext = ""
+          if (p.originalFilename) {
+            const m = p.originalFilename.match(/\.([^.]+)$/)
+            if (m) ext = m[1]
+          }
+          if (!ext && p.mimeType) {
+            ext = ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[p.mimeType] || "png"
+          }
+          return {
+            id: p.id,
+            displayTitle: p.displayTitle,
+            description: p.description,
+            storageKey: p.storageKey,
+            fileUrl: SUPABASE_URL ? `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${p.storageKey}.${ext}` : undefined
+          }
+        })
+
+        // Send metadata event
+        res.write(`event: metadata\ndata: ${JSON.stringify({ sources: sourcesMetadata, photos: photosMetadata, refused: false })}\n\n`)
+
+        // Build system prompt
+        const photoContext = relevantPhotos.length > 0
+          ? `\n\nRELEVANT PHOTOS:\n${relevantPhotos.map((p, i) => `[Photo ${i + 1}]\nTitle: ${p.displayTitle}\nDescription: ${p.description || "No description"}`).join("\n\n")}`
+          : ""
+
+        const systemPrompt = `You are a helpful assistant for RFP proposals. Use ONLY the following context from our knowledge base to answer questions. Do not make up information.
+
+Available knowledge:
+${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}
+
+Instructions:
+- Only use information from the provided knowledge base
+- If the answer isn't in the provided context, say you don't have that information
+- If relevant photos are available, mention them by title in your response (e.g., "See the photo titled 'XYZ' for a visual reference")
+- Be helpful and professional`
+
+        // Build messages with conversation history
+        const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: systemPrompt }
+        ]
+        if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+          const truncated = truncateHistory(conversationHistory)
+          for (const msg of truncated) {
+            messages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+          }
+        }
+        messages.push({ role: "user", content: query })
+
+        // Stream from OpenAI
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages,
+            max_tokens: 1000,
+            stream: true
+          })
+
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              fullResponse += token
+              res.write(`data: ${JSON.stringify({ token })}\n\n`)
+            }
+          }
+
+          const { cleanResponse, followUpPrompts } = parseFollowUpPrompts(fullResponse, [])
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse, followUpPrompts })}\n\n`)
+          return res.end()
+        } catch (streamErr: any) {
+          console.error("AI stream error:", streamErr?.message || streamErr)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+          return res.end()
+        }
       }
 
       // AI adapt
@@ -817,6 +1076,152 @@ ${csContext}`
           followUpPrompts: csFollowUps,
           refused: false
         })
+      }
+
+      // AI case studies stream (streaming version of /ai/case-studies)
+      if (path === "/ai/case-studies/stream" && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured. Please set OPENAI_API_KEY in your environment." })}\n\n`)
+          return res.end()
+        }
+
+        const { query: csStreamQuery, conversationHistory: csConvHistory } = req.body || {}
+        if (!csStreamQuery || typeof csStreamQuery !== "string" || csStreamQuery.trim().length < 2) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "Query must be at least 2 characters" })}\n\n`)
+          return res.end()
+        }
+
+        // Build context from client success data (same as non-streaming)
+        const csStreamSections: string[] = []
+
+        const csStreamCaseStudyLines = clientSuccessData.caseStudies.map((cs: any) => {
+          const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
+          const testimonial = cs.testimonial ? `\n  Testimonial: "${cs.testimonial.quote}" — ${cs.testimonial.attribution}` : ""
+          const awards = cs.awards ? `\n  Awards: ${cs.awards.join(", ")}` : ""
+          return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge}\n  Solution: ${cs.solution}\n  Metrics: ${metrics || "None recorded"}${testimonial}${awards}`
+        })
+        csStreamSections.push(`=== CASE STUDIES (${csStreamCaseStudyLines.length}) ===\n${csStreamCaseStudyLines.join("\n\n")}`)
+
+        const csStreamSortedResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
+        csStreamSections.push(`=== TOP-LINE RESULTS (${csStreamSortedResults.length}) ===\n${csStreamSortedResults.map((r: any) => `${r.result} ${r.metric} — ${r.client}`).join("\n")}`)
+
+        csStreamSections.push(`=== TESTIMONIALS (${clientSuccessData.testimonials.length}) ===\n${clientSuccessData.testimonials.map((t: any) => `"${t.quote}" — ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`).join("\n\n")}`)
+
+        csStreamSections.push(`=== AWARDS (${clientSuccessData.awards.length}) ===\n${clientSuccessData.awards.map((a: any) => `${a.name} (${a.year}) — ${a.clientOrProject}`).join("\n")}`)
+
+        const csStreamStatLines = [
+          ...clientSuccessData.companyStats.map((s: any) => `${s.label}: ${s.value}${s.detail ? ` — ${s.detail}` : ""}`),
+          ...clientSuccessData.externallyVerifiedStats.map((s: any) => `${s.label}: ${s.value}${s.detail ? ` — ${s.detail}` : ""} (Source: ${s.source})`)
+        ]
+        csStreamSections.push(`=== COMPANY STATS ===\n${csStreamStatLines.join("\n")}`)
+        csStreamSections.push(`=== SERVICE LINES ===\n${clientSuccessData.serviceLines.join(", ")}`)
+        csStreamSections.push(`=== CORE VALUES ===\n${clientSuccessData.coreValues.join("\n")}`)
+        csStreamSections.push(`=== PROPRIETARY RESEARCH ===\n${clientSuccessData.researchStudies.map((r: any) => `${r.name}: ${r.description}\n  Findings: ${r.findings.join("; ")}`).join("\n\n")}`)
+        csStreamSections.push(`=== NOTABLE FIRSTS ===\n${clientSuccessData.notableFirsts.join("\n")}`)
+        csStreamSections.push(`=== CONFERENCE PRESENCE ===\n${clientSuccessData.conferenceAppearances.map((c: any) => `${c.event} — ${c.role}`).join("\n")}`)
+
+        const csStreamContext = csStreamSections.join("\n\n")
+
+        const csStreamCategories = new Set<string>()
+        clientSuccessData.caseStudies.forEach((cs: any) => csStreamCategories.add(cs.category))
+
+        const csStreamSystemPrompt = `You are a Case Study AI for Stamats, a marketing agency with 100+ years of experience in higher education and healthcare marketing. You have access to ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.topLineResults.length} top-line results, ${clientSuccessData.testimonials.length} testimonials, and ${clientSuccessData.awards.length} awards.
+
+You operate in TWO modes based on user intent:
+
+MODE 1: CASE STUDY BUILDER — When the user wants to BUILD, CREATE, DRAFT, or WRITE a case study:
+1. CONFIRM first: "I'll help you build a case study. Let me ask a few questions to get started."
+2. ASK step-by-step (one at a time): Client name/industry, challenge, solution, results
+3. Draft the full case study with Challenge/Solution/Results structure
+4. Cross-reference the database for comparisons
+5. Suggest refinements
+
+MODE 2: QUICK GRAB — When the user wants a specific fact, stat, testimonial, or data point:
+- Respond DIRECTLY — no guided workflow
+- Keep it concise and formatted for instant copy-paste
+- Use **bold** for key numbers and client names
+
+RULES:
+1. Only reference real data from the provided database — NEVER invent stats or quotes
+2. When drafting testimonials, mark them as "Suggested quote:"
+3. Write in polished, proposal-ready language
+4. Use **bold** for key metrics, client names, and important facts
+5. Format metrics as compelling bullet points
+
+Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+--- CLIENT SUCCESS DATABASE ---
+${csStreamContext}`
+
+        // Set SSE headers
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        // Send metadata event
+        const csStreamMetadata = {
+          dataUsed: {
+            totalCaseStudies: clientSuccessData.caseStudies.length,
+            totalTestimonials: clientSuccessData.testimonials.length,
+            totalStats: clientSuccessData.topLineResults.length,
+            categoriesSearched: Array.from(csStreamCategories)
+          },
+          refused: false
+        }
+        res.write(`event: metadata\ndata: ${JSON.stringify(csStreamMetadata)}\n\n`)
+
+        // Build messages with conversation history
+        const csStreamMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: csStreamSystemPrompt }
+        ]
+        if (csConvHistory && Array.isArray(csConvHistory) && csConvHistory.length > 0) {
+          const truncated = truncateHistory(csConvHistory)
+          for (const msg of truncated) {
+            csStreamMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+          }
+        }
+        csStreamMessages.push({ role: "user", content: csStreamQuery.trim() })
+
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: csStreamMessages,
+            temperature: 0.4,
+            max_tokens: 3000,
+            stream: true
+          })
+
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              fullResponse += token
+              res.write(`data: ${JSON.stringify({ token })}\n\n`)
+            }
+          }
+
+          const { cleanResponse: csClean, followUpPrompts: csFollows } = parseFollowUpPrompts(fullResponse, [
+            "Want me to add comparable stats from similar projects?",
+            "Should I draft a client testimonial for this?",
+            "Want to see similar case studies from our database?"
+          ])
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: csClean, followUpPrompts: csFollows })}\n\n`)
+          return res.end()
+        } catch (streamErr: any) {
+          console.error("Case study stream error:", streamErr?.message || streamErr)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+          return res.end()
+        }
       }
     }
 
@@ -1056,6 +1461,201 @@ ${contextLines.join("\n")}`
         })
       }
 
+      // Proposals stream (streaming version of /proposals/query)
+      if ((path === "/proposals/stream" || path === "/proposals/stream/") && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured" })}\n\n`)
+          return res.end()
+        }
+
+        const { query: pStreamQuery, conversationHistory: pConvHistory } = req.body || {}
+
+        // Get all proposals from database (same as non-streaming)
+        const pStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+
+        if (pStreamProposals.length === 0) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "No proposal data found in database." })}\n\n`)
+          return res.end()
+        }
+
+        // Calculate basic stats
+        const pStreamDecided = pStreamProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const pStreamWonCount = pStreamDecided.filter(p => p.won === "Yes").length
+        const pStreamLostCount = pStreamDecided.filter(p => p.won === "No").length
+        const pStreamPendingCount = pStreamProposals.filter(p => !p.won || p.won === "Pending").length
+        const pStreamWinRate = pStreamDecided.length > 0 ? pStreamWonCount / pStreamDecided.length : 0
+
+        // Date range
+        const pStreamDates = pStreamProposals.filter(p => p.date).map(p => new Date(p.date!))
+        const pStreamMinDate = pStreamDates.length > 0 ? new Date(Math.min(...pStreamDates.map(d => d.getTime()))) : null
+        const pStreamMaxDate = pStreamDates.length > 0 ? new Date(Math.max(...pStreamDates.map(d => d.getTime()))) : null
+
+        // Count by category
+        const pStreamByCategory: Record<string, number> = {}
+        pStreamProposals.forEach(p => {
+          if (p.category) pStreamByCategory[p.category] = (pStreamByCategory[p.category] || 0) + 1
+        })
+
+        // Get pipeline data
+        const pStreamPipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
+        const pStreamPipelineTotal = pStreamPipelineEntries.length
+        const pStreamPipelineProcessed = pStreamPipelineEntries.filter(e => e.decision?.toLowerCase().includes("processed")).length
+        const pStreamPipelinePassing = pStreamPipelineEntries.filter(e => e.decision?.toLowerCase().includes("pass")).length
+        const pStreamPursuitRate = pStreamPipelineTotal > 0 ? pStreamPipelineProcessed / pStreamPipelineTotal : 0
+
+        // Analyze pass reasons
+        const pStreamPassReasons: Record<string, number> = {}
+        pStreamPipelineEntries
+          .filter(e => e.decision?.toLowerCase().includes("pass") && e.extraInfo)
+          .forEach(e => {
+            const info = e.extraInfo!.toLowerCase()
+            if (info.includes("budget") || info.includes("pricing")) pStreamPassReasons["Budget concerns"] = (pStreamPassReasons["Budget concerns"] || 0) + 1
+            else if (info.includes("not a good fit")) pStreamPassReasons["Not a good fit"] = (pStreamPassReasons["Not a good fit"] || 0) + 1
+            else if (info.includes("incumbent")) pStreamPassReasons["Incumbent advantage"] = (pStreamPassReasons["Incumbent advantage"] || 0) + 1
+            else if (info.includes("hub") || info.includes("local")) pStreamPassReasons["HUB/Local preference"] = (pStreamPassReasons["HUB/Local preference"] || 0) + 1
+            else if (info.includes("timeline") || info.includes("short")) pStreamPassReasons["Timeline too short"] = (pStreamPassReasons["Timeline too short"] || 0) + 1
+            else pStreamPassReasons["Other"] = (pStreamPassReasons["Other"] || 0) + 1
+          })
+
+        // Build context for AI
+        const pStreamContextLines = [
+          `PROPOSAL DATA SUMMARY:`,
+          `- Total Proposals: ${pStreamProposals.length}`,
+          `- Date Range: ${pStreamMinDate?.toISOString().split("T")[0] || "N/A"} to ${pStreamMaxDate?.toISOString().split("T")[0] || "N/A"}`,
+          `- Won: ${pStreamWonCount} (${(pStreamWinRate * 100).toFixed(1)}% overall win rate)`,
+          `- Lost: ${pStreamLostCount}`,
+          `- Pending: ${pStreamPendingCount}`,
+          ``,
+          `PROPOSALS BY CATEGORY:`,
+          ...Object.entries(pStreamByCategory).map(([cat, count]) => `- ${cat}: ${count}`),
+          ``,
+          `RECENT PROPOSALS (last 20):`,
+          ...pStreamProposals.slice(0, 20).map(p => {
+            const links = p.documentLinks && typeof p.documentLinks === 'object'
+              ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
+              : ""
+            return `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "No services"}${links ? ` | Links: ${links}` : ""}`
+          })
+        ]
+
+        // Add pipeline context if we have data
+        if (pStreamPipelineTotal > 0) {
+          pStreamContextLines.push(``, `===== PIPELINE ACTIVITY (RFP Intake/Triage) =====`)
+          pStreamContextLines.push(`- Total RFPs Reviewed: ${pStreamPipelineTotal}`)
+          pStreamContextLines.push(`- Processed (Pursued): ${pStreamPipelineProcessed} (${(pStreamPursuitRate * 100).toFixed(1)}% pursuit rate)`)
+          pStreamContextLines.push(`- Passed (Declined): ${pStreamPipelinePassing}`)
+          pStreamContextLines.push(``)
+          pStreamContextLines.push(`REASONS FOR PASSING:`)
+          Object.entries(pStreamPassReasons).sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
+            const pct = pStreamPipelinePassing > 0 ? (count / pStreamPipelinePassing) * 100 : 0
+            pStreamContextLines.push(`- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`)
+          })
+          pStreamContextLines.push(``)
+          pStreamContextLines.push(`RECENT RFP INTAKE (last 15):`)
+          pStreamPipelineEntries.slice(0, 15).forEach(e => {
+            const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
+            const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 40)}..."` : ""
+            pStreamContextLines.push(`- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`)
+          })
+        }
+
+        const pStreamSystemPrompt = `You are a Proposal Analytics Assistant. Analyze historical proposal data and provide actionable insights.
+
+PIPELINE DATA CONTEXT: You have access to RFP intake/triage decisions showing:
+- Pursuit rate: What percentage of opportunities you pursue
+- Pass reasons: Why opportunities are declined (budget, incumbent, HUB requirements, etc.)
+- This helps analyze selectivity and opportunity filtering.
+
+CRITICAL RULES:
+1. ONLY use statistics from the provided data - NEVER make up numbers
+2. Be specific with percentages and counts when available
+3. If asked about something not in the data, clearly say so
+4. Keep responses concise (150-300 words)
+5. Use bullet points for clarity
+
+At the end of your response, include 3-4 follow-up questions formatted as:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
+
+--- PROPOSAL DATA ---
+${pStreamContextLines.join("\n")}`
+
+        // Set SSE headers
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        // Send metadata event
+        const pStreamMetadata = {
+          dataUsed: {
+            totalProposals: pStreamProposals.length,
+            dateRange: { from: pStreamMinDate, to: pStreamMaxDate },
+            overallWinRate: pStreamWinRate,
+            wonCount: pStreamWonCount,
+            lostCount: pStreamLostCount,
+            pendingCount: pStreamPendingCount,
+            byCategory: pStreamByCategory,
+            momentum: "steady",
+            rolling6Month: pStreamWinRate,
+            rolling12Month: pStreamWinRate,
+            yoyChange: null
+          },
+          refused: false
+        }
+        res.write(`event: metadata\ndata: ${JSON.stringify(pStreamMetadata)}\n\n`)
+
+        // Build messages with conversation history
+        const pStreamMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: pStreamSystemPrompt }
+        ]
+        if (pConvHistory && Array.isArray(pConvHistory) && pConvHistory.length > 0) {
+          const truncated = truncateHistory(pConvHistory)
+          for (const msg of truncated) {
+            pStreamMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+          }
+        }
+        pStreamMessages.push({ role: "user", content: pStreamQuery })
+
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: pStreamMessages,
+            temperature: 0.4,
+            max_tokens: 2000,
+            stream: true
+          })
+
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              fullResponse += token
+              res.write(`data: ${JSON.stringify({ token })}\n\n`)
+            }
+          }
+
+          const { cleanResponse: pClean, followUpPrompts: pFollows } = parseFollowUpPrompts(fullResponse, [
+            "What's the trend over time?",
+            "Break down by category",
+            "Show top performers"
+          ])
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: pClean, followUpPrompts: pFollows })}\n\n`)
+          return res.end()
+        } catch (streamErr: any) {
+          console.error("Proposals stream error:", streamErr?.message || streamErr)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
       // Trigger sync - not supported in serverless, return message
       if ((path === "/proposals/sync/trigger" || path === "/proposals/sync/trigger/") && method === "POST") {
         return res.json({
@@ -1283,6 +1883,227 @@ ${context}`
           followUpPrompts: uaiFollowUps,
           refused: false
         })
+      }
+
+      // Unified AI stream (streaming version of /unified-ai/query)
+      if ((path === "/unified-ai/stream" || path === "/unified-ai/stream/") && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured. Please set OPENAI_API_KEY in your environment." })}\n\n`)
+          return res.end()
+        }
+
+        const { query: uaiStreamQuery, conversationHistory: uaiConvHistory } = req.body || {}
+        if (!uaiStreamQuery || typeof uaiStreamQuery !== "string" || uaiStreamQuery.trim().length < 2) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "Query must be at least 2 characters" })}\n\n`)
+          return res.end()
+        }
+
+        // Load proposals (same as non-streaming)
+        const uaiStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+        const uaiStreamDecided = uaiStreamProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const uaiStreamWon = uaiStreamDecided.filter(p => p.won === "Yes")
+        const uaiStreamWinRate = uaiStreamDecided.length > 0 ? uaiStreamWon.length / uaiStreamDecided.length : 0
+
+        // Search library for relevant answers
+        const uaiSearchWords = uaiStreamQuery.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
+        let uaiStreamLibraryAnswers: any[] = []
+        if (uaiSearchWords.length > 0) {
+          const wordConditions = uaiSearchWords.flatMap((word: string) => [
+            ilike(answerItems.question, `%${word}%`),
+            ilike(answerItems.answer, `%${word}%`)
+          ])
+          uaiStreamLibraryAnswers = await db.select().from(answerItems)
+            .where(or(...wordConditions))
+            .limit(10)
+        }
+
+        // Date range
+        const uaiStreamDates = uaiStreamProposals.filter(p => p.date).map(p => new Date(p.date!))
+        const uaiStreamMinDate = uaiStreamDates.length > 0 ? new Date(Math.min(...uaiStreamDates.map(d => d.getTime()))) : null
+        const uaiStreamMaxDate = uaiStreamDates.length > 0 ? new Date(Math.max(...uaiStreamDates.map(d => d.getTime()))) : null
+
+        // Win rates by school type
+        const uaiStreamBySchoolType: Record<string, { won: number; total: number }> = {}
+        uaiStreamDecided.forEach(p => {
+          if (p.schoolType) {
+            if (!uaiStreamBySchoolType[p.schoolType]) uaiStreamBySchoolType[p.schoolType] = { won: 0, total: 0 }
+            uaiStreamBySchoolType[p.schoolType].total++
+            if (p.won === "Yes") uaiStreamBySchoolType[p.schoolType].won++
+          }
+        })
+
+        // Win rates by service
+        const uaiStreamByService: Record<string, { won: number; total: number }> = {}
+        uaiStreamDecided.forEach(p => {
+          ((p.servicesOffered as string[]) || []).forEach(s => {
+            if (!uaiStreamByService[s]) uaiStreamByService[s] = { won: 0, total: 0 }
+            uaiStreamByService[s].total++
+            if (p.won === "Yes") uaiStreamByService[s].won++
+          })
+        })
+
+        const uaiFormatRate = (won: number, total: number) => total > 0 ? `${((won / total) * 100).toFixed(1)}%` : "N/A"
+
+        // Build case study context
+        const uaiStreamCsSummary = clientSuccessData.caseStudies.map((cs: any) => {
+          const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
+          const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 100)}..." — ${cs.testimonial.attribution}` : ""
+          return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge.slice(0, 150)}...\n  Metrics: ${metrics || "None"}${testimonial}`
+        }).join("\n\n")
+
+        const uaiStreamTopResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
+          .slice(0, 15)
+          .map((r: any) => `- ${r.result} ${r.metric} — ${r.client}`)
+          .join("\n")
+
+        const uaiStreamTestimonials = clientSuccessData.testimonials.slice(0, 10).map((t: any) => {
+          const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+          return `"${t.quote.slice(0, 150)}..." — ${who}`
+        }).join("\n\n")
+
+        // Build unified context
+        const uaiStreamContext = `
+━━━ SOURCE 1: PROPOSAL HISTORY ━━━
+Total Proposals: ${uaiStreamProposals.length}
+Date Range: ${uaiStreamMinDate?.toISOString().split("T")[0] || "N/A"} to ${uaiStreamMaxDate?.toISOString().split("T")[0] || "N/A"}
+Won: ${uaiStreamWon.length} | Lost: ${uaiStreamDecided.length - uaiStreamWon.length} | Win Rate: ${uaiFormatRate(uaiStreamWon.length, uaiStreamDecided.length)}
+
+WIN RATES BY SCHOOL TYPE:
+${Object.entries(uaiStreamBySchoolType).sort((a, b) => b[1].total - a[1].total).slice(0, 8).map(([type, s]) => `- ${type}: ${uaiFormatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+WIN RATES BY SERVICE:
+${Object.entries(uaiStreamByService).sort((a, b) => b[1].total - a[1].total).slice(0, 10).map(([svc, s]) => `- ${svc}: ${uaiFormatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+RECENT WINS (last 20):
+${uaiStreamWon.slice(0, 20).map(p => `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) — ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "N/A"}`).join("\n") || "No recent wins"}
+
+━━━ SOURCE 2: CASE STUDIES (${clientSuccessData.caseStudies.length}) ━━━
+
+${uaiStreamCsSummary}
+
+TOP-LINE RESULTS (${clientSuccessData.topLineResults.length}):
+${uaiStreamTopResults}
+
+TESTIMONIALS (${clientSuccessData.testimonials.length}):
+${uaiStreamTestimonials}
+
+AWARDS (${clientSuccessData.awards.length}):
+${clientSuccessData.awards.slice(0, 10).map((a: any) => `- ${a.name} (${a.year}) — ${a.clientOrProject}`).join("\n")}
+
+━━━ SOURCE 3: Q&A LIBRARY ━━━
+Relevant Answers Found: ${uaiStreamLibraryAnswers.length}
+${uaiStreamLibraryAnswers.map((a: any, i: number) => `[Answer ${i + 1}]\nQ: ${a.question}\nA: ${a.answer.slice(0, 500)}${a.answer.length > 500 ? "..." : ""}`).join("\n\n") || "No relevant library answers found."}
+`
+
+        const uaiStreamSystemPrompt = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
+
+1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service
+2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
+3. **Q&A LIBRARY**: Approved answers for RFP responses
+
+YOUR SUPERPOWER: CROSS-REFERENCING — Connect the dots across all sources.
+
+RULES:
+1. ALWAYS cross-reference — don't just answer from one source
+2. FLAG DISCONNECTS — gaps between wins and case studies
+3. BE SPECIFIC — real client names, real numbers, real quotes
+4. NEVER INVENT — only use provided data
+5. Use **bold** for key numbers and insights
+6. Keep responses actionable
+
+At the end, include 3-4 follow-ups:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
+
+--- UNIFIED DATA ---
+${uaiStreamContext}`
+
+        // Set SSE headers
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        // Build cross-reference insights (same as non-streaming)
+        const uaiStreamCaseStudyClients = new Set(clientSuccessData.caseStudies.map((cs: any) => cs.client.toLowerCase().trim()))
+        const uaiStreamRecentWins = uaiStreamWon.filter(p => {
+          if (!p.date) return false
+          const twoYearsAgo = new Date()
+          twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
+          return new Date(p.date) >= twoYearsAgo
+        })
+        const uaiStreamWinsWithoutCS = uaiStreamRecentWins.filter(p => p.client && !uaiStreamCaseStudyClients.has(p.client.toLowerCase().trim()))
+        const uaiStreamCrossInsights: string[] = []
+        if (uaiStreamWinsWithoutCS.length >= 3) {
+          const clients = [...new Set(uaiStreamWinsWithoutCS.map(p => p.client))].slice(0, 5)
+          uaiStreamCrossInsights.push(`${uaiStreamWinsWithoutCS.length} recent wins don't have case studies: ${clients.join(", ")}`)
+        }
+
+        const uaiStreamRecentClients = uaiStreamWon.slice(0, 10).map(p => p.client).filter((c): c is string => !!c)
+        const uaiStreamCsClients = clientSuccessData.caseStudies.slice(0, 10).map((cs: any) => cs.client)
+        const uaiStreamUniqueTopics = [...new Set(uaiStreamLibraryAnswers.map((a: any) => a.topicId))]
+
+        // Send metadata event
+        const uaiStreamMetadata = {
+          dataUsed: {
+            proposals: { count: uaiStreamProposals.length, winRate: uaiStreamWinRate, relevantClients: uaiStreamRecentClients },
+            caseStudies: { count: clientSuccessData.caseStudies.length, clients: uaiStreamCsClients, testimonials: clientSuccessData.testimonials.length },
+            library: { answers: uaiStreamLibraryAnswers.length, photos: 0, topics: uaiStreamUniqueTopics }
+          },
+          crossReferenceInsights: uaiStreamCrossInsights,
+          refused: false
+        }
+        res.write(`event: metadata\ndata: ${JSON.stringify(uaiStreamMetadata)}\n\n`)
+
+        // Build messages with conversation history
+        const uaiStreamMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: uaiStreamSystemPrompt }
+        ]
+        if (uaiConvHistory && Array.isArray(uaiConvHistory) && uaiConvHistory.length > 0) {
+          const truncated = truncateHistory(uaiConvHistory)
+          for (const msg of truncated) {
+            uaiStreamMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+          }
+        }
+        uaiStreamMessages.push({ role: "user", content: uaiStreamQuery.trim() })
+
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: uaiStreamMessages,
+            temperature: 0.4,
+            max_tokens: 3000,
+            stream: true
+          })
+
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              fullResponse += token
+              res.write(`data: ${JSON.stringify({ token })}\n\n`)
+            }
+          }
+
+          const { cleanResponse: uaiClean, followUpPrompts: uaiFollows } = parseFollowUpPrompts(fullResponse, [
+            "What gaps exist in our proof points?",
+            "Which clients should we ask for testimonials?",
+            "Prep me for a proposal based on this insight"
+          ])
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: uaiClean, followUpPrompts: uaiFollows })}\n\n`)
+          return res.end()
+        } catch (streamErr: any) {
+          console.error("Unified AI stream error:", streamErr?.message || streamErr)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+          return res.end()
+        }
       }
     }
 

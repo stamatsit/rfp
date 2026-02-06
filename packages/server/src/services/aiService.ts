@@ -1,7 +1,9 @@
 import OpenAI from "openai"
+import type { Response } from "express"
 import { searchAnswers, type AnswerWithMeta } from "./answerService.js"
-import { searchPhotos } from "./photoService.js"
+import { searchPhotos, type PhotoWithMeta } from "./photoService.js"
 import { logAIRequest } from "./auditService.js"
+import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
 
 // Lazy-initialized OpenAI client (avoids crash when API key not set)
 let openaiClient: OpenAI | null = null
@@ -66,12 +68,12 @@ export async function queryAI(
         topicId: options?.topicId,
         status: "Approved",
         limit: maxSources,
-      }),
+      }).catch(() => [] as AnswerWithMeta[]),
       searchPhotos(query, {
         topicId: options?.topicId,
         status: "Approved",
         limit: 5,
-      }),
+      }).catch(() => [] as PhotoWithMeta[]),
     ])
 
     // Step 2: Check if we have any relevant content
@@ -316,6 +318,115 @@ ${instruction}${contextAddition}`
       refusalReason: `Adaptation failed: ${errorMessage}`,
     }
   }
+}
+
+/**
+ * Stream Q&A Library AI via SSE
+ */
+export async function streamAI(
+  query: string,
+  res: Response,
+  options?: { topicId?: string; maxSources?: number },
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+): Promise<void> {
+  const maxSources = options?.maxSources ?? 5
+  const openai = getOpenAI()
+
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured." })}\n\n`)
+    res.end()
+    return
+  }
+
+  const [relevantAnswers, relevantPhotos] = await Promise.all([
+    searchAnswers(query, { topicId: options?.topicId, status: "Approved", limit: maxSources }).catch(() => [] as AnswerWithMeta[]),
+    searchPhotos(query, { topicId: options?.topicId, status: "Approved", limit: 5 }).catch(() => [] as PhotoWithMeta[]),
+  ])
+
+  if (relevantAnswers.length === 0 && relevantPhotos.length === 0) {
+    res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "No approved content matches the query." })}\n\n`)
+    res.end()
+    return
+  }
+
+  const answerContextParts = relevantAnswers.map((answer, index) => {
+    return `[Source ${index + 1}]\nQuestion: ${answer.question}\nAnswer: ${answer.answer}`
+  })
+
+  const photoContextParts = relevantPhotos.map((photo, index) => {
+    return `[Photo ${index + 1}]\nTitle: ${photo.displayTitle}\nDescription: ${photo.description || "No description"}`
+  })
+
+  const context = answerContextParts.join("\n\n") +
+    (photoContextParts.length > 0 ? "\n\nRELEVANT PHOTOS:\n" + photoContextParts.join("\n\n") : "")
+
+  const systemPrompt = `You are a helpful assistant for a company's Q&A library. Your role is to answer questions using ONLY the provided approved content.
+
+CRITICAL RULES:
+1. You can ONLY use information from the provided sources below
+2. You must NOT add any information from your own knowledge
+3. You must NOT make up or infer information not explicitly stated in the sources
+4. If the sources don't fully answer the question, say so honestly
+5. Always be helpful and professional
+6. If relevant photos are available, mention them by title in your response
+
+RESPONSE FORMAT:
+Always structure your response with a visible thinking process followed by your answer. Use this format:
+
+**Thinking:**
+- First, identify which sources are most relevant to the question
+- Note key information from each relevant source
+- Consider how to best synthesize this information
+- Identify any gaps or limitations in the available sources
+
+**Answer:**
+[Your comprehensive response based on the sources]
+
+APPROVED CONTENT SOURCES:
+${context}
+
+Remember: Only use the information provided above. Do not add external knowledge. Show your reasoning transparently.`
+
+  const sources = relevantAnswers.map((answer) => ({
+    id: answer.id,
+    question: answer.question,
+    answer: answer.answer,
+  }))
+
+  const photos = relevantPhotos.map((photo) => ({
+    id: photo.id,
+    displayTitle: photo.displayTitle,
+    description: photo.description,
+    storageKey: photo.storageKey,
+  }))
+
+  // AskAI doesn't use follow-up prompts — no-op parser
+  const noOpParser = (response: string) => ({ cleanResponse: response, prompts: [] as string[] })
+
+  const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
+    ? truncateHistory(conversationHistory).map(m => ({ role: m.role, content: m.content }))
+    : []
+
+  await logAIRequest({ query, sourceIds: sources.map(s => s.id), refused: false })
+
+  await streamCompletion({
+    openai,
+    messages: [
+      { role: "system", content: systemPrompt },
+      ...historyMessages,
+      { role: "user", content: query },
+    ],
+    temperature: 0.3,
+    maxTokens: 1500,
+    metadata: {
+      sources,
+      photos,
+    },
+    parseFollowUpPrompts: noOpParser,
+    res,
+  })
 }
 
 /**

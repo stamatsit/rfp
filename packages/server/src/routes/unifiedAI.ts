@@ -3,7 +3,7 @@
  */
 
 import { Router, type Request, type Response } from "express"
-import { queryUnifiedAI, getUnifiedAIStats } from "../services/unifiedAIService.js"
+import { queryUnifiedAI, getUnifiedAIStats, streamUnifiedAI } from "../services/unifiedAIService.js"
 
 const router = Router()
 
@@ -32,6 +32,35 @@ router.post("/query", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Unified AI query failed:", error)
     res.status(500).json({ error: "Failed to process Unified AI query" })
+  }
+})
+
+/**
+ * POST /api/unified-ai/stream
+ * Stream Unified AI responses via SSE
+ */
+router.post("/stream", async (req: Request, res: Response) => {
+  try {
+    const { query, conversationHistory } = req.body
+
+    if (!query || typeof query !== "string") {
+      return res.status(400).json({ error: "Query is required" })
+    }
+
+    if (query.trim().length < 2) {
+      return res.status(400).json({ error: "Query must be at least 2 characters" })
+    }
+
+    if (query.length > 2000) {
+      return res.status(400).json({ error: "Query must be less than 2000 characters" })
+    }
+
+    await streamUnifiedAI(query.trim(), res, conversationHistory)
+  } catch (error) {
+    console.error("Unified AI stream failed:", error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream Unified AI response" })
+    }
   }
 })
 

@@ -587,6 +587,7 @@ export interface AIQueryResponse {
     displayTitle: string
     description: string | null
     storageKey: string
+    fileUrl?: string
   }>
   refused: boolean
   refusalReason?: string
@@ -930,4 +931,78 @@ export const unifiedAIApi = {
     const response = await fetchWithCredentials(`${API_BASE}/unified-ai/stats`)
     return handleResponse<UnifiedAIStats>(response)
   },
+}
+
+// ─── SSE Streaming Utility ─────────────────────────────────
+
+export interface FetchSSECallbacks {
+  onMetadata?: (data: Record<string, unknown>) => void
+  onToken?: (token: string) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[] }) => void
+  onError?: (error: string) => void
+}
+
+/**
+ * Stream a POST request via Server-Sent Events.
+ * Parses the SSE protocol: metadata, token data, done, error events.
+ */
+export async function fetchSSE(
+  endpoint: string,
+  body: Record<string, unknown>,
+  callbacks: FetchSSECallbacks,
+  signal?: AbortSignal
+): Promise<void> {
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new Error(errorData.error || `Request failed with status ${response.status}`)
+  }
+
+  const reader = response.body?.getReader()
+  if (!reader) throw new Error("No response body")
+
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let currentEvent = ""
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    // Keep the last incomplete line in the buffer
+    buffer = lines.pop() || ""
+
+    for (const line of lines) {
+      if (line.startsWith("event: ")) {
+        currentEvent = line.slice(7).trim()
+      } else if (line.startsWith("data: ")) {
+        const raw = line.slice(6)
+        try {
+          const parsed = JSON.parse(raw)
+          if (currentEvent === "metadata") {
+            callbacks.onMetadata?.(parsed)
+          } else if (currentEvent === "done") {
+            callbacks.onDone?.(parsed)
+          } else if (currentEvent === "error") {
+            callbacks.onError?.(parsed.error || "Stream error")
+          } else {
+            // Default data event = token
+            if (parsed.token) callbacks.onToken?.(parsed.token)
+          }
+        } catch {
+          // Non-JSON data line, ignore
+        }
+        currentEvent = ""
+      }
+    }
+  }
 }

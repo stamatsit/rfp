@@ -542,6 +542,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     }
   }, [isOpen])
 
+  // Sync settings state when changed externally (e.g., header theme toggle)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as AppSettings
+      if (detail) setSettings(detail)
+    }
+    window.addEventListener("settings-changed", handler)
+    return () => window.removeEventListener("settings-changed", handler)
+  }, [])
+
   // Apply theme changes
   useEffect(() => {
     if (settings.theme === "system") {
