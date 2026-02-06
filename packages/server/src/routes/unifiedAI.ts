@@ -1,15 +1,15 @@
 /**
- * Command Center Routes — Unified AI with cross-reference intelligence
+ * Unified AI Routes — Cross-reference intelligence hub
  */
 
 import { Router, type Request, type Response } from "express"
-import { queryCommandCenter, getCommandCenterStats } from "../services/commandCenterService.js"
+import { queryUnifiedAI, getUnifiedAIStats } from "../services/unifiedAIService.js"
 
 const router = Router()
 
 /**
- * POST /api/command-center/query
- * Query the unified Command Center AI
+ * POST /api/unified-ai/query
+ * Query the Unified AI
  */
 router.post("/query", async (req: Request, res: Response) => {
   try {
@@ -27,25 +27,25 @@ router.post("/query", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Query must be less than 2000 characters" })
     }
 
-    const result = await queryCommandCenter(query.trim())
+    const result = await queryUnifiedAI(query.trim())
     res.json(result)
   } catch (error) {
-    console.error("Command Center query failed:", error)
-    res.status(500).json({ error: "Failed to process Command Center query" })
+    console.error("Unified AI query failed:", error)
+    res.status(500).json({ error: "Failed to process Unified AI query" })
   }
 })
 
 /**
- * GET /api/command-center/stats
+ * GET /api/unified-ai/stats
  * Get stats for the status bar (proposals, case studies, library counts)
  */
 router.get("/stats", async (_req: Request, res: Response) => {
   try {
-    const stats = await getCommandCenterStats()
+    const stats = await getUnifiedAIStats()
     res.json(stats)
   } catch (error) {
-    console.error("Command Center stats failed:", error)
-    res.status(500).json({ error: "Failed to get Command Center stats" })
+    console.error("Unified AI stats failed:", error)
+    res.status(500).json({ error: "Failed to get Unified AI stats" })
   }
 })
 

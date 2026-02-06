@@ -1,5 +1,5 @@
 /**
- * Command Center AI Service — Cross-Referential Intelligence Hub
+ * Unified AI Service — Cross-Referential Intelligence Hub
  *
  * Combines three data sources with CROSS-REFERENCE capabilities:
  * 1. Q&A Library (approved answers + photos)
@@ -31,7 +31,7 @@ function getOpenAI(): OpenAI | null {
 
 // ─── Interfaces ─────────────────────────────────────────────
 
-export interface CommandCenterResult {
+export interface UnifiedAIResult {
   response: string
   dataUsed: {
     proposals: {
@@ -330,7 +330,7 @@ ${crossRefs.length > 0
 
 // ─── System Prompt ──────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are the Command Center AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
+const SYSTEM_PROMPT = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
 
 1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service/AE, pipeline data
 2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
@@ -397,10 +397,10 @@ function parseFollowUpPrompts(response: string): { cleanResponse: string; prompt
 
 // ─── Main Query Function ────────────────────────────────────
 
-export async function queryCommandCenter(query: string): Promise<CommandCenterResult> {
+export async function queryUnifiedAI(query: string): Promise<UnifiedAIResult> {
   const openai = getOpenAI()
 
-  const emptyResult: CommandCenterResult = {
+  const emptyResult: UnifiedAIResult = {
     response: "",
     dataUsed: {
       proposals: { count: 0, winRate: 0, relevantClients: [] },
@@ -506,7 +506,7 @@ export async function queryCommandCenter(query: string): Promise<CommandCenterRe
       refused: false
     }
   } catch (error) {
-    console.error("Command Center query failed:", error)
+    console.error("Unified AI query failed:", error)
 
     return {
       ...emptyResult,
@@ -517,7 +517,7 @@ export async function queryCommandCenter(query: string): Promise<CommandCenterRe
 
 // ─── Stats Function (for status bar) ────────────────────────
 
-export async function getCommandCenterStats(): Promise<{
+export async function getUnifiedAIStats(): Promise<{
   proposals: { count: number; winRate: number }
   caseStudies: { count: number; testimonials: number }
   library: { answers: number; photos: number }

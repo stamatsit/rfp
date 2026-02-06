@@ -8,7 +8,7 @@ import aiRouter from "./ai.js"
 import answersRouter from "./answers.js"
 import rfpRouter from "./rfp.js"
 import proposalsRouter from "./proposals.js"
-import commandCenterRouter from "./commandCenter.js"
+import unifiedAIRouter from "./unifiedAI.js"
 
 const router = Router()
 
@@ -21,6 +21,6 @@ router.use("/ai", aiRouter)
 router.use("/answers", answersRouter)
 router.use("/rfp", rfpRouter)
 router.use("/proposals", proposalsRouter)
-router.use("/command-center", commandCenterRouter)
+router.use("/unified-ai", unifiedAIRouter)
 
 export default router

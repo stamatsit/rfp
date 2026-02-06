@@ -889,9 +889,9 @@ export const proposalInsightsApi = {
   },
 }
 
-// ─── Command Center API (Unified Cross-Referential AI) ──────
+// ─── Unified AI API (Cross-Referential AI) ──────
 
-export interface CommandCenterResponse {
+export interface UnifiedAIResponse {
   response: string
   dataUsed: {
     proposals: { count: number; winRate: number; relevantClients: string[] }
@@ -904,30 +904,30 @@ export interface CommandCenterResponse {
   refusalReason?: string
 }
 
-export interface CommandCenterStats {
+export interface UnifiedAIStats {
   proposals: { count: number; winRate: number }
   caseStudies: { count: number; testimonials: number }
   library: { answers: number; photos: number }
 }
 
-export const commandCenterApi = {
+export const unifiedAIApi = {
   /**
-   * Query the Command Center AI — cross-references all data sources
+   * Query the Unified AI — cross-references all data sources
    */
-  async query(query: string): Promise<CommandCenterResponse> {
-    const response = await fetchWithCredentials(`${API_BASE}/command-center/query`, {
+  async query(query: string): Promise<UnifiedAIResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/unified-ai/query`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),
     })
-    return handleResponse<CommandCenterResponse>(response)
+    return handleResponse<UnifiedAIResponse>(response)
   },
 
   /**
    * Get stats for the status bar
    */
-  async getStats(): Promise<CommandCenterStats> {
-    const response = await fetchWithCredentials(`${API_BASE}/command-center/stats`)
-    return handleResponse<CommandCenterStats>(response)
+  async getStats(): Promise<UnifiedAIStats> {
+    const response = await fetchWithCredentials(`${API_BASE}/unified-ai/stats`)
+    return handleResponse<UnifiedAIStats>(response)
   },
 }

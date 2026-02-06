@@ -48,22 +48,22 @@ interface Message {
   timestamp: Date
 }
 
-// Quick action buttons — organized by mode
-const BUILDER_ACTIONS = [
+// Quick actions — use-case suggestions + data grabs
+const USE_CASE_ACTIONS = [
   {
     icon: BookOpen,
-    label: "Build One",
-    prompt: "I want to create a new case study from scratch. Walk me through it step by step.",
+    label: "For a Case Study",
+    prompt: "I'm building a case study. Find me relevant client results, metrics, and testimonials.",
   },
   {
     icon: FileText,
-    label: "Refine",
-    prompt: "I have a rough case study. Help me polish it into a professional format.",
+    label: "For a Proposal",
+    prompt: "I'm writing a proposal. Pull our strongest proof points and comparable wins.",
   },
   {
     icon: Sparkles,
-    label: "From Similar",
-    prompt: "Find existing case studies similar to what I'll describe and help me build a new one using those as reference.",
+    label: "For a Presentation",
+    prompt: "I need highlights for a presentation. Give me our most impressive stats and quotes.",
   },
 ]
 
@@ -71,7 +71,7 @@ const GRAB_ACTIONS = [
   {
     icon: BarChart3,
     label: "Grab a Stat",
-    prompt: "Show me the most compelling stats from our case study database.",
+    prompt: "Show me the most compelling stats from our client success database.",
   },
   {
     icon: Quote,
@@ -85,15 +85,13 @@ const GRAB_ACTIONS = [
   },
 ]
 
-const ALL_ACTIONS = [...BUILDER_ACTIONS, ...GRAB_ACTIONS]
+const ALL_ACTIONS = [...USE_CASE_ACTIONS, ...GRAB_ACTIONS]
 
-// Starter prompts — mix of both modes
+// Starter prompts
 const STARTER_PROMPTS = [
-  "Help me build a case study for a website redesign",
-  "What enrollment growth stats do we have?",
-  "I need a healthcare marketing testimonial",
-  "Draft a case study about a brand campaign",
-  "What's our best conversion rate result?",
+  "What are our strongest enrollment growth numbers?",
+  "Find a healthcare testimonial I can use",
+  "What awards have we won recently?",
 ]
 
 export function CaseStudies() {
@@ -184,20 +182,6 @@ export function CaseStudies() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
-      {/* Status Bar */}
-      <div className="border-b border-slate-200/60 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Database size={14} className="text-violet-500" />
-              <span className="text-slate-600 dark:text-slate-300">
-                {clientSuccessData.caseStudies.length} case studies &middot; {clientSuccessData.topLineResults.length} results &middot; {clientSuccessData.testimonials.length} testimonials
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Messages Area */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-6">
@@ -215,76 +199,41 @@ export function CaseStudies() {
                 <BookOpen size={36} className="text-violet-500" />
               </div>
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3 tracking-tight">
-                Case Studies
+                Client Success
               </h2>
               <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
-                Build a case study from scratch, refine an existing draft, or grab a quick stat
-                from our database of {clientSuccessData.caseStudies.length} client projects.
+                Pull stats, testimonials, awards, and highlights from {clientSuccessData.caseStudies.length} client projects.
               </p>
 
-              {/* Starter Prompts */}
-              <div className="flex flex-wrap gap-2.5 justify-center max-w-lg mb-8">
-                {STARTER_PROMPTS.map((prompt) => (
+              {/* Quick Actions — single row */}
+              <div className="flex flex-wrap gap-2 justify-center mb-6">
+                {ALL_ACTIONS.map((action) => (
                   <button
-                    key={prompt}
-                    onClick={() => setInputValue(prompt)}
-                    className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full text-[13px] text-slate-600 dark:text-slate-300
-                               shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-violet-300 dark:hover:border-violet-500 hover:text-violet-600 dark:hover:text-violet-400
-                               hover:shadow-[0_2px_8px_rgba(139,92,246,0.12)] transition-all duration-200"
+                    key={action.label}
+                    onClick={() => handleSubmit(action.prompt)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px]
+                               bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
+                               text-slate-500 dark:text-slate-400
+                               hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-600 dark:hover:text-violet-400
+                               transition-all duration-200"
                   >
-                    {prompt}
+                    <action.icon size={14} />
+                    {action.label}
                   </button>
                 ))}
               </div>
 
-              {/* Quick Actions — Two Groups */}
-              <div className="w-full max-w-2xl space-y-4">
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                    Build a Case Study
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {BUILDER_ACTIONS.map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleSubmit(action.prompt)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
-                                   hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all duration-200 group"
-                      >
-                        <action.icon
-                          size={20}
-                          className="text-slate-400 group-hover:text-violet-500 transition-colors"
-                        />
-                        <span className="text-[11px] font-medium text-slate-500 group-hover:text-violet-600 transition-colors">
-                          {action.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">
-                    Grab a Quick Fact
-                  </p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {GRAB_ACTIONS.map((action) => (
-                      <button
-                        key={action.label}
-                        onClick={() => handleSubmit(action.prompt)}
-                        className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
-                                   hover:border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all duration-200 group"
-                      >
-                        <action.icon
-                          size={20}
-                          className="text-slate-400 group-hover:text-violet-500 transition-colors"
-                        />
-                        <span className="text-[11px] font-medium text-slate-500 group-hover:text-violet-600 transition-colors">
-                          {action.label}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+              {/* Starter prompts as plain text links */}
+              <div className="flex flex-col items-center gap-1.5">
+                {STARTER_PROMPTS.slice(0, 3).map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setInputValue(prompt)}
+                    className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
@@ -538,7 +487,7 @@ export function CaseStudies() {
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Build a case study or grab a quick stat..."
+                placeholder="Search client highlights, stats, or testimonials..."
                 className="h-12 pr-12 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
                 onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleSubmit()}
                 disabled={isLoading}

@@ -28,9 +28,9 @@ const pageConfig: Record<string, { title: string }> = {
   "/help": { title: "Help" },
   "/support": { title: "Support" },
   "/settings": { title: "Settings" },
-  "/case-studies": { title: "Case Studies" },
+  "/case-studies": { title: "Client Success" },
   "/insights": { title: "Proposal Insights" },
-  "/command-center": { title: "Command Center" },
+  "/unified-ai": { title: "Unified AI" },
 }
 
 // Beautiful dark mode toggle component

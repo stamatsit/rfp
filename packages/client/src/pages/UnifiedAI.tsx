@@ -1,5 +1,5 @@
 /**
- * Command Center — Cross-Referential AI Hub
+ * Unified AI — Cross-Referential AI Hub
  *
  * Unified AI that connects the dots across:
  * - Q&A Library (answers + photos)
@@ -27,10 +27,6 @@ import {
   Search,
   Briefcase,
   ChevronDown,
-  TrendingUp,
-  BookOpen,
-  FileText,
-  Zap,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import {
@@ -40,16 +36,15 @@ import {
   Input,
 } from "@/components/ui"
 import {
-  commandCenterApi,
-  type CommandCenterResponse,
-  type CommandCenterStats,
+  unifiedAIApi,
+  type UnifiedAIResponse,
 } from "@/lib/api"
 
 interface Message {
   id: string
   role: "user" | "assistant"
   content: string
-  dataUsed?: CommandCenterResponse["dataUsed"]
+  dataUsed?: UnifiedAIResponse["dataUsed"]
   crossReferenceInsights?: string[]
   followUpPrompts?: string[]
   refused?: boolean
@@ -100,20 +95,14 @@ const STARTER_PROMPTS = [
   "Which case studies should we use for university branding?",
 ]
 
-export function CommandCenter() {
+export function UnifiedAI() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
-  const [stats, setStats] = useState<CommandCenterStats | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showDataContext, setShowDataContext] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  // Load stats on mount
-  useEffect(() => {
-    loadStats()
-  }, [])
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -124,15 +113,6 @@ export function CommandCenter() {
   useEffect(() => {
     inputRef.current?.focus()
   }, [])
-
-  const loadStats = async () => {
-    try {
-      const result = await commandCenterApi.getStats()
-      setStats(result)
-    } catch (err) {
-      console.error("Failed to load stats:", err)
-    }
-  }
 
   const handleSubmit = async (query?: string) => {
     const queryText = query || inputValue.trim()
@@ -150,7 +130,7 @@ export function CommandCenter() {
     setIsLoading(true)
 
     try {
-      const result = await commandCenterApi.query(queryText)
+      const result = await unifiedAIApi.query(queryText)
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,
@@ -172,7 +152,7 @@ export function CommandCenter() {
         role: "assistant",
         content: "",
         refused: true,
-        refusalReason: "Failed to connect to Command Center. Please try again.",
+        refusalReason: "Failed to connect to Unified AI. Please try again.",
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -206,36 +186,6 @@ export function CommandCenter() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
-      {/* Status Bar */}
-      <div className="border-b border-slate-200/60 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <TrendingUp size={14} className="text-indigo-500" />
-              <span className="text-slate-600 dark:text-slate-300">
-                {stats?.proposals.count || 0} proposals ({formatWinRate(stats?.proposals.winRate || 0)} win)
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <BookOpen size={14} className="text-indigo-400" />
-              <span className="text-slate-500 dark:text-slate-400">
-                {stats?.caseStudies.count || 0} case studies
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FileText size={14} className="text-indigo-400" />
-              <span className="text-slate-500 dark:text-slate-400">
-                {stats?.library.answers || 0} answers
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 rounded-full">
-            <Zap size={12} className="text-indigo-500" />
-            <span className="text-xs font-medium text-indigo-600 dark:text-indigo-400">Cross-Reference Mode</span>
-          </div>
-        </div>
-      </div>
-
       {/* Messages Area */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-4xl mx-auto px-6 py-6">
@@ -253,51 +203,41 @@ export function CommandCenter() {
                 <Layers size={36} className="text-indigo-500" />
               </div>
               <h2 className="text-2xl font-semibold text-slate-900 dark:text-white mb-3 tracking-tight">
-                Command Center
+                Unified AI
               </h2>
               <p className="text-slate-500 dark:text-slate-400 max-w-md mb-8 text-[15px] leading-relaxed">
-                Cross-reference your proposals, case studies, and Q&A library.
-                Ask questions that connect the dots across all your data.
+                Connect the dots across proposals, case studies, and your Q&A library.
               </p>
 
-              {/* Starter Prompts */}
-              <div className="flex flex-wrap gap-2.5 justify-center max-w-lg mb-8">
-                {STARTER_PROMPTS.map((prompt) => (
+              {/* Quick Actions — single row */}
+              <div className="flex flex-wrap gap-2 justify-center mb-6">
+                {QUICK_ACTIONS.map((action) => (
                   <button
-                    key={prompt}
-                    onClick={() => setInputValue(prompt)}
-                    className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-full text-[13px] text-slate-600 dark:text-slate-300
-                               shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:border-indigo-300 dark:hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400
-                               hover:shadow-[0_2px_8px_rgba(99,102,241,0.12)] transition-all duration-200"
+                    key={action.label}
+                    onClick={() => handleSubmit(action.prompt)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px]
+                               bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
+                               text-slate-500 dark:text-slate-400
+                               hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-600 dark:hover:text-indigo-400
+                               transition-all duration-200"
                   >
-                    {prompt}
+                    <action.icon size={14} />
+                    {action.label}
                   </button>
                 ))}
               </div>
 
-              {/* Quick Actions */}
-              <div className="w-full max-w-2xl">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-3">
-                  Power Prompts
-                </p>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {QUICK_ACTIONS.map((action) => (
-                    <button
-                      key={action.label}
-                      onClick={() => handleSubmit(action.prompt)}
-                      className="flex flex-col items-center gap-1.5 p-3 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
-                                 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all duration-200 group"
-                    >
-                      <action.icon
-                        size={20}
-                        className="text-slate-400 group-hover:text-indigo-500 transition-colors"
-                      />
-                      <span className="text-[11px] font-medium text-slate-500 group-hover:text-indigo-600 transition-colors">
-                        {action.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+              {/* Starter prompts as plain text links */}
+              <div className="flex flex-col items-center gap-1.5">
+                {STARTER_PROMPTS.slice(0, 3).map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => setInputValue(prompt)}
+                    className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                  >
+                    {prompt}
+                  </button>
+                ))}
               </div>
             </div>
           ) : (
