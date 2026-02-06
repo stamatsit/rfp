@@ -296,20 +296,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Update last login
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id))
 
-        // Avatars are local-disk only — always null in serverless
+        const avatarUrl = user.avatarUrl || null
         const newSessionToken = await createSession({
           authenticated: true,
           userId: user.id,
           userName: user.name,
           userEmail: user.email,
           mustChangePassword: user.mustChangePassword,
-          avatarUrl: null,
+          avatarUrl,
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({
           success: true,
           mustChangePassword: user.mustChangePassword,
-          user: { id: user.id, email: user.email, name: user.name, avatarUrl: null },
+          user: { id: user.id, email: user.email, name: user.name, avatarUrl },
         })
       }
 
@@ -322,24 +322,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!isAuthenticated || !session) {
           return res.json({ authenticated: false, user: null, mustChangePassword: false, loginTime: null })
         }
-        // If session is missing userName (e.g. legacy token), look up from DB
+        // Always look up fresh user data from DB for name + avatar
         let userName = session.userName
         let userEmail = session.userEmail
-        if (!userName && session.userId && db) {
+        let avatarUrl: string | null = session.avatarUrl || null
+        if (session.userId && db) {
           const [dbUser] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
           if (dbUser) {
             userName = dbUser.name
             userEmail = dbUser.email
+            avatarUrl = dbUser.avatarUrl || null
           }
         }
-        // Avatars are local-disk only — always null in serverless
         return res.json({
           authenticated: true,
           user: {
             id: session.userId,
             email: userEmail || session.userEmail,
             name: userName || userEmail || "User",
-            avatarUrl: null,
+            avatarUrl,
           },
           mustChangePassword: session.mustChangePassword || false,
           loginTime: null,
@@ -378,15 +379,102 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Avatar routes
       if (path.startsWith("/auth/avatar")) {
-        // GET /auth/avatar/:userId — serve avatar image
+        const AVATAR_BUCKET = "photo-assets"
+        const AVATAR_PREFIX = "avatars/"
+
+        // GET /auth/avatar/:userId — redirect to Supabase public URL
         const avatarMatch = path.match(/^\/auth\/avatar\/([^/]+)$/)
         if (avatarMatch && method === "GET") {
-          // Avatars are stored on local disk in Express mode, not accessible from serverless.
-          // Return 404 so the client's onError handler shows initials instead.
-          return res.status(404).json({ error: "Avatar not available in serverless mode" })
+          const userId = avatarMatch[1]
+          if (!db) return res.status(500).json({ error: "Database not configured" })
+          const [u] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
+          if (!u?.avatarUrl) return res.status(404).json({ error: "No avatar" })
+          // avatarUrl is stored as the Supabase public URL
+          return res.redirect(302, u.avatarUrl)
         }
-        // POST/DELETE — not supported in serverless
-        return res.status(501).json({ error: "Avatar upload not supported in serverless mode" })
+
+        // POST /auth/avatar — upload to Supabase storage
+        // Accepts JSON: { image: "data:image/webp;base64,..." } or { image: "<base64>" }
+        if (method === "POST") {
+          if (!isAuthenticated || !session?.userId) {
+            return res.status(401).json({ error: "Authentication required" })
+          }
+          if (!supabase || !db) {
+            return res.status(500).json({ error: "Storage not configured" })
+          }
+
+          const { image } = req.body || {}
+          if (!image || typeof image !== "string") {
+            return res.status(400).json({ error: "Expected JSON body with 'image' as base64 data URL" })
+          }
+
+          // Parse data URL: "data:image/webp;base64,AAAA..."
+          const dataUrlMatch = image.match(/^data:(image\/\w+);base64,(.+)$/)
+          let fileMimeType = "image/webp"
+          let base64Data: string
+          if (dataUrlMatch) {
+            fileMimeType = dataUrlMatch[1]
+            base64Data = dataUrlMatch[2]
+          } else {
+            // Assume raw base64
+            base64Data = image
+          }
+
+          const fileBuffer = Buffer.from(base64Data, "base64")
+          if (fileBuffer.length === 0) {
+            return res.status(400).json({ error: "Empty image data" })
+          }
+          if (fileBuffer.length > 2 * 1024 * 1024) {
+            return res.status(400).json({ error: "File too large (max 2MB)" })
+          }
+
+          const ext = fileMimeType.includes("png") ? "png" : fileMimeType.includes("gif") ? "gif" : "webp"
+          const storagePath = `${AVATAR_PREFIX}${session.userId}.${ext}`
+
+          // Delete old avatar files first
+          await supabase.storage.from(AVATAR_BUCKET).remove([
+            `${AVATAR_PREFIX}${session.userId}.webp`,
+            `${AVATAR_PREFIX}${session.userId}.png`,
+            `${AVATAR_PREFIX}${session.userId}.gif`,
+            `${AVATAR_PREFIX}${session.userId}.jpg`,
+          ])
+
+          const { error: uploadError } = await supabase.storage
+            .from(AVATAR_BUCKET)
+            .upload(storagePath, fileBuffer, { contentType: fileMimeType, upsert: true })
+
+          if (uploadError) {
+            console.error("Avatar upload error:", uploadError)
+            return res.status(500).json({ error: "Failed to upload avatar" })
+          }
+
+          const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/${AVATAR_BUCKET}/${storagePath}`
+          await db.update(users).set({ avatarUrl: publicUrl, updatedAt: new Date() }).where(eq(users.id, session.userId))
+
+          return res.json({ success: true, avatarUrl: publicUrl })
+        }
+
+        // DELETE /auth/avatar — remove from Supabase storage
+        if (method === "DELETE") {
+          if (!isAuthenticated || !session?.userId) {
+            return res.status(401).json({ error: "Authentication required" })
+          }
+          if (!supabase || !db) {
+            return res.status(500).json({ error: "Storage not configured" })
+          }
+
+          await supabase.storage.from(AVATAR_BUCKET).remove([
+            `${AVATAR_PREFIX}${session.userId}.webp`,
+            `${AVATAR_PREFIX}${session.userId}.png`,
+            `${AVATAR_PREFIX}${session.userId}.gif`,
+            `${AVATAR_PREFIX}${session.userId}.jpg`,
+          ])
+          await db.update(users).set({ avatarUrl: null, updatedAt: new Date() }).where(eq(users.id, session.userId))
+
+          return res.json({ success: true })
+        }
+
+        return res.status(405).json({ error: "Method not allowed" })
       }
     }
 

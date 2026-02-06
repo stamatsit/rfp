@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from "express"
 import rateLimit from "express-rate-limit"
-import multer from "multer"
 import {
   getUserByEmail,
   verifyPassword,
@@ -10,16 +9,6 @@ import {
   updateAvatarUrl,
 } from "../services/userService.js"
 import { saveAvatar, deleteAvatarFile } from "../services/avatarService.js"
-
-// Multer config for avatar uploads (memory storage, 2MB limit, images only)
-const avatarUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 2 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true)
-    else cb(new Error("Only image files are allowed"))
-  },
-})
 
 const router = Router()
 
@@ -177,19 +166,29 @@ router.get("/status", async (req: Request, res: Response) => {
 
 /**
  * POST /api/auth/avatar
- * Upload user avatar (cropped image from client)
+ * Upload user avatar (base64 JSON: { image: "data:image/webp;base64,..." })
  */
-router.post("/avatar", avatarUpload.single("avatar"), async (req: Request, res: Response) => {
+router.post("/avatar", async (req: Request, res: Response) => {
   try {
     if (!req.session?.authenticated || !req.session.userId) {
       return res.status(401).json({ error: "Authentication required" })
     }
 
-    if (!req.file) {
-      return res.status(400).json({ error: "No image file provided" })
+    const { image } = req.body || {}
+    if (!image || typeof image !== "string") {
+      return res.status(400).json({ error: "Expected JSON body with 'image' as base64 data URL" })
     }
 
-    const storagePath = await saveAvatar(req.session.userId, req.file.buffer, req.file.mimetype)
+    const dataUrlMatch = image.match(/^data:(image\/\w+);base64,(.+)$/)
+    const mimeType = dataUrlMatch?.[1] ?? "image/webp"
+    const base64Data = dataUrlMatch?.[2] ?? image
+    const fileBuffer = Buffer.from(base64Data, "base64")
+
+    if (fileBuffer.length === 0) {
+      return res.status(400).json({ error: "Empty image data" })
+    }
+
+    const storagePath = await saveAvatar(req.session.userId, fileBuffer, mimeType)
     const avatarUrl = `/api/auth/avatar/${req.session.userId}`
 
     await updateAvatarUrl(req.session.userId, storagePath)

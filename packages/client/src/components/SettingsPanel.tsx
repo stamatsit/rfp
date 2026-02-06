@@ -816,9 +816,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       <div className="flex-1">
                         <p className="text-[15px] font-medium text-slate-900 dark:text-white">{user?.name}</p>
                         <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-3">{user?.email}</p>
-                        {import.meta.env.VITE_API_URL ? (
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500">Avatar uploads available in local mode only</p>
-                        ) : (
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => avatarInputRef.current?.click()}
@@ -854,7 +851,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             </button>
                           )}
                         </div>
-                        )}
                       </div>
                     </div>
                     <input

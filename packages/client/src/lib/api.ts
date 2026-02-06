@@ -1212,11 +1212,17 @@ export async function fetchSSE(
 
 export const accountApi = {
   async uploadAvatar(croppedBlob: Blob): Promise<{ success: boolean; avatarUrl: string }> {
-    const formData = new FormData()
-    formData.append("avatar", croppedBlob, "avatar.webp")
+    // Convert blob to base64 data URL for JSON transport (works in both local and serverless)
+    const reader = new FileReader()
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(croppedBlob)
+    })
     const response = await fetchWithCredentials(`${API_BASE}/auth/avatar`, {
       method: "POST",
-      body: formData,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
