@@ -1065,6 +1065,227 @@ ${contextLines.join("\n")}`
       }
     }
 
+    // Unified AI routes (cross-references all data sources)
+    if (path.startsWith("/unified-ai")) {
+      // GET /unified-ai/stats — stats for the status bar
+      if ((path === "/unified-ai/stats" || path === "/unified-ai/stats/") && method === "GET") {
+        const allProposals = await db.select().from(proposals)
+        const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const wonCount = decided.filter(p => p.won === "Yes").length
+        const winRate = decided.length > 0 ? wonCount / decided.length : 0
+
+        const [answersCount] = await db.select({ count: sql<number>`count(*)::int` }).from(answerItems)
+        const [photosCount] = await db.select({ count: sql<number>`count(*)::int` }).from(photoAssets)
+
+        return res.json({
+          proposals: { count: allProposals.length, winRate },
+          caseStudies: { count: clientSuccessData.caseStudies.length, testimonials: clientSuccessData.testimonials.length },
+          library: { answers: answersCount?.count || 0, photos: photosCount?.count || 0 }
+        })
+      }
+
+      // POST /unified-ai/query — cross-referential AI query
+      if ((path === "/unified-ai/query" || path === "/unified-ai/query/") && method === "POST") {
+        if (!openai) {
+          return res.json({
+            response: "",
+            dataUsed: {
+              proposals: { count: 0, winRate: 0, relevantClients: [] },
+              caseStudies: { count: 0, clients: [], testimonials: 0 },
+              library: { answers: 0, photos: 0, topics: [] }
+            },
+            crossReferenceInsights: [],
+            followUpPrompts: [],
+            refused: true,
+            refusalReason: "AI service not configured. Please set OPENAI_API_KEY in your environment."
+          })
+        }
+
+        const { query: uaiQuery } = req.body || {}
+        if (!uaiQuery || typeof uaiQuery !== "string" || uaiQuery.trim().length < 2) {
+          return res.status(400).json({ error: "Query must be at least 2 characters" })
+        }
+
+        // Load proposals
+        const allProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+        const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
+        const wonProposals = decided.filter(p => p.won === "Yes")
+        const winRate = decided.length > 0 ? wonProposals.length / decided.length : 0
+
+        // Search library for relevant answers
+        const searchWords = uaiQuery.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
+        let libraryAnswers: any[] = []
+        if (searchWords.length > 0) {
+          const wordConditions = searchWords.flatMap((word: string) => [
+            ilike(answerItems.question, `%${word}%`),
+            ilike(answerItems.answer, `%${word}%`)
+          ])
+          libraryAnswers = await db.select().from(answerItems)
+            .where(or(...wordConditions))
+            .limit(10)
+        }
+
+        // Date range
+        const dates = allProposals.filter(p => p.date).map(p => new Date(p.date!))
+        const minDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null
+        const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null
+
+        // Win rates by school type
+        const bySchoolType: Record<string, { won: number; total: number }> = {}
+        decided.forEach(p => {
+          if (p.schoolType) {
+            if (!bySchoolType[p.schoolType]) bySchoolType[p.schoolType] = { won: 0, total: 0 }
+            bySchoolType[p.schoolType].total++
+            if (p.won === "Yes") bySchoolType[p.schoolType].won++
+          }
+        })
+
+        // Win rates by service
+        const byService: Record<string, { won: number; total: number }> = {}
+        decided.forEach(p => {
+          ((p.servicesOffered as string[]) || []).forEach(s => {
+            if (!byService[s]) byService[s] = { won: 0, total: 0 }
+            byService[s].total++
+            if (p.won === "Yes") byService[s].won++
+          })
+        })
+
+        const formatRate = (won: number, total: number) => total > 0 ? `${((won / total) * 100).toFixed(1)}%` : "N/A"
+
+        // Build case study context
+        const csSummary = clientSuccessData.caseStudies.map((cs: any) => {
+          const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
+          const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 100)}..." — ${cs.testimonial.attribution}` : ""
+          return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge.slice(0, 150)}...\n  Metrics: ${metrics || "None"}${testimonial}`
+        }).join("\n\n")
+
+        const topResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
+          .slice(0, 15)
+          .map((r: any) => `- ${r.result} ${r.metric} — ${r.client}`)
+          .join("\n")
+
+        const testimonials = clientSuccessData.testimonials.slice(0, 10).map((t: any) => {
+          const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+          return `"${t.quote.slice(0, 150)}..." — ${who}`
+        }).join("\n\n")
+
+        // Build unified context
+        const context = `
+━━━ SOURCE 1: PROPOSAL HISTORY ━━━
+Total Proposals: ${allProposals.length}
+Date Range: ${minDate?.toISOString().split("T")[0] || "N/A"} to ${maxDate?.toISOString().split("T")[0] || "N/A"}
+Won: ${wonProposals.length} | Lost: ${decided.length - wonProposals.length} | Win Rate: ${formatRate(wonProposals.length, decided.length)}
+
+WIN RATES BY SCHOOL TYPE:
+${Object.entries(bySchoolType).sort((a, b) => b[1].total - a[1].total).slice(0, 8).map(([type, s]) => `- ${type}: ${formatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+WIN RATES BY SERVICE:
+${Object.entries(byService).sort((a, b) => b[1].total - a[1].total).slice(0, 10).map(([svc, s]) => `- ${svc}: ${formatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+RECENT WINS (last 20):
+${wonProposals.slice(0, 20).map(p => `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) — ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "N/A"}`).join("\n") || "No recent wins"}
+
+━━━ SOURCE 2: CASE STUDIES (${clientSuccessData.caseStudies.length}) ━━━
+
+${csSummary}
+
+TOP-LINE RESULTS (${clientSuccessData.topLineResults.length}):
+${topResults}
+
+TESTIMONIALS (${clientSuccessData.testimonials.length}):
+${testimonials}
+
+AWARDS (${clientSuccessData.awards.length}):
+${clientSuccessData.awards.slice(0, 10).map((a: any) => `- ${a.name} (${a.year}) — ${a.clientOrProject}`).join("\n")}
+
+━━━ SOURCE 3: Q&A LIBRARY ━━━
+Relevant Answers Found: ${libraryAnswers.length}
+${libraryAnswers.map((a: any, i: number) => `[Answer ${i + 1}]\nQ: ${a.question}\nA: ${a.answer.slice(0, 500)}${a.answer.length > 500 ? "..." : ""}`).join("\n\n") || "No relevant library answers found."}
+`
+
+        const systemPrompt = `You are the Unified AI for Stamats, a marketing agency with 100+ years of experience. You have UNIFIED ACCESS to three data sources that you MUST cross-reference:
+
+1. **PROPOSAL HISTORY**: Win/loss records, win rates by school type/service
+2. **CASE STUDIES**: ${clientSuccessData.caseStudies.length} case studies, ${clientSuccessData.testimonials.length} testimonials, ${clientSuccessData.awards.length} awards
+3. **Q&A LIBRARY**: Approved answers for RFP responses
+
+YOUR SUPERPOWER: CROSS-REFERENCING — Connect the dots across all sources.
+
+RULES:
+1. ALWAYS cross-reference — don't just answer from one source
+2. FLAG DISCONNECTS — gaps between wins and case studies
+3. BE SPECIFIC — real client names, real numbers, real quotes
+4. NEVER INVENT — only use provided data
+5. Use **bold** for key numbers and insights
+6. Keep responses actionable
+
+At the end, include 3-4 follow-ups:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
+
+--- UNIFIED DATA ---
+${context}`
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: uaiQuery.trim() }
+          ],
+          temperature: 0.4,
+          max_tokens: 3000
+        })
+
+        const rawResponse = completion.choices[0]?.message?.content || ""
+
+        // Parse follow-up prompts
+        let cleanResp = rawResponse
+        let uaiFollowUps: string[] = []
+        const uaiMatch = rawResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+        if (uaiMatch && uaiMatch[1]) {
+          try {
+            uaiFollowUps = JSON.parse(`[${uaiMatch[1]}]`)
+            cleanResp = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          } catch {
+            uaiFollowUps = uaiMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+            cleanResp = rawResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          }
+        } else {
+          uaiFollowUps = ["What gaps exist in our proof points?", "Which clients should we ask for testimonials?", "Prep me for a proposal based on this insight"]
+        }
+
+        // Cross-reference insights
+        const caseStudyClients = new Set(clientSuccessData.caseStudies.map((cs: any) => cs.client.toLowerCase().trim()))
+        const recentWins = wonProposals.filter(p => {
+          if (!p.date) return false
+          const twoYearsAgo = new Date()
+          twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2)
+          return new Date(p.date) >= twoYearsAgo
+        })
+        const winsWithoutCS = recentWins.filter(p => p.client && !caseStudyClients.has(p.client.toLowerCase().trim()))
+        const crossInsights: string[] = []
+        if (winsWithoutCS.length >= 3) {
+          const clients = [...new Set(winsWithoutCS.map(p => p.client))].slice(0, 5)
+          crossInsights.push(`${winsWithoutCS.length} recent wins don't have case studies: ${clients.join(", ")}`)
+        }
+
+        const recentClients = wonProposals.slice(0, 10).map(p => p.client).filter((c): c is string => !!c)
+        const csClients = clientSuccessData.caseStudies.slice(0, 10).map((cs: any) => cs.client)
+        const uniqueTopics = [...new Set(libraryAnswers.map((a: any) => a.topicId))]
+
+        return res.json({
+          response: cleanResp,
+          dataUsed: {
+            proposals: { count: allProposals.length, winRate, relevantClients: recentClients },
+            caseStudies: { count: clientSuccessData.caseStudies.length, clients: csClients, testimonials: clientSuccessData.testimonials.length },
+            library: { answers: libraryAnswers.length, photos: 0, topics: uniqueTopics }
+          },
+          crossReferenceInsights: crossInsights,
+          followUpPrompts: uaiFollowUps,
+          refused: false
+        })
+      }
+    }
+
     // 404 for unmatched routes
     return res.status(404).json({ error: "Not found", path })
 
