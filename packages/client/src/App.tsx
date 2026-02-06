@@ -1,3 +1,4 @@
+import { useState, useEffect, useCallback } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, UnifiedAI } from "./pages"
 import Login from "./pages/Login"
@@ -5,13 +6,33 @@ import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts"
+import { NewEntryPanel } from "./components/NewEntryPanel"
 
 function App() {
+  const [showNewEntry, setShowNewEntry] = useState(false)
+
+  // Listen for global "open-new-entry" event (dispatched by tiles)
+  useEffect(() => {
+    const handler = () => setShowNewEntry(true)
+    window.addEventListener("open-new-entry", handler)
+    return () => window.removeEventListener("open-new-entry", handler)
+  }, [])
+
+  const handleNewEntrySaved = useCallback(() => {
+    // Dispatch event so Library page can refresh if it's open
+    window.dispatchEvent(new CustomEvent("new-entry-saved"))
+  }, [])
+
   return (
     <BrowserRouter>
       <ThemeProvider>
       <AuthProvider>
         <KeyboardShortcuts />
+        <NewEntryPanel
+          isOpen={showNewEntry}
+          onClose={() => setShowNewEntry(false)}
+          onSaved={handleNewEntrySaved}
+        />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />

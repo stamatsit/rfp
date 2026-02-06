@@ -168,6 +168,51 @@ export const auditLog = pgTable("audit_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Client Success — user-added entries (merged with hardcoded clientSuccessData on display)
+export const clientSuccessEntries = pgTable("client_success_entries", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  client: text("client").notNull(),
+  category: text("category", { enum: ["higher-ed", "healthcare", "other"] }).notNull(),
+  focus: text("focus").notNull(),
+  challenge: text("challenge"),
+  solution: text("solution"),
+  metrics: jsonb("metrics").$type<{ label: string; value: string }[]>().default([]),
+  testimonialQuote: text("testimonial_quote"),
+  testimonialAttribution: text("testimonial_attribution"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const clientSuccessResults = pgTable("client_success_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  metric: text("metric").notNull(),
+  result: text("result").notNull(),
+  client: text("client").notNull(),
+  numericValue: integer("numeric_value").notNull(),
+  direction: text("direction", { enum: ["increase", "decrease"] }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const clientSuccessTestimonials = pgTable("client_success_testimonials", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  quote: text("quote").notNull(),
+  name: text("name"),
+  title: text("title"),
+  organization: text("organization").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const clientSuccessAwards = pgTable("client_success_awards", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  year: text("year").notNull(),
+  clientOrProject: text("client_or_project").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Type exports for use in services
 export type Topic = typeof topics.$inferSelect
 export type NewTopic = typeof topics.$inferInsert
@@ -191,3 +236,11 @@ export type ProposalSyncLogEntry = typeof proposalSyncLog.$inferSelect
 export type NewProposalSyncLogEntry = typeof proposalSyncLog.$inferInsert
 export type ProposalPipelineEntry = typeof proposalPipeline.$inferSelect
 export type NewProposalPipelineEntry = typeof proposalPipeline.$inferInsert
+export type ClientSuccessEntry = typeof clientSuccessEntries.$inferSelect
+export type NewClientSuccessEntry = typeof clientSuccessEntries.$inferInsert
+export type ClientSuccessResult = typeof clientSuccessResults.$inferSelect
+export type NewClientSuccessResult = typeof clientSuccessResults.$inferInsert
+export type ClientSuccessTestimonial = typeof clientSuccessTestimonials.$inferSelect
+export type NewClientSuccessTestimonial = typeof clientSuccessTestimonials.$inferInsert
+export type ClientSuccessAward = typeof clientSuccessAwards.$inferSelect
+export type NewClientSuccessAward = typeof clientSuccessAwards.$inferInsert

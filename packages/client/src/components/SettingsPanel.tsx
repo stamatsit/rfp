@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { useTheme } from "@/contexts/ThemeContext"
+import { usePanelResize, ResizeHandles } from "@/hooks/usePanelResize"
 import {
   FileSpreadsheet,
   Image,
@@ -88,7 +89,7 @@ const defaultTiles: TileConfig[] = [
     to: "/new",
     icon: <PenLine size={22} strokeWidth={2} />,
     title: "New Entry",
-    description: "Manually add individual Q&A entries to the library",
+    description: "Manually add individual entries to the library",
     gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
     enabled: true,
@@ -417,7 +418,7 @@ function SegmentedControl({ options, value, onChange }: {
 // Traffic Lights Component
 // ============================================================================
 
-function TrafficLights({ onClose }: { onClose: () => void }) {
+function TrafficLights({ onClose, onRestore, onMaximize }: { onClose: () => void; onRestore: () => void; onMaximize: () => void }) {
   const [hovered, setHovered] = useState(false)
 
   return (
@@ -442,8 +443,9 @@ function TrafficLights({ onClose }: { onClose: () => void }) {
         )}
       </button>
 
-      {/* Minimize (Yellow) */}
+      {/* Restore default (Yellow) */}
       <button
+        onClick={onRestore}
         className="w-3 h-3 rounded-full relative transition-all duration-150"
         style={{
           background: "linear-gradient(180deg, #FFBD2E 0%, #DEA123 100%)",
@@ -459,6 +461,7 @@ function TrafficLights({ onClose }: { onClose: () => void }) {
 
       {/* Maximize (Green) */}
       <button
+        onClick={onMaximize}
         className="w-3 h-3 rounded-full relative transition-all duration-150"
         style={{
           background: "linear-gradient(180deg, #28C840 0%, #1AAB29 100%)",
@@ -501,6 +504,13 @@ interface SettingsPanelProps {
   onClose: () => void
 }
 
+const SETTINGS_DEFAULT_W = 720
+const SETTINGS_DEFAULT_H = 520
+const SETTINGS_MIN_W = 480
+const SETTINGS_MIN_H = 360
+const SETTINGS_MAX_W = 1080
+const SETTINGS_MAX_H = 820
+
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
@@ -514,6 +524,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const dragOffsetRef = useRef({ x: 0, y: 0 })
   const positionRef = useRef({ x: 0, y: 0 })
 
+  // Resize hook
+  const { sizeRef, startResize, restoreDefault, maximize, applySize } = usePanelResize(panelRef, positionRef, {
+    defaultW: SETTINGS_DEFAULT_W, defaultH: SETTINGS_DEFAULT_H,
+    minW: SETTINGS_MIN_W, minH: SETTINGS_MIN_H, maxW: SETTINGS_MAX_W, maxH: SETTINGS_MAX_H,
+  })
+
   // Drag state for tiles
   const [draggedTile, setDraggedTile] = useState<string | null>(null)
   const [dragOverTile, setDragOverTile] = useState<string | null>(null)
@@ -521,17 +537,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   // Center panel on open
   useEffect(() => {
     if (isOpen) {
-      const centerX = (window.innerWidth - 720) / 2
-      const centerY = (window.innerHeight - 520) / 2
+      sizeRef.current = { w: SETTINGS_DEFAULT_W, h: SETTINGS_DEFAULT_H }
+      const centerX = (window.innerWidth - SETTINGS_DEFAULT_W) / 2
+      const centerY = (window.innerHeight - SETTINGS_DEFAULT_H) / 2
       positionRef.current = { x: Math.max(50, centerX), y: Math.max(50, centerY) }
       setIsVisible(true)
-      // Use double RAF to ensure DOM is ready
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          if (panelRef.current) {
-            panelRef.current.style.left = `${positionRef.current.x}px`
-            panelRef.current.style.top = `${positionRef.current.y}px`
-          }
+          applySize()
           setIsAnimatingIn(true)
         })
       })
@@ -540,7 +553,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       const timer = setTimeout(() => setIsVisible(false), 300)
       return () => clearTimeout(timer)
     }
-  }, [isOpen])
+  }, [isOpen, applySize, sizeRef])
 
   // Sync settings state when changed externally (e.g., header theme toggle)
   useEffect(() => {
@@ -578,10 +591,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (isDraggingRef.current && panelRef.current) {
-        const newX = Math.max(0, Math.min(window.innerWidth - 720, e.clientX - dragOffsetRef.current.x))
-        const newY = Math.max(0, Math.min(window.innerHeight - 520, e.clientY - dragOffsetRef.current.y))
+        const newX = Math.max(0, Math.min(window.innerWidth - sizeRef.current.w, e.clientX - dragOffsetRef.current.x))
+        const newY = Math.max(0, Math.min(window.innerHeight - sizeRef.current.h, e.clientY - dragOffsetRef.current.y))
         positionRef.current = { x: newX, y: newY }
-        // Direct DOM manipulation - no React re-render
         panelRef.current.style.left = `${newX}px`
         panelRef.current.style.top = `${newY}px`
       }
@@ -600,7 +612,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [])
+  }, [sizeRef])
 
   // Update settings
   const updateSetting = <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
@@ -692,12 +704,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         ref={panelRef}
         className="fixed z-[999]"
         style={{
-          left: positionRef.current.x || '50%',
-          top: positionRef.current.y || '50%',
-          marginLeft: positionRef.current.x ? 0 : -360,
-          marginTop: positionRef.current.y ? 0 : -260,
-          width: 720,
-          height: 520,
+          width: SETTINGS_DEFAULT_W,
+          height: SETTINGS_DEFAULT_H,
           transform: isAnimatingIn
             ? "scale(1) translateY(0)"
             : "scale(0.95) translateY(10px)",
@@ -706,6 +714,9 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         }}
         onMouseDown={handleMouseDown}
       >
+        {/* Resize handles */}
+        <ResizeHandles onResizeStart={startResize} />
+
         {/* Clean Panel Container */}
         <div
           className="relative w-full h-full rounded-xl overflow-hidden bg-white dark:bg-slate-900"
@@ -721,7 +732,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           <div
             className="panel-titlebar h-12 flex items-center px-4 cursor-grab active:cursor-grabbing bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700"
           >
-            <TrafficLights onClose={onClose} />
+            <TrafficLights onClose={onClose} onRestore={restoreDefault} onMaximize={maximize} />
             <div className="flex-1 text-center">
               <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
                 Settings

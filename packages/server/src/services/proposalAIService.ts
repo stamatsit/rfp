@@ -1580,3 +1580,42 @@ export async function streamProposalInsights(
     res,
   })
 }
+
+/**
+ * Get structured proposal metrics for the Library data browser.
+ * Reuses calculateWinRates — no AI involved.
+ */
+export async function getProposalMetrics() {
+  const proposals = await getAllProposals()
+  if (!proposals || proposals.length === 0) {
+    return null
+  }
+
+  const winRates = calculateWinRates(proposals)
+
+  // Date range
+  const dates = proposals
+    .map(p => p.date ? new Date(p.date) : null)
+    .filter((d): d is Date => d !== null && !isNaN(d.getTime()))
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  return {
+    summary: {
+      total: proposals.length,
+      won: winRates.wonCount,
+      lost: winRates.lostCount,
+      pending: winRates.pendingCount,
+      winRate: Math.round(winRates.overall * 100),
+      dateRange: {
+        from: dates[0]?.toISOString() || null,
+        to: dates[dates.length - 1]?.toISOString() || null,
+      },
+    },
+    byService: winRates.byService,
+    byCE: winRates.byCE,
+    bySchoolType: winRates.bySchoolType,
+    byYear: winRates.byYear,
+    byAffiliation: winRates.byAffiliation,
+    byCategory: winRates.byCategory,
+  }
+}

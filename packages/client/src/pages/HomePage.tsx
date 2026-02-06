@@ -15,7 +15,8 @@ import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
 import { useAuth } from "@/contexts/AuthContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
-import { topicsApi, answersApi, photosApi, healthApi } from "@/lib/api"
+import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
+import { clientSuccessData } from "@/data/clientSuccessData"
 
 // Dynamic greeting based on time of day
 function getGreeting(): string {
@@ -31,17 +32,41 @@ interface StatPhrase {
   text: string
 }
 
-function generateStatPhrases(stats: { topics: number; answers: number; photos: number }): StatPhrase[] | null {
+interface HomeStats {
+  topics: number
+  answers: number
+  photos: number
+  proposals: number
+  winRate: number
+}
+
+function generateStatPhrases(stats: HomeStats): StatPhrase[] | null {
   const phrases: StatPhrase[] = []
 
+  // Interleave sources: library, proposals, client success, library, client success...
   if (stats.answers > 0) {
     phrases.push({ number: stats.answers.toLocaleString(), text: " answers ready" })
+  }
+  if (stats.winRate > 0) {
+    phrases.push({ number: `${Math.round(stats.winRate * 100)}%`, text: " win rate" })
+  }
+  if (clientSuccessData.caseStudies.length > 0) {
+    phrases.push({ number: clientSuccessData.caseStudies.length.toLocaleString(), text: " client results" })
   }
   if (stats.topics > 0) {
     phrases.push({ number: stats.topics.toLocaleString(), text: " topics covered" })
   }
+  if (stats.proposals > 0) {
+    phrases.push({ number: stats.proposals.toLocaleString(), text: " proposals tracked" })
+  }
+  if (clientSuccessData.testimonials.length > 0) {
+    phrases.push({ number: clientSuccessData.testimonials.length.toLocaleString(), text: " testimonials" })
+  }
   if (stats.photos > 0) {
     phrases.push({ number: stats.photos.toLocaleString(), text: " photos available" })
+  }
+  if (clientSuccessData.awards.length > 0) {
+    phrases.push({ number: clientSuccessData.awards.length.toLocaleString(), text: " awards won" })
   }
 
   return phrases.length > 0 ? phrases : null
@@ -138,21 +163,23 @@ interface CardProps {
   badge?: string
 }
 
-function Card({ to, icon, title, description, gradient, shadowColor, badge }: CardProps) {
+function Card({ to, icon, title, description, gradient, shadowColor, badge, onClick }: CardProps & { onClick?: () => void }) {
+  const Wrapper = onClick ? "div" : Link
+  const wrapperProps = onClick ? { onClick, role: "button", tabIndex: 0 } : { to }
   return (
-    <Link
-      to={to}
-      className="group relative block rounded-2xl p-6
+    <Wrapper
+      {...(wrapperProps as Record<string, unknown>)}
+      className="group relative block rounded-2xl p-6 cursor-pointer
                  bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.06]
                  transition-all duration-[350ms] ease-out
                  hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
       style={{
         boxShadow: '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)',
       }}
-      onMouseEnter={(e) => {
+      onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
         e.currentTarget.style.boxShadow = `0 0 0 1px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.03)`
       }}
-      onMouseLeave={(e) => {
+      onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
         e.currentTarget.style.boxShadow = '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
       }}
     >
@@ -196,7 +223,7 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge }: Ca
           strokeWidth={2}
         />
       </div>
-    </Link>
+    </Wrapper>
   )
 }
 
@@ -234,7 +261,7 @@ const defaultCards = [
     to: "/new",
     icon: <PenLine size={22} strokeWidth={2} />,
     title: "New Entry",
-    description: "Manually add individual Q&A entries to the library",
+    description: "Manually add individual entries to the library",
     gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
   },
@@ -269,20 +296,21 @@ const defaultCards = [
 ]
 
 // Load cached stats from localStorage
-function loadCachedStats(): { topics: number; answers: number; photos: number } {
+function loadCachedStats(): HomeStats {
   try {
     const cached = localStorage.getItem("stamats-library-stats")
     if (cached) {
-      return JSON.parse(cached)
+      const parsed = JSON.parse(cached)
+      return { topics: 0, answers: 0, photos: 0, proposals: 0, winRate: 0, ...parsed }
     }
   } catch {
     // Ignore parse errors
   }
-  return { topics: 0, answers: 0, photos: 0 }
+  return { topics: 0, answers: 0, photos: 0, proposals: 0, winRate: 0 }
 }
 
 // Save stats to localStorage
-function saveCachedStats(stats: { topics: number; answers: number; photos: number }) {
+function saveCachedStats(stats: HomeStats) {
   try {
     localStorage.setItem("stamats-library-stats", JSON.stringify(stats))
   } catch {
@@ -308,19 +336,34 @@ export function HomePage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [topicsRes, answersRes, photosRes, health] = await Promise.all([
+        const [topicsRes, answersRes, photosRes, health, syncStatus] = await Promise.all([
           topicsApi.getAll().catch(() => []),
           answersApi.getAll().catch(() => []),
           photosApi.getAll().catch(() => []),
           healthApi.check().catch(() => null),
+          proposalInsightsApi.getSyncStatus().catch(() => null),
         ])
-        const newStats = {
+
+        // Get win rate from metrics if we have proposals
+        let winRate = 0
+        if (syncStatus && syncStatus.totalProposals > 0) {
+          try {
+            const metrics = await proposalInsightsApi.getMetrics()
+            winRate = metrics.summary?.winRate ?? 0
+          } catch {
+            // Metrics not available
+          }
+        }
+
+        const newStats: HomeStats = {
           topics: Array.isArray(topicsRes) ? topicsRes.length : 0,
           answers: Array.isArray(answersRes) ? answersRes.length : 0,
           photos: Array.isArray(photosRes) ? photosRes.length : 0,
+          proposals: syncStatus?.totalProposals ?? 0,
+          winRate,
         }
         // Only update if we got real data
-        if (newStats.answers > 0 || newStats.topics > 0 || newStats.photos > 0) {
+        if (newStats.answers > 0 || newStats.topics > 0 || newStats.photos > 0 || newStats.proposals > 0) {
           setStats(newStats)
           saveCachedStats(newStats)
         }
@@ -431,7 +474,11 @@ export function HomePage() {
           {/* Action Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
             {visibleCards.map((card) => (
-              <Card key={card.id || card.to} {...card} />
+              <Card
+                key={card.id || card.to}
+                {...card}
+                onClick={card.id === "new-entry" ? () => window.dispatchEvent(new CustomEvent("open-new-entry")) : undefined}
+              />
             ))}
           </div>
         </div>

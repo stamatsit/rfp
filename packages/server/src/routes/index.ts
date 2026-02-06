@@ -10,6 +10,7 @@ import rfpRouter from "./rfp.js"
 import proposalsRouter from "./proposals.js"
 import unifiedAIRouter from "./unifiedAI.js"
 import feedbackRouter from "./feedback.js"
+import clientSuccessRouter from "./clientSuccess.js"
 
 const router = Router()
 
@@ -24,5 +25,6 @@ router.use("/rfp", rfpRouter)
 router.use("/proposals", proposalsRouter)
 router.use("/unified-ai", unifiedAIRouter)
 router.use("/feedback", feedbackRouter)
+router.use("/client-success", clientSuccessRouter)
 
 export default router

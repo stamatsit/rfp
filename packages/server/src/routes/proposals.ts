@@ -6,7 +6,7 @@
  */
 
 import { Router, type Request, type Response } from "express"
-import { queryProposalInsights, streamProposalInsights } from "../services/proposalAIService.js"
+import { queryProposalInsights, streamProposalInsights, getProposalMetrics } from "../services/proposalAIService.js"
 import { getSyncStatus, triggerSync } from "../services/proposalSyncService.js"
 
 const router = Router()
@@ -93,6 +93,23 @@ router.post("/sync/trigger", async (_req: Request, res: Response) => {
   } catch (error) {
     console.error("Manual sync failed:", error)
     res.status(500).json({ error: "Sync failed" })
+  }
+})
+
+/**
+ * GET /api/proposals/metrics
+ * Get structured proposal metrics for the Library data browser
+ */
+router.get("/metrics", async (_req: Request, res: Response) => {
+  try {
+    const metrics = await getProposalMetrics()
+    if (!metrics) {
+      return res.json({ summary: null, byService: {}, byCE: {}, bySchoolType: {}, byYear: {}, byAffiliation: {}, byCategory: {} })
+    }
+    res.json(metrics)
+  } catch (error) {
+    console.error("Failed to get proposal metrics:", error)
+    res.status(500).json({ error: "Failed to get proposal metrics" })
   }
 })
 

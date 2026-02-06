@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import { useSearchParams } from "react-router-dom"
 import {
   Search,
   Copy,
@@ -25,9 +26,19 @@ import {
   AlertTriangle,
   Trash2,
   FolderOpen,
+  Trophy,
+  TrendingUp,
+  Quote,
+  Award,
+  ArrowUp,
+  ArrowDown,
+  Plus,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { RelatedContent } from "@/components/RelatedContent"
+import { clientSuccessData } from "@/data/clientSuccessData"
+import { proposalInsightsApi, type ProposalMetrics, clientSuccessApi } from "@/lib/api"
+import { NewEntryPanel } from "@/components/NewEntryPanel"
 import {
   Button,
   Card,
@@ -123,7 +134,765 @@ function PhotoCardSkeleton() {
   )
 }
 
+type LibrarySection = "qa" | "client-success" | "proposals"
+type ClientSuccessTab = "success" | "results" | "testimonials" | "awards"
+
+// ─── Client-side search helper ───
+function matchesSearch(text: string, query: string): boolean {
+  if (!query.trim()) return true
+  const terms = query.toLowerCase().split(/\s+/)
+  const lower = text.toLowerCase()
+  return terms.every((term) => lower.includes(term))
+}
+
+// ─── Sort option types per tab ───
+type SuccessSort = "client-az" | "client-za" | "metrics-most" | "metrics-least" | "category"
+type ResultsSort = "value-high" | "value-low" | "client-az" | "client-za" | "metric-az"
+type TestimonialsSort = "org-az" | "org-za" | "name-az" | "shortest" | "longest"
+type AwardsSort = "newest" | "oldest" | "client-az" | "name-az"
+
+// ─── Client Success Section ───
+function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
+  const [tab, setTab] = useState<ClientSuccessTab>("success")
+  const [query, setQuery] = useState("")
+  const [debouncedQuery, setDebouncedQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState("all")
+  const [directionFilter, setDirectionFilter] = useState("all")
+  const [expandedId, setExpandedId] = useState<number | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [successSort, setSuccessSort] = useState<SuccessSort>("client-az")
+  const [resultsSort, setResultsSort] = useState<ResultsSort>("value-high")
+  const [testimonialSort, setTestimonialSort] = useState<TestimonialsSort>("org-az")
+  const [awardSort, setAwardSort] = useState<AwardsSort>("newest")
+
+  // DB-sourced entries (merged with static data)
+  const [dbEntries, setDbEntries] = useState<{ id: string; client: string; category: "higher-ed" | "healthcare" | "other"; focus: string; challenge: string | null; solution: string | null; metrics: { label: string; value: string }[]; testimonialQuote: string | null; testimonialAttribution: string | null }[]>([])
+  const [dbResults, setDbResults] = useState<{ id: string; metric: string; result: string; client: string; numericValue: number; direction: "increase" | "decrease" }[]>([])
+  const [dbTestimonials, setDbTestimonials] = useState<{ id: string; quote: string; name: string | null; title: string | null; organization: string }[]>([])
+  const [dbAwards, setDbAwards] = useState<{ id: string; name: string; year: string; clientOrProject: string }[]>([])
+
+  // Fetch DB entries
+  useEffect(() => {
+    clientSuccessApi.getEntries().then(setDbEntries).catch(() => {})
+    clientSuccessApi.getResults().then(setDbResults).catch(() => {})
+    clientSuccessApi.getTestimonials().then(setDbTestimonials).catch(() => {})
+    clientSuccessApi.getAwards().then(setDbAwards).catch(() => {})
+  }, [refreshKey])
+
+  const handleDelete = useCallback(async (type: "entry" | "result" | "testimonial" | "award", id: string) => {
+    try {
+      if (type === "entry") { await clientSuccessApi.deleteEntry(id); setDbEntries(prev => prev.filter(e => e.id !== id)) }
+      if (type === "result") { await clientSuccessApi.deleteResult(id); setDbResults(prev => prev.filter(e => e.id !== id)) }
+      if (type === "testimonial") { await clientSuccessApi.deleteTestimonial(id); setDbTestimonials(prev => prev.filter(e => e.id !== id)) }
+      if (type === "award") { await clientSuccessApi.deleteAward(id); setDbAwards(prev => prev.filter(e => e.id !== id)) }
+    } catch { /* ignore */ }
+  }, [])
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300)
+    return () => clearTimeout(timer)
+  }, [query])
+
+  // Reset filters when switching tabs
+  useEffect(() => {
+    setQuery("")
+    setDebouncedQuery("")
+    setCategoryFilter("all")
+    setDirectionFilter("all")
+    setExpandedId(null)
+  }, [tab])
+
+  const handleCopy = useCallback(async (text: string, id: string) => {
+    await navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }, [])
+
+  // Filtered + sorted data (merge static + DB entries)
+  const filteredSuccessItems = useMemo(() => {
+    const staticItems = clientSuccessData.caseStudies.map(cs => ({ ...cs, source: "static" as const, dbId: null as string | null }))
+    const userItems = dbEntries.map((e, i) => ({
+      id: 10000 + i,
+      client: e.client,
+      category: e.category,
+      focus: e.focus,
+      challenge: e.challenge || "",
+      solution: e.solution || "",
+      metrics: e.metrics || [],
+      testimonial: e.testimonialQuote ? { quote: e.testimonialQuote, attribution: e.testimonialAttribution || "" } : undefined,
+      awards: [] as string[],
+      source: "user" as const,
+      dbId: e.id as string | null,
+    }))
+    const all = [...staticItems, ...userItems]
+    const filtered = all.filter((cs) => {
+      if (categoryFilter !== "all" && cs.category !== categoryFilter) return false
+      const searchText = `${cs.client} ${cs.focus} ${cs.challenge} ${cs.solution}`
+      return matchesSearch(searchText, debouncedQuery)
+    })
+    return filtered.sort((a, b) => {
+      switch (successSort) {
+        case "client-az": return a.client.localeCompare(b.client)
+        case "client-za": return b.client.localeCompare(a.client)
+        case "metrics-most": return b.metrics.length - a.metrics.length
+        case "metrics-least": return a.metrics.length - b.metrics.length
+        case "category": return a.category.localeCompare(b.category)
+        default: return 0
+      }
+    })
+  }, [debouncedQuery, categoryFilter, successSort, dbEntries])
+
+  const filteredResults = useMemo(() => {
+    const staticItems = clientSuccessData.topLineResults.map(r => ({ ...r, source: "static" as const, dbId: null as string | null }))
+    const userItems = dbResults.map(r => ({
+      metric: r.metric,
+      result: r.result,
+      client: r.client,
+      numericValue: r.numericValue,
+      direction: r.direction,
+      source: "user" as const,
+      dbId: r.id as string | null,
+    }))
+    const all = [...staticItems, ...userItems]
+    const filtered = all.filter((r) => {
+      if (directionFilter !== "all" && r.direction !== directionFilter) return false
+      const searchText = `${r.metric} ${r.client} ${r.result}`
+      return matchesSearch(searchText, debouncedQuery)
+    })
+    return filtered.sort((a, b) => {
+      switch (resultsSort) {
+        case "value-high": return b.numericValue - a.numericValue
+        case "value-low": return a.numericValue - b.numericValue
+        case "client-az": return a.client.localeCompare(b.client)
+        case "client-za": return b.client.localeCompare(a.client)
+        case "metric-az": return a.metric.localeCompare(b.metric)
+        default: return 0
+      }
+    })
+  }, [debouncedQuery, directionFilter, resultsSort, dbResults])
+
+  const filteredTestimonials = useMemo(() => {
+    const staticItems = clientSuccessData.testimonials.map(t => ({ ...t, source: "static" as const, dbId: null as string | null }))
+    const userItems = dbTestimonials.map(t => ({
+      quote: t.quote,
+      name: t.name || "",
+      title: t.title || "",
+      organization: t.organization,
+      source: "user" as const,
+      dbId: t.id as string | null,
+    }))
+    const all = [...staticItems, ...userItems]
+    const filtered = all.filter((t) => {
+      const searchText = `${t.quote} ${t.name} ${t.organization}`
+      return matchesSearch(searchText, debouncedQuery)
+    })
+    return filtered.sort((a, b) => {
+      switch (testimonialSort) {
+        case "org-az": return a.organization.localeCompare(b.organization)
+        case "org-za": return b.organization.localeCompare(a.organization)
+        case "name-az": return (a.name || "").localeCompare(b.name || "")
+        case "shortest": return a.quote.length - b.quote.length
+        case "longest": return b.quote.length - a.quote.length
+        default: return 0
+      }
+    })
+  }, [debouncedQuery, testimonialSort, dbTestimonials])
+
+  const filteredAwards = useMemo(() => {
+    const staticItems = clientSuccessData.awards.map(a => ({ ...a, source: "static" as const, dbId: null as string | null }))
+    const userItems = dbAwards.map(a => ({
+      name: a.name,
+      year: a.year,
+      clientOrProject: a.clientOrProject,
+      source: "user" as const,
+      dbId: a.id as string | null,
+    }))
+    const all = [...staticItems, ...userItems]
+    const filtered = all.filter((a) => {
+      const searchText = `${a.name} ${a.clientOrProject}`
+      return matchesSearch(searchText, debouncedQuery)
+    })
+    return filtered.sort((a, b) => {
+      switch (awardSort) {
+        case "newest": return b.year.localeCompare(a.year)
+        case "oldest": return a.year.localeCompare(b.year)
+        case "client-az": return a.clientOrProject.localeCompare(b.clientOrProject)
+        case "name-az": return a.name.localeCompare(b.name)
+        default: return 0
+      }
+    })
+  }, [debouncedQuery, awardSort, dbAwards])
+
+  const totalSuccess = clientSuccessData.caseStudies.length + dbEntries.length
+  const totalResults = clientSuccessData.topLineResults.length + dbResults.length
+  const totalTestimonials = clientSuccessData.testimonials.length + dbTestimonials.length
+  const totalAwards = clientSuccessData.awards.length + dbAwards.length
+
+  const tabs: { id: ClientSuccessTab; label: string; count: number }[] = [
+    { id: "success", label: "Client Success", count: totalSuccess },
+    { id: "results", label: "Results", count: totalResults },
+    { id: "testimonials", label: "Testimonials", count: totalTestimonials },
+    { id: "awards", label: "Awards", count: totalAwards },
+  ]
+
+  const formatSuccessItem = (cs: typeof clientSuccessData.caseStudies[0]) => {
+    let text = `## ${cs.client} — ${cs.focus}\n\n`
+    text += `**Challenge:** ${cs.challenge}\n\n`
+    text += `**Solution:** ${cs.solution}\n\n`
+    text += `**Results:**\n`
+    for (const m of cs.metrics) {
+      text += `- ${m.label}: ${m.value}\n`
+    }
+    if (cs.testimonial) {
+      text += `\n**Testimonial:**\n"${cs.testimonial.quote}"\n— ${cs.testimonial.attribution}\n`
+    }
+    return text
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-6 py-6 space-y-4">
+        {/* Sub-tabs */}
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+          {tabs.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTab(t.id)}
+              className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                tab === t.id
+                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              }`}
+            >
+              {t.label}
+              <span className="ml-1.5 text-[11px] opacity-60">{t.count}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Search + Filter + Sort row */}
+        <div className="flex gap-3 items-center">
+          <div className="flex-1 relative group">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={
+                tab === "success" ? "Search client success..." :
+                tab === "results" ? "Search results..." :
+                tab === "testimonials" ? "Search testimonials..." :
+                "Search awards..."
+              }
+              className="pl-9 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg"
+            />
+            {query && (
+              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          {/* Filter dropdown (only for tabs that need it) */}
+          {tab === "success" && (
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-36 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="higher-ed">Higher Ed</SelectItem>
+                <SelectItem value="healthcare">Healthcare</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {tab === "results" && (
+            <Select value={directionFilter} onValueChange={setDirectionFilter}>
+              <SelectTrigger className="w-36 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Directions</SelectItem>
+                <SelectItem value="increase">Increase</SelectItem>
+                <SelectItem value="decrease">Decrease</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {/* Sort dropdown */}
+          {tab === "success" && (
+            <Select value={successSort} onValueChange={(v) => setSuccessSort(v as SuccessSort)}>
+              <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="client-az">Client A–Z</SelectItem>
+                <SelectItem value="client-za">Client Z–A</SelectItem>
+                <SelectItem value="metrics-most">Most Metrics</SelectItem>
+                <SelectItem value="metrics-least">Fewest Metrics</SelectItem>
+                <SelectItem value="category">Category</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {tab === "results" && (
+            <Select value={resultsSort} onValueChange={(v) => setResultsSort(v as ResultsSort)}>
+              <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="value-high">Highest Value</SelectItem>
+                <SelectItem value="value-low">Lowest Value</SelectItem>
+                <SelectItem value="client-az">Client A–Z</SelectItem>
+                <SelectItem value="client-za">Client Z–A</SelectItem>
+                <SelectItem value="metric-az">Metric A–Z</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {tab === "testimonials" && (
+            <Select value={testimonialSort} onValueChange={(v) => setTestimonialSort(v as TestimonialsSort)}>
+              <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="org-az">Organization A–Z</SelectItem>
+                <SelectItem value="org-za">Organization Z–A</SelectItem>
+                <SelectItem value="name-az">Name A–Z</SelectItem>
+                <SelectItem value="shortest">Shortest First</SelectItem>
+                <SelectItem value="longest">Longest First</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+          {tab === "awards" && (
+            <Select value={awardSort} onValueChange={(v) => setAwardSort(v as AwardsSort)}>
+              <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="client-az">Client A–Z</SelectItem>
+                <SelectItem value="name-az">Award A–Z</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Results count */}
+        <p className="text-[13px] text-slate-400 dark:text-slate-500">
+          {tab === "success" && `Showing ${filteredSuccessItems.length} of ${totalSuccess}`}
+          {tab === "results" && `Showing ${filteredResults.length} of ${totalResults}`}
+          {tab === "testimonials" && `Showing ${filteredTestimonials.length} of ${totalTestimonials}`}
+          {tab === "awards" && `Showing ${filteredAwards.length} of ${totalAwards}`}
+        </p>
+
+        {/* ─── Client Success ─── */}
+        {tab === "success" && (
+          <div className="space-y-2">
+            {filteredSuccessItems.map((cs) => (
+              <div key={cs.id} className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 overflow-hidden">
+                <button
+                  onClick={() => setExpandedId(expandedId === cs.id ? null : cs.id)}
+                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-sm text-slate-900 dark:text-white">{cs.client}</span>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+                        cs.category === "higher-ed" ? "text-blue-600 border-blue-200 dark:border-blue-800" :
+                        cs.category === "healthcare" ? "text-teal-600 border-teal-200 dark:border-teal-800" :
+                        "text-slate-500 border-slate-200 dark:border-slate-700"
+                      }`}>
+                        {cs.category === "higher-ed" ? "Higher Ed" : cs.category === "healthcare" ? "Healthcare" : "Other"}
+                      </Badge>
+                    </div>
+                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{cs.focus}</p>
+                  </div>
+                  <span className="text-[11px] text-slate-400 shrink-0">{cs.metrics.length} metrics</span>
+                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${expandedId === cs.id ? "rotate-180" : ""}`} />
+                </button>
+
+                {expandedId === cs.id && (
+                  <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-700 space-y-3 pt-3">
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Challenge</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{cs.challenge}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Solution</p>
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{cs.solution}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Results</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {cs.metrics.map((m, i) => (
+                          <div key={i} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">{m.label}</p>
+                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {cs.testimonial && (
+                      <div className="bg-slate-50 dark:bg-slate-700/30 rounded-lg p-3 border-l-2 border-slate-300 dark:border-slate-600">
+                        <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{cs.testimonial.quote}"</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">— {cs.testimonial.attribution}</p>
+                      </div>
+                    )}
+                    {cs.awards && cs.awards.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Awards</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {cs.awards.map((award, i) => (
+                            <Badge key={i} variant="outline" className="text-[11px] text-amber-600 border-amber-200 dark:border-amber-800">
+                              <Award size={10} className="mr-1" />{award}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      <button
+                        onClick={() => handleCopy(formatSuccessItem(cs), `cs-${cs.id}`)}
+                        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                      >
+                        {copiedId === `cs-${cs.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+                        {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
+                      </button>
+                      {cs.source === "user" && cs.dbId && (
+                        <button
+                          onClick={() => handleDelete("entry", cs.dbId!)}
+                          className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            {filteredSuccessItems.length === 0 && (
+              <div className="text-center py-12 text-sm text-slate-400">No results match your search.</div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Results ─── */}
+        {tab === "results" && (
+          <div className="space-y-1">
+            {filteredResults.map((r, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
+                <span className={`text-sm font-bold w-20 shrink-0 text-right ${
+                  r.direction === "increase" ? "text-emerald-600" : "text-amber-600"
+                }`}>
+                  {r.result}
+                </span>
+                {r.direction === "increase"
+                  ? <ArrowUp size={12} className="text-emerald-500 shrink-0" />
+                  : <ArrowDown size={12} className="text-amber-500 shrink-0" />
+                }
+                <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{r.metric}</span>
+                <span className="text-xs text-slate-400 shrink-0">{r.client}</span>
+                <button
+                  onClick={() => handleCopy(`${r.result} ${r.metric} — ${r.client}`, `r-${i}`)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                </button>
+                {r.source === "user" && r.dbId && (
+                  <button
+                    onClick={() => handleDelete("result", r.dbId!)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={13} className="text-red-400 hover:text-red-600" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {filteredResults.length === 0 && (
+              <div className="text-center py-12 text-sm text-slate-400">No results match your search.</div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Testimonials ─── */}
+        {tab === "testimonials" && (
+          <div className="space-y-2">
+            {filteredTestimonials.map((t, i) => (
+              <div key={i} className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 px-4 py-3 group">
+                <div className="flex gap-3">
+                  <Quote size={16} className="text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={`text-sm text-slate-700 dark:text-slate-300 ${expandedId !== -(i + 1) ? "line-clamp-2" : ""} cursor-pointer`}
+                      onClick={() => setExpandedId(expandedId === -(i + 1) ? null : -(i + 1))}
+                    >
+                      {t.quote}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      {t.name && <span className="font-medium">{t.name}</span>}
+                      {t.name && t.title && ", "}
+                      {t.title}
+                      {(t.name || t.title) && t.organization && " — "}
+                      {t.organization}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => handleCopy(
+                        `"${t.quote}"\n— ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`,
+                        `t-${i}`
+                      )}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      {copiedId === `t-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                    </button>
+                    {t.source === "user" && t.dbId && (
+                      <button
+                        onClick={() => handleDelete("testimonial", t.dbId!)}
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={13} className="text-red-400 hover:text-red-600" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {filteredTestimonials.length === 0 && (
+              <div className="text-center py-12 text-sm text-slate-400">No testimonials match your search.</div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Awards ─── */}
+        {tab === "awards" && (
+          <div className="space-y-1">
+            {filteredAwards.map((a, i) => (
+              <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
+                <Award size={14} className="text-amber-500 shrink-0" />
+                <span className="text-sm font-medium text-slate-900 dark:text-white flex-1">{a.name}</span>
+                <Badge variant="outline" className="text-[11px] text-slate-500 border-slate-200 dark:border-slate-700">{a.year}</Badge>
+                <span className="text-xs text-slate-400">{a.clientOrProject}</span>
+                {a.source === "user" && a.dbId && (
+                  <button
+                    onClick={() => handleDelete("award", a.dbId!)}
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Trash2 size={13} className="text-red-400 hover:text-red-600" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {filteredAwards.length === 0 && (
+              <div className="text-center py-12 text-sm text-slate-400">No awards match your search.</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── Proposals Section ───
+function ProposalsSection() {
+  const [metrics, setMetrics] = useState<ProposalMetrics | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [breakdownTab, setBreakdownTab] = useState<"service" | "ce" | "schoolType" | "year">("service")
+  const [query, setQuery] = useState("")
+  const [sortCol, setSortCol] = useState<"name" | "total" | "won" | "rate">("rate")
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc")
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    proposalInsightsApi.getMetrics()
+      .then((data) => { if (!cancelled) setMetrics(data) })
+      .catch((err) => { if (!cancelled) setError(err.message) })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+
+  const breakdownData = useMemo(() => {
+    if (!metrics) return []
+    const source =
+      breakdownTab === "service" ? metrics.byService :
+      breakdownTab === "ce" ? metrics.byCE :
+      breakdownTab === "schoolType" ? metrics.bySchoolType :
+      metrics.byYear
+    return Object.entries(source)
+      .map(([name, data]) => ({ name, ...data, rate: Math.round(data.rate * 100) }))
+      .filter((row) => !query.trim() || row.name.toLowerCase().includes(query.toLowerCase()))
+      .sort((a, b) => {
+        const val = sortCol === "name" ? a.name.localeCompare(b.name) :
+          sortCol === "total" ? a.total - b.total :
+          sortCol === "won" ? a.won - b.won :
+          a.rate - b.rate
+        return sortDir === "desc" ? -val : val
+      })
+  }, [metrics, breakdownTab, query, sortCol, sortDir])
+
+  const handleSort = (col: typeof sortCol) => {
+    if (sortCol === col) {
+      setSortDir(sortDir === "desc" ? "asc" : "desc")
+    } else {
+      setSortCol(col)
+      setSortDir("desc")
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <Loader2 size={24} className="animate-spin text-slate-400" />
+      </div>
+    )
+  }
+
+  if (error || !metrics?.summary) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle size={24} className="mx-auto text-slate-400 mb-2" />
+          <p className="text-sm text-slate-500">{error || "No proposal data available"}</p>
+        </div>
+      </div>
+    )
+  }
+
+  const { summary } = metrics
+
+  return (
+    <div className="flex-1 overflow-y-auto">
+      <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+        {/* Summary cards */}
+        <div className="grid grid-cols-4 gap-3">
+          {[
+            { label: "Total Proposals", value: summary.total },
+            { label: "Win Rate", value: `${summary.winRate}%` },
+            { label: "Won", value: summary.won },
+            { label: "Lost", value: summary.lost },
+          ].map((card) => (
+            <div key={card.label} className="bg-white dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-3">
+              <p className="text-xs text-slate-500 dark:text-slate-400">{card.label}</p>
+              <p className="text-xl font-semibold text-slate-900 dark:text-white mt-0.5">{card.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Breakdown tabs */}
+        <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 rounded-lg p-1 w-fit">
+          {([
+            { id: "service" as const, label: "By Service" },
+            { id: "ce" as const, label: "By Account Exec" },
+            { id: "schoolType" as const, label: "By School Type" },
+            { id: "year" as const, label: "By Year" },
+          ]).map((t) => (
+            <button
+              key={t.id}
+              onClick={() => { setBreakdownTab(t.id); setQuery("") }}
+              className={`px-3 py-1.5 rounded-md text-[13px] font-medium transition-all ${
+                breakdownTab === t.id
+                  ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative group max-w-sm">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter..."
+            className="pl-9 h-9 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg"
+          />
+        </div>
+
+        {/* Table */}
+        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700">
+                {([
+                  { col: "name" as const, label: breakdownTab === "ce" ? "Account Exec" : breakdownTab === "schoolType" ? "School Type" : breakdownTab === "year" ? "Year" : "Service" },
+                  { col: "total" as const, label: "Proposals" },
+                  { col: "won" as const, label: "Won" },
+                  { col: "rate" as const, label: "Win Rate" },
+                ]).map((h) => (
+                  <th
+                    key={h.col}
+                    onClick={() => handleSort(h.col)}
+                    className="text-left px-4 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide cursor-pointer hover:text-slate-700 dark:hover:text-slate-300 select-none"
+                  >
+                    <span className="flex items-center gap-1">
+                      {h.label}
+                      {sortCol === h.col && (
+                        sortDir === "desc" ? <ChevronDown size={12} /> : <ChevronDown size={12} className="rotate-180" />
+                      )}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
+              {breakdownData.map((row) => (
+                <tr key={row.name} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                  <td className="px-4 py-2.5 text-slate-900 dark:text-white font-medium">{row.name}</td>
+                  <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">{row.total}</td>
+                  <td className="px-4 py-2.5 text-slate-600 dark:text-slate-400">{row.won}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-500 rounded-full"
+                          style={{ width: `${Math.min(row.rate, 100)}%` }}
+                        />
+                      </div>
+                      <span className="text-slate-700 dark:text-slate-300 text-xs font-medium">{row.rate}%</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {breakdownData.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">No data matches your filter.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <p className="text-[11px] text-slate-400">
+          {summary.dateRange.from && summary.dateRange.to && (
+            <>Data range: {new Date(summary.dateRange.from).toLocaleDateString()} — {new Date(summary.dateRange.to).toLocaleDateString()} · {summary.pending} pending</>
+          )}
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function SearchLibrary() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [activeSection, setActiveSection] = useState<LibrarySection>("qa")
+  const [showNewEntry, setShowNewEntry] = useState(false)
+  const [newEntryRefreshKey, setNewEntryRefreshKey] = useState(0)
+  const didAutoOpen = useRef(false)
+
+  // Auto-open New Entry panel if ?newEntry=true
+  useEffect(() => {
+    if (!didAutoOpen.current && searchParams.get("newEntry") === "true") {
+      didAutoOpen.current = true
+      setShowNewEntry(true)
+      setSearchParams({}, { replace: true })
+    }
+  }, [searchParams, setSearchParams])
+
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [typeFilter, setTypeFilter] = useState<SearchItemType>("all")
@@ -297,6 +1066,16 @@ export function SearchLibrary() {
   // Initial load and search on filter changes
   useEffect(() => {
     performSearch()
+  }, [performSearch])
+
+  // Listen for entries saved from global NewEntryPanel
+  useEffect(() => {
+    const handler = () => {
+      setNewEntryRefreshKey(k => k + 1)
+      performSearch()
+    }
+    window.addEventListener("new-entry-saved", handler)
+    return () => window.removeEventListener("new-entry-saved", handler)
   }, [performSearch])
 
   // Sort answers - for "relevance", preserve API order (already sorted by score)
@@ -657,36 +1436,58 @@ export function SearchLibrary() {
     })
   }
 
-  if (isLoading) {
+  if (isLoading && activeSection === "qa") {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
         <AppHeader />
-        <main className="flex-1">
-          <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
-            {/* Skeleton search bar */}
-            <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
-
-            {/* Skeleton content grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-              {/* Answers skeleton */}
-              <div className="lg:col-span-3 space-y-4">
-                <div className="h-6 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-                {[...Array(5)].map((_, i) => (
-                  <AnswerCardSkeleton key={i} />
-                ))}
-              </div>
-              {/* Photos skeleton */}
-              <div className="lg:col-span-2 space-y-3">
-                <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
-                <div className="grid grid-cols-2 gap-3">
-                  {[...Array(4)].map((_, i) => (
-                    <PhotoCardSkeleton key={i} />
+        <div className="flex-1 flex">
+          <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 pt-4 pb-6 px-2.5 space-y-1">
+            {([
+              { id: "qa" as const, label: "Q&A Library", icon: FileText },
+              { id: "client-success" as const, label: "Client Success", icon: Trophy },
+              { id: "proposals" as const, label: "Proposal Data", icon: TrendingUp },
+            ]).map((section) => (
+              <button
+                key={section.id}
+                onClick={() => setActiveSection(section.id)}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left transition-all duration-150 ${
+                  activeSection === section.id
+                    ? "bg-slate-600 text-white shadow-sm"
+                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                }`}
+              >
+                <section.icon size={15} className={activeSection === section.id ? "text-white" : ""} />
+                <span className="text-[13px] font-medium">{section.label}</span>
+              </button>
+            ))}
+            <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
+              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
+                <Plus size={15} /> New Entry
+              </button>
+            </div>
+          </aside>
+          <main className="flex-1">
+            <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
+              <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
+              <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                <div className="lg:col-span-3 space-y-4">
+                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  {[...Array(5)].map((_, i) => (
+                    <AnswerCardSkeleton key={i} />
                   ))}
+                </div>
+                <div className="lg:col-span-2 space-y-3">
+                  <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="grid grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => (
+                      <PhotoCardSkeleton key={i} />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </main>
+          </main>
+        </div>
       </div>
     )
   }
@@ -695,7 +1496,37 @@ export function SearchLibrary() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
-      <main className="flex-1">
+      <div className="flex-1 flex">
+        {/* Sidebar Navigation */}
+        <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 pt-4 pb-6 px-2.5 space-y-1">
+          {([
+            { id: "qa" as const, label: "Q&A Library", icon: FileText },
+            { id: "client-success" as const, label: "Client Success", icon: Trophy },
+            { id: "proposals" as const, label: "Proposal Data", icon: TrendingUp },
+          ]).map((section) => (
+            <button
+              key={section.id}
+              onClick={() => setActiveSection(section.id)}
+              className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left transition-all duration-150 ${
+                activeSection === section.id
+                  ? "bg-slate-600 text-white shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
+              }`}
+            >
+              <section.icon size={15} className={activeSection === section.id ? "text-white" : ""} />
+              <span className="text-[13px] font-medium">{section.label}</span>
+            </button>
+          ))}
+          <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
+            <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
+              <Plus size={15} /> New Entry
+            </button>
+          </div>
+        </aside>
+
+        {/* Content Area */}
+        {activeSection === "qa" ? (
+      <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
           {/* Search bar + Filters (same row) */}
           <div className="flex flex-wrap gap-3 items-center">
@@ -1200,6 +2031,24 @@ export function SearchLibrary() {
           )}
         </div>
       </main>
+        ) : activeSection === "client-success" ? (
+          <ClientSuccessSection refreshKey={newEntryRefreshKey} />
+        ) : (
+          <ProposalsSection />
+        )}
+      </div>
+
+      {/* New Entry Panel */}
+      <NewEntryPanel
+        isOpen={showNewEntry}
+        onClose={() => setShowNewEntry(false)}
+        onSaved={() => {
+          setNewEntryRefreshKey(k => k + 1)
+          // Re-fetch Q&A data when a new Q&A or photo entry is saved
+          performSearch()
+        }}
+        defaultType={activeSection === "client-success" ? "success" : activeSection === "qa" ? "qa" : undefined}
+      />
 
       {/* Answer Detail Dialog */}
       <Dialog open={!!selectedAnswer} onOpenChange={(open) => {

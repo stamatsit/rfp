@@ -888,6 +888,147 @@ export const proposalInsightsApi = {
     })
     return handleResponse<ProposalSyncResult>(response)
   },
+
+  /**
+   * Get structured proposal metrics for the Library data browser
+   */
+  async getMetrics(): Promise<ProposalMetrics> {
+    const response = await fetchWithCredentials(`${API_BASE}/proposals/metrics`)
+    return handleResponse<ProposalMetrics>(response)
+  },
+}
+
+export interface ProposalMetrics {
+  summary: {
+    total: number
+    won: number
+    lost: number
+    pending: number
+    winRate: number
+    dateRange: { from: string | null; to: string | null }
+  } | null
+  byService: Record<string, { won: number; total: number; rate: number }>
+  byCE: Record<string, { won: number; total: number; rate: number }>
+  bySchoolType: Record<string, { won: number; total: number; rate: number }>
+  byYear: Record<string, { won: number; total: number; rate: number }>
+  byAffiliation: Record<string, { won: number; total: number; rate: number }>
+  byCategory: Record<string, { won: number; total: number; rate: number }>
+}
+
+// ─── Client Success Data API ──────
+
+export interface ClientSuccessEntryResponse {
+  id: string
+  client: string
+  category: "higher-ed" | "healthcare" | "other"
+  focus: string
+  challenge: string | null
+  solution: string | null
+  metrics: { label: string; value: string }[]
+  testimonialQuote: string | null
+  testimonialAttribution: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ClientSuccessResultResponse {
+  id: string
+  metric: string
+  result: string
+  client: string
+  numericValue: number
+  direction: "increase" | "decrease"
+  createdAt: string
+}
+
+export interface ClientSuccessTestimonialResponse {
+  id: string
+  quote: string
+  name: string | null
+  title: string | null
+  organization: string
+  createdAt: string
+}
+
+export interface ClientSuccessAwardResponse {
+  id: string
+  name: string
+  year: string
+  clientOrProject: string
+  createdAt: string
+}
+
+export const clientSuccessApi = {
+  // Entries
+  async getEntries(): Promise<ClientSuccessEntryResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/entries`)
+    return handleResponse<ClientSuccessEntryResponse[]>(response)
+  },
+  async createEntry(data: {
+    client: string; category: string; focus: string;
+    challenge?: string; solution?: string;
+    metrics?: { label: string; value: string }[];
+    testimonialQuote?: string; testimonialAttribution?: string;
+  }): Promise<ClientSuccessEntryResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/entries`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessEntryResponse>(response)
+  },
+  async deleteEntry(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/entries/${id}`, { method: "DELETE" })
+  },
+
+  // Results
+  async getResults(): Promise<ClientSuccessResultResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/results`)
+    return handleResponse<ClientSuccessResultResponse[]>(response)
+  },
+  async createResult(data: {
+    metric: string; result: string; client: string; numericValue: number; direction: string;
+  }): Promise<ClientSuccessResultResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/results`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessResultResponse>(response)
+  },
+  async deleteResult(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/results/${id}`, { method: "DELETE" })
+  },
+
+  // Testimonials
+  async getTestimonials(): Promise<ClientSuccessTestimonialResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`)
+    return handleResponse<ClientSuccessTestimonialResponse[]>(response)
+  },
+  async createTestimonial(data: {
+    quote: string; name?: string; title?: string; organization: string;
+  }): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+  async deleteTestimonial(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`, { method: "DELETE" })
+  },
+
+  // Awards
+  async getAwards(): Promise<ClientSuccessAwardResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards`)
+    return handleResponse<ClientSuccessAwardResponse[]>(response)
+  },
+  async createAward(data: {
+    name: string; year: string; clientOrProject: string;
+  }): Promise<ClientSuccessAwardResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+  async deleteAward(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}`, { method: "DELETE" })
+  },
 }
 
 // ─── Unified AI API (Cross-Referential AI) ──────
