@@ -1,8 +1,10 @@
-import { useState } from "react"
-import { Link, useLocation } from "react-router-dom"
-import { ChevronRight, Sparkles, HelpCircle, Sun, Moon, Settings } from "lucide-react"
+import { useState, useRef, useEffect } from "react"
+import { Link, useLocation, useNavigate } from "react-router-dom"
+import { ChevronRight, Sun, Moon, Settings, HelpCircle, LifeBuoy, LogOut, ChevronDown, Bot } from "lucide-react"
 import { useTheme } from "@/contexts/ThemeContext"
+import { useAuth } from "@/contexts/AuthContext"
 import { SettingsPanel, loadSettings, saveSettings } from "./SettingsPanel"
+import { UserAvatar } from "./UserAvatar"
 
 interface BreadcrumbItem {
   label: string
@@ -33,7 +35,6 @@ const pageConfig: Record<string, { title: string }> = {
   "/unified-ai": { title: "Unified AI" },
 }
 
-// Beautiful dark mode toggle component
 function ThemeToggle() {
   const { theme, toggleTheme } = useTheme()
   const isDark = theme === "dark"
@@ -41,7 +42,6 @@ function ThemeToggle() {
   const handleToggle = () => {
     const newTheme = isDark ? "light" : "dark"
     toggleTheme()
-    // Keep SettingsPanel in sync so it doesn't override the toggle
     const current = loadSettings()
     saveSettings({ ...current, theme: newTheme })
   }
@@ -49,48 +49,19 @@ function ThemeToggle() {
   return (
     <button
       onClick={handleToggle}
-      className="relative w-14 h-8 rounded-full p-1 transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-900"
-      style={{
-        background: isDark
-          ? 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
-          : 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)',
-        boxShadow: isDark
-          ? 'inset 0 2px 4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
-          : 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-      }}
+      className="relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none bg-slate-200 dark:bg-slate-700"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+      title={isDark ? 'Light mode' : 'Dark mode'}
     >
-      {/* Stars for dark mode */}
-      <div className={`absolute inset-0 overflow-hidden rounded-full transition-opacity duration-300 ${isDark ? 'opacity-100' : 'opacity-0'}`}>
-        <div className="absolute top-1.5 left-2 w-0.5 h-0.5 bg-white/60 rounded-full" />
-        <div className="absolute top-3 left-3.5 w-1 h-1 bg-white/40 rounded-full" />
-        <div className="absolute bottom-2 left-2.5 w-0.5 h-0.5 bg-white/50 rounded-full" />
-      </div>
-
-      {/* Sun rays for light mode */}
-      <div className={`absolute inset-0 overflow-hidden rounded-full transition-opacity duration-300 ${isDark ? 'opacity-0' : 'opacity-100'}`}>
-        <div className="absolute top-1 right-3 w-1 h-1 bg-amber-400/60 rounded-full" />
-        <div className="absolute bottom-1.5 right-2 w-0.5 h-0.5 bg-amber-400/40 rounded-full" />
-      </div>
-
-      {/* Toggle knob */}
       <div
-        className={`relative w-6 h-6 rounded-full shadow-lg transition-all duration-300 ease-out flex items-center justify-center ${
-          isDark ? 'translate-x-6' : 'translate-x-0'
+        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full flex items-center justify-center transition-transform duration-200 bg-white dark:bg-slate-500 shadow-sm ${
+          isDark ? 'translate-x-5' : 'translate-x-0'
         }`}
-        style={{
-          background: isDark
-            ? 'linear-gradient(135deg, #334155 0%, #1e293b 100%)'
-            : 'linear-gradient(135deg, #ffffff 0%, #fef3c7 100%)',
-          boxShadow: isDark
-            ? '0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)'
-            : '0 2px 8px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.8)',
-        }}
       >
         {isDark ? (
-          <Moon size={14} className="text-slate-300" strokeWidth={2} />
+          <Moon size={10} className="text-slate-200" strokeWidth={2.5} />
         ) : (
-          <Sun size={14} className="text-amber-500" strokeWidth={2} />
+          <Sun size={10} className="text-amber-500" strokeWidth={2.5} />
         )}
       </div>
     </button>
@@ -103,10 +74,27 @@ export function AppHeader({
   showAskAI = true,
 }: AppHeaderProps) {
   const location = useLocation()
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
   const isHomePage = location.pathname === "/"
   const currentPage = pageConfig[location.pathname]
   const displayTitle = title || currentPage?.title
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setIsUserMenuOpen(false)
+      }
+    }
+    if (isUserMenuOpen) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isUserMenuOpen])
 
   // Generate default breadcrumbs if not provided
   const defaultBreadcrumbs: BreadcrumbItem[] = isHomePage
@@ -197,58 +185,83 @@ export function AppHeader({
             {/* Theme Toggle */}
             <ThemeToggle />
 
-            {location.pathname !== "/help" && (
-              <Link to="/help">
-                <button
-                  className="inline-flex items-center justify-center w-9 h-9
-                             text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
-                             rounded-xl
-                             transition-all duration-200 ease-out
-                             hover:bg-slate-100/80 dark:hover:bg-slate-800/80 active:scale-95"
-                  title="Help"
-                >
-                  <HelpCircle size={18} strokeWidth={1.75} />
-                </button>
+            {/* Ask AI — icon only */}
+            {showAskAI && location.pathname !== "/ai" && (
+              <Link
+                to="/ai"
+                className="text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors duration-200 active:scale-95"
+                title="Ask AI"
+              >
+                <Bot size={20} strokeWidth={2} />
               </Link>
             )}
-            <button
-              onClick={() => setIsSettingsOpen(true)}
-              className={`inline-flex items-center justify-center w-9 h-9
-                         text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
-                         rounded-xl
-                         transition-all duration-200 ease-out
-                         hover:bg-slate-100/80 dark:hover:bg-slate-800/80 active:scale-95
-                         ${isSettingsOpen ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" : ""}`}
-              title="Settings"
-            >
-              <Settings size={18} strokeWidth={1.75} className={`transition-transform duration-300 ${isSettingsOpen ? "rotate-90" : ""}`} />
-            </button>
+
+            {/* User Menu */}
+            {user && (
+              <div ref={userMenuRef} className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className={`hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-200
+                             hover:bg-slate-100/80 dark:hover:bg-slate-800/80
+                             ${isUserMenuOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}
+                >
+                  <UserAvatar user={user} size="sm" />
+                  <span className="text-[13px] text-slate-600 dark:text-slate-400 font-medium">
+                    {user.name}
+                  </span>
+                  <ChevronDown size={14} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isUserMenuOpen ? "rotate-180" : ""}`} />
+                </button>
+
+                {/* Dropdown */}
+                {isUserMenuOpen && (
+                  <div
+                    className="absolute right-0 top-full mt-1.5 w-52 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg shadow-black/10 dark:shadow-black/30 z-[100]"
+                  >
+                    {/* User info header */}
+                    <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-700">
+                      <p className="text-[13px] font-medium text-slate-900 dark:text-white">{user.name}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500">{user.email}</p>
+                    </div>
+
+                    <div className="py-1">
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); setIsSettingsOpen(true) }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <Settings size={15} className="text-slate-400 dark:text-slate-500" />
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); navigate("/help") }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <HelpCircle size={15} className="text-slate-400 dark:text-slate-500" />
+                        Help
+                      </button>
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); navigate("/support") }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                      >
+                        <LifeBuoy size={15} className="text-slate-400 dark:text-slate-500" />
+                        Support
+                      </button>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700 pt-1">
+                      <button
+                        onClick={() => { setIsUserMenuOpen(false); logout() }}
+                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                      >
+                        <LogOut size={15} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <SettingsPanel isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
-            {showAskAI && location.pathname !== "/ai" && (
-              <Link to="/ai">
-                <button
-                  className="group relative inline-flex items-center gap-1.5 px-4 py-2
-                             text-white text-[13px] font-medium
-                             rounded-full overflow-hidden
-                             transition-all duration-300 ease-out
-                             active:scale-[0.97]"
-                  style={{
-                    background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)',
-                    boxShadow: '0 1px 2px rgba(139, 92, 246, 0.3), 0 4px 12px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
-                  }}
-                >
-                  {/* Shimmer effect on hover */}
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(255,255,255,0.1) 100%)',
-                    }}
-                  />
-                  <Sparkles size={14} strokeWidth={2.5} className="relative z-10" />
-                  <span className="relative z-10">Ask AI</span>
-                </button>
-              </Link>
-            )}
           </div>
         </div>
       </div>

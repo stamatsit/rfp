@@ -33,7 +33,7 @@ import {
   Label,
   Textarea,
 } from "@/components/ui"
-import { ChatContainer } from "@/components/chat"
+import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { topicsApi, aiApi, photosApi, type AIQueryResponse, type AdaptationType } from "@/lib/api"
 import { CHAT_THEMES, type ChatMessage } from "@/types/chat"
@@ -75,6 +75,7 @@ export function AskAI() {
   const chat = useChat({
     endpoint: "/ai/query",
     streamEndpoint: "/ai/stream",
+    page: "ask-ai",
     parseResult,
     buildBody: useCallback((query: string) => ({
       query,
@@ -434,6 +435,17 @@ export function AskAI() {
       renderContent={renderContent}
       renderExtraContent={renderExtraContent}
       renderActions={renderActions}
+      sidebar={
+        <ChatHistorySidebar
+          conversations={chat.conversationList}
+          activeId={chat.conversationId}
+          theme={theme}
+          onSelect={chat.loadConversation}
+          onNew={chat.startNewConversation}
+          onDelete={chat.deleteConversation}
+          onRename={chat.renameConversation}
+        />
+      }
       emptyState={
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div

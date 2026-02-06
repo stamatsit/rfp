@@ -1,12 +1,22 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 
+export interface User {
+  id: string
+  email: string
+  name: string
+  avatarUrl: string | null
+}
+
 interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
+  user: User | null
+  mustChangePassword: boolean
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
   setAuthenticated: (value: boolean) => void
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -22,6 +32,8 @@ export function useAuth() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [user, setUser] = useState<User | null>(null)
+  const [mustChangePassword, setMustChangePassword] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -35,18 +47,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       const data = await response.json()
       setIsAuthenticated(data.authenticated === true)
+      setUser(data.user || null)
+      setMustChangePassword(data.mustChangePassword || false)
 
-      // If not authenticated and not on login page, redirect to login
       if (!data.authenticated && location.pathname !== "/login") {
         navigate("/login", { replace: true })
+      } else if (data.authenticated && data.mustChangePassword && location.pathname !== "/change-password") {
+        navigate("/change-password", { replace: true })
       }
     } catch (error) {
       setIsAuthenticated(false)
+      setUser(null)
+      setMustChangePassword(false)
       if (location.pathname !== "/login") {
         navigate("/login", { replace: true })
       }
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const refreshUser = async () => {
+    try {
+      const response = await fetch("/api/auth/status", { credentials: "include" })
+      const data = await response.json()
+      if (data.authenticated && data.user) {
+        setUser(data.user)
+      }
+    } catch {
+      // Silent — user state unchanged
     }
   }
 
@@ -60,6 +89,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout error:", error)
     } finally {
       setIsAuthenticated(false)
+      setUser(null)
+      setMustChangePassword(false)
       navigate("/login", { replace: true })
     }
   }
@@ -68,15 +99,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth()
   }, [])
 
-  // Re-check auth on location change (except for login page)
+  // Re-check auth on location change (except for login and change-password pages)
   useEffect(() => {
-    if (location.pathname !== "/login" && !isLoading) {
+    if (location.pathname !== "/login" && location.pathname !== "/change-password" && !isLoading) {
       checkAuth()
     }
   }, [location.pathname])
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, logout, checkAuth, setAuthenticated }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, mustChangePassword, logout, checkAuth, setAuthenticated, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

@@ -15,7 +15,7 @@ import {
   Sparkles,
   Award,
 } from "lucide-react"
-import { ChatContainer } from "@/components/chat"
+import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { clientSuccessData } from "@/data/clientSuccessData"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
@@ -74,6 +74,7 @@ export function CaseStudies() {
   const chat = useChat({
     endpoint: "/ai/case-studies",
     streamEndpoint: "/ai/case-studies/stream",
+    page: "case-studies",
     parseResult,
     parseMetadata: useCallback((data: Record<string, unknown>) =>
       (data.dataUsed as Record<string, unknown>) ?? data
@@ -141,6 +142,17 @@ export function CaseStudies() {
       placeholder="Search client highlights, stats, or testimonials..."
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
+      sidebar={
+        <ChatHistorySidebar
+          conversations={chat.conversationList}
+          activeId={chat.conversationId}
+          theme={theme}
+          onSelect={chat.loadConversation}
+          onNew={chat.startNewConversation}
+          onDelete={chat.deleteConversation}
+          onRename={chat.renameConversation}
+        />
+      }
       emptyState={
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div

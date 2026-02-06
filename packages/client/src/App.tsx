@@ -1,40 +1,55 @@
 import { useState, useEffect, useCallback } from "react"
-import { BrowserRouter, Routes, Route } from "react-router-dom"
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, UnifiedAI } from "./pages"
 import Login from "./pages/Login"
+import ChangePassword from "./pages/ChangePassword"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
 import { ProtectedRoute } from "./components/ProtectedRoute"
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts"
 import { NewEntryPanel } from "./components/NewEntryPanel"
+import { Toaster } from "./components/ui/toast"
 
-function App() {
+function PageTransition({ children }: { children: React.ReactNode }) {
+  const location = useLocation()
+  return (
+    <div key={location.pathname} className="animate-fade-in">
+      {children}
+    </div>
+  )
+}
+
+function AppRoutes() {
   const [showNewEntry, setShowNewEntry] = useState(false)
+  const [newEntryDefaultType, setNewEntryDefaultType] = useState<string | undefined>()
 
-  // Listen for global "open-new-entry" event (dispatched by tiles)
   useEffect(() => {
-    const handler = () => setShowNewEntry(true)
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      setNewEntryDefaultType(detail?.type || undefined)
+      setShowNewEntry(true)
+    }
     window.addEventListener("open-new-entry", handler)
     return () => window.removeEventListener("open-new-entry", handler)
   }, [])
 
   const handleNewEntrySaved = useCallback(() => {
-    // Dispatch event so Library page can refresh if it's open
     window.dispatchEvent(new CustomEvent("new-entry-saved"))
   }, [])
 
   return (
-    <BrowserRouter>
-      <ThemeProvider>
-      <AuthProvider>
-        <KeyboardShortcuts />
-        <NewEntryPanel
-          isOpen={showNewEntry}
-          onClose={() => setShowNewEntry(false)}
-          onSaved={handleNewEntrySaved}
-        />
+    <>
+      <KeyboardShortcuts />
+      <NewEntryPanel
+        isOpen={showNewEntry}
+        onClose={() => setShowNewEntry(false)}
+        onSaved={handleNewEntrySaved}
+        defaultType={newEntryDefaultType as any}
+      />
+      <PageTransition>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
           <Route path="/import" element={<ProtectedRoute><ImportWizard /></ProtectedRoute>} />
           <Route path="/photos" element={<ProtectedRoute><PhotoUpload /></ProtectedRoute>} />
@@ -50,6 +65,18 @@ function App() {
           <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
           <Route path="/unified-ai" element={<ProtectedRoute><UnifiedAI /></ProtectedRoute>} />
         </Routes>
+      </PageTransition>
+      <Toaster />
+    </>
+  )
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <ThemeProvider>
+      <AuthProvider>
+        <AppRoutes />
       </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

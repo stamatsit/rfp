@@ -20,7 +20,7 @@ import {
   Search,
   Briefcase,
 } from "lucide-react"
-import { ChatContainer } from "@/components/chat"
+import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 
@@ -81,6 +81,7 @@ export function UnifiedAI() {
   const chat = useChat({
     endpoint: "/unified-ai/query",
     streamEndpoint: "/unified-ai/stream",
+    page: "unified-ai",
     parseResult,
     parseMetadata: useCallback((data: Record<string, unknown>) => ({
       ...(data.dataUsed as Record<string, unknown> | undefined),
@@ -174,6 +175,17 @@ export function UnifiedAI() {
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
       renderExtraContent={renderExtraContent}
+      sidebar={
+        <ChatHistorySidebar
+          conversations={chat.conversationList}
+          activeId={chat.conversationId}
+          theme={theme}
+          onSelect={chat.loadConversation}
+          onNew={chat.startNewConversation}
+          onDelete={chat.deleteConversation}
+          onRename={chat.renameConversation}
+        />
+      }
       emptyState={
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div

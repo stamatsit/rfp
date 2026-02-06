@@ -7,8 +7,6 @@ import {
   PenLine,
   Sparkles,
   ArrowRight,
-  FileSearch,
-  LogOut,
   TrendingUp,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
@@ -18,12 +16,9 @@ import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
 import { clientSuccessData } from "@/data/clientSuccessData"
 
-// Dynamic greeting based on time of day
-function getGreeting(): string {
-  const hour = new Date().getHours()
-  if (hour < 12) return "Good morning"
-  if (hour < 17) return "Good afternoon"
-  return "Good evening"
+function getGreeting(firstName?: string): string {
+  if (firstName) return `Hello ${firstName}`
+  return "Hello"
 }
 
 // Stats-only phrases generator - returns objects with number and text separate
@@ -164,26 +159,28 @@ interface CardProps {
 }
 
 function Card({ to, icon, title, description, gradient, shadowColor, badge, onClick }: CardProps & { onClick?: () => void }) {
-  const Wrapper = onClick ? "div" : Link
-  const wrapperProps = onClick ? { onClick, role: "button", tabIndex: 0 } : { to }
-  return (
-    <Wrapper
-      {...(wrapperProps as Record<string, unknown>)}
-      className="group relative block rounded-2xl p-6 cursor-pointer
-                 bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.06]
-                 transition-all duration-[350ms] ease-out
-                 hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
-      style={{
-        boxShadow: '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)',
-      }}
-      onMouseEnter={(e: React.MouseEvent<HTMLElement>) => {
-        e.currentTarget.style.boxShadow = `0 0 0 1px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.03)`
-      }}
-      onMouseLeave={(e: React.MouseEvent<HTMLElement>) => {
-        e.currentTarget.style.boxShadow = '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
-      }}
-    >
-      {/* NEW badge */}
+  const [isHovered, setIsHovered] = useState(false)
+  const className = "group relative block rounded-2xl p-6 cursor-pointer bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.06] transition-all duration-[350ms] ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
+  const style = { boxShadow: '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)' }
+  const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
+    setIsHovered(true)
+    e.currentTarget.style.boxShadow = `0 0 0 1px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.03)`
+  }
+  const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
+    setIsHovered(false)
+    e.currentTarget.style.boxShadow = '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
+  }
+
+  const glowElement = (
+    <div
+      className="absolute -inset-1 rounded-2xl blur-2xl transition-opacity duration-500 -z-10"
+      style={{ backgroundColor: shadowColor, opacity: isHovered ? 0.5 : 0 }}
+    />
+  )
+
+  const children = (
+    <>
+      {glowElement}
       {badge && (
         <div className="absolute top-3 right-3">
           <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-full shadow-lg animate-pulse">
@@ -191,39 +188,34 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
           </span>
         </div>
       )}
-
-      {/* Icon container with gradient */}
       <div
-        className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-5 overflow-hidden
-                   transition-transform duration-300 ease-out group-hover:scale-110"
+        className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-5 overflow-hidden transition-transform duration-300 ease-out group-hover:scale-110"
         style={{ background: gradient }}
       >
-        {/* Inner highlight */}
         <div className="absolute inset-0 bg-gradient-to-br from-white/25 to-transparent" />
-        <div className="relative text-white">
-          {icon}
-        </div>
+        <div className="relative text-white">{icon}</div>
       </div>
-
-      {/* Content */}
-      <h3 className="text-[17px] font-semibold text-slate-900 dark:text-white tracking-[-0.01em] mb-1.5 transition-colors">
-        {title}
-      </h3>
-      <p className="text-[14px] text-slate-500 dark:text-slate-400 leading-relaxed transition-colors">
-        {description}
-      </p>
-
-      {/* Action indicator */}
-      <div className="mt-5 flex items-center text-[13px] font-medium text-slate-400 dark:text-slate-500
-                      group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
+      <h3 className="text-[17px] font-semibold text-slate-900 dark:text-white tracking-[-0.01em] mb-1.5 transition-colors">{title}</h3>
+      <p className="text-[14px] text-slate-500 dark:text-slate-400 leading-relaxed transition-colors">{description}</p>
+      <div className="mt-5 flex items-center text-[13px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
         <span>Open</span>
-        <ArrowRight
-          size={14}
-          className="ml-1.5 transition-transform duration-200 ease-out group-hover:translate-x-1"
-          strokeWidth={2}
-        />
+        <ArrowRight size={14} className="ml-1.5 transition-transform duration-200 ease-out group-hover:translate-x-1" strokeWidth={2} />
       </div>
-    </Wrapper>
+    </>
+  )
+
+  if (onClick) {
+    return (
+      <div role="button" tabIndex={0} onClick={onClick} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <Link to={to} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      {children}
+    </Link>
   )
 }
 
@@ -275,15 +267,6 @@ const defaultCards = [
     shadowColor: "rgba(245, 158, 11, 0.15)",
   },
   {
-    id: "rfp-analyzer",
-    to: "/analyze",
-    icon: <FileSearch size={22} strokeWidth={2} />,
-    title: "RFP Analyzer",
-    description: "Upload RFPs and auto-match to your library content",
-    gradient: "linear-gradient(135deg, #F43F5E 0%, #E11D48 50%, #BE123C 100%)",
-    shadowColor: "rgba(244, 63, 94, 0.15)",
-  },
-  {
     id: "proposal-insights",
     to: "/insights",
     icon: <TrendingUp size={22} strokeWidth={2} />,
@@ -319,8 +302,9 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 export function HomePage() {
-  const greeting = getGreeting()
-  const { logout } = useAuth()
+  const { user } = useAuth()
+  const firstName = user?.name?.split(" ")[0]
+  const greeting = getGreeting(firstName)
   const [visibleCards, setVisibleCards] = useState<TileConfig[]>(() => {
     try {
       return getVisibleTiles()
@@ -486,25 +470,10 @@ export function HomePage() {
 
       {/* Footer */}
       <footer className="py-5 px-6 border-t border-black/[0.04] dark:border-white/[0.06] bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm transition-colors">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className="max-w-4xl mx-auto text-center">
           <p className="text-[13px] text-slate-400 dark:text-slate-500 transition-colors">
             © {new Date().getFullYear()} Stamats
           </p>
-          <div className="flex items-center gap-6">
-            <Link
-              to="/support"
-              className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200"
-            >
-              Get Support
-            </Link>
-            <button
-              onClick={logout}
-              className="flex items-center gap-1.5 text-[13px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200"
-            >
-              <LogOut size={14} />
-              Sign Out
-            </button>
-          </div>
         </div>
       </footer>
     </div>

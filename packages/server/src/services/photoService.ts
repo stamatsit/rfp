@@ -177,6 +177,7 @@ export async function createPhoto(data: {
   description?: string
   fileSize?: number
   mimeType?: string
+  createdBy?: string
 }): Promise<PhotoAsset> {
   if (!db) throw new Error("Database not available")
 
@@ -203,7 +204,7 @@ export async function createPhoto(data: {
   }
 
   // Create initial version
-  await createPhotoVersion(result[0], 1)
+  await createPhotoVersion(result[0], 1, data.createdBy)
 
   return result[0]
 }
@@ -220,6 +221,7 @@ export async function updatePhoto(
     status?: "Approved" | "Draft"
     tags?: string[]
     description?: string
+    createdBy?: string
   }
 ): Promise<PhotoAsset> {
   if (!db) throw new Error("Database not available")
@@ -280,7 +282,7 @@ export async function updatePhoto(
 
   // Create new version
   const versionNumber = (await getLatestVersionNumber(id)) + 1
-  await createPhotoVersion(result[0], versionNumber)
+  await createPhotoVersion(result[0], versionNumber, data.createdBy)
 
   // Log the edit
   await logEdit("PHOTO", id, changes)

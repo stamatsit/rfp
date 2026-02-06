@@ -35,7 +35,17 @@ import {
   Gauge,
   BookOpen,
   Layers,
+  User,
+  Camera,
+  Trash2,
+  Lock,
+  Loader2,
 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { UserAvatar } from "@/components/UserAvatar"
+import { AvatarCropDialog } from "@/components/AvatarCropDialog"
+import { accountApi } from "@/lib/api"
+import { toast } from "@/hooks/useToast"
 
 // ============================================================================
 // Settings Types & Storage
@@ -112,7 +122,7 @@ const defaultTiles: TileConfig[] = [
     description: "Upload RFPs and auto-match to your library content",
     gradient: "linear-gradient(135deg, #F43F5E 0%, #E11D48 50%, #BE123C 100%)",
     shadowColor: "rgba(244, 63, 94, 0.15)",
-    enabled: true,
+    enabled: false,
   },
   {
     id: "proposal-insights",
@@ -144,7 +154,7 @@ const defaultTiles: TileConfig[] = [
     description: "Cross-reference all your data: proposals, client results, and library",
     gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
-    enabled: true,
+    enabled: false,
     badge: "POWER",
   },
 ]
@@ -192,18 +202,18 @@ const defaultWidgets: Omit<WidgetConfig, "enabled" | "order">[] = [
   {
     id: "win-rate-chart",
     type: "win-rate-chart",
-    title: "Win Rate",
-    description: "Live win rate trend with animated chart",
-    icon: <LineChart size={18} />,
+    title: "Services",
+    description: "Proposals by service category",
+    icon: <BarChart3 size={18} />,
     gradient: "linear-gradient(135deg, #10B981 0%, #059669 100%)",
     size: "small",
   },
   {
     id: "quick-stats",
     type: "quick-stats",
-    title: "Quick Stats",
-    description: "At-a-glance library metrics",
-    icon: <BarChart3 size={18} />,
+    title: "Top Services",
+    description: "Best-performing service categories",
+    icon: <LineChart size={18} />,
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)",
     size: "small",
   },
@@ -245,9 +255,9 @@ interface AppSettings {
 const SETTINGS_KEY = "stamats-app-settings"
 
 const defaultSettings: AppSettings = {
-  tiles: defaultTiles.map((t, i) => ({ id: t.id, enabled: true, order: i })),
+  tiles: defaultTiles.map((t, i) => ({ id: t.id, enabled: t.enabled, order: i })),
   widgets: defaultWidgets.map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: i })),
-  widgetsEnabled: false,
+  widgetsEnabled: true,
   theme: "system",
   accentColor: "#3B82F6",
   aiAutoSuggest: true,
@@ -483,9 +493,10 @@ function TrafficLights({ onClose, onRestore, onMaximize }: { onClose: () => void
 // Settings Categories
 // ============================================================================
 
-type SettingsCategory = "general" | "appearance" | "home" | "widgets" | "ai" | "accessibility" | "labs"
+type SettingsCategory = "account" | "general" | "appearance" | "home" | "widgets" | "ai" | "accessibility" | "labs"
 
 const categories = [
+  { id: "account" as const, label: "Account", icon: User },
   { id: "general" as const, label: "General", icon: Monitor },
   { id: "appearance" as const, label: "Appearance", icon: Palette },
   { id: "home" as const, label: "Home Screen", icon: LayoutGrid },
@@ -513,8 +524,18 @@ const SETTINGS_MAX_H = 820
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
+  const { user, refreshUser, checkAuth } = useAuth()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general")
+
+  // Account tab state
+  const [currentPw, setCurrentPw] = useState("")
+  const [newPw, setNewPw] = useState("")
+  const [confirmPw, setConfirmPw] = useState("")
+  const [pwLoading, setPwLoading] = useState(false)
+  const [avatarLoading, setAvatarLoading] = useState(false)
+  const [cropFile, setCropFile] = useState<string | null>(null)
+  const avatarInputRef = useRef<HTMLInputElement>(null)
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -777,6 +798,178 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
             {/* Main Content */}
             <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-white dark:bg-slate-900">
+              {/* Account Settings */}
+              {activeCategory === "account" && (
+                <div className="space-y-8">
+                  {/* Profile / Avatar */}
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Profile</h3>
+                    <div className="flex items-center gap-5">
+                      <div className="relative group">
+                        {user && <UserAvatar user={user} size="lg" />}
+                        {avatarLoading && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full">
+                            <Loader2 size={24} className="text-white animate-spin" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-[15px] font-medium text-slate-900 dark:text-white">{user?.name}</p>
+                        <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-3">{user?.email}</p>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => avatarInputRef.current?.click()}
+                            disabled={avatarLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-blue-600 dark:text-blue-400
+                                       bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800
+                                       rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors disabled:opacity-50"
+                          >
+                            <Camera size={12} />
+                            Upload Photo
+                          </button>
+                          {user?.avatarUrl && (
+                            <button
+                              onClick={async () => {
+                                setAvatarLoading(true)
+                                try {
+                                  await accountApi.deleteAvatar()
+                                  await refreshUser()
+                                  toast.success("Avatar removed")
+                                } catch (err) {
+                                  toast.error(err instanceof Error ? err.message : "Failed to remove avatar")
+                                } finally {
+                                  setAvatarLoading(false)
+                                }
+                              }}
+                              disabled={avatarLoading}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium text-red-600 dark:text-red-400
+                                         bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800
+                                         rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors disabled:opacity-50"
+                            >
+                              <Trash2 size={12} />
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0]
+                        if (file) {
+                          const reader = new FileReader()
+                          reader.onload = () => setCropFile(reader.result as string)
+                          reader.readAsDataURL(file)
+                        }
+                        e.target.value = ""
+                      }}
+                    />
+                  </div>
+
+                  {/* Change Password */}
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Change Password</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">Current Password</label>
+                        <div className="relative">
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="password"
+                            value={currentPw}
+                            onChange={(e) => { setCurrentPw(e.target.value) }}
+                            className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
+                                       border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            placeholder="Enter current password"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">New Password</label>
+                        <div className="relative">
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="password"
+                            value={newPw}
+                            onChange={(e) => { setNewPw(e.target.value) }}
+                            className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
+                                       border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            placeholder="Min 8 characters"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">Confirm Password</label>
+                        <div className="relative">
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input
+                            type="password"
+                            value={confirmPw}
+                            onChange={(e) => { setConfirmPw(e.target.value) }}
+                            className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
+                                       border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                            placeholder="Confirm new password"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        disabled={pwLoading || !currentPw || newPw.length < 8 || newPw !== confirmPw}
+                        onClick={async () => {
+                          setPwLoading(true)
+                          try {
+                            await accountApi.changePassword(currentPw, newPw)
+                            toast.success("Password updated successfully")
+                            setCurrentPw("")
+                            setNewPw("")
+                            setConfirmPw("")
+                            await checkAuth()
+                          } catch (err) {
+                            toast.error(err instanceof Error ? err.message : "Failed to change password")
+                          } finally {
+                            setPwLoading(false)
+                          }
+                        }}
+                        className="w-full py-2.5 text-[13px] font-medium text-white bg-blue-500 rounded-xl
+                                   hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors
+                                   flex items-center justify-center gap-2"
+                      >
+                        {pwLoading ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
+                        {pwLoading ? "Updating..." : "Update Password"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Crop dialog */}
+                  {cropFile && (
+                    <AvatarCropDialog
+                      imageSrc={cropFile}
+                      onCancel={() => setCropFile(null)}
+                      onSave={async (blob) => {
+                        setCropFile(null)
+                        setAvatarLoading(true)
+                        try {
+                          await accountApi.uploadAvatar(blob)
+                          await refreshUser()
+                          toast.success("Avatar updated")
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : "Upload failed")
+                        } finally {
+                          setAvatarLoading(false)
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+
               {/* General Settings */}
               {activeCategory === "general" && (
                 <div className="space-y-6">

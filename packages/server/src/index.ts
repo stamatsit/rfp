@@ -93,6 +93,23 @@ app.get("/api/photos/file/:storageKey", async (req, res) => {
   }
 })
 
+// Public avatar route (before requireAuth so img tags can load without auth)
+app.get("/api/auth/avatar/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params
+    if (!userId) return res.status(400).json({ error: "User ID required" })
+
+    const { getAvatarPath } = await import("./services/avatarService.js")
+    const filePath = await getAvatarPath(userId)
+    if (!filePath) return res.status(404).json({ error: "Avatar not found" })
+
+    res.sendFile(filePath)
+  } catch (error) {
+    console.error("Failed to get avatar:", error)
+    res.status(500).json({ error: "Failed to get avatar" })
+  }
+})
+
 // Require authentication for all other API routes
 app.use("/api", requireAuth)
 

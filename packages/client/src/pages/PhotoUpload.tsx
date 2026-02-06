@@ -1,28 +1,17 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import {
   Upload,
   Image as ImageIcon,
   Download,
-  Pencil,
   X,
-  Check,
   Loader2,
-  Trash2,
   Save,
-  CheckCircle2,
-  AlertCircle,
   Search,
-  Filter,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import {
   Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   Input,
-  Badge,
   Select,
   SelectContent,
   SelectItem,
@@ -34,52 +23,24 @@ import {
   DialogTitle,
   DialogDescription,
   Textarea,
-  Label,
 } from "@/components/ui"
 import { topicsApi, photosApi, type PhotoResponse } from "@/lib/api"
 import type { Topic } from "@/types"
 
-interface PendingUpload {
-  file: File
-  preview: string
-  title: string
-  topicId: string
-  status: "Approved" | "Draft"
-  tags: string
-  description: string
-}
-
-// Topic color mapping
-function getTopicColor(index: number) {
-  const colors = [
-    { bg: "bg-blue-50", text: "text-blue-700" },
-    { bg: "bg-purple-50", text: "text-purple-700" },
-    { bg: "bg-teal-50", text: "text-teal-700" },
-    { bg: "bg-orange-50", text: "text-orange-700" },
-    { bg: "bg-pink-50", text: "text-pink-700" },
-    { bg: "bg-emerald-50", text: "text-emerald-700" },
-  ]
-  return colors[index % colors.length]!
-}
-
 export function PhotoUpload() {
   const [topics, setTopics] = useState<Topic[]>([])
   const [photos, setPhotos] = useState<PhotoResponse[]>([])
-  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([])
-  const [isUploading, setIsUploading] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("")
   const [topicFilter, setTopicFilter] = useState<string>("all")
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [showFilters, setShowFilters] = useState(false)
 
-  // Edit dialog state
-  const [editDialogOpen, setEditDialogOpen] = useState(false)
-  const [editPhotoData, setEditPhotoData] = useState<PhotoResponse | null>(null)
+  // Lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [lightboxPhoto, setLightboxPhoto] = useState<PhotoResponse | null>(null)
   const [editForm, setEditForm] = useState({
     displayTitle: "",
     topicId: "",
@@ -89,39 +50,31 @@ export function PhotoUpload() {
   })
   const [isSaving, setIsSaving] = useState(false)
 
-  // Filter photos based on search and filters
   const filteredPhotos = useMemo(() => {
     return photos.filter((photo) => {
-      // Search filter
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase()
         const matchesTitle = photo.displayTitle.toLowerCase().includes(query)
         const matchesDescription = photo.description?.toLowerCase().includes(query)
         const matchesTags = photo.tags?.some(tag => tag.toLowerCase().includes(query))
-        if (!matchesTitle && !matchesDescription && !matchesTags) {
-          return false
-        }
+        if (!matchesTitle && !matchesDescription && !matchesTags) return false
       }
-
-      // Topic filter
-      if (topicFilter !== "all" && photo.topicId !== topicFilter) {
-        return false
-      }
-
-      // Status filter
-      if (statusFilter !== "all" && photo.status !== statusFilter) {
-        return false
-      }
-
+      if (topicFilter !== "all" && photo.topicId !== topicFilter) return false
+      if (statusFilter !== "all" && photo.status !== statusFilter) return false
       return true
     })
   }, [photos, searchQuery, topicFilter, statusFilter])
 
-  // Count active filters
-  const activeFilterCount = [
-    topicFilter !== "all",
-    statusFilter !== "all",
-  ].filter(Boolean).length
+  const hasActiveFilters = topicFilter !== "all" || statusFilter !== "all"
+
+  const loadPhotos = useCallback(async () => {
+    try {
+      const photosData = await photosApi.getAll()
+      setPhotos(photosData)
+    } catch (err) {
+      console.error("Failed to refresh photos:", err)
+    }
+  }, [])
 
   // Load topics and photos on mount
   useEffect(() => {
@@ -129,12 +82,10 @@ export function PhotoUpload() {
       try {
         setIsLoading(true)
         setError(null)
-
         const [topicsData, photosData] = await Promise.all([
           topicsApi.getAll(),
           photosApi.getAll(),
         ])
-
         setTopics(
           topicsData.map((t) => ({
             id: t.id,
@@ -151,75 +102,22 @@ export function PhotoUpload() {
         setIsLoading(false)
       }
     }
-
     loadData()
   }, [])
 
-  const handleFilesSelected = (files: FileList) => {
-    const newUploads: PendingUpload[] = Array.from(files).map((file) => ({
-      file,
-      preview: URL.createObjectURL(file),
-      title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
-      topicId: "",
-      status: "Approved" as const,
-      tags: "",
-      description: "",
-    }))
-    setPendingUploads([...pendingUploads, ...newUploads])
+  // Listen for new-entry-saved to refresh photo list
+  useEffect(() => {
+    const handler = () => { loadPhotos() }
+    window.addEventListener("new-entry-saved", handler)
+    return () => window.removeEventListener("new-entry-saved", handler)
+  }, [loadPhotos])
+
+  const openUploadPanel = () => {
+    window.dispatchEvent(new CustomEvent("open-new-entry", { detail: { type: "photo" } }))
   }
 
-  const updatePendingUpload = (index: number, updates: Partial<PendingUpload>) => {
-    const updated = [...pendingUploads]
-    const item = updated[index]
-    if (item) {
-      updated[index] = { ...item, ...updates }
-      setPendingUploads(updated)
-    }
-  }
-
-  const removePendingUpload = (index: number) => {
-    const upload = pendingUploads[index]
-    if (upload) {
-      URL.revokeObjectURL(upload.preview)
-    }
-    setPendingUploads(pendingUploads.filter((_, i) => i !== index))
-  }
-
-  const handleUploadAll = async () => {
-    const invalidUploads = pendingUploads.filter((u) => !u.topicId)
-    if (invalidUploads.length > 0) {
-      alert("Please select a topic for all photos")
-      return
-    }
-
-    setIsUploading(true)
-    setError(null)
-
-    try {
-      const files = pendingUploads.map((u) => u.file)
-      const metadata = pendingUploads.map((u) => ({
-        title: u.title,
-        topicId: u.topicId,
-        status: u.status,
-        tags: u.tags,
-        description: u.description,
-      }))
-
-      const result = await photosApi.upload(files, metadata)
-
-      setPhotos([...result.photos, ...photos])
-      pendingUploads.forEach((u) => URL.revokeObjectURL(u.preview))
-      setPendingUploads([])
-    } catch (err) {
-      console.error("Failed to upload photos:", err)
-      setError(err instanceof Error ? err.message : "Failed to upload photos")
-    } finally {
-      setIsUploading(false)
-    }
-  }
-
-  const handleEdit = (photo: PhotoResponse) => {
-    setEditPhotoData(photo)
+  const openLightbox = (photo: PhotoResponse) => {
+    setLightboxPhoto(photo)
     setEditForm({
       displayTitle: photo.displayTitle,
       topicId: photo.topicId,
@@ -227,15 +125,14 @@ export function PhotoUpload() {
       tags: photo.tags?.join(", ") || "",
       description: photo.description || "",
     })
-    setEditDialogOpen(true)
+    setLightboxOpen(true)
   }
 
-  const savePhotoChanges = async () => {
-    if (!editPhotoData || !editForm.displayTitle.trim()) return
-
+  const saveLightboxChanges = async () => {
+    if (!lightboxPhoto || !editForm.displayTitle.trim()) return
     setIsSaving(true)
     try {
-      const updated = await photosApi.update(editPhotoData.id, {
+      const updated = await photosApi.update(lightboxPhoto.id, {
         displayTitle: editForm.displayTitle.trim(),
         topicId: editForm.topicId,
         status: editForm.status,
@@ -243,29 +140,31 @@ export function PhotoUpload() {
         description: editForm.description || undefined,
       })
       setPhotos(photos.map((p) => (p.id === updated.id ? updated : p)))
-      setEditDialogOpen(false)
-      setEditPhotoData(null)
+      setLightboxOpen(false)
+      setLightboxPhoto(null)
     } catch (err) {
       console.error("Failed to save photo:", err)
-      alert(err instanceof Error ? err.message : "Failed to save photo")
     } finally {
       setIsSaving(false)
     }
   }
 
-  const handleDownload = (photo: PhotoResponse) => {
+  const handleDownload = (e: React.MouseEvent, photo: PhotoResponse) => {
+    e.stopPropagation()
     window.open(photosApi.getDownloadUrl(photo.id), "_blank")
   }
 
-  const getTopicIndex = (topicId: string) => {
-    return topics.findIndex((t) => t.id === topicId)
+  const clearFilters = () => {
+    setSearchQuery("")
+    setTopicFilter("all")
+    setStatusFilter("all")
   }
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 transition-colors">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+          <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
           <p className="text-slate-500 dark:text-slate-400 text-sm">Loading photos...</p>
         </div>
       </div>
@@ -273,511 +172,274 @@ export function PhotoUpload() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors">
       <AppHeader />
 
       <main className="flex-1">
-        <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center">
-                <X size={16} className="text-red-600" />
-              </div>
-              <p className="text-sm">{error}</p>
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg flex items-center gap-3 text-sm">
+              <X size={16} className="text-red-500 flex-shrink-0" />
+              <p>{error}</p>
             </div>
           )}
 
-          {/* Upload zone */}
-          <Card className="overflow-hidden dark:bg-slate-800 dark:border-slate-700">
-            <CardHeader className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 border-b border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
-                  <Upload size={20} className="text-white" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg dark:text-white">Add New Photos</CardTitle>
-                  <p className="text-slate-500 dark:text-slate-400 text-sm">Drag and drop or click to browse</p>
-                </div>
+          {/* Toolbar */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Title + count */}
+            <div className="flex items-center gap-2.5 mr-auto">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                style={{ background: "linear-gradient(135deg, #F59E0B, #B45309)" }}>
+                <ImageIcon size={16} className="text-white" />
               </div>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6">
-              {/* Drop zone */}
-              <div
-                className={`
-                  border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-all duration-300
-                  ${isDragging
-                    ? "border-purple-500 bg-purple-50/50 dark:bg-purple-900/20 ring-4 ring-purple-500/20"
-                    : "border-slate-300 dark:border-slate-600 bg-gradient-to-b from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800 hover:border-purple-400 dark:hover:border-purple-500 hover:bg-purple-50/30 dark:hover:bg-purple-900/10"
-                  }
-                `}
-                onDragOver={(e) => {
-                  e.preventDefault()
-                  setIsDragging(true)
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={(e) => {
-                  e.preventDefault()
-                  setIsDragging(false)
-                  handleFilesSelected(e.dataTransfer.files)
-                }}
-                onClick={() => {
-                  const input = document.createElement("input")
-                  input.type = "file"
-                  input.accept = "image/*"
-                  input.multiple = true
-                  input.onchange = (e) => {
-                    const files = (e.target as HTMLInputElement).files
-                    if (files) handleFilesSelected(files)
-                  }
-                  input.click()
-                }}
-              >
-                <div className="w-16 h-16 rounded-2xl bg-purple-100 flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon size={28} className="text-purple-600" />
-                </div>
-                <p className="text-lg font-medium text-slate-900">
-                  {isDragging ? "Drop photos here" : "Drop photos here or click to browse"}
-                </p>
-                <p className="text-slate-500 mt-2 text-sm">PNG, JPG, GIF up to 10MB each</p>
-              </div>
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
+                Photos
+              </h1>
+              <span className="text-sm text-slate-400 dark:text-slate-500 tabular-nums">
+                {filteredPhotos.length}
+                {filteredPhotos.length !== photos.length && ` of ${photos.length}`}
+              </span>
+            </div>
 
-              {/* Pending uploads */}
-              {pendingUploads.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-slate-900">
-                      Ready to upload
-                      <span className="text-slate-500 font-normal ml-2">({pendingUploads.length})</span>
-                    </h3>
-                    <Button
-                      size="lg"
-                      onClick={handleUploadAll}
-                      disabled={isUploading}
-                      className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-400 hover:to-blue-400"
-                    >
-                      {isUploading ? (
-                        <>
-                          <Loader2 className="mr-2 animate-spin" size={18} />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="mr-2" size={18} />
-                          Upload All
-                        </>
-                      )}
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {pendingUploads.map((upload, index) => (
-                      <div
-                        key={index}
-                        className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-200 items-start"
-                      >
-                        <div className="w-20 h-20 rounded-xl bg-slate-200 overflow-hidden flex-shrink-0">
-                          <img
-                            src={upload.preview}
-                            alt={upload.title}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex-1 grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs font-medium text-slate-500 mb-1 block">
-                              Title
-                            </label>
-                            <Input
-                              value={upload.title}
-                              onChange={(e) =>
-                                updatePendingUpload(index, { title: e.target.value })
-                              }
-                              placeholder="Photo title"
-                              className="h-9"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-slate-500 mb-1 block">
-                              Topic <span className="text-red-500">*</span>
-                            </label>
-                            <Select
-                              value={upload.topicId}
-                              onValueChange={(value) =>
-                                updatePendingUpload(index, { topicId: value })
-                              }
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Select topic" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {topics.map((topic) => (
-                                  <SelectItem key={topic.id} value={topic.id}>
-                                    {topic.displayName}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-slate-500 mb-1 block">
-                              Tags
-                            </label>
-                            <Input
-                              value={upload.tags}
-                              onChange={(e) =>
-                                updatePendingUpload(index, { tags: e.target.value })
-                              }
-                              placeholder="tag1, tag2, tag3"
-                              className="h-9"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs font-medium text-slate-500 mb-1 block">
-                              Status
-                            </label>
-                            <Select
-                              value={upload.status}
-                              onValueChange={(value: "Approved" | "Draft") =>
-                                updatePendingUpload(index, { status: value })
-                              }
-                            >
-                              <SelectTrigger className="h-9">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Approved">Approved</SelectItem>
-                                <SelectItem value="Draft">Draft</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removePendingUpload(index)}
-                          className="h-8 w-8 text-slate-400 hover:text-red-500"
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Existing photos */}
-          <div>
-            <div className="space-y-4 mb-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-slate-900">
-                  Library Photos
-                  <span className="text-slate-500 font-normal ml-2">
-                    ({filteredPhotos.length}{filteredPhotos.length !== photos.length ? ` of ${photos.length}` : ""})
-                  </span>
-                </h2>
-              </div>
-
-              {/* Search and filter bar */}
-              <div className="flex gap-3 items-center">
-                <div className="flex-1 relative">
-                  <Search
-                    size={18}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  />
-                  <Input
-                    type="text"
-                    placeholder="Search photos by title, description, or tags..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-11 h-11 bg-white border-slate-300 rounded-xl text-base shadow-sm"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      <X size={16} />
-                    </button>
-                  )}
-                </div>
-
-                <Button
-                  variant={showFilters ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className={`h-11 px-4 rounded-xl ${showFilters ? "bg-purple-500 hover:bg-purple-600" : "border-slate-300"}`}
-                >
-                  <Filter size={16} className="mr-2" />
-                  Filters
-                  {activeFilterCount > 0 && (
-                    <span className={`ml-2 px-1.5 py-0.5 text-xs rounded-full ${showFilters ? "bg-white/20 text-white" : "bg-purple-100 text-purple-700"}`}>
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </Button>
-              </div>
-
-              {/* Filter options */}
-              {showFilters && (
-                <div className="flex flex-wrap gap-3 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                  <div className="flex-1 min-w-[150px]">
-                    <label className="text-xs font-medium text-slate-500 mb-1.5 block">Topic</label>
-                    <Select value={topicFilter} onValueChange={setTopicFilter}>
-                      <SelectTrigger className="h-10 rounded-xl bg-white">
-                        <SelectValue placeholder="All Topics" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Topics</SelectItem>
-                        {topics.map((topic) => (
-                          <SelectItem key={topic.id} value={topic.id}>
-                            {topic.displayName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex-1 min-w-[150px]">
-                    <label className="text-xs font-medium text-slate-500 mb-1.5 block">Status</label>
-                    <Select value={statusFilter} onValueChange={setStatusFilter}>
-                      <SelectTrigger className="h-10 rounded-xl bg-white">
-                        <SelectValue placeholder="All Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="Approved">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                            Approved
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="Draft">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle size={14} className="text-amber-500" />
-                            Draft
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {(topicFilter !== "all" || statusFilter !== "all") && (
-                    <div className="flex items-end">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setTopicFilter("all")
-                          setStatusFilter("all")
-                        }}
-                        className="h-10 text-slate-500 hover:text-slate-700"
-                      >
-                        Clear filters
-                      </Button>
-                    </div>
-                  )}
-                </div>
+            {/* Search */}
+            <div className="relative w-64">
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-9 text-sm bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 rounded-lg"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <X size={14} />
+                </button>
               )}
             </div>
 
-            {photos.length === 0 ? (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon size={28} className="text-slate-400" />
-                  </div>
-                  <p className="text-lg font-medium text-slate-900">No photos yet</p>
-                  <p className="text-slate-500 mt-1">Upload some photos to get started</p>
-                </CardContent>
-              </Card>
-            ) : filteredPhotos.length === 0 ? (
-              <Card>
-                <CardContent className="py-16 text-center">
-                  <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-                    <Search size={28} className="text-slate-400" />
-                  </div>
-                  <p className="text-lg font-medium text-slate-900">No photos found</p>
-                  <p className="text-slate-500 mt-1">Try adjusting your search or filters</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setSearchQuery("")
-                      setTopicFilter("all")
-                      setStatusFilter("all")
-                    }}
-                    className="mt-4 rounded-xl"
-                  >
-                    Clear all filters
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredPhotos.map((photo) => {
-                  const topicColor = getTopicColor(getTopicIndex(photo.topicId))
-                  return (
-                    <Card
-                      key={photo.id}
-                      className="overflow-hidden group hover:shadow-lg transition-all duration-300"
-                    >
-                      <div className="aspect-square bg-slate-100 relative overflow-hidden">
-                        <img
-                          src={photosApi.getFileUrl(photo.storageKey)}
-                          alt={photo.displayTitle}
-                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          onError={(e) => {
-                            e.currentTarget.style.display = "none"
-                            e.currentTarget.nextElementSibling?.classList.remove("hidden")
-                          }}
-                        />
-                        <div className="hidden absolute inset-0 flex items-center justify-center">
-                          <ImageIcon size={32} className="text-slate-300" />
-                        </div>
+            {/* Topic filter */}
+            <Select value={topicFilter} onValueChange={setTopicFilter}>
+              <SelectTrigger className="h-9 w-auto min-w-[130px] text-sm rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue placeholder="All Topics" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Topics</SelectItem>
+                {topics.map((topic) => (
+                  <SelectItem key={topic.id} value={topic.id}>
+                    {topic.displayName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+            {/* Status filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-9 w-auto min-w-[110px] text-sm rounded-lg bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+                <SelectValue placeholder="All Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="Approved">Approved</SelectItem>
+                <SelectItem value="Draft">Draft</SelectItem>
+              </SelectContent>
+            </Select>
 
-                        {/* Hover actions */}
-                        <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-full group-hover:translate-y-0 transition-transform">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="flex-1 h-8 bg-white/90 hover:bg-white text-xs"
-                              onClick={() => handleEdit(photo)}
-                            >
-                              <Pencil size={12} className="mr-1" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="flex-1 h-8 bg-white/90 hover:bg-white text-xs"
-                              onClick={() => handleDownload(photo)}
-                            >
-                              <Download size={12} className="mr-1" />
-                              Download
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="p-3">
-                        <p className="font-medium text-sm text-slate-900 truncate" title={photo.displayTitle}>
-                          {photo.displayTitle}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                          <Badge
-                            variant="secondary"
-                            className={`text-xs ${topicColor.bg} ${topicColor.text}`}
-                          >
-                            {topics.find((t) => t.id === photo.topicId)?.displayName || "Unknown"}
-                          </Badge>
-                          {photo.status === "Approved" ? (
-                            <Badge variant="success" className="text-xs">Approved</Badge>
-                          ) : (
-                            <Badge variant="warning" className="text-xs">Draft</Badge>
-                          )}
-                          {photo.tags?.slice(0, 2).map((tag, i) => (
-                            <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-xs">
-                              {tag}
-                            </Badge>
-                          ))}
-                          {photo.tags && photo.tags.length > 2 && (
-                            <Badge variant="outline" className="text-xs">+{photo.tags.length - 2}</Badge>
-                          )}
-                          {photo.linkedAnswersCount && photo.linkedAnswersCount > 0 && (
-                            <Badge variant="outline" className="text-xs">
-                              {photo.linkedAnswersCount} linked
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  )
-                })}
-              </div>
+            {/* Clear filters */}
+            {hasActiveFilters && (
+              <button onClick={clearFilters}
+                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                Clear
+              </button>
             )}
+
+            {/* Upload button */}
+            <Button
+              onClick={openUploadPanel}
+              className="h-9 px-4 text-sm font-medium rounded-lg text-white shadow-sm"
+              style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+            >
+              <Upload size={15} className="mr-1.5" />
+              Upload
+            </Button>
           </div>
+
+          {/* Rule */}
+          <div className="border-t" style={{ borderColor: 'rgba(0,0,0,0.06)' }} />
+
+          {/* Content */}
+          {photos.length === 0 ? (
+            /* Empty state — no photos at all */
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <div className="text-center">
+                <div className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center"
+                  style={{ background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(180,83,9,0.12))" }}>
+                  <ImageIcon size={28} className="text-amber-500" />
+                </div>
+                <h2 className="text-xl font-semibold text-slate-900 dark:text-white">
+                  No photos yet
+                </h2>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-2 max-w-xs mx-auto">
+                  Upload photos to build your library
+                </p>
+                <Button onClick={openUploadPanel}
+                  className="mt-6 h-10 px-5 text-sm text-white rounded-lg"
+                  style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}>
+                  <Upload size={15} className="mr-2" />
+                  Upload Photos
+                </Button>
+              </div>
+            </div>
+          ) : filteredPhotos.length === 0 ? (
+            /* Empty state — filters match nothing */
+            <div className="flex items-center justify-center min-h-[30vh]">
+              <div className="text-center">
+                <Search size={24} className="text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No photos match your filters</p>
+                <button onClick={clearFilters}
+                  className="text-sm text-amber-600 dark:text-amber-400 hover:underline mt-2">
+                  Clear filters
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Photo grid */
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
+              {filteredPhotos.map((photo) => {
+                const topic = topics.find(t => t.id === photo.topicId)
+                return (
+                  <div
+                    key={photo.id}
+                    className="group relative aspect-[4/3] rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 cursor-pointer"
+                    onClick={() => openLightbox(photo)}
+                  >
+                    {/* Image */}
+                    <img
+                      src={photosApi.getFileUrl(photo.storageKey)}
+                      alt={photo.displayTitle}
+                      className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                      loading="lazy"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none"
+                        const fallback = e.currentTarget.nextElementSibling
+                        if (fallback) fallback.classList.remove("hidden")
+                      }}
+                    />
+                    <div className="hidden absolute inset-0 flex items-center justify-center">
+                      <ImageIcon size={24} className="text-slate-300 dark:text-slate-600" />
+                    </div>
+
+                    {/* Draft dot */}
+                    {photo.status === "Draft" && (
+                      <div className="absolute top-2 left-2">
+                        <div className="w-2 h-2 rounded-full bg-amber-400 shadow-sm" />
+                      </div>
+                    )}
+
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    {/* Download button — top right on hover */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                      <button
+                        onClick={(e) => handleDownload(e, photo)}
+                        className="w-8 h-8 rounded-lg bg-black/40 backdrop-blur-sm text-white/90 flex items-center justify-center hover:bg-black/60 transition-colors"
+                      >
+                        <Download size={14} />
+                      </button>
+                    </div>
+
+                    {/* Title + topic — bottom, slides up on hover */}
+                    <div className="absolute bottom-0 left-0 right-0 p-3 translate-y-2 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 ease-out">
+                      <p className="text-white text-sm font-medium truncate">{photo.displayTitle}</p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {topic && (
+                          <span className="text-[11px] text-white/70">{topic.displayName}</span>
+                        )}
+                        {photo.status === "Draft" && (
+                          <span className="text-[10px] uppercase tracking-wider text-amber-300 font-medium">Draft</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </main>
 
-      {/* Edit Photo Dialog */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Photo</DialogTitle>
-            <DialogDescription className="sr-only">
-              Edit photo metadata
-            </DialogDescription>
+      {/* Lightbox Detail Dialog */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Photo Details</DialogTitle>
+            <DialogDescription>View and edit photo metadata</DialogDescription>
           </DialogHeader>
 
-          {editPhotoData && (
-            <div className="space-y-5">
-              {/* Photo preview */}
-              <div className="aspect-video bg-slate-100 rounded-xl overflow-hidden">
+          {lightboxPhoto && (
+            <div>
+              {/* Photo area — dark background */}
+              <div className="relative bg-slate-950 flex items-center justify-center" style={{ maxHeight: "60vh" }}>
                 <img
-                  src={photosApi.getFileUrl(editPhotoData.storageKey)}
-                  alt={editPhotoData.displayTitle}
-                  className="w-full h-full object-contain"
+                  src={photosApi.getFileUrl(lightboxPhoto.storageKey)}
+                  alt={lightboxPhoto.displayTitle}
+                  className="max-w-full max-h-[60vh] object-contain"
                 />
+                <button
+                  onClick={(e) => handleDownload(e, lightboxPhoto)}
+                  className="absolute bottom-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/50 backdrop-blur-sm text-white/90 text-xs font-medium hover:bg-black/70 transition-colors"
+                >
+                  <Download size={13} />
+                  Download
+                </button>
               </div>
 
-              {/* Edit form */}
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-title">Title</Label>
-                  <Input
-                    id="edit-title"
-                    value={editForm.displayTitle}
-                    onChange={(e) => setEditForm({ ...editForm, displayTitle: e.target.value })}
-                    placeholder="Photo title"
-                    className="rounded-xl"
-                  />
-                </div>
+              {/* Metadata area */}
+              <div className="p-6 space-y-4">
+                {/* Title — inline editable heading */}
+                <Input
+                  value={editForm.displayTitle}
+                  onChange={(e) => setEditForm({ ...editForm, displayTitle: e.target.value })}
+                  className="text-lg font-semibold border-0 border-b border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-amber-400 dark:focus:border-amber-500 rounded-none px-0 h-auto py-1 bg-transparent text-slate-900 dark:text-white focus-visible:ring-0 focus-visible:ring-offset-0"
+                  placeholder="Photo title"
+                />
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-topic">Topic</Label>
-                    <Select
-                      value={editForm.topicId}
-                      onValueChange={(v) => setEditForm({ ...editForm, topicId: v })}
-                    >
-                      <SelectTrigger className="rounded-xl">
+                {/* Topic + Status row */}
+                <div className="flex gap-3 flex-wrap">
+                  <div className="flex-1 min-w-[140px]">
+                    <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                      Topic
+                    </label>
+                    <Select value={editForm.topicId} onValueChange={(v) => setEditForm({ ...editForm, topicId: v })}>
+                      <SelectTrigger className="h-9 text-sm rounded-lg">
                         <SelectValue placeholder="Select topic" />
                       </SelectTrigger>
                       <SelectContent>
-                        {topics.map((topic) => (
-                          <SelectItem key={topic.id} value={topic.id}>
-                            {topic.displayName}
-                          </SelectItem>
+                        {topics.map(t => (
+                          <SelectItem key={t.id} value={t.id}>{t.displayName}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-status">Status</Label>
-                    <Select
-                      value={editForm.status}
-                      onValueChange={(v) => setEditForm({ ...editForm, status: v as "Approved" | "Draft" })}
-                    >
-                      <SelectTrigger className="rounded-xl">
-                        <SelectValue placeholder="Select status" />
+                  <div className="w-[130px]">
+                    <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                      Status
+                    </label>
+                    <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as "Approved" | "Draft" })}>
+                      <SelectTrigger className="h-9 text-sm rounded-lg">
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Approved">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 size={14} className="text-emerald-500" />
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                             Approved
                           </div>
                         </SelectItem>
                         <SelectItem value="Draft">
-                          <div className="flex items-center gap-2">
-                            <AlertCircle size={14} className="text-amber-500" />
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                             Draft
                           </div>
                         </SelectItem>
@@ -786,48 +448,60 @@ export function PhotoUpload() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-tags">Tags (comma-separated)</Label>
+                {/* Tags */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                    Tags
+                  </label>
                   <Input
-                    id="edit-tags"
                     value={editForm.tags}
                     onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })}
                     placeholder="tag1, tag2, tag3"
-                    className="rounded-xl"
+                    className="h-9 text-sm rounded-lg"
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-description">Description</Label>
+                {/* Description */}
+                <div>
+                  <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                    Description
+                  </label>
                   <Textarea
-                    id="edit-description"
                     value={editForm.description}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     placeholder="Optional description..."
-                    className="rounded-xl min-h-[80px]"
+                    className="text-sm rounded-lg min-h-[60px] resize-none"
                   />
                 </div>
 
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setEditDialogOpen(false)}
-                    className="flex-1 rounded-xl"
-                    disabled={isSaving}
-                  >
+                {/* File metadata footer */}
+                <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
+                  {lightboxPhoto.originalFilename && (
+                    <span>{lightboxPhoto.originalFilename}</span>
+                  )}
+                  {lightboxPhoto.fileSize && (
+                    <span>{lightboxPhoto.fileSize > 1024 * 1024
+                      ? `${(lightboxPhoto.fileSize / 1024 / 1024).toFixed(1)} MB`
+                      : `${Math.round(lightboxPhoto.fileSize / 1024)} KB`
+                    }</span>
+                  )}
+                  {(lightboxPhoto.linkedAnswersCount ?? 0) > 0 && (
+                    <span>{lightboxPhoto.linkedAnswersCount} linked answer{lightboxPhoto.linkedAnswersCount !== 1 ? "s" : ""}</span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={() => setLightboxOpen(false)}
+                    className="rounded-lg" disabled={isSaving}>
                     Cancel
                   </Button>
-                  <Button
-                    onClick={savePhotoChanges}
-                    className="flex-1 rounded-xl"
-                    disabled={isSaving || !editForm.displayTitle.trim()}
-                  >
-                    {isSaving ? (
-                      <Loader2 size={16} className="mr-2 animate-spin" />
-                    ) : (
-                      <Save size={16} className="mr-2" />
-                    )}
-                    Save Changes
+                  <Button size="sm" onClick={saveLightboxChanges}
+                    className="rounded-lg text-white"
+                    style={{ background: "linear-gradient(135deg, #F59E0B, #D97706)" }}
+                    disabled={isSaving || !editForm.displayTitle.trim()}>
+                    {isSaving ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Save size={14} className="mr-1.5" />}
+                    Save
                   </Button>
                 </div>
               </div>

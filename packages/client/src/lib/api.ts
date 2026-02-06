@@ -1074,6 +1074,66 @@ export const unifiedAIApi = {
   },
 }
 
+// ─── Conversations (Chat History) ─────────────────────────────────
+
+export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai"
+
+export interface ConversationSummary {
+  id: string
+  page: ConversationPage
+  title: string
+  messageCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ConversationFull {
+  id: string
+  page: ConversationPage
+  title: string
+  messages: { role: "user" | "assistant"; content: string; timestamp: string }[]
+  createdAt: string
+  updatedAt: string
+}
+
+export const conversationsApi = {
+  async list(page?: ConversationPage): Promise<ConversationSummary[]> {
+    const params = page ? `?page=${page}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/conversations${params}`)
+    return handleResponse<ConversationSummary[]>(response)
+  },
+
+  async get(id: string): Promise<ConversationFull> {
+    const response = await fetchWithCredentials(`${API_BASE}/conversations/${id}`)
+    return handleResponse<ConversationFull>(response)
+  },
+
+  async create(data: { page: ConversationPage; title: string; messages?: ConversationFull["messages"] }): Promise<ConversationFull> {
+    const response = await fetchWithCredentials(`${API_BASE}/conversations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ConversationFull>(response)
+  },
+
+  async update(id: string, data: { title?: string; messages?: ConversationFull["messages"] }): Promise<ConversationFull> {
+    const response = await fetchWithCredentials(`${API_BASE}/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ConversationFull>(response)
+  },
+
+  async delete(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/conversations/${id}`, {
+      method: "DELETE",
+    })
+    if (!response.ok) throw new ApiError(response.status, "Failed to delete conversation")
+  },
+}
+
 // ─── SSE Streaming Utility ─────────────────────────────────
 
 export interface FetchSSECallbacks {
@@ -1146,4 +1206,50 @@ export async function fetchSSE(
       }
     }
   }
+}
+
+// ─── Account API (avatar, password) ─────────────────────────
+
+export const accountApi = {
+  async uploadAvatar(croppedBlob: Blob): Promise<{ success: boolean; avatarUrl: string }> {
+    const formData = new FormData()
+    formData.append("avatar", croppedBlob, "avatar.webp")
+    const response = await fetchWithCredentials(`${API_BASE}/auth/avatar`, {
+      method: "POST",
+      body: formData,
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || "Upload failed")
+    }
+    return response.json()
+  },
+
+  async deleteAvatar(): Promise<{ success: boolean }> {
+    const response = await fetchWithCredentials(`${API_BASE}/auth/avatar`, {
+      method: "DELETE",
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || "Delete failed")
+    }
+    return response.json()
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean }> {
+    const response = await fetchWithCredentials(`${API_BASE}/auth/change-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || "Failed to change password")
+    }
+    return response.json()
+  },
+
+  getAvatarUrl(userId: string): string {
+    return `${API_BASE}/auth/avatar/${userId}`
+  },
 }

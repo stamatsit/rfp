@@ -90,6 +90,9 @@ const entryTypes: { id: EntryType; label: string; icon: typeof FileText; group: 
 
 export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntryPanelProps) {
   const [activeType, setActiveType] = useState<EntryType>(defaultType || "qa")
+  useEffect(() => {
+    if (defaultType) setActiveType(defaultType)
+  }, [defaultType])
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [saving, setSaving] = useState(false)

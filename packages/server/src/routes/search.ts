@@ -8,6 +8,7 @@ import {
   getLinkedAnswers,
 } from "../services/linkService.js"
 import { logCopy } from "../services/auditService.js"
+import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const router = Router()
 
@@ -231,7 +232,7 @@ router.post("/link", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "answerId and photoId are required" })
     }
 
-    const link = await linkAnswerToPhoto(answerId, photoId)
+    const link = await linkAnswerToPhoto(answerId, photoId, getCurrentUserName(req))
     res.json(link)
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error"

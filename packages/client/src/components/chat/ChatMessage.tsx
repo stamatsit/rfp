@@ -39,7 +39,7 @@ export function ChatMessageItem({
 }: ChatMessageProps) {
   return (
     <div
-      className={`flex gap-4 ${message.role === "user" ? "justify-end" : "justify-start"}`}
+      className={`flex gap-4 animate-fade-in-up ${message.role === "user" ? "justify-end" : "justify-start"}`}
     >
       {message.role === "assistant" && (
         <div

@@ -16,6 +16,7 @@ import {
 } from "../services/photoService.js"
 import { getAllTopics, upsertTopic } from "../services/topicService.js"
 import { logAudit } from "../services/auditService.js"
+import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const STORAGE_DIR = path.resolve(__dirname, "../../../../storage/photos")
@@ -252,6 +253,7 @@ router.post(
           description: meta.description,
           fileSize: file.size,
           mimeType: file.mimetype,
+          createdBy: getCurrentUserName(req),
         })
 
         // Rename the file to use the storage key
@@ -273,6 +275,7 @@ router.post(
           updated: 0,
           skipped: 0,
         },
+        actor: getCurrentUserName(req),
       })
 
       res.json({
@@ -313,6 +316,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       status,
       tags,
       description,
+      createdBy: getCurrentUserName(req),
     })
 
     res.json(photo)
@@ -511,6 +515,7 @@ router.post("/import-folder", async (req: Request, res: Response) => {
           status: "Approved",
           fileSize: stats.size,
           mimeType: `image/${path.extname(filename).slice(1).toLowerCase()}`,
+          createdBy: getCurrentUserName(req),
         })
 
         // Copy the file to storage
@@ -536,6 +541,7 @@ router.post("/import-folder", async (req: Request, res: Response) => {
         imported: results.imported,
         skipped: results.skipped,
       },
+      actor: getCurrentUserName(req),
     })
 
     res.json({

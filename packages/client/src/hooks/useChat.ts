@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
-import { fetchSSE } from "@/lib/api"
+import { fetchSSE, conversationsApi, type ConversationPage, type ConversationSummary } from "@/lib/api"
 import type { ChatMessage } from "@/types/chat"
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
@@ -9,6 +9,8 @@ interface UseChatOptions {
   endpoint: string
   /** Streaming endpoint — if provided, streaming is used */
   streamEndpoint?: string
+  /** Page identifier for conversation persistence */
+  page?: ConversationPage
   parseResult: (data: Record<string, unknown>) => {
     content: string
     followUpPrompts?: string[]
@@ -39,9 +41,17 @@ interface UseChatReturn {
   toggleDataContext: (messageId: string) => void
   abortStream: () => void
   clearMessages: () => void
+  // Conversation history
+  conversationId: string | null
+  conversationList: ConversationSummary[]
+  loadConversation: (id: string) => Promise<void>
+  startNewConversation: () => void
+  deleteConversation: (id: string) => Promise<void>
+  renameConversation: (id: string, title: string) => Promise<void>
+  refreshConversationList: () => Promise<void>
 }
 
-export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, parseMetadata, errorMessage }: UseChatOptions): UseChatReturn {
+export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody, parseMetadata, errorMessage }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -54,6 +64,63 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
   // RAF batching ref for streaming token updates
   const pendingTokensRef = useRef("")
   const rafRef = useRef<number | null>(null)
+
+  // Conversation persistence
+  const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationList, setConversationList] = useState<ConversationSummary[]>([])
+  const conversationIdRef = useRef<string | null>(null)
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Keep ref in sync
+  useEffect(() => { conversationIdRef.current = conversationId }, [conversationId])
+
+  // Load conversation list on mount
+  useEffect(() => {
+    if (page) {
+      refreshConversationList()
+    }
+  }, [page])
+
+  const refreshConversationList = useCallback(async () => {
+    if (!page) return
+    try {
+      const list = await conversationsApi.list(page)
+      setConversationList(list)
+    } catch (err) {
+      console.error("Failed to load conversation list:", err)
+    }
+  }, [page])
+
+  // Auto-save conversation after messages change (debounced)
+  const saveConversation = useCallback(async (msgs: ChatMessage[]) => {
+    if (!page || msgs.length === 0) return
+    // Only save messages with content
+    const saveable = msgs
+      .filter(m => m.content && !m.refused)
+      .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp.toISOString() }))
+    if (saveable.length === 0) return
+
+    const title = saveable.find(m => m.role === "user")?.content.slice(0, 80) || "New conversation"
+
+    try {
+      if (conversationIdRef.current) {
+        await conversationsApi.update(conversationIdRef.current, { messages: saveable })
+      } else {
+        const created = await conversationsApi.create({ page, title, messages: saveable })
+        setConversationId(created.id)
+        conversationIdRef.current = created.id
+      }
+      refreshConversationList()
+    } catch (err) {
+      console.error("Failed to save conversation:", err)
+    }
+  }, [page, refreshConversationList])
+
+  // Schedule save after messages change (debounced to avoid saving mid-stream)
+  const scheduleSave = useCallback((msgs: ChatMessage[]) => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    saveTimeoutRef.current = setTimeout(() => saveConversation(msgs), 500)
+  }, [saveConversation])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -154,16 +221,21 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
             const remainingTokens = pendingTokensRef.current
             pendingTokensRef.current = ""
 
-            setMessages(prev => prev.map(m =>
-              m.id === assistantId
-                ? {
-                    ...m,
-                    content: data.cleanResponse || (m.content + remainingTokens),
-                    followUpPrompts: data.followUpPrompts,
-                    chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
-                  }
-                : m
-            ))
+            setMessages(prev => {
+              const updated = prev.map(m =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      content: data.cleanResponse || (m.content + remainingTokens),
+                      followUpPrompts: data.followUpPrompts,
+                      chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
+                    }
+                  : m
+              )
+              // Save after streaming completes
+              scheduleSave(updated)
+              return updated
+            })
             setIsStreaming(false)
             setIsLoading(false)
             inputRef.current?.focus()
@@ -237,7 +309,11 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
         timestamp: new Date(),
       }
 
-      setMessages(prev => [...prev, assistantMessage])
+      setMessages(prev => {
+        const updated = [...prev, assistantMessage]
+        scheduleSave(updated)
+        return updated
+      })
     } catch (err) {
       console.error("Query failed:", err)
       setMessages(prev => [...prev, {
@@ -252,7 +328,7 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
       setIsLoading(false)
       inputRef.current?.focus()
     }
-  }, [inputValue, isLoading, endpoint, streamEndpoint, parseResult, buildBody, parseMetadata, buildConversationHistory, errorMessage])
+  }, [inputValue, isLoading, endpoint, streamEndpoint, parseResult, buildBody, parseMetadata, buildConversationHistory, errorMessage, scheduleSave])
 
   const handleCopy = useCallback(async (text: string, id: string) => {
     await navigator.clipboard.writeText(text)
@@ -297,7 +373,58 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
   const clearMessages = useCallback(() => {
     abortStream()
     setMessages([])
+    setConversationId(null)
+    conversationIdRef.current = null
   }, [abortStream])
+
+  const loadConversation = useCallback(async (id: string) => {
+    try {
+      const conv = await conversationsApi.get(id)
+      const restored: ChatMessage[] = conv.messages.map((m, i) => ({
+        id: `${m.role}-restored-${i}-${Date.now()}`,
+        role: m.role,
+        content: m.content,
+        timestamp: new Date(m.timestamp),
+      }))
+      setMessages(restored)
+      setConversationId(id)
+      conversationIdRef.current = id
+      inputRef.current?.focus()
+    } catch (err) {
+      console.error("Failed to load conversation:", err)
+    }
+  }, [])
+
+  const startNewConversation = useCallback(() => {
+    abortStream()
+    setMessages([])
+    setConversationId(null)
+    conversationIdRef.current = null
+    inputRef.current?.focus()
+  }, [abortStream])
+
+  const deleteConversation = useCallback(async (id: string) => {
+    try {
+      await conversationsApi.delete(id)
+      if (conversationIdRef.current === id) {
+        setMessages([])
+        setConversationId(null)
+        conversationIdRef.current = null
+      }
+      refreshConversationList()
+    } catch (err) {
+      console.error("Failed to delete conversation:", err)
+    }
+  }, [refreshConversationList])
+
+  const renameConversation = useCallback(async (id: string, title: string) => {
+    try {
+      await conversationsApi.update(id, { title })
+      refreshConversationList()
+    } catch (err) {
+      console.error("Failed to rename conversation:", err)
+    }
+  }, [refreshConversationList])
 
   return {
     messages,
@@ -315,5 +442,12 @@ export function useChat({ endpoint, streamEndpoint, parseResult, buildBody, pars
     toggleDataContext,
     abortStream,
     clearMessages,
+    conversationId,
+    conversationList,
+    loadConversation,
+    startNewConversation,
+    deleteConversation,
+    renameConversation,
+    refreshConversationList,
   }
 }

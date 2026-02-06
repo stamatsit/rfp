@@ -1,4 +1,17 @@
-import { pgTable, text, integer, timestamp, primaryKey, jsonb, uuid } from "drizzle-orm/pg-core"
+import { pgTable, text, integer, timestamp, primaryKey, jsonb, uuid, boolean } from "drizzle-orm/pg-core"
+
+// Users
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash").notNull(),
+  name: text("name").notNull(),
+  mustChangePassword: boolean("must_change_password").notNull().default(true),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+})
 
 // Topics (controlled vocabulary)
 export const topics = pgTable("topics", {
@@ -213,7 +226,20 @@ export const clientSuccessAwards = pgTable("client_success_awards", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// AI Conversations (persisted chat history across all AI pages)
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai"] }).notNull(),
+  title: text("title").notNull(), // Auto-generated from first user message
+  messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
+  userId: text("user_id"), // Owner — null for legacy conversations
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Type exports for use in services
+export type User = typeof users.$inferSelect
+export type NewUser = typeof users.$inferInsert
 export type Topic = typeof topics.$inferSelect
 export type NewTopic = typeof topics.$inferInsert
 export type AnswerItem = typeof answerItems.$inferSelect
@@ -244,3 +270,5 @@ export type ClientSuccessTestimonial = typeof clientSuccessTestimonials.$inferSe
 export type NewClientSuccessTestimonial = typeof clientSuccessTestimonials.$inferInsert
 export type ClientSuccessAward = typeof clientSuccessAwards.$inferSelect
 export type NewClientSuccessAward = typeof clientSuccessAwards.$inferInsert
+export type Conversation = typeof conversations.$inferSelect
+export type NewConversation = typeof conversations.$inferInsert

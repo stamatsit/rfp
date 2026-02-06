@@ -100,7 +100,7 @@ type SortOption = "relevance" | "newest" | "oldest" | "alphabetical"
 function AnswerCardSkeleton() {
   return (
     <Card className="p-4 rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800">
-      <div className="animate-pulse space-y-3">
+      <div className="shimmer space-y-3">
         <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
         <div className="space-y-2">
           <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded" />
@@ -120,7 +120,7 @@ function AnswerCardSkeleton() {
 function PhotoCardSkeleton() {
   return (
     <Card className="overflow-hidden rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800">
-      <div className="animate-pulse">
+      <div className="shimmer">
         <div className="aspect-square bg-slate-200 dark:bg-slate-700" />
         <div className="p-2 space-y-2">
           <div className="h-3 bg-slate-200 dark:bg-slate-700 rounded w-3/4" />
@@ -1468,16 +1468,16 @@ export function SearchLibrary() {
           </aside>
           <main className="flex-1">
             <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
-              <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl animate-pulse" />
+              <div className="h-12 bg-slate-200 dark:bg-slate-700 rounded-xl shimmer" />
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 <div className="lg:col-span-3 space-y-4">
-                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-6 w-24 bg-slate-200 dark:bg-slate-700 rounded shimmer" />
                   {[...Array(5)].map((_, i) => (
                     <AnswerCardSkeleton key={i} />
                   ))}
                 </div>
                 <div className="lg:col-span-2 space-y-3">
-                  <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded animate-pulse" />
+                  <div className="h-6 w-20 bg-slate-200 dark:bg-slate-700 rounded shimmer" />
                   <div className="grid grid-cols-2 gap-3">
                     {[...Array(4)].map((_, i) => (
                       <PhotoCardSkeleton key={i} />

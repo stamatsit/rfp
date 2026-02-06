@@ -185,6 +185,7 @@ export async function createAnswer(data: {
   subtopic?: string
   status?: "Approved" | "Draft"
   tags?: string[]
+  createdBy?: string
 }): Promise<AnswerItem> {
   if (!db) throw new Error("Database not available")
 
@@ -208,7 +209,7 @@ export async function createAnswer(data: {
   }
 
   // Create initial version
-  await createAnswerVersion(result[0], 1)
+  await createAnswerVersion(result[0], 1, data.createdBy)
 
   return result[0]
 }
@@ -226,6 +227,7 @@ export async function updateAnswer(
     subtopic?: string
     status?: "Approved" | "Draft"
     tags?: string[]
+    createdBy?: string
   }
 ): Promise<AnswerItem> {
   if (!db) throw new Error("Database not available")
@@ -299,7 +301,7 @@ export async function updateAnswer(
 
   // Create new version
   const versionNumber = (await getLatestVersionNumber(id)) + 1
-  await createAnswerVersion(result[0], versionNumber)
+  await createAnswerVersion(result[0], versionNumber, data.createdBy)
 
   // Log the edit
   await logEdit("ANSWER", id, changes)

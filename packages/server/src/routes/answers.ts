@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express"
 import { createAnswer, updateAnswer, deleteAnswer, getAnswerById, getAnswerVersions } from "../services/answerService.js"
 import { getTopicById } from "../services/topicService.js"
+import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const router = Router()
 
@@ -64,6 +65,7 @@ router.post("/", async (req: Request, res: Response) => {
       subtopic: subtopic?.trim(),
       status: status || "Draft",
       tags: tags || [],
+      createdBy: getCurrentUserName(req),
     })
 
     res.status(201).json(newAnswer)
@@ -110,6 +112,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       subtopic: subtopic?.trim(),
       status,
       tags,
+      createdBy: getCurrentUserName(req),
     })
 
     res.json(updatedAnswer)

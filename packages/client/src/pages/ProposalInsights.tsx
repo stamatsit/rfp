@@ -20,7 +20,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { Button } from "@/components/ui"
-import { ChatContainer } from "@/components/chat"
+import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { proposalInsightsApi, type ProposalSyncStatus } from "@/lib/api"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
@@ -79,6 +79,7 @@ export function ProposalInsights() {
   const chat = useChat({
     endpoint: "/proposals/query",
     streamEndpoint: "/proposals/stream",
+    page: "proposal-insights",
     parseResult,
     parseMetadata: useCallback((data: Record<string, unknown>) =>
       (data.dataUsed as Record<string, unknown>) ?? data
@@ -180,6 +181,17 @@ export function ProposalInsights() {
       placeholder="Ask about your proposal history..."
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
+      sidebar={
+        <ChatHistorySidebar
+          conversations={chat.conversationList}
+          activeId={chat.conversationId}
+          theme={theme}
+          onSelect={chat.loadConversation}
+          onNew={chat.startNewConversation}
+          onDelete={chat.deleteConversation}
+          onRename={chat.renameConversation}
+        />
+      }
       statusBar={
         <div className="border-b border-slate-200/60 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
           <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
