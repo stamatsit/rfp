@@ -296,7 +296,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Update last login
         await db.update(users).set({ lastLoginAt: new Date() }).where(eq(users.id, user.id))
 
-        const avatarUrl = user.avatarUrl || null
+        // Store only a URL path in session (not full base64) to keep cookie under 4KB browser limit
+        const avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
         const newSessionToken = await createSession({
           authenticated: true,
           userId: user.id,
@@ -305,7 +306,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mustChangePassword: user.mustChangePassword,
           avatarUrl,
         })
-        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({
           success: true,
           mustChangePassword: user.mustChangePassword,
@@ -314,7 +315,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       if (path === "/auth/logout" && method === "POST") {
-        res.setHeader("Set-Cookie", "rfp-session=; Path=/; HttpOnly; Max-Age=0")
+        res.setHeader("Set-Cookie", "rfp-session=; Path=/; HttpOnly; Secure; Max-Age=0")
         return res.json({ success: true })
       }
 
@@ -331,7 +332,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (dbUser) {
             userName = dbUser.name
             userEmail = dbUser.email
-            avatarUrl = dbUser.avatarUrl || null
+            avatarUrl = dbUser.avatarUrl ? `/api/auth/avatar/${session.userId}` : null
           }
         }
         return res.json({
@@ -371,9 +372,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           userName: user.name,
           userEmail: user.email,
           mustChangePassword: false,
-          avatarUrl: session.avatarUrl,
+          avatarUrl: user.avatarUrl ? `/api/auth/avatar/${user.id}` : null,
         })
-        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({ success: true })
       }
 
@@ -386,7 +387,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           if (!db) return res.status(500).json({ error: "Database not configured" })
           const [u] = await db.select().from(users).where(eq(users.id, userId)).limit(1)
           if (!u?.avatarUrl) return res.status(404).json({ error: "No avatar" })
-          // avatarUrl is stored as the Supabase public URL
+          // avatarUrl is a data URL (data:image/webp;base64,...) — serve the bytes directly
+          const dataUrlMatch = u.avatarUrl.match(/^data:(image\/\w+);base64,(.+)$/)
+          if (dataUrlMatch) {
+            const mimeType = dataUrlMatch[1]
+            const buffer = Buffer.from(dataUrlMatch[2], "base64")
+            res.setHeader("Content-Type", mimeType)
+            res.setHeader("Cache-Control", "public, max-age=3600")
+            return res.send(buffer)
+          }
+          // Fallback: if it's a regular URL, redirect
           return res.redirect(302, u.avatarUrl)
         }
 
@@ -429,7 +439,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const dataUrl = `data:${fileMimeType};base64,${fileBuffer.toString("base64")}`
           await db.update(users).set({ avatarUrl: dataUrl, updatedAt: new Date() }).where(eq(users.id, session.userId))
 
-          return res.json({ success: true, avatarUrl: dataUrl })
+          return res.json({ success: true, avatarUrl: `/api/auth/avatar/${session.userId}` })
         }
 
         // DELETE /auth/avatar — clear from DB

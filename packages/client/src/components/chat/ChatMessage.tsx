@@ -70,6 +70,16 @@ export function ChatMessageItem({
 
               {message.chartData && <InlineChart config={message.chartData} theme={theme} />}
 
+              {message.svgData && (
+                <div className="my-3">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{message.svgData.title}</p>
+                  <div
+                    className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-x-auto [&_svg]:max-w-full [&_svg]:h-auto"
+                    dangerouslySetInnerHTML={{ __html: message.svgData.svg }}
+                  />
+                </div>
+              )}
+
               {extraContent}
 
               {dataContextPanel}

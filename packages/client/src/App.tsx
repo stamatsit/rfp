@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react"
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
-import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, UnifiedAI } from "./pages"
+import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, UnifiedAI, DocumentStudio } from "./pages"
 import Login from "./pages/Login"
 import ChangePassword from "./pages/ChangePassword"
 import { AuthProvider } from "./contexts/AuthContext"
@@ -64,6 +64,7 @@ function AppRoutes() {
           <Route path="/insights" element={<ProtectedRoute><ProposalInsights /></ProtectedRoute>} />
           <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
           <Route path="/unified-ai" element={<ProtectedRoute><UnifiedAI /></ProtectedRoute>} />
+          <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
         </Routes>
       </PageTransition>
       <Toaster />

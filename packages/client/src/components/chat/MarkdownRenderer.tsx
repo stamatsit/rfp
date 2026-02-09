@@ -45,6 +45,16 @@ function renderMarkdown(raw: string): string {
     }
   )
 
+  // Extract SVG blocks before line processing (they span multiple lines)
+  // Handle both inline SVG and SVG_DATA: marker from streaming
+  html = html.replace(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)/g, '$1')
+  const svgBlocks: string[] = []
+  html = html.replace(/<svg[\s\S]*?<\/svg>/g, (match) => {
+    const idx = svgBlocks.length
+    svgBlocks.push(match)
+    return `__SVG_BLOCK_${idx}__`
+  })
+
   // Process lines for lists and paragraphs
   const lines = html.split("\n")
   const processed: string[] = []
@@ -54,6 +64,17 @@ function renderMarkdown(raw: string): string {
     const line = lines[i]!
     const bulletMatch = line.match(/^[\s]*[-*]\s+(.+)/)
     const numberMatch = line.match(/^[\s]*(\d+)\.\s+(.+)/)
+
+    // Check for SVG placeholder
+    const svgPlaceholder = line.trim().match(/^__SVG_BLOCK_(\d+)__$/)
+    if (svgPlaceholder) {
+      if (inList) {
+        processed.push(`</${inList}>`)
+        inList = null
+      }
+      processed.push(svgBlocks[parseInt(svgPlaceholder[1]!)]!)
+      continue
+    }
 
     if (bulletMatch) {
       if (inList !== "ul") {
@@ -100,8 +121,25 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         "strong", "em", "br", "ul", "ol", "li", "p", "div",
         "h2", "h3", "pre", "code", "table", "thead",
         "tbody", "tr", "th", "td", "hr",
+        // SVG elements
+        "svg", "circle", "rect", "path", "text", "tspan", "line",
+        "polyline", "polygon", "g", "defs", "use", "clipPath", "mask",
+        "filter", "linearGradient", "radialGradient", "stop",
+        "foreignObject", "marker", "pattern", "symbol", "title", "desc",
       ],
-      ALLOWED_ATTR: ["class"],
+      ALLOWED_ATTR: [
+        "class",
+        // SVG attributes
+        "viewBox", "xmlns", "d", "cx", "cy", "r", "rx", "ry",
+        "x", "y", "x1", "y1", "x2", "y2", "width", "height",
+        "fill", "stroke", "stroke-width", "stroke-linecap",
+        "stroke-linejoin", "stroke-dasharray", "stroke-dashoffset",
+        "opacity", "transform", "font-family", "font-size",
+        "font-weight", "text-anchor", "dominant-baseline", "points",
+        "offset", "stop-color", "stop-opacity", "gradientUnits",
+        "id", "href", "xlink:href", "preserveAspectRatio",
+        "clip-path", "mask", "filter",
+      ],
     })
   }, [content])
 

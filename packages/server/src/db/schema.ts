@@ -229,10 +229,77 @@ export const clientSuccessAwards = pgTable("client_success_awards", {
 // AI Conversations (persisted chat history across all AI pages)
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai"] }).notNull(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general"] }).notNull(),
   title: text("title").notNull(), // Auto-generated from first user message
   messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
   userId: text("user_id"), // Owner — null for legacy conversations
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// ─── Document Studio ───
+
+// Studio Documents
+export const studioDocuments = pgTable("studio_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull().default("Untitled"),
+  content: text("content").notNull().default(""),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  mode: text("mode", { enum: ["draft", "final", "template", "archived"] }).notNull().default("draft"),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  sourceType: text("source_type", { enum: ["briefing", "manual", "review", "ai-generated"] }).notNull().default("manual"),
+  conversationId: uuid("conversation_id"),
+  userId: text("user_id").notNull(),
+  sharedWith: jsonb("shared_with").$type<Array<{ userId: string; permission: "view" | "edit" }>>().notNull().default([]),
+  version: integer("version").notNull().default(1),
+  parentId: uuid("parent_id"),
+  exportHistory: jsonb("export_history").$type<Array<{ format: string; timestamp: string; filename: string }>>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Document Versions (history for diffs and restore)
+export const studioDocumentVersions = pgTable("studio_document_versions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull().references(() => studioDocuments.id, { onDelete: "cascade" }),
+  version: integer("version").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  changeDescription: text("change_description"),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Templates
+export const studioTemplates = pgTable("studio_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  content: text("content").notNull(),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  category: text("category", { enum: ["proposal", "case-study", "report", "presentation", "custom"] }).notNull().default("custom"),
+  isSystem: boolean("is_system").notNull().default(false),
+  userId: text("user_id"),
+  usageCount: integer("usage_count").notNull().default(0),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Assets (per-user asset bucket)
+export const studioAssets = pgTable("studio_assets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["image", "svg", "chart-snapshot", "document-snippet", "logo", "icon"] }).notNull(),
+  data: text("data").notNull(),
+  thumbnail: text("thumbnail"),
+  mimeType: text("mime_type"),
+  fileSize: integer("file_size"),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -272,3 +339,11 @@ export type ClientSuccessAward = typeof clientSuccessAwards.$inferSelect
 export type NewClientSuccessAward = typeof clientSuccessAwards.$inferInsert
 export type Conversation = typeof conversations.$inferSelect
 export type NewConversation = typeof conversations.$inferInsert
+export type StudioDocumentRow = typeof studioDocuments.$inferSelect
+export type NewStudioDocument = typeof studioDocuments.$inferInsert
+export type StudioDocumentVersionRow = typeof studioDocumentVersions.$inferSelect
+export type NewStudioDocumentVersion = typeof studioDocumentVersions.$inferInsert
+export type StudioTemplateRow = typeof studioTemplates.$inferSelect
+export type NewStudioTemplate = typeof studioTemplates.$inferInsert
+export type StudioAssetRow = typeof studioAssets.$inferSelect
+export type NewStudioAsset = typeof studioAssets.$inferInsert

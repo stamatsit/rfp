@@ -257,7 +257,7 @@ const SETTINGS_KEY = "stamats-app-settings"
 const defaultSettings: AppSettings = {
   tiles: defaultTiles.map((t, i) => ({ id: t.id, enabled: t.enabled, order: i })),
   widgets: defaultWidgets.map((w, i) => ({ id: w.id, enabled: true, size: w.size, order: i })),
-  widgetsEnabled: true,
+  widgetsEnabled: false,
   theme: "system",
   accentColor: "#3B82F6",
   aiAutoSuggest: true,

@@ -43,7 +43,7 @@ function generateStatPhrases(stats: HomeStats): StatPhrase[] | null {
     phrases.push({ number: stats.answers.toLocaleString(), text: " answers ready" })
   }
   if (stats.winRate > 0) {
-    phrases.push({ number: `${Math.round(stats.winRate * 100)}%`, text: " win rate" })
+    phrases.push({ number: `${Math.round(stats.winRate)}%`, text: " win rate" })
   }
   if (clientSuccessData.caseStudies.length > 0) {
     phrases.push({ number: clientSuccessData.caseStudies.length.toLocaleString(), text: " client results" })

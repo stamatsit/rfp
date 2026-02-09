@@ -15,6 +15,7 @@ export interface StreamOptions {
   maxTokens?: number
   metadata: Record<string, unknown>
   parseFollowUpPrompts: (response: string) => { cleanResponse: string; prompts: string[] }
+  parseReviewAnnotations?: (response: string) => { cleanResponse: string; annotations: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> }
   res: Response
 }
 
@@ -66,9 +67,22 @@ export async function streamCompletion({
       }
     }
 
-    // Parse follow-up prompts and chart data from the complete response
-    const { cleanResponse, prompts } = parseFollowUpPrompts(fullResponse)
-    const { cleanText: finalResponse, chartData } = parseChartData(cleanResponse)
+    // Parse structured data blocks from the complete response
+    // Order: annotations first (before follow-ups which are at the very end)
+    let processedResponse = fullResponse
+    let reviewAnnotations: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> | undefined
+
+    if (parseReviewAnnotations) {
+      const annotationResult = parseReviewAnnotations(processedResponse)
+      processedResponse = annotationResult.cleanResponse
+      if (annotationResult.annotations.length > 0) {
+        reviewAnnotations = annotationResult.annotations
+      }
+    }
+
+    const { cleanResponse, prompts } = parseFollowUpPrompts(processedResponse)
+    const { cleanText: chartClean, chartData } = parseChartData(cleanResponse)
+    const { cleanText: finalResponse, svgData } = parseSVGData(chartClean)
 
     // Send done event
     res.write(
@@ -76,6 +90,8 @@ export async function streamCompletion({
         cleanResponse: finalResponse,
         followUpPrompts: prompts,
         ...(chartData ? { chartData } : {}),
+        ...(svgData ? { svgData } : {}),
+        ...(reviewAnnotations ? { reviewAnnotations } : {}),
       })}\n\n`
     )
 
@@ -109,6 +125,20 @@ export function parseChartData(response: string): { cleanText: string; chartData
   }
 
   return { cleanText: response, chartData: null }
+}
+
+/**
+ * Parse SVG_DATA from AI response.
+ * Format: SVG_DATA: <svg viewBox="0 0 800 600" xmlns="...">...</svg>
+ */
+export function parseSVGData(response: string): { cleanText: string; svgData: { svg: string; title: string } | null } {
+  const svgMatch = response.match(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)\s*$/m)
+  if (svgMatch?.[1]) {
+    const titleMatch = svgMatch[1].match(/<!--\s*title:\s*(.*?)\s*-->/)
+    const cleanText = response.replace(/SVG_DATA:\s*<svg[\s\S]*?<\/svg>\s*$/m, "").trim()
+    return { cleanText, svgData: { svg: svgMatch[1], title: titleMatch?.[1] || "Diagram" } }
+  }
+  return { cleanText: response, svgData: null }
 }
 
 /**

@@ -1076,7 +1076,7 @@ export const unifiedAIApi = {
 
 // ─── Conversations (Chat History) ─────────────────────────────────
 
-export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai"
+export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-briefing" | "studio-review" | "general"
 
 export interface ConversationSummary {
   id: string
@@ -1134,12 +1134,155 @@ export const conversationsApi = {
   },
 }
 
+// ─── Studio API (Documents, Templates, Assets) ─────────────────────────────────
+
+export const studioApi = {
+  // Documents
+  async listDocuments(params?: { mode?: string; search?: string; sourceType?: string }): Promise<unknown[]> {
+    const query = new URLSearchParams()
+    if (params?.mode) query.set("mode", params.mode)
+    if (params?.search) query.set("search", params.search)
+    if (params?.sourceType) query.set("sourceType", params.sourceType)
+    const qs = query.toString() ? `?${query.toString()}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents${qs}`)
+    return handleResponse<unknown[]>(response)
+  },
+
+  async getDocument(id: string): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents/${id}`)
+    return handleResponse<unknown>(response)
+  },
+
+  async createDocument(data: Record<string, unknown>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  async updateDocument(id: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  async deleteDocument(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents/${id}`, { method: "DELETE" })
+    if (!response.ok) throw new ApiError(response.status, "Failed to delete document")
+  },
+
+  // Templates
+  async listTemplates(category?: string): Promise<unknown[]> {
+    const qs = category ? `?category=${category}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/studio/templates${qs}`)
+    return handleResponse<unknown[]>(response)
+  },
+
+  async createTemplate(data: Record<string, unknown>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/templates`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  async deleteTemplate(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/templates/${id}`, { method: "DELETE" })
+    if (!response.ok) throw new ApiError(response.status, "Failed to delete template")
+  },
+
+  // Assets
+  async listAssets(params?: { type?: string; search?: string }): Promise<unknown[]> {
+    const query = new URLSearchParams()
+    if (params?.type) query.set("type", params.type)
+    if (params?.search) query.set("search", params.search)
+    const qs = query.toString() ? `?${query.toString()}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/studio/assets${qs}`)
+    return handleResponse<unknown[]>(response)
+  },
+
+  async createAsset(data: Record<string, unknown>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/assets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  async updateAsset(id: string, data: Record<string, unknown>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/assets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  async deleteAsset(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/assets/${id}`, { method: "DELETE" })
+    if (!response.ok) throw new ApiError(response.status, "Failed to delete asset")
+  },
+
+  // Document versions
+  async listVersions(documentId: string): Promise<unknown[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents/${documentId}/versions`)
+    return handleResponse<unknown[]>(response)
+  },
+
+  // Sharing
+  async updateSharing(documentId: string, sharedWith: Array<{ userId: string; permission: "view" | "edit" }>): Promise<unknown> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/documents/${documentId}/share`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedWith }),
+    })
+    return handleResponse<unknown>(response)
+  },
+
+  // File extraction
+  async extractDocument(file: File): Promise<{ text: string; filename: string; pageCount?: number; isRFP?: boolean }> {
+    const formData = new FormData()
+    formData.append("file", file)
+    const response = await fetchWithCredentials(`${API_BASE}/studio/extract-document`, {
+      method: "POST",
+      body: formData,
+    })
+    return handleResponse<{ text: string; filename: string; pageCount?: number; isRFP?: boolean }>(response)
+  },
+
+  // RFP Checklist
+  async generateChecklist(rfpText: string): Promise<{ items: Array<{ id: string; category: string; requirement: string; priority: "high" | "medium" | "low" }> }> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/checklist/generate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rfpText }),
+    })
+    return handleResponse(response)
+  },
+
+  async checkCompliance(documentContent: string, checklistItems: Array<{ id: string; category: string; requirement: string; priority: string }>): Promise<{ results: Array<{ id: string; status: "met" | "partial" | "missing"; note: string }> }> {
+    const response = await fetchWithCredentials(`${API_BASE}/studio/checklist/check`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentContent, checklistItems }),
+    })
+    return handleResponse(response)
+  },
+}
+
 // ─── SSE Streaming Utility ─────────────────────────────────
 
 export interface FetchSSECallbacks {
   onMetadata?: (data: Record<string, unknown>) => void
   onToken?: (token: string) => void
-  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown> }) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> }) => void
   onError?: (error: string) => void
 }
 

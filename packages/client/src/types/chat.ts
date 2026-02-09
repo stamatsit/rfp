@@ -1,5 +1,13 @@
 import type { LucideIcon } from "lucide-react"
 
+export interface ReviewAnnotation {
+  id: string
+  quote: string
+  comment: string
+  severity: "suggestion" | "warning" | "issue"
+  suggestedFix?: string
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
@@ -10,6 +18,8 @@ export interface ChatMessage {
   timestamp: Date
   feedback?: "up" | "down" | null
   chartData?: ChartConfig | null
+  svgData?: { svg: string; title: string } | null
+  reviewAnnotations?: ReviewAnnotation[]
   metadata?: Record<string, unknown>
 }
 
@@ -136,5 +146,26 @@ export const CHAT_THEMES = {
     sendButtonHoverGradient: "hover:from-purple-600 hover:to-blue-600",
     sendButtonShadow: "shadow-[0_4px_12px_rgba(139,92,246,0.3)]",
     dotColor: "bg-purple-400",
+  },
+  emerald: {
+    name: "Document Studio",
+    primary: "emerald",
+    botGradient: "linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)",
+    botShadow: "0 4px 12px rgba(16,185,129,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
+    userBubbleBg: "bg-gradient-to-br from-emerald-50 to-teal-100/80",
+    userBubbleBorder: "border-emerald-200/60",
+    userBubbleShadow: "shadow-[0_1px_3px_rgba(16,185,129,0.1)]",
+    accentBg: "bg-emerald-50",
+    accentBgHover: "hover:bg-emerald-100",
+    accentText: "text-emerald-700",
+    accentBorder: "border-emerald-200",
+    accentBgDark: "dark:bg-emerald-900/30",
+    accentBgHoverDark: "dark:hover:bg-emerald-900/50",
+    accentTextDark: "dark:text-emerald-300",
+    accentBorderDark: "dark:border-emerald-700",
+    sendButtonGradient: "bg-gradient-to-r from-emerald-500 to-teal-500",
+    sendButtonHoverGradient: "hover:from-emerald-600 hover:to-teal-600",
+    sendButtonShadow: "shadow-[0_4px_12px_rgba(16,185,129,0.3)]",
+    dotColor: "bg-emerald-400",
   },
 } satisfies Record<string, ChatTheme>

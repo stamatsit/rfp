@@ -229,6 +229,8 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
                       content: data.cleanResponse || (m.content + remainingTokens),
                       followUpPrompts: data.followUpPrompts,
                       chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
+                      svgData: data.svgData ?? undefined,
+                      reviewAnnotations: data.reviewAnnotations as import("@/types/chat").ReviewAnnotation[] | undefined,
                     }
                   : m
               )

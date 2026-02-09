@@ -1157,27 +1157,58 @@ export const clientSuccessData: ClientSuccessData = {
   awards: [
     // 2025
     { name: "Gold Aster Award — Magazine Series", year: "2025", clientOrProject: "Houston Methodist Hospital" },
-    { name: "HealthcareADAwards Merit — Integrated Marketing", year: "2025", clientOrProject: "IU Simon / End Lung Cancer Now" },
-    { name: "Digital Health Award Merit — Website Redesign", year: "2025", clientOrProject: "IU Simon Comprehensive Cancer Center" },
-    { name: "Digital Health Award Merit — Patient Storytelling", year: "2025", clientOrProject: "UT Southwestern" },
+    { name: "Healthcare AdAwards Merit — End Lung Cancer Now Campaign", year: "2025", clientOrProject: "IU Simon Comprehensive Cancer Center", source: "Loopio" },
+    { name: "Digital Health Awards Merit — Restoring Hope at Home eBook", year: "2025", clientOrProject: "Visiting Angels", source: "Loopio" },
+    { name: "Digital Health Awards Bronze — Spinal Fusion Success Story", year: "2025", clientOrProject: "University of Texas Southwestern", source: "Loopio" },
+    { name: "Digital Health Awards Gold — Open Enrollment Campaign", year: "2025", clientOrProject: "BeWell New Mexico", source: "Loopio" },
+    { name: "Digital Health Awards Silver — Scheduling Tool", year: "2025", clientOrProject: "BeWell New Mexico", source: "Loopio" },
+    { name: "Digital Health Awards Bronze — Rebrand", year: "2025", clientOrProject: "BeWell New Mexico", source: "Loopio" },
     { name: "NCMPR Gold Medallion — Viewbook", year: "2025", clientOrProject: "Mid Michigan College" },
     { name: "NCMPR Gold Medallion — Recruitment Campaign", year: "2025", clientOrProject: "Mid Michigan College" },
+    { name: "Education Digital Marketing Awards Gold — Adult Learner Campaign", year: "2025", clientOrProject: "Owens Community College", source: "owens.edu" },
     // 2024
     { name: "NACCDO-PAMN First Place — Physician-to-Physician", year: "2024", clientOrProject: "Roswell Park Cancer Center", source: "Stamats/PAMN" },
     { name: "NACCDO-PAMN First Place — Survivorship", year: "2024", clientOrProject: "Roswell Park Cancer Center", source: "Stamats/PAMN" },
+    { name: "Education Digital Marketing Awards Merit — Instagram", year: "2024", clientOrProject: "Morehead State University", source: "Loopio" },
+    { name: "Education Digital Marketing Awards Merit — Video", year: "2024", clientOrProject: "Morehead State University", source: "Loopio" },
+    { name: "Education Digital Marketing Awards Merit — Microsite", year: "2024", clientOrProject: "Morehead State University", source: "Loopio" },
+    { name: "Education Digital Marketing Awards Gold — Video Project", year: "2024", clientOrProject: "Mid Michigan College", source: "Loopio" },
+    { name: "Educational Advertising Awards Silver — Institutional Website", year: "2024", clientOrProject: "Mid Michigan College", source: "Loopio" },
+    { name: "Educational Advertising Awards Gold — Equity Literacy Project Blog Story", year: "2024", clientOrProject: "Harper College", source: "Loopio" },
+    { name: "Digital Health Awards Bronze — Digital Health Work", year: "2024", clientOrProject: "MedStar Health", source: "Loopio" },
     // 2023
     { name: "NCMPR Paragon Gold — Viewbook", year: "2023", clientOrProject: "Harper College", source: "NCMPR" },
     { name: "NCMPR Paragon Silver — Viewbook", year: "2023", clientOrProject: "Kirkwood Community College", source: "NCMPR" },
     { name: "NCMPR Paragon Gold — Wild Card in Print", year: "2023", clientOrProject: "College of Lake County", source: "NCMPR" },
     { name: "NCMPR Paragon Silver — Communication Success Story", year: "2023", clientOrProject: "Fox Valley Technical College", source: "NCMPR" },
+    { name: "Education Digital Marketing Awards Gold — Mid Moves Campaign", year: "2023", clientOrProject: "Mid Michigan College", source: "niche.com" },
+    { name: "Education Digital Marketing Awards Gold — Adult Learner Campaign", year: "2023", clientOrProject: "Owens Community College", source: "niche.com" },
+    { name: "Education Digital Marketing Awards Gold — Holistic Digital Ad Strategy", year: "2023", clientOrProject: "University of Southern Maine", source: "niche.com" },
+    { name: "NCMPR Medallion Gold — Video Shorts Single", year: "2023", clientOrProject: "Chemeketa Community College", source: "owens.edu" },
+    { name: "NCMPR Medallion Silver — Audio Content", year: "2023", clientOrProject: "Chemeketa Community College", source: "owens.edu" },
+    { name: "NCMPR Medallion Bronze — E-Newsletter", year: "2023", clientOrProject: "Chemeketa Community College", source: "owens.edu" },
+    { name: "NCMPR Medallion Bronze — Print Advertisement", year: "2023", clientOrProject: "Chemeketa Community College", source: "owens.edu" },
+    { name: "NCMPR District 3 Gold — Social Media/Online Campaign", year: "2023", clientOrProject: "Owens Community College", source: "Stamats Insights" },
+    { name: "NCMPR District 3 Silver — Special Event/Fundraising Campaign", year: "2023", clientOrProject: "Owens Community College", source: "Stamats Insights" },
     // 2019
     { name: "Folio: Show — Website, B2B General", year: "2019", clientOrProject: "MeetingsToday.com", source: "Stamats" },
     { name: "Folio: Show — Immersive/Interactive Storytelling", year: "2019", clientOrProject: "BUILDINGS Magazine", source: "Buildings.com" },
     // 2015
     { name: "Internet Advertising Competition — Best Education Website", year: "2015", clientOrProject: "Fox Valley Technical College", source: "IAC Award" },
-    // Undated
+    // 1994
+    { name: "Cornell Award", year: "1994", clientOrProject: "Stamats", source: "Newspapers.com" },
+    // 1989
+    { name: "Stamats Film Awards", year: "1989", clientOrProject: "Stamats", source: "Newspapers.com" },
+    { name: "Film/Video Awards", year: "1989", clientOrProject: "Stamats", source: "Newspapers.com" },
+    // 1978
+    { name: "VCM Award", year: "1978", clientOrProject: "Stamats", source: "Newspapers.com" },
+    // 1977
+    { name: "Film Award", year: "1977", clientOrProject: "Stamats", source: "Newspapers.com" },
+    // 1964
+    { name: "Donna Hahn Award", year: "1964", clientOrProject: "Stamats", source: "Newspapers.com" },
+    // Ongoing
     { name: "PAMN Award — Innovation in Marketing", year: "—", clientOrProject: "Roswell Park Cancer Center" },
-    { name: "Education Digital Marketing Awards Gold — Digital Advertising", year: "—", clientOrProject: "Owens Community College", source: "stamats.com" },
+    { name: "CASE & AMA Awards — Multiple National Wins (Publications & Viewbooks)", year: "1960–present", clientOrProject: "Stamats", source: "Newspapers.com" },
   ],
 
   // ── Testimonials (standalone) ──────────────────────────────

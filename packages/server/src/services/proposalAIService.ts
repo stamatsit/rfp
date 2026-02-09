@@ -584,7 +584,7 @@ function calculateAdvancedAnalytics(proposals: Proposal[]): AdvancedAnalytics {
 /**
  * Score pending proposals for win probability
  */
-function scorePendingProposals(proposals: Proposal[]): WinProbability[] {
+export function scorePendingProposals(proposals: Proposal[]): WinProbability[] {
   const pending = proposals.filter((p) => p.won === "Pending" || !p.won)
   const decided = proposals.filter((p) => p.won === "Yes" || p.won === "No")
   const winRates = calculateWinRates(proposals)
@@ -753,7 +753,7 @@ function detectRawDataQuery(query: string): boolean {
 /**
  * Generate strategic recommendations
  */
-function generateRecommendations(proposals: Proposal[]): Recommendation[] {
+export function generateRecommendations(proposals: Proposal[]): Recommendation[] {
   const recommendations: Recommendation[] = []
   const winRates = calculateWinRates(proposals)
   const analytics = calculateAdvancedAnalytics(proposals)
@@ -899,7 +899,7 @@ function generateRecommendations(proposals: Proposal[]): Recommendation[] {
 /**
  * Calculate win rates by various dimensions
  */
-function calculateWinRates(proposals: Proposal[]): {
+export function calculateWinRates(proposals: Proposal[]): {
   overall: number
   wonCount: number
   lostCount: number
