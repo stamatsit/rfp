@@ -542,6 +542,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [tourEnabled, setTourEnabled] = useState<boolean | null>(null) // local override for toggle UI
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
+  const canCloseRef = useRef(false)
   const panelRef = useRef<HTMLDivElement>(null)
 
   // Use refs for dragging to avoid re-renders
@@ -562,6 +563,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   // Center panel on open
   useEffect(() => {
     if (isOpen) {
+      canCloseRef.current = false
       sizeRef.current = { w: SETTINGS_DEFAULT_W, h: SETTINGS_DEFAULT_H }
       const centerX = (window.innerWidth - SETTINGS_DEFAULT_W) / 2
       const centerY = (window.innerHeight - SETTINGS_DEFAULT_H) / 2
@@ -571,9 +573,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
         requestAnimationFrame(() => {
           applySize()
           setIsAnimatingIn(true)
+          // Allow closing only after the opening click event has fully finished
+          setTimeout(() => { canCloseRef.current = true }, 100)
         })
       })
     } else {
+      canCloseRef.current = false
       setIsAnimatingIn(false)
       const timer = setTimeout(() => setIsVisible(false), 300)
       return () => clearTimeout(timer)
@@ -721,7 +726,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
           isAnimatingIn ? "opacity-100" : "opacity-0"
         }`}
         style={{ background: "rgba(0,0,0,0.4)" }}
-        onClick={onClose}
+        onClick={() => { if (canCloseRef.current) onClose() }}
       />
 
       {/* Panel */}
