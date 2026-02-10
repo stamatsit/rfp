@@ -8,6 +8,126 @@ import { eq, ilike, or, desc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
+import mammoth from "mammoth"
+import { createRequire } from "module"
+
+// --- Multipart form parsing for file uploads ---
+async function parseMultipartForm(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string; filename: string }> {
+  return new Promise((resolve, reject) => {
+    const contentType = req.headers["content-type"] || ""
+    const boundaryMatch = contentType.match(/boundary=(.+)/)
+    if (!boundaryMatch) {
+      return reject(new Error("No boundary found in content-type"))
+    }
+
+    // Vercel may already parse the body as a Buffer
+    const chunks: Buffer[] = []
+    const bodyStream = req as any
+
+    if (Buffer.isBuffer(req.body)) {
+      parseMultipartBuffer(req.body, boundaryMatch[1], resolve, reject)
+    } else if (typeof req.body === "string") {
+      parseMultipartBuffer(Buffer.from(req.body), boundaryMatch[1], resolve, reject)
+    } else {
+      // Stream approach
+      bodyStream.on("data", (chunk: Buffer) => chunks.push(chunk))
+      bodyStream.on("end", () => {
+        parseMultipartBuffer(Buffer.concat(chunks), boundaryMatch[1], resolve, reject)
+      })
+      bodyStream.on("error", reject)
+    }
+  })
+}
+
+function parseMultipartBuffer(
+  body: Buffer,
+  boundary: string,
+  resolve: (result: { buffer: Buffer; mimetype: string; filename: string }) => void,
+  reject: (err: Error) => void
+) {
+  const boundaryBytes = Buffer.from(`--${boundary}`)
+  const parts = splitBuffer(body, boundaryBytes)
+
+  for (const part of parts) {
+    const headerEnd = part.indexOf("\r\n\r\n")
+    if (headerEnd === -1) continue
+    const headers = part.slice(0, headerEnd).toString()
+    if (!headers.includes('name="file"')) continue
+
+    const filenameMatch = headers.match(/filename="([^"]*)"/)
+    const contentTypeMatch = headers.match(/Content-Type:\s*(.+)/i)
+    const filename = filenameMatch?.[1] || "upload"
+    const mimetype = contentTypeMatch?.[1]?.trim() || "application/octet-stream"
+    let fileData = part.slice(headerEnd + 4)
+    // Strip trailing \r\n
+    if (fileData.length >= 2 && fileData[fileData.length - 2] === 0x0d && fileData[fileData.length - 1] === 0x0a) {
+      fileData = fileData.slice(0, -2)
+    }
+    return resolve({ buffer: fileData, mimetype, filename })
+  }
+  reject(new Error("No file field found in multipart form"))
+}
+
+function splitBuffer(buf: Buffer, delimiter: Buffer): Buffer[] {
+  const parts: Buffer[] = []
+  let start = 0
+  while (true) {
+    const idx = buf.indexOf(delimiter, start)
+    if (idx === -1) {
+      parts.push(buf.slice(start))
+      break
+    }
+    if (idx > start) parts.push(buf.slice(start, idx))
+    start = idx + delimiter.length
+  }
+  return parts
+}
+
+// --- Document text extraction (PDF, DOCX, TXT) ---
+async function extractDocumentText(buffer: Buffer, mimetype: string, filename: string): Promise<{ text: string; filename: string; pageCount?: number }> {
+  const ext = filename.toLowerCase().split(".").pop()
+
+  // PDF
+  if (ext === "pdf" || mimetype === "application/pdf") {
+    try {
+      const req = createRequire(import.meta.url)
+      const { PDFParse } = req("pdf-parse")
+      const parser = new PDFParse({ data: new Uint8Array(buffer), verbosity: 0 })
+      await parser.load()
+      const info = await parser.getInfo()
+      const textResult = await parser.getText()
+      parser.destroy()
+      const pdfText = textResult.pages.map((p: { text: string }) => p.text).join("\n\n")
+      return { text: pdfText, filename, pageCount: info.numPages }
+    } catch (pdfErr: any) {
+      console.error("PDF parse error:", pdfErr?.message)
+      return { text: buffer.toString("utf-8"), filename }
+    }
+  }
+
+  // DOCX
+  if (ext === "docx" || mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    const result = await mammoth.extractRawText({ buffer })
+    return { text: result.value, filename }
+  }
+
+  // DOC
+  if (ext === "doc" || mimetype === "application/msword") {
+    const result = await mammoth.extractRawText({ buffer })
+    return { text: result.value, filename }
+  }
+
+  // TXT or fallback
+  return { text: buffer.toString("utf-8"), filename }
+}
+
+// --- RFP detection for uploaded files ---
+function detectRFPSignals(text: string): { isRFP: boolean } {
+  const rfpKeywords = ["request for proposal", "rfp", "scope of work", "submission deadline", "evaluation criteria", "proposal requirements"]
+  const lowerText = text.toLowerCase().slice(0, 5000)
+  const matches = rfpKeywords.filter(k => lowerText.includes(k))
+  return { isRFP: matches.length >= 2 }
+}
 
 // --- Streaming helpers ---
 function estimateTokens(text: string): number {
@@ -469,7 +589,7 @@ export const users = pgTable("users", {
 // Conversations table (AI chat history)
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai"] }).notNull(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general"] }).notNull(),
   title: text("title").notNull(),
   messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
   userId: text("user_id"),
@@ -477,10 +597,91 @@ export const conversations = pgTable("conversations", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Saved Documents (RFP uploads)
+export const savedDocuments = pgTable("saved_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["RFP", "Proposal", "Other"] }).notNull().default("RFP"),
+  originalFilename: text("original_filename").notNull(),
+  mimeType: text("mime_type"),
+  fileSize: integer("file_size"),
+  pageCount: integer("page_count"),
+  extractedText: text("extracted_text").notNull(),
+  notes: text("notes"),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Documents
+export const studioDocuments = pgTable("studio_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull().default("Untitled"),
+  content: text("content").notNull().default(""),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  mode: text("mode", { enum: ["draft", "final", "template", "archived"] }).notNull().default("draft"),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  sourceType: text("source_type", { enum: ["briefing", "manual", "review", "ai-generated"] }).notNull().default("manual"),
+  conversationId: uuid("conversation_id"),
+  userId: text("user_id").notNull(),
+  sharedWith: jsonb("shared_with").$type<Array<{ userId: string; permission: "view" | "edit" }>>().notNull().default([]),
+  version: integer("version").notNull().default(1),
+  parentId: uuid("parent_id"),
+  exportHistory: jsonb("export_history").$type<Array<{ format: string; timestamp: string; filename: string }>>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Document Versions
+export const studioDocumentVersions = pgTable("studio_document_versions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull(),
+  version: integer("version").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  changeDescription: text("change_description"),
+  createdBy: text("created_by").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Templates
+export const studioTemplates = pgTable("studio_templates", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  description: text("description"),
+  content: text("content").notNull(),
+  formatSettings: jsonb("format_settings").$type<Record<string, unknown>>().notNull().default({}),
+  category: text("category", { enum: ["proposal", "case-study", "report", "presentation", "custom"] }).notNull().default("custom"),
+  isSystem: boolean("is_system").notNull().default(false),
+  userId: text("user_id"),
+  usageCount: integer("usage_count").notNull().default(0),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Studio Assets
+export const studioAssets = pgTable("studio_assets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  name: text("name").notNull(),
+  type: text("type", { enum: ["image", "svg", "chart-snapshot", "document-snippet", "logo", "icon"] }).notNull(),
+  data: text("data").notNull(),
+  thumbnail: text("thumbnail"),
+  mimeType: text("mime_type"),
+  fileSize: integer("file_size"),
+  tags: jsonb("tags").$type<string[]>().notNull().default([]),
+  metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations, savedDocuments, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
 
 // Supabase client
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -3128,6 +3329,507 @@ RULES:
       }
     }
 
+    // ─── RFP Routes ───
+    if (path.startsWith("/rfp")) {
+      // POST /rfp/extract — upload & extract document text
+      if ((path === "/rfp/extract" || path === "/rfp/extract/") && method === "POST") {
+        try {
+          const { buffer, mimetype, filename } = await parseMultipartForm(req)
+          if (buffer.length > 20 * 1024 * 1024) {
+            return res.status(413).json({ error: "File too large (max 20MB)" })
+          }
+          const result = await extractDocumentText(buffer, mimetype, filename)
+          return res.json(result)
+        } catch (err: any) {
+          console.error("RFP extraction failed:", err?.message)
+          return res.status(500).json({ error: err?.message || "Failed to extract document text" })
+        }
+      }
+
+      // GET /rfp/status
+      if ((path === "/rfp/status" || path === "/rfp/status/") && method === "GET") {
+        return res.json({ available: true, supportedFormats: ["pdf", "docx", "doc", "txt"], maxFileSize: "20MB" })
+      }
+
+      if (!db) return res.status(503).json({ error: "Database unavailable" })
+
+      // POST /rfp/documents — save a document
+      if ((path === "/rfp/documents" || path === "/rfp/documents/") && method === "POST") {
+        const { name, type, originalFilename, mimeType: mt, fileSize: fs, pageCount, extractedText, notes, tags } = req.body || {}
+        if (!name || !extractedText || !originalFilename) {
+          return res.status(400).json({ error: "Missing required fields: name, extractedText, originalFilename" })
+        }
+        const [doc] = await db.insert(savedDocuments).values({
+          name, type: type ?? "RFP", originalFilename, mimeType: mt, fileSize: fs, pageCount, extractedText, notes, tags: tags ?? [],
+        }).returning()
+        return res.status(201).json(doc)
+      }
+
+      // GET /rfp/documents — list documents
+      if ((path === "/rfp/documents" || path === "/rfp/documents/") && method === "GET") {
+        const { type: docType, search, limit, offset } = req.query as Record<string, string>
+        const conditions: any[] = []
+        if (docType) conditions.push(eq(savedDocuments.type, docType as "RFP" | "Proposal" | "Other"))
+        if (search) conditions.push(or(ilike(savedDocuments.name, `%${search}%`), ilike(savedDocuments.originalFilename, `%${search}%`)))
+        const where = conditions.length > 0 ? (conditions.length === 1 ? conditions[0] : and(...conditions)) : undefined
+        const documents = await db.select().from(savedDocuments).where(where).orderBy(desc(savedDocuments.createdAt)).limit(parseInt(limit || "50")).offset(parseInt(offset || "0"))
+        const [countResult] = await db.select({ count: sql<number>`count(*)::int` }).from(savedDocuments).where(where)
+        return res.json({ documents, total: countResult?.count ?? 0 })
+      }
+
+      // GET/PATCH/DELETE /rfp/documents/:id
+      const rfpDocMatch = path.match(/^\/rfp\/documents\/([^/]+)$/)
+      if (rfpDocMatch) {
+        const docId = rfpDocMatch[1]
+        if (method === "GET") {
+          const [doc] = await db.select().from(savedDocuments).where(eq(savedDocuments.id, docId))
+          if (!doc) return res.status(404).json({ error: "Document not found" })
+          return res.json(doc)
+        }
+        if (method === "PATCH") {
+          const { name, type, notes, tags } = req.body || {}
+          const updates: Record<string, unknown> = { updatedAt: new Date() }
+          if (name !== undefined) updates.name = name
+          if (type !== undefined) updates.type = type
+          if (notes !== undefined) updates.notes = notes
+          if (tags !== undefined) updates.tags = tags
+          const [doc] = await db.update(savedDocuments).set(updates).where(eq(savedDocuments.id, docId)).returning()
+          if (!doc) return res.status(404).json({ error: "Document not found" })
+          return res.json(doc)
+        }
+        if (method === "DELETE") {
+          const result = await db.delete(savedDocuments).where(eq(savedDocuments.id, docId)).returning()
+          if (result.length === 0) return res.status(404).json({ error: "Document not found" })
+          return res.json({ success: true })
+        }
+      }
+    }
+
+    // ─── Studio Routes (extract, chat, CRUD) ───
+    if (path.startsWith("/studio") && path !== "/studio/inline-edit") {
+      const userId = session?.userId
+
+      // POST /studio/extract-document — file upload + text extraction
+      if ((path === "/studio/extract-document" || path === "/studio/extract-document/") && method === "POST") {
+        try {
+          const { buffer, mimetype, filename } = await parseMultipartForm(req)
+          if (buffer.length > 20 * 1024 * 1024) {
+            return res.status(413).json({ error: "File too large (max 20MB)" })
+          }
+          const result = await extractDocumentText(buffer, mimetype, filename)
+          const { isRFP } = detectRFPSignals(result.text)
+          return res.json({ ...result, isRFP })
+        } catch (err: any) {
+          console.error("Studio document extraction failed:", err?.message)
+          return res.status(500).json({ error: err?.message || "Failed to extract document text" })
+        }
+      }
+
+      // Studio chat/stream — full AI document chat
+      if ((path === "/studio/chat/stream" || path === "/studio/chat/stream/") && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.setHeader("Cache-Control", "no-cache")
+          res.setHeader("Connection", "keep-alive")
+          res.setHeader("X-Accel-Buffering", "no")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured" })}\n\n`)
+          return res.end()
+        }
+
+        const { query: chatQuery, documentContent, reviewMode, conversationHistory, uploadedFileText } = req.body || {}
+        if (!chatQuery || typeof chatQuery !== "string" || chatQuery.trim().length < 2) {
+          return res.status(400).json({ error: "Query is required (min 2 characters)" })
+        }
+
+        const systemPrompt = reviewMode
+          ? `You are a senior editor reviewing copy for Stamats, a marketing agency. Analyze the document critically for clarity, accuracy, completeness, tone, structure, and specificity. Be constructive but honest.\n\nAfter your review, include annotations:\nREVIEW_ANNOTATIONS: [{"id":"ann-1","quote":"exact text","comment":"issue","severity":"suggestion","suggestedFix":"fix"}]\n\nFOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+          : `You are an AI writing assistant for Stamats, a marketing agency specializing in higher education and healthcare marketing. Help create professional documents: proposals, RFP responses, case studies, executive summaries.\n\n${CHART_PROMPT}\n\nFOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+
+        let fullSystemPrompt = systemPrompt
+        if (documentContent) {
+          fullSystemPrompt += `\n\nCurrent document content:\n${String(documentContent).slice(0, 6000)}`
+        }
+        if (uploadedFileText) {
+          fullSystemPrompt += `\n\nUploaded file content:\n${String(uploadedFileText).slice(0, 6000)}`
+        }
+
+        const messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: fullSystemPrompt },
+        ]
+        if (conversationHistory && Array.isArray(conversationHistory)) {
+          const trimmed = truncateHistory(conversationHistory, 8000)
+          for (const msg of trimmed) {
+            messages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+          }
+        }
+        messages.push({ role: "user", content: chatQuery.trim() })
+
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages,
+            temperature: 0.4,
+            max_tokens: 4000,
+            stream: true,
+          })
+
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              fullResponse += token
+              res.write(`data: ${JSON.stringify({ token })}\n\n`)
+            }
+          }
+
+          // Parse follow-ups, annotations, charts
+          const { cleanResponse: cr1, followUpPrompts: fuPrompts } = parseFollowUpPrompts(fullResponse, ["Continue writing", "Refine this section", "Add supporting data"])
+          const { cleanText: finalText, chartData: streamChart } = parseChartData(cr1)
+
+          // Parse review annotations if in review mode
+          let annotations: any[] = []
+          let cleanForAnnotations = finalText
+          if (reviewMode) {
+            const annMatch = finalText.match(/REVIEW_ANNOTATIONS:\s*(\[[\s\S]*?\])\s*$/m)
+            if (annMatch?.[1]) {
+              try {
+                annotations = JSON.parse(annMatch[1])
+                cleanForAnnotations = finalText.replace(/REVIEW_ANNOTATIONS:\s*\[[\s\S]*?\]\s*$/m, "").trim()
+              } catch { /* ignore */ }
+            }
+          }
+
+          // Parse SVG data
+          let svgData = null
+          const svgMatch = cleanForAnnotations.match(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)/m)
+          if (svgMatch?.[1]) {
+            const titleMatch = svgMatch[1].match(/<!--\s*title:\s*(.*?)\s*-->/)
+            svgData = { svg: svgMatch[1], title: titleMatch?.[1] || "Diagram" }
+            cleanForAnnotations = cleanForAnnotations.replace(/SVG_DATA:\s*<svg[\s\S]*?<\/svg>/m, "").trim()
+          }
+
+          const donePayload: any = {
+            cleanResponse: cleanForAnnotations,
+            followUpPrompts: fuPrompts,
+          }
+          if (streamChart) donePayload.chartData = streamChart
+          if (annotations.length > 0) donePayload.annotations = annotations
+          if (svgData) donePayload.svgData = svgData
+
+          res.write(`event: done\ndata: ${JSON.stringify(donePayload)}\n\n`)
+          return res.end()
+        } catch (streamErr: any) {
+          console.error("Studio chat stream error:", streamErr?.message)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "Streaming failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
+      // POST /studio/chat/query (non-streaming fallback)
+      if ((path === "/studio/chat/query" || path === "/studio/chat/query/") && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "AI service not configured" })
+        const { query: chatQuery, documentContent, reviewMode, uploadedFileText } = req.body || {}
+        if (!chatQuery || typeof chatQuery !== "string") return res.status(400).json({ error: "Query is required" })
+
+        let sysPrompt = reviewMode
+          ? "You are a senior editor reviewing copy for Stamats. Be constructive but honest."
+          : "You are an AI writing assistant for Stamats."
+        if (documentContent) sysPrompt += `\n\nDocument:\n${String(documentContent).slice(0, 6000)}`
+        if (uploadedFileText) sysPrompt += `\n\nUploaded file:\n${String(uploadedFileText).slice(0, 6000)}`
+
+        const result = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: sysPrompt },
+            { role: "user", content: chatQuery.trim() },
+          ],
+          temperature: 0.4,
+          max_tokens: 4000,
+        })
+        const response = result.choices[0]?.message?.content || ""
+        return res.json({ response, followUpPrompts: [], refused: false })
+      }
+
+      // POST /studio/briefing/stream
+      if ((path === "/studio/briefing/stream" || path === "/studio/briefing/stream/") && method === "POST") {
+        if (!openai) {
+          res.setHeader("Content-Type", "text/event-stream")
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured" })}\n\n`)
+          return res.end()
+        }
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        try {
+          const stream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: "Generate a daily briefing for Stamats, a marketing agency. Include market trends, industry news, and actionable insights." },
+              { role: "user", content: "Generate today's briefing." },
+            ],
+            temperature: 0.5,
+            max_tokens: 2000,
+            stream: true,
+          })
+          let fullResponse = ""
+          for await (const chunk of stream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) { fullResponse += token; res.write(`data: ${JSON.stringify({ token })}\n\n`) }
+          }
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: fullResponse.trim() })}\n\n`)
+          return res.end()
+        } catch (err: any) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: err?.message || "Briefing failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
+      // POST /studio/checklist/generate
+      if ((path === "/studio/checklist/generate" || path === "/studio/checklist/generate/") && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "AI service not configured" })
+        const { rfpText } = req.body || {}
+        if (!rfpText || typeof rfpText !== "string" || rfpText.trim().length < 50) {
+          return res.status(400).json({ error: "RFP text is required (min 50 characters)" })
+        }
+        try {
+          const result = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: "Extract a structured checklist of requirements from this RFP. Return JSON: {\"items\":[{\"id\":\"1\",\"category\":\"string\",\"requirement\":\"string\",\"priority\":\"high|medium|low\"}]}" },
+              { role: "user", content: rfpText.slice(0, 10000) },
+            ],
+            temperature: 0.2,
+            max_tokens: 3000,
+            response_format: { type: "json_object" },
+          })
+          const raw = result.choices[0]?.message?.content || "{}"
+          return res.json(JSON.parse(raw))
+        } catch (err: any) {
+          return res.status(500).json({ error: err?.message || "Failed to generate checklist" })
+        }
+      }
+
+      // POST /studio/checklist/check
+      if ((path === "/studio/checklist/check" || path === "/studio/checklist/check/") && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "AI service not configured" })
+        const { documentContent, checklistItems } = req.body || {}
+        if (!documentContent || !checklistItems || !Array.isArray(checklistItems)) {
+          return res.status(400).json({ error: "documentContent and checklistItems are required" })
+        }
+        try {
+          const result = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              { role: "system", content: "Check if the document addresses each requirement. Return JSON: {\"results\":[{\"id\":\"string\",\"status\":\"met|partial|missing\",\"evidence\":\"string\"}]}" },
+              { role: "user", content: `Document:\n${String(documentContent).slice(0, 8000)}\n\nChecklist:\n${JSON.stringify(checklistItems)}` },
+            ],
+            temperature: 0.2,
+            max_tokens: 3000,
+            response_format: { type: "json_object" },
+          })
+          const raw = result.choices[0]?.message?.content || "{}"
+          return res.json(JSON.parse(raw))
+        } catch (err: any) {
+          return res.status(500).json({ error: err?.message || "Failed to check compliance" })
+        }
+      }
+
+      // ─── Studio Document CRUD (requires DB + auth) ───
+      if (!db) return res.status(503).json({ error: "Database unavailable" })
+      if (!userId) return res.status(401).json({ error: "Not authenticated" })
+
+      // GET /studio/documents
+      if ((path === "/studio/documents" || path === "/studio/documents/") && method === "GET") {
+        const { mode, search, sourceType } = req.query as Record<string, string>
+        const conditions: any[] = [
+          or(eq(studioDocuments.userId, userId), sql`${studioDocuments.sharedWith}::jsonb @> ${JSON.stringify([{ userId }])}::jsonb`),
+        ]
+        if (mode) conditions.push(eq(studioDocuments.mode, mode as any))
+        if (sourceType) conditions.push(eq(studioDocuments.sourceType, sourceType as any))
+        if (search) conditions.push(ilike(studioDocuments.title, `%${search}%`))
+        if (!mode) conditions.push(sql`${studioDocuments.mode} != 'archived'`)
+        const rows = await db.select().from(studioDocuments).where(and(...conditions)).orderBy(desc(studioDocuments.updatedAt)).limit(50)
+        return res.json(rows)
+      }
+
+      // POST /studio/documents
+      if ((path === "/studio/documents" || path === "/studio/documents/") && method === "POST") {
+        const { title, content, formatSettings, sourceType, tags, metadata } = req.body || {}
+        const [row] = await db.insert(studioDocuments).values({
+          title: title || "Untitled",
+          content: content || "",
+          formatSettings: formatSettings || {},
+          sourceType: sourceType || "manual",
+          tags: tags || [],
+          metadata: metadata || {},
+          userId,
+        }).returning()
+        return res.json(row)
+      }
+
+      // Studio document by ID routes
+      const studioDocMatch = path.match(/^\/studio\/documents\/([^/]+?)(?:\/(.+))?$/)
+      if (studioDocMatch) {
+        const docId = studioDocMatch[1]
+        const subPath = studioDocMatch[2] // e.g. "versions" or "share"
+
+        // GET /studio/documents/:id/versions
+        if (subPath === "versions" && method === "GET") {
+          const rows = await db.select().from(studioDocumentVersions).where(eq(studioDocumentVersions.documentId, docId)).orderBy(desc(studioDocumentVersions.version)).limit(50)
+          return res.json(rows)
+        }
+
+        // PATCH /studio/documents/:id/share
+        if (subPath === "share" && method === "PATCH") {
+          const existing = await db.select().from(studioDocuments).where(eq(studioDocuments.id, docId)).limit(1)
+          if (existing.length === 0) return res.status(404).json({ error: "Document not found" })
+          if (existing[0]!.userId !== userId) return res.status(403).json({ error: "Only the owner can share" })
+          const { sharedWith } = req.body || {}
+          const [row] = await db.update(studioDocuments).set({ sharedWith: sharedWith || [], updatedAt: new Date() }).where(eq(studioDocuments.id, docId)).returning()
+          return res.json(row)
+        }
+
+        // No sub-path — direct document operations
+        if (!subPath) {
+          // GET /studio/documents/:id
+          if (method === "GET") {
+            const rows = await db.select().from(studioDocuments).where(eq(studioDocuments.id, docId)).limit(1)
+            if (rows.length === 0) return res.status(404).json({ error: "Document not found" })
+            const doc = rows[0]!
+            const isOwner = doc.userId === userId
+            const isShared = (doc.sharedWith as Array<{ userId: string }>)?.some((s) => s.userId === userId)
+            if (!isOwner && !isShared) return res.status(403).json({ error: "Access denied" })
+            return res.json(doc)
+          }
+
+          // PATCH /studio/documents/:id
+          if (method === "PATCH") {
+            const existing = await db.select().from(studioDocuments).where(eq(studioDocuments.id, docId)).limit(1)
+            if (existing.length === 0) return res.status(404).json({ error: "Document not found" })
+            const doc = existing[0]!
+            const isOwner = doc.userId === userId
+            const hasEdit = (doc.sharedWith as Array<{ userId: string; permission: string }>)?.some((s) => s.userId === userId && s.permission === "edit")
+            if (!isOwner && !hasEdit) return res.status(403).json({ error: "Access denied" })
+
+            const { title, content, formatSettings, mode, tags, sharedWith, exportHistory, metadata } = req.body || {}
+            const updates: Record<string, unknown> = { updatedAt: new Date() }
+            if (title !== undefined) updates.title = title
+            if (content !== undefined) updates.content = content
+            if (formatSettings !== undefined) updates.formatSettings = formatSettings
+            if (mode !== undefined) updates.mode = mode
+            if (tags !== undefined) updates.tags = tags
+            if (sharedWith !== undefined) updates.sharedWith = sharedWith
+            if (exportHistory !== undefined) updates.exportHistory = exportHistory
+            if (metadata !== undefined) updates.metadata = metadata
+
+            if (content !== undefined && content !== doc.content) {
+              updates.version = doc.version + 1
+              await db.insert(studioDocumentVersions).values({
+                documentId: doc.id, version: doc.version, title: doc.title, content: doc.content, formatSettings: doc.formatSettings, createdBy: userId,
+              })
+            }
+
+            const [row] = await db.update(studioDocuments).set(updates).where(eq(studioDocuments.id, docId)).returning()
+            return res.json(row)
+          }
+
+          // DELETE /studio/documents/:id
+          if (method === "DELETE") {
+            const existing = await db.select().from(studioDocuments).where(eq(studioDocuments.id, docId)).limit(1)
+            if (existing.length === 0) return res.status(404).json({ error: "Document not found" })
+            if (existing[0]!.userId !== userId) return res.status(403).json({ error: "Only the owner can delete" })
+            await db.update(studioDocuments).set({ mode: "archived", updatedAt: new Date() }).where(eq(studioDocuments.id, docId))
+            return res.json({ success: true })
+          }
+        }
+      }
+
+      // ─── Studio Templates ───
+      if ((path === "/studio/templates" || path === "/studio/templates/") && method === "GET") {
+        const { category } = req.query as Record<string, string>
+        const conditions: any[] = [
+          or(eq(studioTemplates.isSystem, true), eq(studioTemplates.userId, userId)),
+        ]
+        if (category) conditions.push(eq(studioTemplates.category, category as any))
+        const rows = await db.select().from(studioTemplates).where(and(...conditions)).orderBy(desc(studioTemplates.updatedAt))
+        return res.json(rows)
+      }
+
+      if ((path === "/studio/templates" || path === "/studio/templates/") && method === "POST") {
+        const { name, description, content, formatSettings, category } = req.body || {}
+        if (!name || !content) return res.status(400).json({ error: "Name and content are required" })
+        const [row] = await db.insert(studioTemplates).values({
+          name, description: description || null, content, formatSettings: formatSettings || {}, category: category || "custom", userId,
+        }).returning()
+        return res.json(row)
+      }
+
+      const templateMatch = path.match(/^\/studio\/templates\/([^/]+)$/)
+      if (templateMatch && method === "DELETE") {
+        const tid = templateMatch[1]
+        const existing = await db.select().from(studioTemplates).where(eq(studioTemplates.id, tid)).limit(1)
+        if (existing.length === 0) return res.status(404).json({ error: "Template not found" })
+        if (existing[0]!.isSystem) return res.status(403).json({ error: "Cannot delete system templates" })
+        if (existing[0]!.userId !== userId) return res.status(403).json({ error: "Access denied" })
+        await db.delete(studioTemplates).where(eq(studioTemplates.id, tid))
+        return res.json({ success: true })
+      }
+
+      // ─── Studio Assets ───
+      if ((path === "/studio/assets" || path === "/studio/assets/") && method === "GET") {
+        const { type: assetType, search } = req.query as Record<string, string>
+        const conditions: any[] = [eq(studioAssets.userId, userId)]
+        if (assetType) conditions.push(eq(studioAssets.type, assetType as any))
+        if (search) conditions.push(ilike(studioAssets.name, `%${search}%`))
+        const rows = await db.select().from(studioAssets).where(and(...conditions)).orderBy(desc(studioAssets.createdAt)).limit(100)
+        return res.json(rows)
+      }
+
+      if ((path === "/studio/assets" || path === "/studio/assets/") && method === "POST") {
+        const { name, type: assetType, data, thumbnail, mimeType: aMime, fileSize: aSize, tags, metadata } = req.body || {}
+        if (!name || !assetType || !data) return res.status(400).json({ error: "Name, type, and data are required" })
+        const [row] = await db.insert(studioAssets).values({
+          userId, name, type: assetType, data, thumbnail: thumbnail || null, mimeType: aMime || null, fileSize: aSize || null, tags: tags || [], metadata: metadata || {},
+        }).returning()
+        return res.json(row)
+      }
+
+      const assetMatch = path.match(/^\/studio\/assets\/([^/]+)$/)
+      if (assetMatch) {
+        const aid = assetMatch[1]
+        if (method === "GET") {
+          const [row] = await db.select().from(studioAssets).where(eq(studioAssets.id, aid)).limit(1)
+          if (!row) return res.status(404).json({ error: "Asset not found" })
+          return res.json(row)
+        }
+        if (method === "PATCH") {
+          const existing = await db.select().from(studioAssets).where(eq(studioAssets.id, aid)).limit(1)
+          if (existing.length === 0) return res.status(404).json({ error: "Asset not found" })
+          if (existing[0]!.userId !== userId) return res.status(403).json({ error: "Access denied" })
+          const { name, tags, metadata } = req.body || {}
+          const updates: Record<string, unknown> = { updatedAt: new Date() }
+          if (name !== undefined) updates.name = name
+          if (tags !== undefined) updates.tags = tags
+          if (metadata !== undefined) updates.metadata = metadata
+          const [row] = await db.update(studioAssets).set(updates).where(eq(studioAssets.id, aid)).returning()
+          return res.json(row)
+        }
+        if (method === "DELETE") {
+          const existing = await db.select().from(studioAssets).where(eq(studioAssets.id, aid)).limit(1)
+          if (existing.length === 0) return res.status(404).json({ error: "Asset not found" })
+          if (existing[0]!.userId !== userId) return res.status(403).json({ error: "Access denied" })
+          await db.delete(studioAssets).where(eq(studioAssets.id, aid))
+          return res.json({ success: true })
+        }
+      }
+    }
+
     // 404 for unmatched routes
     return res.status(404).json({ error: "Not found", path })
 
@@ -3135,4 +3837,13 @@ RULES:
     console.error("API Error:", error?.message || error, error?.stack)
     return res.status(500).json({ error: "Internal server error" })
   }
+}
+
+// Vercel config — increase body size limit for file uploads
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "20mb",
+    },
+  },
 }
