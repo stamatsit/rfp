@@ -30,6 +30,7 @@ import {
   Award,
   GripVertical,
   Keyboard,
+  Save,
   BarChart3,
   LineChart,
   Gauge,
@@ -1029,6 +1030,31 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       </div>
                       <span className="text-[12px] text-slate-400 dark:text-slate-500">View all</span>
                     </button>
+                  </div>
+
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Document Studio</h3>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-3">
+                        <Save size={16} className="text-slate-500 dark:text-slate-400" />
+                        <div>
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Auto-Save Interval</span>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">How often to save documents to the server</p>
+                        </div>
+                      </div>
+                      <select
+                        value={settings.autoSaveInterval}
+                        onChange={e => updateSetting("autoSaveInterval", Number(e.target.value))}
+                        className="text-[13px] bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg px-3 py-1.5 text-slate-700 dark:text-slate-300 cursor-pointer"
+                      >
+                        <option value={0}>3 seconds (default)</option>
+                        <option value={1000}>1 second</option>
+                        <option value={3000}>3 seconds</option>
+                        <option value={5000}>5 seconds</option>
+                        <option value={10000}>10 seconds</option>
+                        <option value={30000}>30 seconds</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div>

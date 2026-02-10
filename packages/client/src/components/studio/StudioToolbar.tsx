@@ -280,7 +280,7 @@ export function StudioToolbar({
   const isReview = mode === "review"
 
   return (
-    <div className="flex items-center h-10 px-3 gap-2.5 border-b border-slate-200/50 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl flex-shrink-0">
+    <div className="relative z-50 flex items-center h-10 px-3 gap-2.5 border-b border-slate-200/50 dark:border-slate-800/80 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl flex-shrink-0">
       {/* Documents browser button */}
       {onToggleBrowser && (
         <div className="relative">

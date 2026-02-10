@@ -43,7 +43,7 @@ router.post("/query", async (req: Request, res: Response) => {
  */
 router.post("/stream", async (req: Request, res: Response) => {
   try {
-    const { query, topicId, maxSources, conversationHistory } = req.body
+    const { query, topicId, maxSources, conversationHistory, responseLength } = req.body
 
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Query is required" })
@@ -60,7 +60,7 @@ router.post("/stream", async (req: Request, res: Response) => {
     await streamAI(
       query.trim(),
       res,
-      { topicId: topicId as string | undefined, maxSources: maxSources ? parseInt(maxSources, 10) : undefined },
+      { topicId: topicId as string | undefined, maxSources: maxSources ? parseInt(maxSources, 10) : undefined, responseLength: responseLength as string | undefined },
       conversationHistory
     )
   } catch (error) {
@@ -145,7 +145,7 @@ router.post("/case-studies", async (req: Request, res: Response) => {
  */
 router.post("/case-studies/stream", async (req: Request, res: Response) => {
   try {
-    const { query, conversationHistory } = req.body
+    const { query, conversationHistory, responseLength } = req.body
 
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Query is required" })
@@ -159,7 +159,7 @@ router.post("/case-studies/stream", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Query must be less than 2000 characters" })
     }
 
-    await streamCaseStudyInsights(query.trim(), res, conversationHistory)
+    await streamCaseStudyInsights(query.trim(), res, conversationHistory, responseLength as string | undefined)
   } catch (error) {
     console.error("Case study stream failed:", error)
     if (!res.headersSent) {

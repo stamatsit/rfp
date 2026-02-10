@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
-import { HomePage, ImportWizard, PhotoUpload, SearchLibrary, ManualEntry, AskAI, RFPAnalyzer, Help, Support, SavedDocuments, Settings, ProposalInsights, CaseStudies, UnifiedAI, DocumentStudio } from "./pages"
+import { HomePage } from "./pages"
 import Login from "./pages/Login"
 import ChangePassword from "./pages/ChangePassword"
 import { AuthProvider } from "./contexts/AuthContext"
@@ -10,6 +10,22 @@ import { KeyboardShortcuts } from "./components/KeyboardShortcuts"
 import { NewEntryPanel } from "./components/NewEntryPanel"
 import { Toaster } from "./components/ui/toast"
 import { AICompanion } from "./components/AICompanion"
+
+// Lazy-load non-critical routes to reduce initial bundle size
+const ImportWizard = lazy(() => import("./pages/ImportWizard").then(m => ({ default: m.ImportWizard })))
+const PhotoUpload = lazy(() => import("./pages/PhotoUpload").then(m => ({ default: m.PhotoUpload })))
+const SearchLibrary = lazy(() => import("./pages/SearchLibrary").then(m => ({ default: m.SearchLibrary })))
+const ManualEntry = lazy(() => import("./pages/ManualEntry").then(m => ({ default: m.ManualEntry })))
+const AskAI = lazy(() => import("./pages/AskAI").then(m => ({ default: m.AskAI })))
+const RFPAnalyzer = lazy(() => import("./pages/RFPAnalyzer").then(m => ({ default: m.RFPAnalyzer })))
+const SavedDocuments = lazy(() => import("./pages/SavedDocuments").then(m => ({ default: m.SavedDocuments })))
+const Help = lazy(() => import("./pages/Help").then(m => ({ default: m.Help })))
+const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })))
+const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })))
+const ProposalInsights = lazy(() => import("./pages/ProposalInsights").then(m => ({ default: m.ProposalInsights })))
+const CaseStudies = lazy(() => import("./pages/CaseStudies").then(m => ({ default: m.CaseStudies })))
+const UnifiedAI = lazy(() => import("./pages/UnifiedAI").then(m => ({ default: m.UnifiedAI })))
+const DocumentStudio = lazy(() => import("./pages/DocumentStudio").then(m => ({ default: m.DocumentStudio })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -48,6 +64,7 @@ function AppRoutes() {
         defaultType={newEntryDefaultType as any}
       />
       <PageTransition>
+        <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/change-password" element={<ChangePassword />} />
@@ -67,6 +84,7 @@ function AppRoutes() {
           <Route path="/unified-ai" element={<ProtectedRoute><UnifiedAI /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
         </Routes>
+        </Suspense>
       </PageTransition>
       <AICompanion />
       <Toaster />

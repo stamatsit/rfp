@@ -565,10 +565,17 @@ export async function getUnifiedAIStats(): Promise<{
 /**
  * Stream Unified AI via SSE
  */
+const RESPONSE_LENGTH_TOKENS: Record<string, number> = {
+  concise: 1000,
+  balanced: 3000,
+  detailed: 5000,
+}
+
 export async function streamUnifiedAI(
   query: string,
   res: Response,
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  responseLength?: string
 ): Promise<void> {
   const openai = getOpenAI()
 
@@ -611,7 +618,7 @@ export async function streamUnifiedAI(
       { role: "user", content: query },
     ],
     temperature: 0.4,
-    maxTokens: 3000,
+    maxTokens: RESPONSE_LENGTH_TOKENS[responseLength ?? ""] ?? 3000,
     metadata: {
       dataUsed: {
         proposals: { count: proposals.length, winRate: winRates.overall, relevantClients: recentClients },

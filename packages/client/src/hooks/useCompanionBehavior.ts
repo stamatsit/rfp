@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useLocation } from "react-router-dom"
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -15,6 +15,18 @@ interface BehaviorSummary {
   aiPagesUsed: string[]
   mostVisitedPage: string | null
   totalEvents: number
+}
+
+/** Context from the current page — what the user is actively doing */
+export interface PageContext {
+  page: string
+  pageName: string
+  searchQuery?: string
+  topicFilter?: string
+  selectedEntry?: string
+  activeDocument?: string
+  activeDocumentTitle?: string
+  selectedText?: string
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -36,6 +48,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/studio": "Document Studio",
   "/help": "Help",
   "/support": "Support",
+  "/settings": "Settings",
 }
 
 // ─── Storage helpers ─────────────────────────────────────────────────
@@ -161,10 +174,24 @@ export function getBehaviorContextForPrompt(): string {
   return lines.join("\n")
 }
 
+// ─── Build page context string ──────────────────────────────────────
+function buildPageContextString(ctx: PageContext): string {
+  const lines: string[] = [`Currently on: ${ctx.pageName} (${ctx.page})`]
+
+  if (ctx.searchQuery) lines.push(`Active search: "${ctx.searchQuery}"`)
+  if (ctx.topicFilter && ctx.topicFilter !== "all") lines.push(`Topic filter: ${ctx.topicFilter}`)
+  if (ctx.selectedEntry) lines.push(`Looking at entry: ${ctx.selectedEntry}`)
+  if (ctx.activeDocumentTitle) lines.push(`Working on document: "${ctx.activeDocumentTitle}"`)
+  if (ctx.selectedText) lines.push(`Selected text: "${ctx.selectedText.slice(0, 200)}"`)
+
+  return lines.join("\n")
+}
+
 // ─── Hook ────────────────────────────────────────────────────────────
 export function useCompanionBehavior() {
   const location = useLocation()
   const lastPathRef = useRef<string>("")
+  const [pageContext, setPageContext] = useState<PageContext | null>(null)
 
   // Track page visits automatically
   useEffect(() => {
@@ -176,6 +203,12 @@ export function useCompanionBehavior() {
     const events = loadEvents()
     events.push({ type: "page-visit", page: path, timestamp: Date.now() })
     saveEvents(events)
+
+    // Update basic page context
+    setPageContext({
+      page: path,
+      pageName: PAGE_NAMES[path] || path,
+    })
   }, [location.pathname])
 
   // Listen for custom tracking events from other pages
@@ -196,14 +229,31 @@ export function useCompanionBehavior() {
     return () => window.removeEventListener("companion-track", handler)
   }, [location.pathname])
 
+  // Listen for page context updates from individual pages
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as Partial<PageContext>
+      if (!detail) return
+      setPageContext(prev => ({
+        page: prev?.page || location.pathname,
+        pageName: prev?.pageName || PAGE_NAMES[location.pathname] || location.pathname,
+        ...detail,
+      }))
+    }
+    window.addEventListener("companion-page-context", handler)
+    return () => window.removeEventListener("companion-page-context", handler)
+  }, [location.pathname])
+
   const getSuggestion = useCallback((): string | null => {
     const summary = summarize(loadEvents())
     return getProactiveSuggestion(summary)
   }, [])
 
   const getContextForPrompt = useCallback((): string => {
-    return getBehaviorContextForPrompt()
-  }, [])
+    const behavior = getBehaviorContextForPrompt()
+    const page = pageContext ? buildPageContextString(pageContext) : `Currently on: ${PAGE_NAMES[location.pathname] || location.pathname}`
+    return `${page}\n\n${behavior}`
+  }, [pageContext, location.pathname])
 
-  return { getSuggestion, getContextForPrompt }
+  return { getSuggestion, getContextForPrompt, pageContext }
 }

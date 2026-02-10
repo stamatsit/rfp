@@ -329,13 +329,20 @@ ${instruction}${contextAddition}`
 /**
  * Stream Q&A Library AI via SSE
  */
+const RESPONSE_LENGTH_TOKENS: Record<string, number> = {
+  concise: 1000,
+  balanced: 2000,
+  detailed: 4000,
+}
+
 export async function streamAI(
   query: string,
   res: Response,
-  options?: { topicId?: string; maxSources?: number },
+  options?: { topicId?: string; maxSources?: number; responseLength?: string },
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
 ): Promise<void> {
   const maxSources = options?.maxSources ?? 5
+  const maxTokens = RESPONSE_LENGTH_TOKENS[options?.responseLength ?? ""] ?? 2000
   const openai = getOpenAI()
 
   if (!openai) {
@@ -412,7 +419,7 @@ ${context}`
       { role: "user", content: query },
     ],
     temperature: 0.3,
-    maxTokens: 2000,
+    maxTokens,
     metadata: {
       sources,
       photos,

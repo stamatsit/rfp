@@ -5,7 +5,7 @@
  * Unique features: sources, photos, refine/adapt panels, topic filter.
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import {
   Sparkles,
@@ -38,6 +38,7 @@ import { useChat } from "@/hooks/useChat"
 import { topicsApi, aiApi, photosApi, type AIQueryResponse, type AdaptationType } from "@/lib/api"
 import { CHAT_THEMES, type ChatMessage } from "@/types/chat"
 import type { Topic } from "@/types"
+import { loadSettings } from "@/components/SettingsPanel"
 
 const theme = CHAT_THEMES.purple
 
@@ -72,6 +73,8 @@ export function AskAI() {
   const [refineContent, setRefineContent] = useState("")
   const [refineInstruction, setRefineInstruction] = useState("")
 
+  const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
+
   const chat = useChat({
     endpoint: "/ai/query",
     streamEndpoint: "/ai/stream",
@@ -81,7 +84,8 @@ export function AskAI() {
       query,
       topicId: topicFilter !== "all" ? topicFilter : undefined,
       maxSources: 5,
-    }), [topicFilter]),
+      responseLength,
+    }), [topicFilter, responseLength]),
     errorMessage: "Failed to connect to AI service. Please try again.",
   })
 

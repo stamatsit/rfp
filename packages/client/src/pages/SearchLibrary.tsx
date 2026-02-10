@@ -71,6 +71,7 @@ import {
   type AnswerVersion,
 } from "@/lib/api"
 import type { Topic, SearchItemType, ItemStatus } from "@/types"
+import { loadSettings } from "@/components/SettingsPanel"
 
 // Topic color mapping for consistent color coding
 const topicColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -95,6 +96,31 @@ function getTopicColor(topicId: string, index: number): { bg: string; text: stri
 }
 
 type SortOption = "relevance" | "newest" | "oldest" | "alphabetical"
+
+/** Cache the highlight regex per query to avoid re-creating on every call */
+let _hlCache: { query: string; regex: RegExp } | null = null
+function getHighlightRegex(query: string): RegExp | null {
+  const trimmed = query.trim()
+  if (!trimmed) return null
+  if (_hlCache && _hlCache.query === trimmed) return _hlCache.regex
+  const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+  const regex = new RegExp(`(${escaped})`, "gi")
+  _hlCache = { query: trimmed, regex }
+  return regex
+}
+
+/** Highlight search terms in text by wrapping matches in <mark> tags */
+function highlightText(text: string, query: string): React.ReactNode {
+  const regex = getHighlightRegex(query)
+  if (!regex) return text
+  const parts = text.split(regex)
+  if (parts.length === 1) return text
+  return parts.map((part, i) =>
+    part.toLowerCase() === query.trim().toLowerCase()
+      ? <mark key={i} className="bg-yellow-200 dark:bg-yellow-700/50 text-inherit rounded-sm px-0.5">{part}</mark>
+      : part
+  )
+}
 
 // Skeleton loader for answer cards
 function AnswerCardSkeleton() {
@@ -173,10 +199,17 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
 
   // Fetch DB entries
   useEffect(() => {
-    clientSuccessApi.getEntries().then(setDbEntries).catch(() => {})
-    clientSuccessApi.getResults().then(setDbResults).catch(() => {})
-    clientSuccessApi.getTestimonials().then(setDbTestimonials).catch(() => {})
-    clientSuccessApi.getAwards().then(setDbAwards).catch(() => {})
+    Promise.all([
+      clientSuccessApi.getEntries().catch(() => []),
+      clientSuccessApi.getResults().catch(() => []),
+      clientSuccessApi.getTestimonials().catch(() => []),
+      clientSuccessApi.getAwards().catch(() => []),
+    ]).then(([entries, results, testimonials, awards]) => {
+      setDbEntries(entries as any)
+      setDbResults(results as any)
+      setDbTestimonials(testimonials as any)
+      setDbAwards(awards as any)
+    })
   }, [refreshKey])
 
   const handleDelete = useCallback(async (type: "entry" | "result" | "testimonial" | "award", id: string) => {
@@ -892,6 +925,11 @@ export function SearchLibrary() {
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, setSearchParams])
+
+  // Load user settings for search behavior
+  const appSettings = useMemo(() => loadSettings(), [])
+  const shouldHighlight = appSettings.searchHighlightMatches
+  const showPhotos = appSettings.searchIncludePhotos
 
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
@@ -1660,9 +1698,9 @@ export function SearchLibrary() {
           </div>
 
           {/* Results - Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-            {/* Answers Column - Takes up 3 columns */}
-            <div className="lg:col-span-3 space-y-3">
+          <div className={`grid grid-cols-1 ${showPhotos ? "lg:grid-cols-5" : ""} gap-6`}>
+            {/* Answers Column - Takes up 3 columns (or full width if photos hidden) */}
+            <div className={`${showPhotos ? "lg:col-span-3" : ""} space-y-3`}>
               {/* Answers Header */}
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -1696,10 +1734,10 @@ export function SearchLibrary() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
-                                {answer.question}
+                                {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                               </h3>
                               <p className="text-slate-500 dark:text-slate-400 mt-1.5 text-sm line-clamp-2 leading-relaxed">
-                                {answer.answer}
+                                {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                               </p>
                               <div className="flex items-center gap-2 mt-3 flex-wrap">
                                 <Badge
@@ -1816,10 +1854,10 @@ export function SearchLibrary() {
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug text-sm">
-                                      {answer.question}
+                                      {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                                     </h3>
                                     <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm line-clamp-2 leading-relaxed">
-                                      {answer.answer}
+                                      {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                                     </p>
                                     <div className="flex items-center gap-2 mt-2 flex-wrap">
                                       {answer.status === "Approved" ? (
@@ -1892,8 +1930,8 @@ export function SearchLibrary() {
               )}
             </div>
 
-            {/* Photos Column - Takes up 2 columns */}
-            <div className="lg:col-span-2 space-y-3">
+            {/* Photos Column - Takes up 2 columns (hidden if searchIncludePhotos is off) */}
+            {showPhotos && <div className="lg:col-span-2 space-y-3">
               {/* Photos Header */}
               <div className="flex items-center justify-between">
                 <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
@@ -1977,7 +2015,7 @@ export function SearchLibrary() {
                   <p className="text-slate-500 dark:text-slate-400 text-[14px]">No photos found</p>
                 </div>
               )}
-            </div>
+            </div>}
           </div>
 
           {/* Load More Button */}

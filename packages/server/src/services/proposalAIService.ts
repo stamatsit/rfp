@@ -1592,10 +1592,17 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
 /**
  * Stream Proposal Insights via SSE
  */
+const RESPONSE_LENGTH_TOKENS: Record<string, number> = {
+  concise: 1000,
+  balanced: 4000,
+  detailed: 6000,
+}
+
 export async function streamProposalInsights(
   query: string,
   res: Response,
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  responseLength?: string
 ): Promise<void> {
   const openai = getOpenAI()
 
@@ -1642,7 +1649,7 @@ export async function streamProposalInsights(
       { role: "user", content: query },
     ],
     temperature: 0.4,
-    maxTokens: 4000,
+    maxTokens: RESPONSE_LENGTH_TOKENS[responseLength ?? ""] ?? 4000,
     metadata: {
       dataUsed: {
         totalProposals: proposals.length,

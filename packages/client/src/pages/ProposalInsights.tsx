@@ -5,7 +5,7 @@
  * Uses the shared chat infrastructure with cyan theme and proposal-specific functionality.
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import {
   TrendingUp,
   RefreshCw,
@@ -24,6 +24,7 @@ import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { proposalInsightsApi, type ProposalSyncStatus } from "@/lib/api"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
+import { loadSettings } from "@/components/SettingsPanel"
 
 const theme = CHAT_THEMES.cyan
 
@@ -76,11 +77,14 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function ProposalInsights() {
+  const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
+
   const chat = useChat({
     endpoint: "/proposals/query",
     streamEndpoint: "/proposals/stream",
     page: "proposal-insights",
     parseResult,
+    buildBody: useCallback((query: string) => ({ query, responseLength }), [responseLength]),
     parseMetadata: useCallback((data: Record<string, unknown>) =>
       (data.dataUsed as Record<string, unknown>) ?? data
     , []),

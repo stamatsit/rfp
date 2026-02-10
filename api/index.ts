@@ -26,6 +26,16 @@ function truncateHistory(messages: Array<{ role: string; content: string }>, max
   return result
 }
 
+const RESPONSE_LENGTH_TOKENS: Record<string, number> = {
+  concise: 1000,
+  balanced: 2000,
+  detailed: 4000,
+}
+
+function getMaxTokens(responseLength: string | undefined, defaultTokens: number): number {
+  return RESPONSE_LENGTH_TOKENS[responseLength ?? ""] ?? defaultTokens
+}
+
 function parseChartData(response: string): { cleanText: string; chartData: Record<string, unknown> | null } {
   const chartMatch = response.match(/CHART_DATA:\s*(\{[\s\S]*?\})\s*$/m)
   if (chartMatch?.[1]) {
@@ -469,7 +479,7 @@ export const conversations = pgTable("conversations", {
 
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
-const queryClient = DATABASE_URL ? postgres(DATABASE_URL) : null
+const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
 const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations } }) : null
 
 // Supabase client
@@ -479,8 +489,15 @@ const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
   : null
 
-// OpenAI client
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY }) : null
+// OpenAI client — lazy-initialized to avoid cold start overhead on non-AI endpoints
+let _openai: OpenAI | null = null
+function getOpenAI(): OpenAI | null {
+  if (!_openai && process.env.OPENAI_API_KEY) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  }
+  return _openai
+}
+const openai = getOpenAI()
 
 // Stateless session using signed tokens (works across serverless instances)
 const SESSION_SECRET = process.env.SESSION_SECRET || process.env.APP_PASSWORD || "fallback-secret"
@@ -998,32 +1015,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(results)
       }
 
-      // GET /search/answers/:id - get single answer with linked photos
+      // GET /search/answers/:id - get single answer with linked photos (single JOIN query)
       const answerMatch = path.match(/^\/search\/answers\/([^/]+)$/)
       if (answerMatch && method === "GET") {
         const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, answerMatch[1]))
         if (!answer) return res.status(404).json({ error: "Answer not found" })
-        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.answerItemId, answerMatch[1]))
-        const linkedPhotos = []
-        for (const link of links) {
-          const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, link.photoAssetId))
-          if (photo) linkedPhotos.push(photo)
-        }
-        return res.json({ ...answer, linkedPhotos })
+        const linkedPhotos = await db.select({ photo: photoAssets })
+          .from(linksAnswerPhoto)
+          .innerJoin(photoAssets, eq(linksAnswerPhoto.photoAssetId, photoAssets.id))
+          .where(eq(linksAnswerPhoto.answerItemId, answerMatch[1]))
+        return res.json({ ...answer, linkedPhotos: linkedPhotos.map(r => r.photo) })
       }
 
-      // GET /search/photos/:id - get single photo with linked answers
+      // GET /search/photos/:id - get single photo with linked answers (single JOIN query)
       const photoMatch = path.match(/^\/search\/photos\/([^/]+)$/)
       if (photoMatch && method === "GET") {
         const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, photoMatch[1]))
         if (!photo) return res.status(404).json({ error: "Photo not found" })
-        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.photoAssetId, photoMatch[1]))
-        const linkedAnswers = []
-        for (const link of links) {
-          const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, link.answerItemId))
-          if (answer) linkedAnswers.push(answer)
-        }
-        return res.json({ ...photo, linkedAnswers })
+        const linkedAnswers = await db.select({ answer: answerItems })
+          .from(linksAnswerPhoto)
+          .innerJoin(answerItems, eq(linksAnswerPhoto.answerItemId, answerItems.id))
+          .where(eq(linksAnswerPhoto.photoAssetId, photoMatch[1]))
+        return res.json({ ...photo, linkedAnswers: linkedAnswers.map(r => r.answer) })
       }
 
       // POST /search/answers/:id/copy - log copy event (just acknowledge)
@@ -1054,30 +1067,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ success: true })
       }
 
-      // GET /search/answers/:id/photos - get linked photos
+      // GET /search/answers/:id/photos - get linked photos (single JOIN query)
       const linkedPhotosMatch = path.match(/^\/search\/answers\/([^/]+)\/photos$/)
       if (linkedPhotosMatch && method === "GET") {
-        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.answerItemId, linkedPhotosMatch[1]))
-        if (links.length === 0) return res.json([])
-        const photos = []
-        for (const link of links) {
-          const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, link.photoAssetId))
-          if (photo) photos.push(photo)
-        }
-        return res.json(photos)
+        const photos = await db.select({ photo: photoAssets })
+          .from(linksAnswerPhoto)
+          .innerJoin(photoAssets, eq(linksAnswerPhoto.photoAssetId, photoAssets.id))
+          .where(eq(linksAnswerPhoto.answerItemId, linkedPhotosMatch[1]))
+        return res.json(photos.map(r => r.photo))
       }
 
-      // GET /search/photos/:id/answers - get linked answers
+      // GET /search/photos/:id/answers - get linked answers (single JOIN query)
       const linkedAnswersMatch = path.match(/^\/search\/photos\/([^/]+)\/answers$/)
       if (linkedAnswersMatch && method === "GET") {
-        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.photoAssetId, linkedAnswersMatch[1]))
-        if (links.length === 0) return res.json([])
-        const answers = []
-        for (const link of links) {
-          const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, link.answerItemId))
-          if (answer) answers.push(answer)
-        }
-        return res.json(answers)
+        const answers = await db.select({ answer: answerItems })
+          .from(linksAnswerPhoto)
+          .innerJoin(answerItems, eq(linksAnswerPhoto.answerItemId, answerItems.id))
+          .where(eq(linksAnswerPhoto.photoAssetId, linkedAnswersMatch[1]))
+        return res.json(answers.map(r => r.answer))
       }
 
       // Combined search (original route) with relevance scoring
@@ -1445,7 +1452,7 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
           return res.end()
         }
 
-        const { query, topicId, maxSources = 5, conversationHistory } = req.body || {}
+        const { query, topicId, maxSources = 5, conversationHistory, responseLength } = req.body || {}
 
         // Step 1: Extract key concepts/keywords from the user's query using AI
         let searchKeywords: string[] = []
@@ -1607,7 +1614,7 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
             model: "gpt-4o",
             messages,
             temperature: 0.3,
-            max_tokens: 2000,
+            max_tokens: getMaxTokens(responseLength, 2000),
             stream: true
           })
 
@@ -1802,7 +1809,7 @@ ${csContext}`
           return res.end()
         }
 
-        const { query: csStreamQuery, conversationHistory: csConvHistory } = req.body || {}
+        const { query: csStreamQuery, conversationHistory: csConvHistory, responseLength: csResponseLength } = req.body || {}
         if (!csStreamQuery || typeof csStreamQuery !== "string" || csStreamQuery.trim().length < 2) {
           res.setHeader("Content-Type", "text/event-stream")
           res.setHeader("Cache-Control", "no-cache")
@@ -1912,7 +1919,7 @@ ${csStreamContext}`
             model: "gpt-4o",
             messages: csStreamMessages,
             temperature: 0.4,
-            max_tokens: 3000,
+            max_tokens: getMaxTokens(csResponseLength, 3000),
             stream: true
           })
 
@@ -2395,7 +2402,7 @@ ${compDataContext}`
           return res.end()
         }
 
-        const { query: pStreamQuery, conversationHistory: pConvHistory } = req.body || {}
+        const { query: pStreamQuery, conversationHistory: pConvHistory, responseLength: pResponseLength } = req.body || {}
 
         // Get all proposals from database (same as non-streaming)
         const pStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
@@ -2469,7 +2476,7 @@ ${compDataContext}`
             model: "gpt-4o",
             messages: pStreamMessages,
             temperature: 0.4,
-            max_tokens: 4000,
+            max_tokens: getMaxTokens(pResponseLength, 4000),
             stream: true
           })
 
@@ -2732,7 +2739,7 @@ ${context}`
           return res.end()
         }
 
-        const { query: uaiStreamQuery, conversationHistory: uaiConvHistory } = req.body || {}
+        const { query: uaiStreamQuery, conversationHistory: uaiConvHistory, responseLength: uaiResponseLength } = req.body || {}
         if (!uaiStreamQuery || typeof uaiStreamQuery !== "string" || uaiStreamQuery.trim().length < 2) {
           res.setHeader("Content-Type", "text/event-stream")
           res.setHeader("Cache-Control", "no-cache")
@@ -2917,7 +2924,7 @@ ${uaiStreamContext}`
             model: "gpt-4o",
             messages: uaiStreamMessages,
             temperature: 0.4,
-            max_tokens: 3000,
+            max_tokens: getMaxTokens(uaiResponseLength, 3000),
             stream: true
           })
 

@@ -39,9 +39,12 @@ export interface CaseStudyInsightResult {
   refusalReason?: string
 }
 
-// ─── Context Builder ────────────────────────────────────────
+// ─── Context Builder (memoized — static data doesn't change at runtime) ───
+
+let cachedContext: string | null = null
 
 function buildContext(): string {
+  if (cachedContext) return cachedContext
   const sections: string[] = []
 
   // Section 1: Case Studies
@@ -119,7 +122,8 @@ function buildContext(): string {
   )
   sections.push(`=== CONFERENCE PRESENCE ===\n${confLines.join("\n")}`)
 
-  return sections.join("\n\n")
+  cachedContext = sections.join("\n\n")
+  return cachedContext
 }
 
 // ─── System Prompt ──────────────────────────────────────────
@@ -281,10 +285,17 @@ export async function queryCaseStudyInsights(
 /**
  * Stream Case Study Insights via SSE
  */
+const RESPONSE_LENGTH_TOKENS: Record<string, number> = {
+  concise: 1000,
+  balanced: 3000,
+  detailed: 5000,
+}
+
 export async function streamCaseStudyInsights(
   query: string,
   res: Response,
-  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
+  responseLength?: string
 ): Promise<void> {
   const openai = getOpenAI()
 
@@ -311,7 +322,7 @@ export async function streamCaseStudyInsights(
       { role: "user", content: query },
     ],
     temperature: 0.4,
-    maxTokens: 3000,
+    maxTokens: RESPONSE_LENGTH_TOKENS[responseLength ?? ""] ?? 3000,
     metadata: {
       dataUsed: {
         totalCaseStudies: clientSuccessData.caseStudies.length,

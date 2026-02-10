@@ -70,6 +70,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
   const [conversationList, setConversationList] = useState<ConversationSummary[]>([])
   const conversationIdRef = useRef<string | null>(null)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Keep ref in sync
   useEffect(() => { conversationIdRef.current = conversationId }, [conversationId])
@@ -122,8 +123,14 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
     saveTimeoutRef.current = setTimeout(() => saveConversation(msgs), 500)
   }, [saveConversation])
 
+  // Debounced scroll to bottom — avoids reflows during streaming (fires at most every 150ms)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+    if (scrollTimeoutRef.current) return
+    scrollTimeoutRef.current = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+      scrollTimeoutRef.current = null
+    }, 150)
+    return () => { if (scrollTimeoutRef.current) { clearTimeout(scrollTimeoutRef.current); scrollTimeoutRef.current = null } }
   }, [messages])
 
   useEffect(() => {

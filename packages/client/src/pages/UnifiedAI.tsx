@@ -9,7 +9,7 @@
  * The power: answering questions NO SINGLE SOURCE could answer.
  */
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import {
   Layers,
   Database,
@@ -23,6 +23,7 @@ import {
 import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
+import { loadSettings } from "@/components/SettingsPanel"
 
 const theme = CHAT_THEMES.indigo
 
@@ -78,11 +79,14 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function UnifiedAI() {
+  const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
+
   const chat = useChat({
     endpoint: "/unified-ai/query",
     streamEndpoint: "/unified-ai/stream",
     page: "unified-ai",
     parseResult,
+    buildBody: useCallback((query: string) => ({ query, responseLength }), [responseLength]),
     parseMetadata: useCallback((data: Record<string, unknown>) => ({
       ...(data.dataUsed as Record<string, unknown> | undefined),
       crossReferenceInsights: data.crossReferenceInsights as string[] | undefined,

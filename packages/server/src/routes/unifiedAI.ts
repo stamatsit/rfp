@@ -41,7 +41,7 @@ router.post("/query", async (req: Request, res: Response) => {
  */
 router.post("/stream", async (req: Request, res: Response) => {
   try {
-    const { query, conversationHistory } = req.body
+    const { query, conversationHistory, responseLength } = req.body
 
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Query is required" })
@@ -55,7 +55,7 @@ router.post("/stream", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Query must be less than 2000 characters" })
     }
 
-    await streamUnifiedAI(query.trim(), res, conversationHistory)
+    await streamUnifiedAI(query.trim(), res, conversationHistory, responseLength as string | undefined)
   } catch (error) {
     console.error("Unified AI stream failed:", error)
     if (!res.headersSent) {

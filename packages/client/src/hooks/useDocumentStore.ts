@@ -4,6 +4,7 @@ import type { FormatSettings, StudioMode, SaveStatus } from "@/types/studio"
 import { DEFAULT_FORMAT_SETTINGS, DEFAULT_LETTERHEAD_HEADER, DEFAULT_LETTERHEAD_FOOTER } from "@/types/studio"
 import { studioApi } from "@/lib/api"
 import { isMarkdown, markdownToHtml } from "@/lib/markdownToHtml"
+import { loadSettings } from "@/components/SettingsPanel"
 
 /** Merge stored format settings with defaults so new fields are never undefined */
 function mergeFormatDefaults(stored: Partial<FormatSettings>): FormatSettings {
@@ -287,14 +288,15 @@ export function useDocumentStore(): UseDocumentStoreReturn {
     return () => clearTimeout(timer)
   }, [content, title, formatSettings, mode, documentId])
 
-  // Auto-save to server (debounced 3s, only when content actually changed)
+  // Auto-save to server (debounced, only when content actually changed)
   useEffect(() => {
     if (!isDirty || !documentId) return
     if (content === lastSavedContent.current) return
 
+    const interval = loadSettings().autoSaveInterval || SERVER_SAVE_DEBOUNCE
     const timer = setTimeout(() => {
       void saveToServer()
-    }, SERVER_SAVE_DEBOUNCE)
+    }, interval)
     return () => clearTimeout(timer)
   }, [content, isDirty, documentId, saveToServer])
 

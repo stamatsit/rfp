@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { accountApi } from "@/lib/api"
 
@@ -117,10 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     checkAuth()
   }, [])
 
-  // Re-check auth on location change (except for login and change-password pages)
+  // Re-check auth on location change, but skip if checked recently (30s TTL)
+  const lastAuthCheck = useRef(0)
   useEffect(() => {
     if (location.pathname !== "/login" && location.pathname !== "/change-password" && !isLoading) {
-      checkAuth()
+      const now = Date.now()
+      if (now - lastAuthCheck.current > 30_000) {
+        lastAuthCheck.current = now
+        checkAuth()
+      }
     }
   }, [location.pathname])
 

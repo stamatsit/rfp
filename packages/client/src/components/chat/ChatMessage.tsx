@@ -10,7 +10,7 @@ import { Button, Card, CardContent } from "@/components/ui"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import { InlineChart } from "./InlineChart"
 import type { ChatMessage as ChatMessageType, ChatTheme } from "@/types/chat"
-import type { ReactNode } from "react"
+import { memo, type ReactNode } from "react"
 
 interface ChatMessageProps {
   message: ChatMessageType
@@ -25,7 +25,7 @@ interface ChatMessageProps {
   renderActions?: (message: ChatMessageType) => ReactNode
 }
 
-export function ChatMessageItem({
+export const ChatMessageItem = memo(function ChatMessageItem({
   message,
   theme,
   copiedId,
@@ -170,4 +170,4 @@ export function ChatMessageItem({
       )}
     </div>
   )
-}
+})

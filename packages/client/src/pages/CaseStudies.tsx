@@ -5,7 +5,7 @@
  * Uses shared chat infrastructure with violet theme.
  */
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 import {
   BookOpen,
   Database,
@@ -19,6 +19,7 @@ import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { clientSuccessData } from "@/data/clientSuccessData"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
+import { loadSettings } from "@/components/SettingsPanel"
 
 const theme = CHAT_THEMES.violet
 
@@ -71,11 +72,14 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function CaseStudies() {
+  const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
+
   const chat = useChat({
     endpoint: "/ai/case-studies",
     streamEndpoint: "/ai/case-studies/stream",
     page: "case-studies",
     parseResult,
+    buildBody: useCallback((query: string) => ({ query, responseLength }), [responseLength]),
     parseMetadata: useCallback((data: Record<string, unknown>) =>
       (data.dataUsed as Record<string, unknown>) ?? data
     , []),

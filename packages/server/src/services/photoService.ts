@@ -27,23 +27,23 @@ export async function getPhotos(filters?: {
 }): Promise<PhotoWithMeta[]> {
   if (!db) throw new Error("Database not available")
 
-  // Build conditions
-  const conditions: string[] = []
-
+  // Build parameterized conditions (prevents SQL injection)
+  const conditions: ReturnType<typeof sql>[] = []
   if (filters?.topicId) {
-    conditions.push(`p.topic_id = '${filters.topicId}'`)
+    conditions.push(sql`p.topic_id = ${filters.topicId}`)
   }
-
   if (filters?.status) {
-    conditions.push(`p.status = '${filters.status}'`)
+    conditions.push(sql`p.status = ${filters.status}`)
   }
 
-  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""
-  const limitClause = filters?.limit ? `LIMIT ${filters.limit}` : ""
-  const offsetClause = filters?.offset ? `OFFSET ${filters.offset}` : ""
+  const whereClause = conditions.length > 0
+    ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+    : sql``
+  const safeLimit = filters?.limit ? Math.min(Math.max(1, filters.limit), 500) : 100
+  const safeOffset = filters?.offset ? Math.max(0, filters.offset) : 0
 
   // Single query with LEFT JOIN and GROUP BY for linked answers count
-  const results = await db.execute(sql.raw(`
+  const results = await db.execute(sql`
     SELECT
       p.*,
       COALESCE(COUNT(l.answer_item_id), 0)::int as linked_answers_count
@@ -52,9 +52,9 @@ export async function getPhotos(filters?: {
     ${whereClause}
     GROUP BY p.id
     ORDER BY p.created_at DESC
-    ${limitClause}
-    ${offsetClause}
-  `))
+    LIMIT ${safeLimit}
+    OFFSET ${safeOffset}
+  `)
 
   // Map results to PhotoWithMeta (raw SQL returns snake_case columns)
   // PostgreSQL may return JSON as strings, so we need to parse them
@@ -350,16 +350,16 @@ export async function searchPhotos(
     .map((word) => `${word}:*`)
     .join(" & ")
 
-  // Build filter conditions
-  let filterConditions = ""
+  // Build parameterized filter conditions (prevents SQL injection)
+  const extraConditions: ReturnType<typeof sql>[] = []
   if (filters?.topicId) {
-    filterConditions += ` AND p.topic_id = '${filters.topicId}'`
+    extraConditions.push(sql`AND p.topic_id = ${filters.topicId}`)
   }
   if (filters?.status) {
-    filterConditions += ` AND p.status = '${filters.status}'`
+    extraConditions.push(sql`AND p.status = ${filters.status}`)
   }
 
-  const limitClause = filters?.limit ? `LIMIT ${filters.limit}` : ""
+  const safeLimit = filters?.limit ? Math.min(Math.max(1, filters.limit), 500) : 100
 
   // Single query with LEFT JOIN and GROUP BY
   const results = await db.execute(sql`
@@ -370,10 +370,10 @@ export async function searchPhotos(
     FROM photo_assets p
     LEFT JOIN links_answer_photo l ON p.id = l.photo_asset_id
     WHERE to_tsvector('english', p.display_title || ' ' || COALESCE(p.description, '')) @@ to_tsquery('english', ${searchQuery})
-    ${sql.raw(filterConditions)}
+    ${extraConditions.length > 0 ? sql.join(extraConditions, sql` `) : sql``}
     GROUP BY p.id
     ORDER BY rank DESC
-    ${sql.raw(limitClause)}
+    LIMIT ${safeLimit}
   `)
 
   // Map results to PhotoWithMeta (raw SQL returns snake_case columns)

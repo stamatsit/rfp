@@ -1,15 +1,3 @@
+// Only export pages that are statically imported (HomePage).
+// All other pages are lazy-loaded via React.lazy() in App.tsx.
 export { HomePage } from "./HomePage"
-export { ImportWizard } from "./ImportWizard"
-export { PhotoUpload } from "./PhotoUpload"
-export { SearchLibrary } from "./SearchLibrary"
-export { ManualEntry } from "./ManualEntry"
-export { AskAI } from "./AskAI"
-export { RFPAnalyzer } from "./RFPAnalyzer"
-export { SavedDocuments } from "./SavedDocuments"
-export { Help } from "./Help"
-export { Support } from "./Support"
-export { Settings } from "./Settings"
-export { ProposalInsights } from "./ProposalInsights"
-export { CaseStudies } from "./CaseStudies"
-export { UnifiedAI } from "./UnifiedAI"
-export { DocumentStudio } from "./DocumentStudio"
