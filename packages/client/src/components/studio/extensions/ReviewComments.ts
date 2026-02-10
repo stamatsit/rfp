@@ -53,7 +53,7 @@ export const ReviewCommentsExtension = Extension.create({
       new Plugin({
         key: reviewCommentsPluginKey,
         state: {
-          init(_, { doc }) {
+          init(_) {
             return {
               annotations: [] as ReviewAnnotation[],
               decorations: DecorationSet.empty,

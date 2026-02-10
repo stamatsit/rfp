@@ -101,6 +101,15 @@ export async function updateAvatarUrl(userId: string, avatarUrl: string | null):
     .where(eq(users.id, userId))
 }
 
+export async function markTourCompleted(userId: string): Promise<void> {
+  if (!db) throw new Error("Database not available")
+
+  await db
+    .update(users)
+    .set({ hasCompletedTour: true, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+}
+
 export async function getAllUsers(): Promise<User[]> {
   if (!db) throw new Error("Database not available")
 

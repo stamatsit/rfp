@@ -405,6 +405,89 @@ export async function queryDocumentChat(
   }
 }
 
+// ─── Inline Edit (selection-based AI) ───
+
+const INLINE_EDIT_PROMPTS: Record<string, string> = {
+  rewrite: "Rewrite the following text to say the same thing in a different way. Keep the same meaning and tone but use different wording and sentence structure.",
+  shorten: "Make the following text more concise while preserving all key information. Remove unnecessary words and tighten the prose.",
+  expand: "Expand the following text with more detail, examples, or supporting points. Maintain the same tone and style.",
+  grammar: "Fix any grammar, spelling, punctuation, or style issues in the following text. Only correct errors — do not change meaning or tone.",
+  "tone-formal": "Rewrite the following text in a more formal, professional tone. Maintain the same meaning.",
+  "tone-casual": "Rewrite the following text in a more conversational, approachable tone. Maintain the same meaning.",
+  "tone-confident": "Rewrite the following text to sound more confident and authoritative. Remove hedging language and weak phrasing.",
+}
+
+export async function streamInlineEdit(
+  selectedText: string,
+  action: string,
+  res: Response,
+  options?: { customInstruction?: string; documentContext?: string }
+): Promise<void> {
+  const openai = getOpenAI()
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "OpenAI API key not configured" })}\n\n`)
+    res.end()
+    return
+  }
+
+  const instruction = action === "custom" && options?.customInstruction
+    ? options.customInstruction
+    : INLINE_EDIT_PROMPTS[action] || INLINE_EDIT_PROMPTS.rewrite
+
+  let systemPrompt = `You are an expert editor for Stamats, a marketing agency specializing in higher education and healthcare. You make precise, targeted edits to selected text within documents.
+
+RULES:
+- Output ONLY the edited text — no explanations, no preamble, no quotes around it.
+- Do not add markdown formatting unless the original text used it.
+- Maintain consistent style with the surrounding document.
+- Keep the same approximate length unless the action requires changing it (shorten/expand).`
+
+  if (options?.documentContext) {
+    systemPrompt += `\n\nSurrounding document context (for style/tone reference):\n${options.documentContext.slice(0, 2000)}`
+  }
+
+  // SSE headers
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  })
+
+  res.write(`event: metadata\ndata: ${JSON.stringify({ action })}\n\n`)
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: `${instruction}\n\nText to edit:\n${selectedText}` },
+      ],
+      temperature: 0.3,
+      max_tokens: 1500,
+      stream: true,
+    })
+
+    let fullResponse = ""
+    for await (const chunk of stream) {
+      const token = chunk.choices[0]?.delta?.content
+      if (token) {
+        fullResponse += token
+        res.write(`data: ${JSON.stringify({ token })}\n\n`)
+      }
+    }
+
+    res.write(`event: done\ndata: ${JSON.stringify({ result: fullResponse.trim() })}\n\n`)
+    res.end()
+  } catch (error) {
+    console.error("Inline edit stream error:", error)
+    const message = error instanceof Error ? error.message : "Streaming failed"
+    res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`)
+    res.end()
+  }
+}
+
 // ─── RFP Compliance Checklist ───
 
 export interface ChecklistItem {

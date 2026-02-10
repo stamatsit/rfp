@@ -107,7 +107,7 @@ export default function Login() {
 
           <div className="mt-12 pt-8 border-t border-white/[0.06] animate-fade-in" style={{ animationDelay: '0.4s', animationFillMode: 'both' }}>
             <p className="text-[12px] text-slate-500">
-              100+ years of higher education &amp; healthcare marketing expertise
+              AI-powered tools for agencies that win
             </p>
           </div>
         </div>

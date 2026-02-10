@@ -1,9 +1,19 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { ReviewAnnotation } from "@/types/chat"
 import type { FormatSettings, StudioMode, SaveStatus } from "@/types/studio"
-import { DEFAULT_FORMAT_SETTINGS } from "@/types/studio"
+import { DEFAULT_FORMAT_SETTINGS, DEFAULT_LETTERHEAD_HEADER, DEFAULT_LETTERHEAD_FOOTER } from "@/types/studio"
 import { studioApi } from "@/lib/api"
 import { isMarkdown, markdownToHtml } from "@/lib/markdownToHtml"
+
+/** Merge stored format settings with defaults so new fields are never undefined */
+function mergeFormatDefaults(stored: Partial<FormatSettings>): FormatSettings {
+  return {
+    ...DEFAULT_FORMAT_SETTINGS,
+    ...stored,
+    letterheadHeader: stored.letterheadHeader ?? { ...DEFAULT_LETTERHEAD_HEADER },
+    letterheadFooter: stored.letterheadFooter ?? { ...DEFAULT_LETTERHEAD_FOOTER },
+  }
+}
 
 const LOCALSTORAGE_KEY = "stamats-studio-draft"
 const MAX_UNDO_STACK = 50
@@ -65,7 +75,9 @@ export function useDocumentStore(): UseDocumentStoreReturn {
     try {
       const stored = localStorage.getItem(LOCALSTORAGE_KEY)
       if (stored) {
-        recovered.current = JSON.parse(stored) as DraftState
+        const parsed = JSON.parse(stored) as DraftState
+      parsed.formatSettings = mergeFormatDefaults(parsed.formatSettings)
+      recovered.current = parsed
       }
     } catch {
       // ignore
@@ -75,10 +87,14 @@ export function useDocumentStore(): UseDocumentStoreReturn {
         content: "",
         title: "Untitled",
         formatSettings: DEFAULT_FORMAT_SETTINGS,
-        mode: "briefing",
+        mode: "editor",
         documentId: null,
         timestamp: Date.now(),
       }
+    }
+    // Migrate legacy "briefing" mode from old localStorage
+    if ((recovered.current.mode as string) === "briefing") {
+      recovered.current.mode = "editor"
     }
   }
 
@@ -233,7 +249,7 @@ export function useDocumentStore(): UseDocumentStoreReturn {
       const htmlContent = isMarkdown(loadedContent) ? markdownToHtml(loadedContent) : loadedContent
       setContentState(htmlContent)
       setTitle(doc.title || "Untitled")
-      if (doc.formatSettings) setFormatSettings(doc.formatSettings)
+      if (doc.formatSettings) setFormatSettings(mergeFormatDefaults(doc.formatSettings))
       lastSavedContent.current = htmlContent
       undoStack.current = []
       redoStack.current = []

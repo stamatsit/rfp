@@ -1,11 +1,13 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
+import { accountApi } from "@/lib/api"
 
 export interface User {
   id: string
   email: string
   name: string
   avatarUrl: string | null
+  hasCompletedTour: boolean
 }
 
 interface AuthContextType {
@@ -17,6 +19,7 @@ interface AuthContextType {
   checkAuth: () => Promise<void>
   setAuthenticated: (value: boolean) => void
   refreshUser: () => Promise<void>
+  markTourCompleted: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -95,6 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
+  const markTourCompleted = useCallback(async () => {
+    try {
+      await accountApi.completeTour()
+    } catch {
+      // Silent fail — still update locally so tour doesn't re-show
+    }
+    setUser(prev => prev ? { ...prev, hasCompletedTour: true } : prev)
+  }, [])
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -107,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [location.pathname])
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, mustChangePassword, logout, checkAuth, setAuthenticated, refreshUser }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, mustChangePassword, logout, checkAuth, setAuthenticated, refreshUser, markTourCompleted }}>
       {children}
     </AuthContext.Provider>
   )

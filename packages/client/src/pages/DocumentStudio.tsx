@@ -1,22 +1,28 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core"
 import type { Editor } from "@tiptap/react"
+import { X, FileText } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import {
-  StudioToolbar, StudioChatSidebar, BriefingView, DocumentEditor,
-  FormatToolbar, FindReplace, ExportDialog, PhotoPicker, AssetPanel,
-  VersionHistory, ShareDialog, QABrowser, DocumentOutline, ComplianceChecklist,
+  StudioToolbar, StudioChatSidebar, DocumentEditor,
+  FindReplace, ExportDialog, PhotoPicker, AssetPanel,
+  VersionHistory, ShareDialog, QABrowser, InspectorPanel,
 } from "@/components/studio"
 import { useDocumentStore } from "@/hooks/useDocumentStore"
 import { studioApi } from "@/lib/api"
 import { markdownToHtml } from "@/lib/markdownToHtml"
 import type { SharedUser } from "@/types/studio"
 
-const MIN_LEFT_WIDTH = 320
+const MIN_LEFT_WIDTH = 280
 const MAX_LEFT_WIDTH = 800
-const DEFAULT_LEFT_FRACTION = 0.4
+const DEFAULT_LEFT_FRACTION = 0.28
+const COLLAPSED_WIDTH = 48
 
-// Seed templates (markdown — converted to HTML on selection)
+// ── Types ─────────────────────────────────────────────────
+type ModalId = "find-replace" | "export" | "photos" | "assets" | "templates" | "version-history" | "share" | "qa-browser" | null
+export type PanelTab = "format" | "outline" | "checklist" | null
+
+// ── Seed templates ────────────────────────────────────────
 const SEED_TEMPLATES = [
   { name: "Blank Document", content: "", category: "custom" as const },
   {
@@ -42,20 +48,16 @@ export function DocumentStudio() {
   const editorRef = useRef<Editor | null>(null)
   const [leftFraction, setLeftFraction] = useState(DEFAULT_LEFT_FRACTION)
   const isDraggingDivider = useRef(false)
-  const [showFindReplace, setShowFindReplace] = useState(false)
-  const [showExport, setShowExport] = useState(false)
-  const [showPhotoPicker, setShowPhotoPicker] = useState(false)
-  const [showAssetPanel, setShowAssetPanel] = useState(false)
-  const [showTemplates, setShowTemplates] = useState(false)
-  const [showVersionHistory, setShowVersionHistory] = useState(false)
-  const [showShareDialog, setShowShareDialog] = useState(false)
-  const [showQABrowser, setShowQABrowser] = useState(false)
-  const [showOutline, setShowOutline] = useState(false)
-  const [showChecklist, setShowChecklist] = useState(false)
+
+  // Centralized modal & panel state
+  const [activeModal, setActiveModal] = useState<ModalId>(null)
+  const [inspectorTab, setInspectorTab] = useState<PanelTab>(null)
+
   const [rfpText, setRfpText] = useState<string | null>(null)
   const [sharedWith, setSharedWith] = useState<SharedUser[]>([])
   const [serverTemplates, setServerTemplates] = useState<Array<{ id: string; name: string; content: string; category: string }>>([])
   const [dragContent, setDragContent] = useState<string | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
 
   // Load server templates
@@ -107,9 +109,8 @@ export function DocumentStudio() {
         e.preventDefault()
         void doc.saveToServer()
       }
-      // Let TipTap handle Cmd+Z/Shift+Z when the editor is focused
       if (meta && e.key === "z") {
-        if (editorRef.current?.isFocused) return // TipTap handles its own undo/redo
+        if (editorRef.current?.isFocused) return
         e.preventDefault()
         if (e.shiftKey) {
           doc.redo()
@@ -119,49 +120,29 @@ export function DocumentStudio() {
       }
       if (meta && e.key === "f") {
         e.preventDefault()
-        setShowFindReplace((prev) => !prev)
+        setActiveModal((prev) => prev === "find-replace" ? null : "find-replace")
       }
       if (e.key === "Escape") {
-        setShowFindReplace(false)
-        setShowExport(false)
-        setShowPhotoPicker(false)
-        setShowAssetPanel(false)
-        setShowTemplates(false)
-        setShowVersionHistory(false)
-        setShowShareDialog(false)
-        setShowQABrowser(false)
-        setShowOutline(false)
-        setShowChecklist(false)
+        setActiveModal(null)
       }
-      if (meta && e.key === "e" && !e.shiftKey) {
+      if (meta && e.shiftKey && e.key === "r") {
         e.preventDefault()
-        doc.setMode("editor")
-      }
-      if (meta && e.key === "e" && e.shiftKey) {
-        e.preventDefault()
-        doc.setMode("review")
+        doc.setMode(doc.mode === "review" ? "editor" : "review")
       }
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [doc])
 
-  // Deploy briefing content to editor (briefing outputs markdown)
-  const handleBriefingDeploy = useCallback((content: string) => {
-    doc.insertContent(markdownToHtml(content))
-    doc.setMode("editor")
-  }, [doc])
-
-  // Template selection (templates are markdown — convert to HTML)
+  // Template selection
   const handleTemplateSelect = (template: { name: string; content: string }) => {
     doc.newDocument()
     doc.setTitle(template.name)
     if (template.content) doc.replaceContent(markdownToHtml(template.content))
     doc.setMode("editor")
-    setShowTemplates(false)
+    setActiveModal(null)
   }
 
-  // Save current doc as template
   const handleSaveAsTemplate = async () => {
     try {
       await studioApi.createTemplate({
@@ -177,7 +158,6 @@ export function DocumentStudio() {
     }
   }
 
-  // Version restore
   const handleVersionRestore = (content: string, title: string) => {
     doc.replaceContent(content)
     doc.setTitle(title)
@@ -198,7 +178,6 @@ export function DocumentStudio() {
     }
   }
 
-  // Import document (PDF/Word/TXT → extract text → insert into editor)
   const handleImportFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -206,7 +185,6 @@ export function DocumentStudio() {
       const result = await studioApi.extractDocument(file)
       const htmlContent = markdownToHtml(result.text)
       doc.replaceContent(htmlContent)
-      // Set title from filename (strip extension)
       const nameWithoutExt = file.name.replace(/\.[^.]+$/, "")
       doc.setTitle(nameWithoutExt)
       doc.setMode("editor")
@@ -227,7 +205,7 @@ export function DocumentStudio() {
         onChange={handleImportFile}
         className="hidden"
       />
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col">
+      <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
         <AppHeader title="Document Studio" />
         <StudioToolbar
           mode={doc.mode}
@@ -235,201 +213,152 @@ export function DocumentStudio() {
           title={doc.title}
           onTitleChange={doc.setTitle}
           saveStatus={doc.saveStatus}
-          onExportPDF={() => setShowExport(true)}
-          onExportWord={() => setShowExport(true)}
+          onExport={() => setActiveModal("export")}
+          onShare={() => setActiveModal("share")}
+          onToggleInspector={() => setInspectorTab(inspectorTab ? null : "format")}
+          inspectorOpen={!!inspectorTab}
+          hasDocumentId={!!doc.documentId}
         />
-
-        {/* Format toolbar in editor/review mode */}
-        {doc.mode !== "briefing" && (
-          <FormatToolbar format={doc.formatSettings} onUpdate={doc.updateFormat} editor={editorRef.current} />
-        )}
-
-        {/* Secondary action bar */}
-        {doc.mode !== "briefing" && (
-          <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700">
-            <div className="relative">
-              <button
-                onClick={() => setShowTemplates(!showTemplates)}
-                className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-              >
-                Templates
-              </button>
-              {showTemplates && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-30 py-1">
-                  {allTemplates.map((t, i) => (
-                    <button
-                      key={t.name + i}
-                      onClick={() => handleTemplateSelect(t)}
-                      className="w-full text-left px-3 py-2 text-xs text-slate-600 dark:text-slate-300 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                    >
-                      {t.name}
-                      <span className="text-[10px] text-slate-400 ml-2">{t.category}</span>
-                    </button>
-                  ))}
-                  <div className="border-t border-slate-100 dark:border-slate-700 mt-1 pt-1">
-                    <button
-                      onClick={() => { void handleSaveAsTemplate(); setShowTemplates(false) }}
-                      className="w-full text-left px-3 py-2 text-xs text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
-                    >
-                      Save current as template
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={() => importInputRef.current?.click()}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-            >
-              Import
-            </button>
-            <button
-              onClick={() => setShowPhotoPicker(true)}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-            >
-              Photos
-            </button>
-            <button
-              onClick={() => setShowAssetPanel(true)}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-            >
-              Assets
-            </button>
-            <button
-              onClick={() => setShowQABrowser(true)}
-              className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-            >
-              Q&A Library
-            </button>
-            <button
-              onClick={() => setShowOutline(!showOutline)}
-              className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${
-                showOutline
-                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                  : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              }`}
-            >
-              Outline
-            </button>
-            {rfpText && (
-              <button
-                onClick={() => setShowChecklist(!showChecklist)}
-                className={`px-2.5 py-1 text-[11px] font-medium rounded transition-colors ${
-                  showChecklist
-                    ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-              >
-                Checklist
-              </button>
-            )}
-
-            <div className="flex-1" />
-
-            {doc.documentId && (
-              <>
-                <button
-                  onClick={() => setShowVersionHistory(true)}
-                  className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-                >
-                  History
-                </button>
-                <button
-                  onClick={() => setShowShareDialog(true)}
-                  className="px-2.5 py-1 text-[11px] font-medium text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
-                >
-                  Share
-                </button>
-              </>
-            )}
-          </div>
-        )}
 
         {/* Split pane */}
         <div ref={containerRef} className="flex-1 flex overflow-hidden relative">
           {/* Find & Replace overlay */}
-          {showFindReplace && (
+          {activeModal === "find-replace" && (
             <FindReplace
               content={doc.content}
               onContentChange={doc.setContent}
-              onClose={() => setShowFindReplace(false)}
+              onClose={() => setActiveModal(null)}
             />
           )}
 
           {/* Left: Chat sidebar */}
-          <div style={{ width: `${leftFraction * 100}%` }} className="flex-shrink-0 border-r border-slate-200 dark:border-slate-700">
-            <StudioChatSidebar documentStore={doc} onRFPDetected={setRfpText} />
+          <div
+            style={{ width: sidebarCollapsed ? COLLAPSED_WIDTH : `${leftFraction * 100}%` }}
+            className="flex-shrink-0 h-full overflow-hidden border-r border-slate-200/60 dark:border-slate-700/60 transition-[width] duration-200"
+          >
+            <StudioChatSidebar
+              documentStore={doc}
+              onRFPDetected={setRfpText}
+              collapsed={sidebarCollapsed}
+              onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+            />
           </div>
 
           {/* Resizable divider */}
-          <div
-            onMouseDown={handleMouseDown}
-            className="w-1 flex-shrink-0 bg-slate-200 dark:bg-slate-700 hover:bg-emerald-400 dark:hover:bg-emerald-500 cursor-col-resize transition-colors"
-          />
-
-          {/* Right: Document area */}
-          <div className="flex-1 flex min-w-0">
-            {showOutline && doc.mode !== "briefing" && (
-              <DocumentOutline
-                editor={editorRef.current}
-                isOpen={showOutline}
-                onClose={() => setShowOutline(false)}
-              />
-            )}
-            {showChecklist && rfpText && doc.mode !== "briefing" && (
-              <ComplianceChecklist
-                rfpText={rfpText}
-                documentContent={doc.content}
-                isOpen={showChecklist}
-                onClose={() => setShowChecklist(false)}
-              />
-            )}
-            <div className="flex-1 flex flex-col min-w-0">
-              {doc.mode === "briefing" ? (
-                <BriefingView onDeploy={handleBriefingDeploy} />
-              ) : (
-                <DocumentEditor
-                  content={doc.content}
-                  onContentChange={doc.setContent}
-                  formatSettings={doc.formatSettings}
-                  editorRef={editorRef}
-                  annotations={doc.annotations}
-                  onResolveAnnotation={doc.resolveAnnotation}
-                />
-              )}
+          {!sidebarCollapsed && (
+            <div
+              onMouseDown={handleMouseDown}
+              className="w-1.5 flex-shrink-0 cursor-col-resize group flex items-center justify-center hover:w-2 transition-all"
+            >
+              <div className="w-px h-full bg-transparent group-hover:bg-emerald-400/60 dark:group-hover:bg-emerald-500/60 transition-colors duration-200" />
             </div>
+          )}
+
+          {/* Right: Document area + Inspector */}
+          <div className="flex-1 flex min-w-0">
+            <div className="flex-1 flex flex-col min-w-0">
+              <DocumentEditor
+                content={doc.content}
+                onContentChange={doc.setContent}
+                formatSettings={doc.formatSettings}
+                editorRef={editorRef}
+                annotations={doc.annotations}
+                onResolveAnnotation={doc.resolveAnnotation}
+                onOpenTemplates={() => setActiveModal("templates")}
+                onImportFile={() => importInputRef.current?.click()}
+                onFocusChat={() => {
+                  if (sidebarCollapsed) setSidebarCollapsed(false)
+                }}
+                onOpenPhotos={() => setActiveModal("photos")}
+                onOpenAssets={() => setActiveModal("assets")}
+                onOpenQALibrary={() => setActiveModal("qa-browser")}
+              />
+            </div>
+
+            {/* Inspector Panel (right sidebar) */}
+            <InspectorPanel
+              activeTab={inspectorTab}
+              onTabChange={setInspectorTab}
+              format={doc.formatSettings}
+              onUpdateFormat={doc.updateFormat}
+              editor={editorRef.current}
+              rfpText={rfpText}
+              documentContent={doc.content}
+              hasDocumentId={!!doc.documentId}
+              onOpenHistory={() => setActiveModal("version-history")}
+            />
           </div>
         </div>
       </div>
 
-      {/* Modals */}
-      {showExport && (
-        <ExportDialog title={doc.title} onClose={() => setShowExport(false)} />
+      {/* ── Modals (centralized) ─────────────────────────── */}
+      {activeModal === "export" && (
+        <ExportDialog title={doc.title} content={doc.content} formatSettings={doc.formatSettings} onClose={() => setActiveModal(null)} />
       )}
-      {showPhotoPicker && (
-        <PhotoPicker onInsert={(html) => doc.insertContent(html)} onClose={() => setShowPhotoPicker(false)} />
+      {activeModal === "photos" && (
+        <PhotoPicker onInsert={(html) => doc.insertContent(html)} onClose={() => setActiveModal(null)} />
       )}
-      {showAssetPanel && (
-        <AssetPanel onInsert={(content) => doc.insertContent(content)} onClose={() => setShowAssetPanel(false)} />
+      {activeModal === "assets" && (
+        <AssetPanel onInsert={(content) => doc.insertContent(content)} onClose={() => setActiveModal(null)} />
       )}
-      {showQABrowser && (
-        <QABrowser onInsert={(content) => doc.insertContent(markdownToHtml(content))} onClose={() => setShowQABrowser(false)} />
+      {activeModal === "qa-browser" && (
+        <QABrowser onInsert={(content) => doc.insertContent(markdownToHtml(content))} onClose={() => setActiveModal(null)} />
       )}
-      {showVersionHistory && doc.documentId && (
+      {activeModal === "version-history" && doc.documentId && (
         <VersionHistory
           documentId={doc.documentId}
           currentContent={doc.content}
           onRestore={handleVersionRestore}
-          onClose={() => setShowVersionHistory(false)}
+          onClose={() => setActiveModal(null)}
         />
       )}
-      {showShareDialog && doc.documentId && (
+      {activeModal === "share" && doc.documentId && (
         <ShareDialog
           documentId={doc.documentId}
           currentSharedWith={sharedWith}
           onUpdate={setSharedWith}
-          onClose={() => setShowShareDialog(false)}
+          onClose={() => setActiveModal(null)}
         />
+      )}
+
+      {/* Template picker — proper centered modal */}
+      {activeModal === "templates" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-[400px] max-h-[70vh] overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Templates</h2>
+              </div>
+              <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+            </div>
+            <div className="overflow-y-auto max-h-[calc(70vh-120px)] p-2">
+              {allTemplates.map((t, i) => (
+                <button
+                  key={t.name + i}
+                  onClick={() => handleTemplateSelect(t)}
+                  className="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors group"
+                >
+                  <span className="font-medium">{t.name}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-2 group-hover:text-emerald-500">{t.category}</span>
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-slate-100 dark:border-slate-700 p-3">
+              <button
+                onClick={() => { void handleSaveAsTemplate(); setActiveModal(null) }}
+                className="w-full text-center px-4 py-2.5 rounded-xl text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+              >
+                Save current document as template
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Drag overlay */}

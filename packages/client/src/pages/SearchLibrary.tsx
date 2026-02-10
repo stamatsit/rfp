@@ -2052,7 +2052,7 @@ export function SearchLibrary() {
 
       {/* Answer Detail Dialog */}
       <Dialog open={!!selectedAnswer} onOpenChange={(open) => {
-        if (!open) {
+        if (!open && !showSaveConfirm && !showDeleteConfirm) {
           setSelectedAnswer(null)
           resetAdaptPanel()
           setIsEditingAnswer(false)

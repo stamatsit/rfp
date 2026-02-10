@@ -1,7 +1,7 @@
 import type { ChartConfig } from "./chat"
 
 // ─── Core Modes ───
-export type StudioMode = "briefing" | "editor" | "review"
+export type StudioMode = "editor" | "review"
 export type DocumentStatus = "draft" | "final" | "template" | "archived"
 export type DocumentSource = "briefing" | "manual" | "review" | "ai-generated"
 export type TemplateCategory = "proposal" | "case-study" | "report" | "presentation" | "custom"
@@ -10,10 +10,67 @@ export type SaveStatus = "saving" | "saved" | "unsaved" | "error"
 export type ColumnLayout = "single" | "two-column" | "sidebar"
 export type HeaderStyle = "none" | "minimal" | "branded"
 
+// ─── Letterhead ───
+export type LetterheadMode = "none" | "full-image" | "logo-text"
+
+export interface LetterheadTextFields {
+  companyName: string
+  tagline: string
+  address: string
+  phone: string
+  email: string
+  website: string
+}
+
+export interface LetterheadConfig {
+  mode: LetterheadMode
+  fullImageData: string | null     // base64 data URL
+  fullImageHeight: number          // px render height
+  logoData: string | null          // base64 data URL
+  logoWidth: number                // px render width
+  textFields: LetterheadTextFields
+  alignment: "left" | "center" | "right"
+  showDivider: boolean
+  dividerColor: string             // empty = use colorAccent
+}
+
+export const DEFAULT_LETTERHEAD_TEXT: LetterheadTextFields = {
+  companyName: "",
+  tagline: "",
+  address: "",
+  phone: "",
+  email: "",
+  website: "",
+}
+
+export const DEFAULT_LETTERHEAD_HEADER: LetterheadConfig = {
+  mode: "none",
+  fullImageData: null,
+  fullImageHeight: 80,
+  logoData: null,
+  logoWidth: 48,
+  textFields: { ...DEFAULT_LETTERHEAD_TEXT },
+  alignment: "left",
+  showDivider: true,
+  dividerColor: "",
+}
+
+export const DEFAULT_LETTERHEAD_FOOTER: LetterheadConfig = {
+  mode: "none",
+  fullImageData: null,
+  fullImageHeight: 60,
+  logoData: null,
+  logoWidth: 48,
+  textFields: { ...DEFAULT_LETTERHEAD_TEXT },
+  alignment: "center",
+  showDivider: true,
+  dividerColor: "",
+}
+
 // ─── Format Settings ───
 export interface FormatSettings {
-  fontFamily: "sans" | "serif" | "mono"
-  fontSize: "small" | "normal" | "large" | "xl"
+  fontFamily: string
+  fontSize: string
   layout: "standard" | "wide" | "compact" | "presentation"
   lineHeight: "tight" | "normal" | "relaxed"
   paragraphSpacing: "compact" | "normal" | "generous"
@@ -25,11 +82,13 @@ export interface FormatSettings {
   showPageNumbers: boolean
   showFooter: boolean
   colorAccent: string
+  letterheadHeader: LetterheadConfig
+  letterheadFooter: LetterheadConfig
 }
 
 export const DEFAULT_FORMAT_SETTINGS: FormatSettings = {
-  fontFamily: "sans",
-  fontSize: "normal",
+  fontFamily: "Inter",
+  fontSize: "15px",
   layout: "standard",
   lineHeight: "normal",
   paragraphSpacing: "normal",
@@ -41,6 +100,8 @@ export const DEFAULT_FORMAT_SETTINGS: FormatSettings = {
   showPageNumbers: true,
   showFooter: false,
   colorAccent: "#10B981",
+  letterheadHeader: { ...DEFAULT_LETTERHEAD_HEADER },
+  letterheadFooter: { ...DEFAULT_LETTERHEAD_FOOTER },
 }
 
 // ─── Documents ───
@@ -119,15 +180,6 @@ export interface DocumentBlock {
   content: string
   source: "user" | "ai-generated" | "briefing" | "template"
   timestamp: Date
-  chartData?: ChartConfig
-  svgData?: SVGData
-}
-
-// ─── Briefing Sections ───
-export interface BriefingSection {
-  id: string
-  title: string
-  content: string
   chartData?: ChartConfig
   svgData?: SVGData
 }

@@ -32,9 +32,10 @@ export async function streamCompletion({
   openai,
   messages,
   temperature = 0.4,
-  maxTokens = 3000,
+  maxTokens = 4000,
   metadata,
   parseFollowUpPrompts,
+  parseReviewAnnotations,
   res,
 }: StreamOptions): Promise<void> {
   // Set SSE headers
@@ -167,7 +168,7 @@ export function estimateTokens(text: string): number {
  */
 export function truncateHistory(
   messages: Array<{ role: "user" | "assistant"; content: string }>,
-  maxTokens = 8000
+  maxTokens = 12000
 ): Array<{ role: "user" | "assistant"; content: string }> {
   let totalTokens = 0
   const result: Array<{ role: "user" | "assistant"; content: string }> = []

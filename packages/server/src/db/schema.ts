@@ -8,6 +8,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   mustChangePassword: boolean("must_change_password").notNull().default(true),
   avatarUrl: text("avatar_url"),
+  hasCompletedTour: boolean("has_completed_tour").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),

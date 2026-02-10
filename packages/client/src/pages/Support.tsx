@@ -13,7 +13,7 @@ export function Support() {
     if (!message.trim()) return
 
     // Create mailto link and open it
-    const subject = encodeURIComponent("Content Library Support Request")
+    const subject = encodeURIComponent("Stamats Support Request")
     const body = encodeURIComponent(message)
     window.location.href = `mailto:eric.yerke@stamats.com?subject=${subject}&body=${body}`
 

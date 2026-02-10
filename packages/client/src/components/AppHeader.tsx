@@ -200,6 +200,7 @@ export function AppHeader({
             {user && (
               <div ref={userMenuRef} className="relative">
                 <button
+                  data-tour="settings"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={`hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-200
                              hover:bg-slate-100/80 dark:hover:bg-slate-800/80

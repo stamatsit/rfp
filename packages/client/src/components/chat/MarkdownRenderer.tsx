@@ -17,9 +17,12 @@ function renderMarkdown(raw: string): string {
   // Inline code (single backtick)
   html = html.replace(/`([^`]+)`/g, '<code class="md-inline-code">$1</code>')
 
-  // Headings (### before ##)
+  // Headings (most specific first: ##### → #)
+  html = html.replace(/^#{5,}\s+(.+)$/gm, '<h3 class="md-h3">$1</h3>')
+  html = html.replace(/^#### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
   html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
   html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+  html = html.replace(/^# (.+)$/gm, '<h2 class="md-h2">$1</h2>')
 
   // Horizontal rule
   html = html.replace(/^---$/gm, '<hr class="md-hr" />')

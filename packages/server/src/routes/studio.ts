@@ -2,7 +2,7 @@ import { Router } from "express"
 import multer from "multer"
 import path from "path"
 import { streamBriefing } from "../services/briefingAIService.js"
-import { streamDocumentChat, queryDocumentChat, detectRFPSignals, generateRFPChecklist, checkRFPCompliance } from "../services/documentAIService.js"
+import { streamDocumentChat, queryDocumentChat, detectRFPSignals, generateRFPChecklist, checkRFPCompliance, streamInlineEdit } from "../services/documentAIService.js"
 import { extractDocumentText } from "../services/rfpService.js"
 import { getCurrentUserId } from "../middleware/getCurrentUser.js"
 import { db } from "../db/index.js"
@@ -103,6 +103,28 @@ router.post("/chat/query", async (req, res) => {
   } catch (error) {
     console.error("Chat query error:", error)
     res.status(500).json({ error: "Failed to generate response" })
+  }
+})
+
+// POST /api/studio/inline-edit (streaming inline text edit)
+router.post("/inline-edit", async (req, res) => {
+  const { selectedText, action, customInstruction, documentContext } = req.body
+  if (!selectedText || typeof selectedText !== "string" || selectedText.trim().length < 1) {
+    return res.status(400).json({ error: "Selected text is required" })
+  }
+  if (!action || typeof action !== "string") {
+    return res.status(400).json({ error: "Action is required" })
+  }
+  try {
+    await streamInlineEdit(selectedText.trim(), action, res, {
+      customInstruction,
+      documentContext,
+    })
+  } catch (error) {
+    console.error("Inline edit error:", error instanceof Error ? error.stack : error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream inline edit" })
+    }
   }
 })
 

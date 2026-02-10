@@ -11,6 +11,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
+import { GuidedTour } from "@/components/tour"
 import { useAuth } from "@/contexts/AuthContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
@@ -156,9 +157,10 @@ interface CardProps {
   gradient: string
   shadowColor: string
   badge?: string
+  id?: string
 }
 
-function Card({ to, icon, title, description, gradient, shadowColor, badge, onClick }: CardProps & { onClick?: () => void }) {
+function Card({ to, icon, title, description, gradient, shadowColor, badge, onClick, dataTour }: CardProps & { onClick?: () => void; dataTour?: string }) {
   const [isHovered, setIsHovered] = useState(false)
   const className = "group relative block rounded-2xl p-6 cursor-pointer bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.06] transition-all duration-[350ms] ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
   const style = { boxShadow: '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)' }
@@ -206,14 +208,14 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
 
   if (onClick) {
     return (
-      <div role="button" tabIndex={0} onClick={onClick} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+      <div role="button" tabIndex={0} onClick={onClick} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} data-tour={dataTour}>
         {children}
       </div>
     )
   }
 
   return (
-    <Link to={to} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+    <Link to={to} className={className} style={style} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave} data-tour={dataTour}>
       {children}
     </Link>
   )
@@ -302,8 +304,17 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 export function HomePage() {
-  const { user } = useAuth()
+  const { user, markTourCompleted } = useAuth()
+  const [showTour, setShowTour] = useState(false)
   const firstName = user?.name?.split(" ")[0]
+
+  // Trigger tour for users who haven't completed it
+  useEffect(() => {
+    if (user && user.hasCompletedTour === false) {
+      const timer = setTimeout(() => setShowTour(true), 1200)
+      return () => clearTimeout(timer)
+    }
+  }, [user])
   const greeting = getGreeting(firstName)
   const [visibleCards, setVisibleCards] = useState<TileConfig[]>(() => {
     try {
@@ -461,6 +472,7 @@ export function HomePage() {
               <Card
                 key={card.id || card.to}
                 {...card}
+                dataTour={card.id}
                 onClick={card.id === "new-entry" ? () => window.dispatchEvent(new CustomEvent("open-new-entry")) : undefined}
               />
             ))}
@@ -476,6 +488,14 @@ export function HomePage() {
           </p>
         </div>
       </footer>
+
+      <GuidedTour
+        isOpen={showTour}
+        onComplete={() => {
+          setShowTour(false)
+          markTourCompleted()
+        }}
+      />
     </div>
   )
 }

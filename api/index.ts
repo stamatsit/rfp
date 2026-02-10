@@ -13,7 +13,7 @@ function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4)
 }
 
-function truncateHistory(messages: Array<{ role: string; content: string }>, maxTokens = 8000) {
+function truncateHistory(messages: Array<{ role: string; content: string }>, maxTokens = 12000) {
   let total = 0
   const result: typeof messages = []
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -63,6 +63,279 @@ function parseFollowUpPrompts(rawResponse: string, fallbacks: string[]): { clean
     followUpPrompts = fallbacks
   }
   return { cleanResponse, followUpPrompts }
+}
+
+// Cache for proposal analytics (avoids recalculating on every query)
+let proposalContextCache: { key: string; timestamp: number; result: { contextString: string; systemPrompt: string } } | null = null
+const PROPOSAL_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+function getProposalCacheKey(allProposals: any[]): string {
+  const dates = allProposals.filter((p: any) => p.date).map((p: any) => new Date(p.date).getTime())
+  const latest = dates.length > 0 ? Math.max(...dates) : 0
+  return `${allProposals.length}:${latest}`
+}
+
+/**
+ * Build rich proposals context for the AI (used by both streaming and non-streaming endpoints).
+ * Computes win rates by dimension, CE deep analysis, service bundles, etc.
+ * Results are cached for 5 minutes to avoid recalculating on every query.
+ */
+function buildProposalsContext(allProposals: any[], pipelineEntries: any[]): { contextString: string; systemPrompt: string } {
+  const cacheKey = getProposalCacheKey(allProposals)
+  if (proposalContextCache && proposalContextCache.key === cacheKey && Date.now() - proposalContextCache.timestamp < PROPOSAL_CACHE_TTL) {
+    return proposalContextCache.result
+  }
+  const decided = allProposals.filter((p: any) => p.won === "Yes" || p.won === "No")
+  const wonCount = decided.filter((p: any) => p.won === "Yes").length
+  const lostCount = decided.filter((p: any) => p.won === "No").length
+  const pendingCount = allProposals.filter((p: any) => !p.won || p.won === "Pending").length
+  const overallWinRate = decided.length > 0 ? wonCount / decided.length : 0
+  const formatRate = (rate: number) => `${(rate * 100).toFixed(1)}%`
+
+  // Date range
+  const dates = allProposals.filter((p: any) => p.date).map((p: any) => new Date(p.date!))
+  const minDate = dates.length > 0 ? new Date(Math.min(...dates.map((d: Date) => d.getTime()))) : null
+  const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map((d: Date) => d.getTime()))) : null
+
+  // Count by category
+  const byCategory: Record<string, number> = {}
+  allProposals.forEach((p: any) => { if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1 })
+
+  // Win rates by dimension helper
+  const calcDimension = (accessor: (p: any) => string | null) => {
+    const dim: Record<string, { won: number; total: number; rate: number }> = {}
+    for (const p of decided) {
+      const val = accessor(p)
+      if (!val) continue
+      if (!dim[val]) dim[val] = { won: 0, total: 0, rate: 0 }
+      dim[val].total++
+      if (p.won === "Yes") dim[val].won++
+    }
+    for (const k of Object.keys(dim)) dim[k].rate = dim[k].total > 0 ? dim[k].won / dim[k].total : 0
+    return dim
+  }
+
+  const bySchoolType = calcDimension((p: any) => p.schoolType)
+  const byAffiliation = calcDimension((p: any) => p.affiliation)
+  const byCE = calcDimension((p: any) => p.ce)
+  const byYear = calcDimension((p: any) => p.date ? new Date(p.date).getFullYear().toString() : null)
+  const byCategoryWR = calcDimension((p: any) => p.category)
+
+  // Win rates by service
+  const byService: Record<string, { won: number; total: number; rate: number }> = {}
+  for (const p of decided) {
+    for (const s of ((p.servicesOffered as string[]) || [])) {
+      if (!byService[s]) byService[s] = { won: 0, total: 0, rate: 0 }
+      byService[s].total++
+      if (p.won === "Yes") byService[s].won++
+    }
+  }
+  for (const k of Object.keys(byService)) byService[k].rate = byService[k].total > 0 ? byService[k].won / byService[k].total : 0
+
+  const formatDimension = (dim: Record<string, { won: number; total: number; rate: number }>, limit = 12) =>
+    Object.entries(dim)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, limit)
+      .map(([key, stats]) => `- ${key}: ${formatRate(stats.rate)} (${stats.won}/${stats.total})`)
+      .join("\n")
+
+  // CE deep analysis (team member performance)
+  const now = new Date()
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 12, 1)
+  const ceDeep: Record<string, { winRate: number; total: number; won: number; recentRate: number; trend: string; specialties: string[] }> = {}
+  const ceProposals: Record<string, any[]> = {}
+  for (const p of decided) {
+    if (!p.ce) continue
+    if (!ceProposals[p.ce]) ceProposals[p.ce] = []
+    ceProposals[p.ce].push(p)
+  }
+  for (const [ce, props] of Object.entries(ceProposals)) {
+    const w = props.filter((p: any) => p.won === "Yes").length
+    const rate = props.length > 0 ? w / props.length : 0
+    const recent = props.filter((p: any) => p.date && new Date(p.date) >= twelveMonthsAgo)
+    const recentWon = recent.filter((p: any) => p.won === "Yes").length
+    const recentRate = recent.length > 0 ? recentWon / recent.length : 0
+    let trend = "stable"
+    if (recent.length >= 3) {
+      const diff = recentRate - rate
+      if (diff > 0.05) trend = "improving"
+      else if (diff < -0.05) trend = "declining"
+    }
+    // Best school types
+    const stCounts: Record<string, { won: number; total: number }> = {}
+    for (const p of props) {
+      if (p.schoolType) {
+        if (!stCounts[p.schoolType]) stCounts[p.schoolType] = { won: 0, total: 0 }
+        stCounts[p.schoolType].total++
+        if (p.won === "Yes") stCounts[p.schoolType].won++
+      }
+    }
+    const specialties = Object.entries(stCounts)
+      .filter(([, s]) => s.total >= 3 && (s.won / s.total) > rate)
+      .sort((a, b) => (b[1].won / b[1].total) - (a[1].won / a[1].total))
+      .slice(0, 3)
+      .map(([st]) => st)
+    ceDeep[ce] = { winRate: rate, total: props.length, won: w, recentRate, trend, specialties }
+  }
+
+  // Service bundles (pairs)
+  const bundleStats = new Map<string, { won: number; total: number }>()
+  for (const p of decided) {
+    const services = (p.servicesOffered as string[]) || []
+    if (services.length < 2) continue
+    for (let i = 0; i < services.length; i++) {
+      for (let j = i + 1; j < services.length; j++) {
+        const pair = [services[i], services[j]].sort().join(" + ")
+        if (!bundleStats.has(pair)) bundleStats.set(pair, { won: 0, total: 0 })
+        const s = bundleStats.get(pair)!
+        s.total++
+        if (p.won === "Yes") s.won++
+      }
+    }
+  }
+  const bundles = Array.from(bundleStats.entries())
+    .map(([key, s]) => ({ services: key, count: s.total, winRate: s.total > 0 ? s.won / s.total : 0 }))
+    .filter(b => b.count >= 2)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+
+  // Rolling rates
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 6, 1)
+  const last6 = decided.filter((p: any) => p.date && new Date(p.date) >= sixMonthsAgo)
+  const last12 = decided.filter((p: any) => p.date && new Date(p.date) >= twelveMonthsAgo)
+  const rolling6 = last6.length > 0 ? last6.filter((p: any) => p.won === "Yes").length / last6.length : 0
+  const rolling12 = last12.length > 0 ? last12.filter((p: any) => p.won === "Yes").length / last12.length : 0
+
+  // Build context string
+  const lines = [
+    `PROPOSAL DATA SUMMARY:`,
+    `- Total Proposals: ${allProposals.length}`,
+    `- Date Range: ${minDate?.toISOString().split("T")[0] || "N/A"} to ${maxDate?.toISOString().split("T")[0] || "N/A"}`,
+    `- Won: ${wonCount} (${formatRate(overallWinRate)} overall win rate)`,
+    `- Lost: ${lostCount}`,
+    `- Pending: ${pendingCount}`,
+    `- Rolling 6-month win rate: ${formatRate(rolling6)}`,
+    `- Rolling 12-month win rate: ${formatRate(rolling12)}`,
+    ``,
+    `PROPOSALS BY CATEGORY:`,
+    ...Object.entries(byCategory).sort((a, b) => b[1] - a[1]).map(([cat, count]) => `- ${cat}: ${count}`),
+    ``,
+    `WIN RATES BY CATEGORY:`,
+    formatDimension(byCategoryWR) || "No data",
+    ``,
+    `WIN RATES BY SCHOOL TYPE:`,
+    formatDimension(bySchoolType) || "No data",
+    ``,
+    `WIN RATES BY AFFILIATION:`,
+    formatDimension(byAffiliation) || "No data",
+    ``,
+    `WIN RATES BY SERVICE OFFERED:`,
+    formatDimension(byService) || "No data",
+    ``,
+    `WIN RATES BY YEAR:`,
+    formatDimension(byYear) || "No data",
+    ``,
+    `TEAM ROSTER (all account executives / team members):`,
+    ...Object.entries(ceDeep)
+      .sort((a, b) => b[1].total - a[1].total)
+      .map(([ce, s]) => `- ${ce}: ${s.total} proposals, ${s.won} won`),
+    ``,
+    `ACCOUNT EXECUTIVE DEEP ANALYSIS (team member performance):`,
+    ...Object.entries(ceDeep)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 15)
+      .map(([ce, s]) =>
+        `- ${ce}: ${formatRate(s.winRate)} overall (${s.won}/${s.total}), Recent 12mo: ${formatRate(s.recentRate)}, Trend: ${s.trend}${s.specialties.length > 0 ? `, Best school types: ${s.specialties.join(", ")}` : ""}`
+      ),
+    ``,
+    `SERVICE BUNDLE ANALYSIS (pairs):`,
+    ...bundles.map(b => `- ${b.services}: ${formatRate(b.winRate)} win rate (${b.count} proposals)`),
+    ``,
+    `RECENT PROPOSALS (last 25):`,
+    ...allProposals.slice(0, 25).map((p: any) => {
+      const links = p.documentLinks && typeof p.documentLinks === 'object'
+        ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
+        : ""
+      return `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"} | CE: ${p.ce || "N/A"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "No services"}${links ? ` | Links: ${links}` : ""}`
+    }),
+  ]
+
+  // Pipeline context
+  if (pipelineEntries.length > 0) {
+    const pTotal = pipelineEntries.length
+    const pProcessed = pipelineEntries.filter((e: any) => e.decision?.toLowerCase().includes("processed")).length
+    const pPassing = pipelineEntries.filter((e: any) => e.decision?.toLowerCase().includes("pass")).length
+    const pRate = pTotal > 0 ? pProcessed / pTotal : 0
+    const passReasons: Record<string, number> = {}
+    pipelineEntries
+      .filter((e: any) => e.decision?.toLowerCase().includes("pass") && e.extraInfo)
+      .forEach((e: any) => {
+        const info = e.extraInfo!.toLowerCase()
+        if (info.includes("budget") || info.includes("pricing")) passReasons["Budget concerns"] = (passReasons["Budget concerns"] || 0) + 1
+        else if (info.includes("not a good fit")) passReasons["Not a good fit"] = (passReasons["Not a good fit"] || 0) + 1
+        else if (info.includes("incumbent")) passReasons["Incumbent advantage"] = (passReasons["Incumbent advantage"] || 0) + 1
+        else if (info.includes("hub") || info.includes("local")) passReasons["HUB/Local preference"] = (passReasons["HUB/Local preference"] || 0) + 1
+        else if (info.includes("timeline") || info.includes("short")) passReasons["Timeline too short"] = (passReasons["Timeline too short"] || 0) + 1
+        else passReasons["Other"] = (passReasons["Other"] || 0) + 1
+      })
+    lines.push(``, `===== PIPELINE ACTIVITY (RFP Intake/Triage) =====`)
+    lines.push(`- Total RFPs Reviewed: ${pTotal}`)
+    lines.push(`- Processed (Pursued): ${pProcessed} (${formatRate(pRate)} pursuit rate)`)
+    lines.push(`- Passed (Declined): ${pPassing}`)
+    lines.push(``)
+    lines.push(`REASONS FOR PASSING:`)
+    Object.entries(passReasons).sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
+      const pct = pPassing > 0 ? (count / pPassing) * 100 : 0
+      lines.push(`- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`)
+    })
+    lines.push(``)
+    lines.push(`RECENT RFP INTAKE (last 15):`)
+    pipelineEntries.slice(0, 15).forEach((e: any) => {
+      const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
+      const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 50)}${e.extraInfo.length > 50 ? "..." : ""}"` : ""
+      lines.push(`- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`)
+    })
+  }
+
+  const contextString = lines.join("\n")
+
+  const systemPrompt = `You are a Proposal Analytics Assistant for Stamats, a professional services company that provides marketing, research, branding, and web services to educational institutions.
+
+Your job is to analyze historical proposal data and provide actionable, data-rich insights. You have access to:
+- Win rates by category, school type, affiliation, service, year, and account executive
+- Deep team member / account executive performance analysis
+- Service bundle analysis
+- Rolling win rates and trends
+- Pipeline data (RFP intake/triage decisions)
+
+TERMINOLOGY MAPPING — users may use these terms interchangeably:
+- "Team members", "staff", "people", "reps", "AEs" = Account Executives (the "CE" field)
+- "Categories", "service types" = The category field (research, creative, digital, website, pr)
+- "Deals", "opportunities", "bids" = Proposals
+
+CRITICAL RULES:
+1. ONLY use statistics from the provided data — NEVER make up numbers
+2. Be specific with percentages and counts — always cite the numbers
+3. If asked about something not in the data, clearly say so
+4. Provide actionable, strategic insights — don't just recite stats, interpret them
+5. Aim for 200-500 words — be thorough
+6. Use bullet points for clarity when listing multiple items
+7. Compare segments when relevant
+8. When asked about team/people/AEs, always include: win rate, volume, trend, specializations
+9. Use **bold** for emphasis on key numbers and names
+10. Use ### section headers when covering multiple topics
+
+At the end of your response, include 3-4 follow-up questions formatted as:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
+
+VISUALIZATIONS:${CHART_PROMPT}
+
+--- PROPOSAL DATA ---
+${contextString}`
+
+  const result = { contextString, systemPrompt }
+  proposalContextCache = { key: cacheKey, timestamp: Date.now(), result }
+  return result
 }
 
 // Schema definitions (matching actual Supabase tables)
@@ -149,6 +422,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   mustChangePassword: boolean("must_change_password").notNull().default(true),
   avatarUrl: text("avatar_url"),
+  hasCompletedTour: boolean("has_completed_tour").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
@@ -189,6 +463,7 @@ interface SessionData {
   userName?: string
   userEmail?: string
   mustChangePassword?: boolean
+  hasCompletedTour?: boolean
   avatarUrl?: string | null
   expires: number
 }
@@ -304,6 +579,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           userName: user.name,
           userEmail: user.email,
           mustChangePassword: user.mustChangePassword,
+          hasCompletedTour: user.hasCompletedTour,
           avatarUrl,
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
@@ -323,16 +599,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!isAuthenticated || !session) {
           return res.json({ authenticated: false, user: null, mustChangePassword: false, loginTime: null })
         }
-        // Always look up fresh user data from DB for name + avatar
+        // Always look up fresh user data from DB for name + avatar + tour status
         let userName = session.userName
         let userEmail = session.userEmail
         let avatarUrl: string | null = session.avatarUrl || null
+        let hasCompletedTour = session.hasCompletedTour ?? false
         if (session.userId && db) {
           const [dbUser] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
           if (dbUser) {
             userName = dbUser.name
             userEmail = dbUser.email
             avatarUrl = dbUser.avatarUrl ? `/api/auth/avatar/${session.userId}` : null
+            hasCompletedTour = dbUser.hasCompletedTour
           }
         }
         return res.json({
@@ -342,6 +620,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             email: userEmail || session.userEmail,
             name: userName || userEmail || "User",
             avatarUrl,
+            hasCompletedTour,
           },
           mustChangePassword: session.mustChangePassword || false,
           loginTime: null,
@@ -372,7 +651,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           userName: user.name,
           userEmail: user.email,
           mustChangePassword: false,
+          hasCompletedTour: user.hasCompletedTour,
           avatarUrl: user.avatarUrl ? `/api/auth/avatar/${user.id}` : null,
+        })
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        return res.json({ success: true })
+      }
+
+      // Complete tour
+      if (path === "/auth/complete-tour" && method === "POST") {
+        if (!isAuthenticated || !session?.userId || !db) {
+          return res.status(401).json({ error: "Authentication required" })
+        }
+        await db.update(users).set({ hasCompletedTour: true, updatedAt: new Date() }).where(eq(users.id, session.userId))
+        const newSessionToken = await createSession({
+          authenticated: true,
+          userId: session.userId,
+          userName: session.userName,
+          userEmail: session.userEmail,
+          mustChangePassword: session.mustChangePassword ?? false,
+          hasCompletedTour: true,
+          avatarUrl: session.avatarUrl,
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({ success: true })
@@ -1602,108 +1901,23 @@ ${csStreamContext}`
           })
         }
 
-        // Calculate basic stats
+        // Get pipeline data (RFP intake decisions)
+        const pipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
+
+        // Build rich context with CE analysis, win rates by dimension, etc.
+        const { systemPrompt } = buildProposalsContext(allProposals, pipelineEntries)
+
+        // Calculate basic stats for response metadata
         const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
         const wonCount = decided.filter(p => p.won === "Yes").length
         const lostCount = decided.filter(p => p.won === "No").length
         const pendingCount = allProposals.filter(p => !p.won || p.won === "Pending").length
         const overallWinRate = decided.length > 0 ? wonCount / decided.length : 0
-
-        // Date range
         const dates = allProposals.filter(p => p.date).map(p => new Date(p.date!))
         const minDate = dates.length > 0 ? new Date(Math.min(...dates.map(d => d.getTime()))) : null
         const maxDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null
-
-        // Count by category
         const byCategory: Record<string, number> = {}
-        allProposals.forEach(p => {
-          if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1
-        })
-
-        // Get pipeline data (RFP intake decisions)
-        const pipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
-        const pipelineTotal = pipelineEntries.length
-        const pipelineProcessed = pipelineEntries.filter(e => e.decision?.toLowerCase().includes("processed")).length
-        const pipelinePassing = pipelineEntries.filter(e => e.decision?.toLowerCase().includes("pass")).length
-        const pursuitRate = pipelineTotal > 0 ? pipelineProcessed / pipelineTotal : 0
-
-        // Analyze pass reasons
-        const passReasons: Record<string, number> = {}
-        pipelineEntries
-          .filter(e => e.decision?.toLowerCase().includes("pass") && e.extraInfo)
-          .forEach(e => {
-            const info = e.extraInfo!.toLowerCase()
-            if (info.includes("budget") || info.includes("pricing")) passReasons["Budget concerns"] = (passReasons["Budget concerns"] || 0) + 1
-            else if (info.includes("not a good fit")) passReasons["Not a good fit"] = (passReasons["Not a good fit"] || 0) + 1
-            else if (info.includes("incumbent")) passReasons["Incumbent advantage"] = (passReasons["Incumbent advantage"] || 0) + 1
-            else if (info.includes("hub") || info.includes("local")) passReasons["HUB/Local preference"] = (passReasons["HUB/Local preference"] || 0) + 1
-            else if (info.includes("timeline") || info.includes("short")) passReasons["Timeline too short"] = (passReasons["Timeline too short"] || 0) + 1
-            else passReasons["Other"] = (passReasons["Other"] || 0) + 1
-          })
-
-        // Build context for AI
-        const contextLines = [
-          `PROPOSAL DATA SUMMARY:`,
-          `- Total Proposals: ${allProposals.length}`,
-          `- Date Range: ${minDate?.toISOString().split("T")[0] || "N/A"} to ${maxDate?.toISOString().split("T")[0] || "N/A"}`,
-          `- Won: ${wonCount} (${(overallWinRate * 100).toFixed(1)}% overall win rate)`,
-          `- Lost: ${lostCount}`,
-          `- Pending: ${pendingCount}`,
-          ``,
-          `PROPOSALS BY CATEGORY:`,
-          ...Object.entries(byCategory).map(([cat, count]) => `- ${cat}: ${count}`),
-          ``,
-          `RECENT PROPOSALS (last 20):`,
-          ...allProposals.slice(0, 20).map(p => {
-            const links = p.documentLinks && typeof p.documentLinks === 'object'
-              ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
-              : ""
-            return `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "No services"}${links ? ` | Links: ${links}` : ""}`
-          })
-        ]
-
-        // Add pipeline context if we have data
-        if (pipelineTotal > 0) {
-          contextLines.push(``, `===== PIPELINE ACTIVITY (RFP Intake/Triage) =====`)
-          contextLines.push(`- Total RFPs Reviewed: ${pipelineTotal}`)
-          contextLines.push(`- Processed (Pursued): ${pipelineProcessed} (${(pursuitRate * 100).toFixed(1)}% pursuit rate)`)
-          contextLines.push(`- Passed (Declined): ${pipelinePassing}`)
-          contextLines.push(``)
-          contextLines.push(`REASONS FOR PASSING:`)
-          Object.entries(passReasons).sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
-            const pct = pipelinePassing > 0 ? (count / pipelinePassing) * 100 : 0
-            contextLines.push(`- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`)
-          })
-          contextLines.push(``)
-          contextLines.push(`RECENT RFP INTAKE (last 15):`)
-          pipelineEntries.slice(0, 15).forEach(e => {
-            const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
-            const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 40)}..."` : ""
-            contextLines.push(`- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`)
-          })
-        }
-
-        const systemPrompt = `You are a Proposal Analytics Assistant. Analyze historical proposal data and provide actionable insights.
-
-PIPELINE DATA CONTEXT: You have access to RFP intake/triage decisions showing:
-- Pursuit rate: What percentage of opportunities you pursue
-- Pass reasons: Why opportunities are declined (budget, incumbent, HUB requirements, etc.)
-- This helps analyze selectivity and opportunity filtering.
-
-CRITICAL RULES:
-1. ONLY use statistics from the provided data - NEVER make up numbers
-2. Be specific with percentages and counts when available
-3. If asked about something not in the data, clearly say so
-4. Keep responses concise (150-300 words)
-5. Use bullet points for clarity
-
-At the end of your response, include 3-4 follow-up questions formatted as:
-FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
-
-VISUALIZATIONS:${CHART_PROMPT}
-
---- PROPOSAL DATA ---
-${contextLines.join("\n")}`
+        allProposals.forEach(p => { if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1 })
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o",
@@ -1712,7 +1926,7 @@ ${contextLines.join("\n")}`
             { role: "user", content: userQuery }
           ],
           temperature: 0.4,
-          max_tokens: 2000
+          max_tokens: 4000
         })
 
         const rawResponse = completion.choices[0]?.message?.content || ""
@@ -1771,108 +1985,23 @@ ${contextLines.join("\n")}`
           return res.end()
         }
 
-        // Calculate basic stats
+        // Get pipeline data
+        const pStreamPipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
+
+        // Build rich context with CE analysis, win rates by dimension, etc.
+        const { systemPrompt: pStreamSystemPrompt } = buildProposalsContext(pStreamProposals, pStreamPipelineEntries)
+
+        // Calculate basic stats for metadata
         const pStreamDecided = pStreamProposals.filter(p => p.won === "Yes" || p.won === "No")
         const pStreamWonCount = pStreamDecided.filter(p => p.won === "Yes").length
         const pStreamLostCount = pStreamDecided.filter(p => p.won === "No").length
         const pStreamPendingCount = pStreamProposals.filter(p => !p.won || p.won === "Pending").length
         const pStreamWinRate = pStreamDecided.length > 0 ? pStreamWonCount / pStreamDecided.length : 0
-
-        // Date range
         const pStreamDates = pStreamProposals.filter(p => p.date).map(p => new Date(p.date!))
         const pStreamMinDate = pStreamDates.length > 0 ? new Date(Math.min(...pStreamDates.map(d => d.getTime()))) : null
         const pStreamMaxDate = pStreamDates.length > 0 ? new Date(Math.max(...pStreamDates.map(d => d.getTime()))) : null
-
-        // Count by category
         const pStreamByCategory: Record<string, number> = {}
-        pStreamProposals.forEach(p => {
-          if (p.category) pStreamByCategory[p.category] = (pStreamByCategory[p.category] || 0) + 1
-        })
-
-        // Get pipeline data
-        const pStreamPipelineEntries = await db.select().from(proposalPipeline).orderBy(desc(proposalPipeline.dateReceived))
-        const pStreamPipelineTotal = pStreamPipelineEntries.length
-        const pStreamPipelineProcessed = pStreamPipelineEntries.filter(e => e.decision?.toLowerCase().includes("processed")).length
-        const pStreamPipelinePassing = pStreamPipelineEntries.filter(e => e.decision?.toLowerCase().includes("pass")).length
-        const pStreamPursuitRate = pStreamPipelineTotal > 0 ? pStreamPipelineProcessed / pStreamPipelineTotal : 0
-
-        // Analyze pass reasons
-        const pStreamPassReasons: Record<string, number> = {}
-        pStreamPipelineEntries
-          .filter(e => e.decision?.toLowerCase().includes("pass") && e.extraInfo)
-          .forEach(e => {
-            const info = e.extraInfo!.toLowerCase()
-            if (info.includes("budget") || info.includes("pricing")) pStreamPassReasons["Budget concerns"] = (pStreamPassReasons["Budget concerns"] || 0) + 1
-            else if (info.includes("not a good fit")) pStreamPassReasons["Not a good fit"] = (pStreamPassReasons["Not a good fit"] || 0) + 1
-            else if (info.includes("incumbent")) pStreamPassReasons["Incumbent advantage"] = (pStreamPassReasons["Incumbent advantage"] || 0) + 1
-            else if (info.includes("hub") || info.includes("local")) pStreamPassReasons["HUB/Local preference"] = (pStreamPassReasons["HUB/Local preference"] || 0) + 1
-            else if (info.includes("timeline") || info.includes("short")) pStreamPassReasons["Timeline too short"] = (pStreamPassReasons["Timeline too short"] || 0) + 1
-            else pStreamPassReasons["Other"] = (pStreamPassReasons["Other"] || 0) + 1
-          })
-
-        // Build context for AI
-        const pStreamContextLines = [
-          `PROPOSAL DATA SUMMARY:`,
-          `- Total Proposals: ${pStreamProposals.length}`,
-          `- Date Range: ${pStreamMinDate?.toISOString().split("T")[0] || "N/A"} to ${pStreamMaxDate?.toISOString().split("T")[0] || "N/A"}`,
-          `- Won: ${pStreamWonCount} (${(pStreamWinRate * 100).toFixed(1)}% overall win rate)`,
-          `- Lost: ${pStreamLostCount}`,
-          `- Pending: ${pStreamPendingCount}`,
-          ``,
-          `PROPOSALS BY CATEGORY:`,
-          ...Object.entries(pStreamByCategory).map(([cat, count]) => `- ${cat}: ${count}`),
-          ``,
-          `RECENT PROPOSALS (last 20):`,
-          ...pStreamProposals.slice(0, 20).map(p => {
-            const links = p.documentLinks && typeof p.documentLinks === 'object'
-              ? Object.entries(p.documentLinks as Record<string, string>).map(([k, v]) => `${k}: ${v}`).join("; ")
-              : ""
-            return `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}): ${p.won || "Unknown"}${p.rfpNumber ? ` | RFP#: ${p.rfpNumber}` : ""} - ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "No services"}${links ? ` | Links: ${links}` : ""}`
-          })
-        ]
-
-        // Add pipeline context if we have data
-        if (pStreamPipelineTotal > 0) {
-          pStreamContextLines.push(``, `===== PIPELINE ACTIVITY (RFP Intake/Triage) =====`)
-          pStreamContextLines.push(`- Total RFPs Reviewed: ${pStreamPipelineTotal}`)
-          pStreamContextLines.push(`- Processed (Pursued): ${pStreamPipelineProcessed} (${(pStreamPursuitRate * 100).toFixed(1)}% pursuit rate)`)
-          pStreamContextLines.push(`- Passed (Declined): ${pStreamPipelinePassing}`)
-          pStreamContextLines.push(``)
-          pStreamContextLines.push(`REASONS FOR PASSING:`)
-          Object.entries(pStreamPassReasons).sort((a, b) => b[1] - a[1]).forEach(([reason, count]) => {
-            const pct = pStreamPipelinePassing > 0 ? (count / pStreamPipelinePassing) * 100 : 0
-            pStreamContextLines.push(`- ${reason}: ${count} (${pct.toFixed(0)}% of passes)`)
-          })
-          pStreamContextLines.push(``)
-          pStreamContextLines.push(`RECENT RFP INTAKE (last 15):`)
-          pStreamPipelineEntries.slice(0, 15).forEach(e => {
-            const date = e.dateReceived ? new Date(e.dateReceived).toISOString().split("T")[0] : "N/A"
-            const extra = e.extraInfo ? ` - "${e.extraInfo.substring(0, 40)}..."` : ""
-            pStreamContextLines.push(`- [${date}] ${e.client || "Unknown"}: ${e.decision || "Unknown"}${extra}`)
-          })
-        }
-
-        const pStreamSystemPrompt = `You are a Proposal Analytics Assistant. Analyze historical proposal data and provide actionable insights.
-
-PIPELINE DATA CONTEXT: You have access to RFP intake/triage decisions showing:
-- Pursuit rate: What percentage of opportunities you pursue
-- Pass reasons: Why opportunities are declined (budget, incumbent, HUB requirements, etc.)
-- This helps analyze selectivity and opportunity filtering.
-
-CRITICAL RULES:
-1. ONLY use statistics from the provided data - NEVER make up numbers
-2. Be specific with percentages and counts when available
-3. If asked about something not in the data, clearly say so
-4. Keep responses concise (150-300 words)
-5. Use bullet points for clarity
-
-At the end of your response, include 3-4 follow-up questions formatted as:
-FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?", "Question 3?"]
-
-VISUALIZATIONS:${CHART_PROMPT}
-
---- PROPOSAL DATA ---
-${pStreamContextLines.join("\n")}`
+        pStreamProposals.forEach(p => { if (p.category) pStreamByCategory[p.category] = (pStreamByCategory[p.category] || 0) + 1 })
 
         // Set SSE headers
         res.setHeader("Content-Type", "text/event-stream")
@@ -1916,7 +2045,7 @@ ${pStreamContextLines.join("\n")}`
             model: "gpt-4o",
             messages: pStreamMessages,
             temperature: 0.4,
-            max_tokens: 2000,
+            max_tokens: 4000,
             stream: true
           })
 
@@ -2484,6 +2613,88 @@ ${uaiStreamContext}`
       }
       console.log(`[Feedback] ${score === "up" ? "👍" : "👎"} messageId=${messageId} page=${page || "unknown"} query="${(query || "").slice(0, 80)}"`)
       return res.json({ success: true })
+    }
+
+    // ─── Studio Inline Edit (streaming) ───
+    if (path === "/studio/inline-edit" && method === "POST") {
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured" })}\n\n`)
+        return res.end()
+      }
+
+      const { selectedText, action, customInstruction, documentContext } = req.body || {}
+      if (!selectedText || typeof selectedText !== "string" || selectedText.trim().length < 1) {
+        return res.status(400).json({ error: "Selected text is required" })
+      }
+      if (!action || typeof action !== "string") {
+        return res.status(400).json({ error: "Action is required" })
+      }
+
+      const INLINE_EDIT_PROMPTS: Record<string, string> = {
+        rewrite: "Rewrite the following text to say the same thing in a different way. Keep the same meaning and tone but use different wording and sentence structure.",
+        shorten: "Make the following text more concise while preserving all key information. Remove unnecessary words and tighten the prose.",
+        expand: "Expand the following text with more detail, examples, or supporting points. Maintain the same tone and style.",
+        grammar: "Fix any grammar, spelling, punctuation, or style issues in the following text. Only correct errors — do not change meaning or tone.",
+        "tone-formal": "Rewrite the following text in a more formal, professional tone. Maintain the same meaning.",
+        "tone-casual": "Rewrite the following text in a more conversational, approachable tone. Maintain the same meaning.",
+        "tone-confident": "Rewrite the following text to sound more confident and authoritative. Remove hedging language and weak phrasing.",
+      }
+
+      const instruction = action === "custom" && customInstruction
+        ? customInstruction
+        : INLINE_EDIT_PROMPTS[action] || INLINE_EDIT_PROMPTS.rewrite
+
+      let systemPrompt = `You are an expert editor for Stamats, a marketing agency specializing in higher education and healthcare. You make precise, targeted edits to selected text within documents.
+
+RULES:
+- Output ONLY the edited text — no explanations, no preamble, no quotes around it.
+- Do not add markdown formatting unless the original text used it.
+- Maintain consistent style with the surrounding document.
+- Keep the same approximate length unless the action requires changing it (shorten/expand).`
+
+      if (documentContext) {
+        systemPrompt += `\n\nSurrounding document context (for style/tone reference):\n${String(documentContext).slice(0, 2000)}`
+      }
+
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      res.write(`event: metadata\ndata: ${JSON.stringify({ action })}\n\n`)
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: `${instruction}\n\nText to edit:\n${selectedText.trim()}` },
+          ],
+          temperature: 0.3,
+          max_tokens: 1500,
+          stream: true,
+        })
+
+        let fullResponse = ""
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            fullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        res.write(`event: done\ndata: ${JSON.stringify({ result: fullResponse.trim() })}\n\n`)
+        return res.end()
+      } catch (error: any) {
+        console.error("Inline edit stream error:", error)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: error?.message || "Streaming failed" })}\n\n`)
+        return res.end()
+      }
     }
 
     // 404 for unmatched routes

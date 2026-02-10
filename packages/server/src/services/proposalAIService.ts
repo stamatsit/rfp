@@ -137,6 +137,70 @@ interface Recommendation {
   dataSupport: string
 }
 
+// ==================== ANALYTICS CACHE ====================
+// Cache computed analytics to avoid recalculating on every query.
+// Invalidates when proposal count or latest date changes.
+
+interface AnalyticsCache {
+  key: string // "count:latestDate" fingerprint
+  timestamp: number
+  winRates: ReturnType<typeof calculateWinRates>
+  analytics: AdvancedAnalytics
+  pendingScores: WinProbability[]
+  recommendations: Recommendation[]
+  bundles: ReturnType<typeof calculateServiceBundles>
+  pipelineStats: Awaited<ReturnType<typeof getPipelineStats>> | null
+  contextByQuery: Map<string, string> // query-keyed context cache (raw data detection varies)
+}
+
+const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+let analyticsCache: AnalyticsCache | null = null
+
+function getCacheKey(proposals: Proposal[]): string {
+  const dates = proposals.filter(p => p.date).map(p => new Date(p.date!).getTime())
+  const latest = dates.length > 0 ? Math.max(...dates) : 0
+  return `${proposals.length}:${latest}`
+}
+
+function isCacheValid(proposals: Proposal[]): boolean {
+  if (!analyticsCache) return false
+  if (Date.now() - analyticsCache.timestamp > CACHE_TTL) return false
+  return analyticsCache.key === getCacheKey(proposals)
+}
+
+async function getOrComputeAnalytics(proposals: Proposal[]) {
+  if (isCacheValid(proposals)) {
+    return analyticsCache!
+  }
+
+  const winRates = calculateWinRates(proposals)
+  const analytics = calculateAdvancedAnalytics(proposals)
+  const pendingScores = scorePendingProposals(proposals)
+  const recommendations = generateRecommendations(proposals)
+  const bundles = calculateServiceBundles(proposals)
+
+  let pipelineStats = null
+  try {
+    pipelineStats = await getPipelineStats()
+  } catch (err) {
+    console.log("[ProposalAI] Pipeline stats not available:", err instanceof Error ? err.message : String(err))
+  }
+
+  analyticsCache = {
+    key: getCacheKey(proposals),
+    timestamp: Date.now(),
+    winRates,
+    analytics,
+    pendingScores,
+    recommendations,
+    bundles,
+    pipelineStats,
+    contextByQuery: new Map(),
+  }
+
+  return analyticsCache
+}
+
 /**
  * Calculate quarterly win rates
  */
@@ -1043,21 +1107,22 @@ function calculateServiceBundles(proposals: Proposal[]): Array<{
 
 /**
  * Build rich context for the AI (ENHANCED with Phase 2 superpowers + Pipeline data)
+ * Now uses cached analytics to avoid recalculating on every query.
  */
 async function buildContext(proposals: Proposal[], query: string = ""): Promise<string> {
-  const winRates = calculateWinRates(proposals)
-  const bundles = calculateServiceBundles(proposals)
-  const analytics = calculateAdvancedAnalytics(proposals)
-  const pendingScores = scorePendingProposals(proposals)
-  const recommendations = generateRecommendations(proposals)
+  const cached = await getOrComputeAnalytics(proposals)
 
-  // Get pipeline data (RFP intake/triage decisions)
-  let pipelineStats = null
-  try {
-    pipelineStats = await getPipelineStats()
-  } catch (err) {
-    console.log("[ProposalAI] Pipeline stats not available:", err instanceof Error ? err.message : String(err))
-  }
+  // Check if we have a cached context for this query type
+  const queryKey = detectRawDataQuery(query) ? "raw" : "standard"
+  const cachedContext = cached.contextByQuery.get(queryKey)
+  if (cachedContext) return cachedContext
+
+  const winRates = cached.winRates
+  const bundles = cached.bundles
+  const analytics = cached.analytics
+  const pendingScores = cached.pendingScores
+  const recommendations = cached.recommendations
+  const pipelineStats = cached.pipelineStats
 
   // Date range
   const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
@@ -1135,12 +1200,20 @@ ${Object.entries(analytics.temporal.byQuarter)
   .map(([q, v]) => `- ${q}: ${formatRate(v.rate)} (${v.won}/${v.total})`)
   .join("\n") || "No data"}
 
-ACCOUNT EXECUTIVE DEEP ANALYSIS:
+TEAM ROSTER (all account executives / team members):
 ${Object.entries(analytics.ceDeep)
   .sort((a, b) => b[1].totalProposals - a[1].totalProposals)
-  .slice(0, 8)
   .map(([ce, stats]) =>
-    `- ${ce}: ${formatRate(stats.winRate)} overall (${stats.wonCount}/${stats.totalProposals}), Recent: ${formatRate(stats.recentWinRate)}, Trend: ${stats.trend}${stats.specializations.length > 0 ? `, Excels with: ${stats.specializations.join(", ")}` : ""}`
+    `- ${ce}: ${stats.totalProposals} proposals, ${stats.wonCount} won`
+  )
+  .join("\n") || "No data"}
+
+ACCOUNT EXECUTIVE DEEP ANALYSIS (team member performance):
+${Object.entries(analytics.ceDeep)
+  .sort((a, b) => b[1].totalProposals - a[1].totalProposals)
+  .slice(0, 15)
+  .map(([ce, stats]) =>
+    `- ${ce}: ${formatRate(stats.winRate)} overall (${stats.wonCount}/${stats.totalProposals}), Recent 12mo: ${formatRate(stats.recentWinRate)}, Trend: ${stats.trend}${stats.specializations.length > 0 ? `, Best school types: ${stats.specializations.join(", ")}` : ""}${stats.bestServices.length > 0 ? `, Best services: ${stats.bestServices.join(", ")}` : ""}`
   )
   .join("\n") || "No data"}
 
@@ -1168,9 +1241,9 @@ ${recommendations.map((r, i) =>
    → Data: ${r.dataSupport}`
 ).join("\n\n") || "Insufficient data for recommendations"}
 
-RECENT PROPOSALS (last 15):
+RECENT PROPOSALS (last 25):
 ${proposals
-  .slice(0, 15)
+  .slice(0, 25)
   .map(
     (p) => {
       const links = p.documentLinks && typeof p.documentLinks === 'object'
@@ -1284,44 +1357,54 @@ ${pipelineStats.recentEntries.slice(0, 20).map(e => {
 `
   }
 
-  return context.trim()
+  const result = context.trim()
+  // Store in cache for next call with same query type
+  cached.contextByQuery.set(queryKey, result)
+  return result
 }
 
 /**
  * System prompt for proposal insights AI (ENHANCED with Phase 2 superpowers)
  */
-const SYSTEM_PROMPT = `You are a Proposal Analytics Assistant for a professional services company that provides marketing, research, and branding services to educational institutions.
+const SYSTEM_PROMPT = `You are a Proposal Analytics Assistant for Stamats, a professional services company that provides marketing, research, branding, and web services to educational institutions (colleges and universities).
 
-Your job is to analyze historical proposal data and provide actionable insights. You have access to ADVANCED ANALYTICS including:
+Your job is to analyze historical proposal data and provide actionable, data-rich insights. You have access to ADVANCED ANALYTICS including:
 - Temporal trends (quarterly, monthly, YoY, momentum, seasonality)
-- Deep account executive analysis (specializations, trends, performance)
+- Deep team member / account executive performance analysis (specializations, trends, win rates)
 - Service intelligence (bundles, optimal proposal size, emerging/declining services)
 - Predictive scoring for pending proposals (win probability based on historical patterns)
 - Auto-generated strategic recommendations
 - Raw data access (all spreadsheet fields)
 - PIPELINE DATA: RFP intake/triage decisions showing pursuit rates, pass reasons, and selectivity metrics
 
-PIPELINE CONTEXT: The pipeline data shows ALL RFPs reviewed (not just ones you pursued). This reveals:
+TERMINOLOGY MAPPING — users may use any of these terms interchangeably:
+- "Team members", "staff", "people", "reps", "salespeople", "AEs" = Account Executives (the "CE" field in data)
+- "Categories", "service types", "verticals" = The sheet/category field (research, creative, digital, website, pr)
+- "School types", "institution types" = schoolType field (Community College, University, etc.)
+- "Deals", "opportunities", "bids", "pursuits" = Proposals
+
+PIPELINE CONTEXT: The pipeline data shows ALL RFPs reviewed (not just ones pursued). This reveals:
 - How selective you are (pursuit rate = % of opportunities you pursue)
 - Why you decline opportunities (budget, incumbent, HUB requirements, etc.)
 - Workload by account executive
 
 CRITICAL RULES:
-1. ONLY use statistics from the provided data - NEVER make up numbers
-2. Be specific with percentages and counts when available
+1. ONLY use statistics from the provided data — NEVER make up numbers
+2. Be specific with percentages and counts — always cite the numbers
 3. If asked about something not in the data, clearly say so
-4. Provide actionable, strategic insights when possible
-5. Keep responses concise but informative (aim for 150-300 words)
+4. Provide actionable, strategic insights — don't just recite stats, interpret them
+5. Aim for 200-500 words — be thorough but not padded
 6. Use bullet points for clarity when listing multiple items
 7. Compare segments when relevant (e.g., "Community colleges win at 45% vs 30% for universities")
 8. Highlight notable patterns, outliers, or trends
 9. When discussing momentum or trends, explain what they mean practically
 10. For pending proposals, reference the win probability scores and similar past wins
 11. When giving recommendations, cite the auto-generated insights as supporting evidence
+12. When asked about team/people/AEs, always include: win rate, volume, trend, specializations, and any notable patterns
 
 SPECIAL CAPABILITIES:
 - If asked about trends/momentum, use the TEMPORAL TRENDS section
-- If asked about specific people/AEs, use the ACCOUNT EXECUTIVE DEEP ANALYSIS
+- If asked about team members, people, staff, or AEs, use the ACCOUNT EXECUTIVE DEEP ANALYSIS — include their win rates, specializations, trends, and volume
 - If asked about pending deals, use PENDING PROPOSALS WITH WIN PROBABILITY
 - If asked for recommendations, use STRATEGIC RECOMMENDATIONS as a starting point
 - If asked about specific fields or raw data, use the RAW DATA ACCESS section
@@ -1330,9 +1413,10 @@ SPECIAL CAPABILITIES:
 
 RESPONSE FORMAT:
 Provide a clear, direct answer to the user's question. Use markdown formatting:
-- Bold for emphasis on key numbers
+- **Bold** for emphasis on key numbers and names
 - Bullet points for lists
-- Short paragraphs for explanations
+- Short paragraphs for analysis and interpretation
+- Use section headers (### ) when covering multiple topics
 
 VISUALIZATIONS:${CHART_PROMPT}
 
@@ -1428,12 +1512,10 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
       }
     }
 
-    // Build enhanced context with query for raw data detection
+    // Build enhanced context with query for raw data detection (uses cache)
     const context = await buildContext(proposals, query)
-    const winRates = calculateWinRates(proposals)
-    const analytics = calculateAdvancedAnalytics(proposals)
-    const pendingScores = scorePendingProposals(proposals)
-    const recommendations = generateRecommendations(proposals)
+    const cached = await getOrComputeAnalytics(proposals)
+    const { winRates, analytics, pendingScores, recommendations } = cached
 
     // Date range for response
     const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
@@ -1454,7 +1536,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
         },
       ],
       temperature: 0.4,
-      max_tokens: 2000, // Increased for more detailed responses
+      max_tokens: 4000,
     })
 
     const rawResponse = completion.choices[0]?.message?.content || ""
@@ -1534,8 +1616,8 @@ export async function streamProposalInsights(
   }
 
   const context = await buildContext(proposals, query)
-  const winRates = calculateWinRates(proposals)
-  const analytics = calculateAdvancedAnalytics(proposals)
+  const cached = await getOrComputeAnalytics(proposals)
+  const { winRates, analytics } = cached
 
   const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
   const minDate = dates.length > 0 ? new Date(Math.min(...dates.map((d) => d.getTime()))) : null
@@ -1560,7 +1642,7 @@ export async function streamProposalInsights(
       { role: "user", content: query },
     ],
     temperature: 0.4,
-    maxTokens: 2000,
+    maxTokens: 4000,
     metadata: {
       dataUsed: {
         totalProposals: proposals.length,

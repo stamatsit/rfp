@@ -94,7 +94,7 @@ router.put("/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Answer not found" })
     }
 
-    // Get topic name if topicId is being changed
+    // Get topic name for fingerprint regeneration (needed when question or topic changes)
     let topicName: string | undefined
     if (topicId && topicId !== existing.topicId) {
       const topic = await getTopicById(topicId)
@@ -102,6 +102,10 @@ router.put("/:id", async (req: Request, res: Response) => {
         return res.status(400).json({ error: "Invalid topic ID" })
       }
       topicName = topic.name
+    } else if (question && question.trim() !== existing.question) {
+      // Question changed but topic didn't — still need topic name for fingerprint
+      const topic = await getTopicById(existing.topicId)
+      if (topic) topicName = topic.name
     }
 
     const updatedAnswer = await updateAnswer(id, {

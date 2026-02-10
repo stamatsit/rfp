@@ -1,20 +1,30 @@
-import { useState, useRef, useEffect, useCallback } from "react"
-import { Eye, Code2, Pencil } from "lucide-react"
-import { useEditor, EditorContent } from "@tiptap/react"
+import { useState, useRef, useEffect, useCallback, useMemo } from "react"
+import { LayoutTemplate, Upload, Sparkles, ZoomIn, ZoomOut } from "lucide-react"
+import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
 import Placeholder from "@tiptap/extension-placeholder"
+import { TextStyle } from "@tiptap/extension-text-style"
+import { FontFamily } from "@tiptap/extension-font-family"
 import { Table } from "@tiptap/extension-table"
 import { TableRow } from "@tiptap/extension-table-row"
 import { TableCell } from "@tiptap/extension-table-cell"
 import { TableHeader } from "@tiptap/extension-table-header"
+import tippy, { type Instance as TippyInstance } from "tippy.js"
 import { ResizableImage } from "./extensions/ResizableImage"
+import { FontSize } from "./extensions/FontSize"
 import { ReviewCommentsExtension, reviewCommentsPluginKey } from "./extensions/ReviewComments"
 import { CommentPopover } from "./CommentPopover"
+import { InlineAIToolbar } from "./InlineAIToolbar"
+import { EditorBubbleMenu } from "./EditorBubbleMenu"
+import { SlashCommands, createSlashCommandItems } from "./extensions/SlashCommands"
+import { SlashCommandMenu, type SlashCommandMenuRef } from "./SlashCommandMenu"
+import type { SlashCommandItem } from "./extensions/SlashCommands"
 import type { ReviewAnnotation } from "@/types/chat"
-import type { FormatSettings } from "@/types/studio"
+import type { FormatSettings, LetterheadConfig } from "@/types/studio"
+import { getFontDef, legacyFontToValue, legacySizeToValue, loadAllGoogleFonts } from "./fonts"
 import "./tiptap-editor.css"
 
 interface DocumentEditorProps {
@@ -25,13 +35,17 @@ interface DocumentEditorProps {
   annotations?: ReviewAnnotation[]
   onResolveAnnotation?: (id: string) => void
   onApplyAnnotationFix?: (id: string) => void
+  onOpenTemplates?: () => void
+  onImportFile?: () => void
+  onFocusChat?: () => void
+  onOpenPhotos?: () => void
+  onOpenAssets?: () => void
+  onOpenQALibrary?: () => void
 }
 
 // 8.5 x 11 inches at 96 DPI
 const PAGE_WIDTH = 816
 const PAGE_HEIGHT = 1056
-const HEADER_HEIGHT = 40
-const FOOTER_HEIGHT = 36
 
 // ── Pagination types ──────────────────────────────────────
 interface PageBlock {
@@ -48,14 +62,17 @@ interface PaginatedPage {
 
 // ── Format helpers ────────────────────────────────────────
 function formatToCSS(f: FormatSettings): React.CSSProperties {
-  const fontMap = { sans: "'Inter', sans-serif", serif: "'Georgia', serif", mono: "'JetBrains Mono', monospace" }
-  const sizeMap = { small: "13px", normal: "15px", large: "17px", xl: "20px" }
-  const lineHeightMap = { tight: "1.4", normal: "1.6", relaxed: "1.8" }
+  const lineHeightMap: Record<string, string> = { tight: "1.4", normal: "1.6", relaxed: "1.8" }
+
+  // Resolve font — handle both legacy ("sans"/"serif"/"mono") and new ("Inter"/"Georgia") values
+  const fontValue = legacyFontToValue(f.fontFamily)
+  const fontDef = getFontDef(fontValue)
+  const fontSize = legacySizeToValue(f.fontSize)
 
   const base: React.CSSProperties = {
-    fontFamily: fontMap[f.fontFamily],
-    fontSize: sizeMap[f.fontSize],
-    lineHeight: lineHeightMap[f.lineHeight],
+    fontFamily: fontDef.css,
+    fontSize,
+    lineHeight: lineHeightMap[f.lineHeight] || "1.6",
     textAlign: f.textAlign,
   }
 
@@ -68,15 +85,30 @@ function formatToCSS(f: FormatSettings): React.CSSProperties {
 }
 
 function getPageMarginPx(f: FormatSettings): number {
-  const map = { narrow: 48, normal: 72, wide: 96 }
+  // narrow = 0.5" (48px), normal = 1" (96px, MS Word default), wide = 1.25" (120px)
+  const map = { narrow: 48, normal: 96, wide: 120 }
   return map[f.pageMargins]
+}
+
+function getHeaderHeight(f: FormatSettings): number {
+  const lh = f.letterheadHeader
+  if (lh?.mode === "full-image" && lh.fullImageData) return lh.fullImageHeight + 16
+  if (lh?.mode === "logo-text" && (lh.logoData || lh.textFields?.companyName)) return 80
+  if (f.headerStyle === "none") return 0
+  return 40
+}
+
+function getFooterHeight(f: FormatSettings): number {
+  const lf = f.letterheadFooter
+  const baseH = (f.showPageNumbers || f.showFooter) ? 36 : 0
+  if (lf?.mode === "full-image" && lf.fullImageData) return lf.fullImageHeight + 16 + baseH
+  if (lf?.mode === "logo-text" && (lf.logoData || lf.textFields?.companyName)) return 60 + baseH
+  return baseH
 }
 
 function getContentHeight(f: FormatSettings): number {
   const margin = getPageMarginPx(f)
-  const headerH = f.headerStyle === "none" ? 0 : HEADER_HEIGHT
-  const footerH = (f.showPageNumbers || f.showFooter) ? FOOTER_HEIGHT : 0
-  return PAGE_HEIGHT - headerH - footerH - margin * 2
+  return PAGE_HEIGHT - getHeaderHeight(f) - getFooterHeight(f) - margin * 2
 }
 
 // ── Pagination engine ─────────────────────────────────────
@@ -90,7 +122,6 @@ function measureBlocks(
   const contentWidth = PAGE_WIDTH - marginPx * 2
   const css = formatToCSS(formatSettings)
 
-  // Configure hidden measurement container to match page layout
   container.style.cssText = `
     position: absolute;
     left: -9999px;
@@ -145,18 +176,14 @@ function paginateBlocks(
     const block = blocks[i]!
     const nextBlock: PageBlock | undefined = blocks[i + 1]
 
-    // Oversized block — give it its own page
     if (block.height > availableHeight && currentBlocks.length === 0) {
       pages.push({ blocks: [block], totalContentHeight: block.height })
       continue
     }
 
-    // Would this block fit?
     if (currentHeight + block.height <= availableHeight) {
-      // Heading orphan rule: don't leave a heading stranded at the bottom
       if (block.isHeading && nextBlock) {
         const remaining = availableHeight - currentHeight - block.height
-        // If there's less than 60px (roughly 2-3 lines) for the next block, push heading to next page
         if (remaining < Math.min(nextBlock.height, 60)) {
           if (currentBlocks.length > 0) {
             pages.push({ blocks: currentBlocks, totalContentHeight: currentHeight })
@@ -170,7 +197,6 @@ function paginateBlocks(
       currentBlocks.push(block)
       currentHeight += block.height
     } else {
-      // Doesn't fit — start a new page
       if (currentBlocks.length > 0) {
         pages.push({ blocks: currentBlocks, totalContentHeight: currentHeight })
       }
@@ -179,7 +205,6 @@ function paginateBlocks(
     }
   }
 
-  // Flush remaining
   if (currentBlocks.length > 0) {
     pages.push({ blocks: currentBlocks, totalContentHeight: currentHeight })
   }
@@ -189,7 +214,85 @@ function paginateBlocks(
 
 // ── Page chrome components ────────────────────────────────
 
+function LetterheadBlock({ config, colorAccent, position }: { config: LetterheadConfig; colorAccent: string; position: "header" | "footer" }) {
+  const dividerColor = config.dividerColor || colorAccent
+  const justify = config.alignment === "center" ? "center" : config.alignment === "right" ? "flex-end" : "flex-start"
+
+  if (config.mode === "full-image" && config.fullImageData) {
+    return (
+      <div style={{ height: config.fullImageHeight + 16, padding: 8 }}>
+        <img
+          src={config.fullImageData}
+          alt="Letterhead"
+          style={{
+            width: "100%",
+            height: config.fullImageHeight,
+            objectFit: "contain",
+            objectPosition: config.alignment,
+          }}
+        />
+        {config.showDivider && (
+          <div style={{
+            [position === "header" ? "borderBottom" : "borderTop"]: `2px solid ${dividerColor}`,
+            marginTop: position === "header" ? 4 : 0,
+            marginBottom: position === "footer" ? 4 : 0,
+          }} />
+        )}
+      </div>
+    )
+  }
+
+  if (config.mode === "logo-text") {
+    const t = config.textFields
+    const hasContent = config.logoData || t.companyName
+    if (!hasContent) return null
+
+    const infoLine = [t.address, t.phone, t.email, t.website].filter(Boolean).join("  ·  ")
+
+    return (
+      <div>
+        <div
+          className="px-8"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: justify,
+            gap: 12,
+            paddingTop: position === "header" ? 12 : 8,
+            paddingBottom: position === "header" ? 8 : 12,
+          }}
+        >
+          {config.logoData && (
+            <img src={config.logoData} alt="Logo" style={{ width: config.logoWidth, height: "auto", flexShrink: 0 }} />
+          )}
+          <div style={{ textAlign: config.alignment }}>
+            {t.companyName && <div className="text-[12px] font-bold text-slate-800 dark:text-white leading-tight">{t.companyName}</div>}
+            {t.tagline && <div className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{t.tagline}</div>}
+            {infoLine && (
+              <div className="text-[8px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">{infoLine}</div>
+            )}
+          </div>
+        </div>
+        {config.showDivider && (
+          <div className="mx-8" style={{
+            [position === "header" ? "borderBottom" : "borderTop"]: `2px solid ${dividerColor}`,
+          }} />
+        )}
+      </div>
+    )
+  }
+
+  return null
+}
+
 function PageHeader({ format, title }: { format: FormatSettings; title: string }) {
+  // Letterhead header overrides old headerStyle
+  const lh = format.letterheadHeader
+  if (lh?.mode && lh.mode !== "none") {
+    return <LetterheadBlock config={lh} colorAccent={format.colorAccent} position="header" />
+  }
+
+  // Legacy header styles
   if (format.headerStyle === "none") return null
 
   if (format.headerStyle === "minimal") {
@@ -213,12 +316,23 @@ function PageHeader({ format, title }: { format: FormatSettings; title: string }
 }
 
 function PageFooter({ format, pageNum, totalPages }: { format: FormatSettings; pageNum: number; totalPages: number }) {
-  if (!format.showPageNumbers && !format.showFooter) return null
+  const lf = format.letterheadFooter
+  const hasLetterhead = lf?.mode && lf.mode !== "none"
+  const hasPageInfo = format.showPageNumbers || format.showFooter
+
+  if (!hasLetterhead && !hasPageInfo) return null
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-8 py-3 text-[10px] text-slate-400 dark:text-slate-500">
-      {format.showFooter ? <span>Confidential</span> : <span />}
-      {format.showPageNumbers && <span>Page {pageNum} of {totalPages}</span>}
+    <div className="absolute bottom-0 left-0 right-0">
+      {hasLetterhead && (
+        <LetterheadBlock config={lf} colorAccent={format.colorAccent} position="footer" />
+      )}
+      {hasPageInfo && (
+        <div className="flex items-center justify-between px-8 py-3 text-[10px] text-slate-400 dark:text-slate-500">
+          {format.showFooter ? <span>Confidential</span> : <span />}
+          {format.showPageNumbers && <span>Page {pageNum} of {totalPages}</span>}
+        </div>
+      )}
     </div>
   )
 }
@@ -245,7 +359,7 @@ function PaginatedPageView({
   return (
     <div
       id={`studio-page-${pageNum - 1}`}
-      className="relative bg-white dark:bg-slate-900 rounded shadow-lg shadow-slate-300/50 dark:shadow-slate-900/50"
+      className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
       style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
     >
       <PageHeader format={formatSettings} title="Document" />
@@ -272,8 +386,21 @@ function PaginatedPageView({
 
 // ── Main component ────────────────────────────────────────
 
-export function DocumentEditor({ content, onContentChange, formatSettings, editorRef, annotations, onResolveAnnotation, onApplyAnnotationFix }: DocumentEditorProps) {
-  const [viewMode, setViewMode] = useState<"edit" | "preview" | "source">("edit")
+export function DocumentEditor({
+  content,
+  onContentChange,
+  formatSettings,
+  editorRef,
+  annotations,
+  onResolveAnnotation,
+  onApplyAnnotationFix: _onApplyAnnotationFix,
+  onOpenTemplates,
+  onImportFile,
+  onFocusChat,
+  onOpenPhotos,
+  onOpenAssets: _onOpenAssets,
+  onOpenQALibrary,
+}: DocumentEditorProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   const hiddenMeasureRef = useRef<HTMLDivElement>(null)
@@ -282,24 +409,75 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
   const [paginatedPages, setPaginatedPages] = useState<PaginatedPage[]>([])
   const lastEmittedContent = useRef(content)
   const [activeAnnotation, setActiveAnnotation] = useState<{ annotation: ReviewAnnotation; position: { top: number; left: number } } | null>(null)
+  const [inlineAI, setInlineAI] = useState<{ selectedText: string; position: { top: number; left: number }; from: number; to: number } | null>(null)
+  const [zoom, setZoom] = useState(1)
+
+  const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
+  const zoomIn = useCallback(() => {
+    setZoom((z) => {
+      const next = ZOOM_STEPS.find((s) => s > z + 0.001)
+      return next ?? z
+    })
+  }, [])
+  const zoomOut = useCallback(() => {
+    setZoom((z) => {
+      const prev = [...ZOOM_STEPS].reverse().find((s) => s < z - 0.001)
+      return prev ?? z
+    })
+  }, [])
+  const zoomReset = useCallback(() => setZoom(1), [])
+
+  // Ctrl/Cmd+scroll to zoom
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+      setZoom((z) => {
+        const delta = e.deltaY > 0 ? -0.05 : 0.05
+        return Math.max(0.5, Math.min(2, Math.round((z + delta) * 100) / 100))
+      })
+    }
+    el.addEventListener("wheel", handler, { passive: false })
+    return () => el.removeEventListener("wheel", handler)
+  }, [])
 
   const contentHeight = getContentHeight(formatSettings)
   const marginPx = getPageMarginPx(formatSettings)
   const pageStyle = formatToCSS(formatSettings)
   const availableHeight = contentHeight
 
-  // TipTap editor
+  // Slash command items with modal callbacks
+  const slashItems = useMemo(
+    () =>
+      createSlashCommandItems({
+        onOpenPhotos,
+        onOpenTemplates,
+        onOpenQALibrary,
+        onImportFile,
+      }),
+    [onOpenPhotos, onOpenTemplates, onOpenQALibrary, onImportFile]
+  )
+
+  // Load Google Fonts once on mount
+  useEffect(() => { loadAllGoogleFonts() }, [])
+
+  // TipTap editor — always editable
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
       }),
       Underline,
+      TextStyle,
+      FontFamily,
+      FontSize,
       TextAlign.configure({
         types: ["heading", "paragraph"],
       }),
       Placeholder.configure({
-        placeholder: "Click here to start writing, or deploy AI content from the chat",
+        placeholder: "Start writing, or type / for commands...",
       }),
       Table.configure({ resizable: true }),
       TableRow,
@@ -307,9 +485,66 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
       TableHeader,
       ResizableImage,
       ReviewCommentsExtension,
+      SlashCommands.configure({
+        suggestion: {
+          items: ({ query }: { query: string }) => {
+            return slashItems.filter((item) =>
+              item.label.toLowerCase().includes(query.toLowerCase())
+            )
+          },
+          render: () => {
+            let component: ReactRenderer<SlashCommandMenuRef> | null = null
+            let popup: TippyInstance[] | null = null
+
+            return {
+              onStart: (props: { editor: Editor; clientRect: (() => DOMRect | null) | null; items: SlashCommandItem[]; command: (item: SlashCommandItem) => void }) => {
+                component = new ReactRenderer(SlashCommandMenu, {
+                  props: { items: props.items, command: props.command },
+                  editor: props.editor,
+                })
+
+                const getReferenceClientRect = props.clientRect
+
+                popup = tippy("body", {
+                  getReferenceClientRect: getReferenceClientRect as () => DOMRect,
+                  appendTo: () => document.body,
+                  content: component.element,
+                  showOnCreate: true,
+                  interactive: true,
+                  trigger: "manual",
+                  placement: "bottom-start",
+                  offset: [0, 4],
+                })
+              },
+
+              onUpdate(props: { items: SlashCommandItem[]; command: (item: SlashCommandItem) => void; clientRect: (() => DOMRect | null) | null }) {
+                component?.updateProps({ items: props.items, command: props.command })
+                if (popup?.[0]) {
+                  popup[0].setProps({
+                    getReferenceClientRect: props.clientRect as () => DOMRect,
+                  })
+                }
+              },
+
+              onKeyDown(props: { event: KeyboardEvent }) {
+                if (props.event.key === "Escape") {
+                  popup?.[0]?.hide()
+                  return true
+                }
+                return component?.ref?.onKeyDown(props.event) ?? false
+              },
+
+              onExit() {
+                popup?.[0]?.destroy()
+                component?.destroy()
+              },
+            }
+          },
+        },
+      }),
     ],
     content: content || "<p></p>",
-    editable: viewMode === "edit",
+    editable: true,
     onUpdate: ({ editor: ed }) => {
       const html = ed.getHTML()
       lastEmittedContent.current = html
@@ -357,6 +592,78 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
     return () => dom.removeEventListener("click", handleEditorClick)
   }, [editor, handleEditorClick])
 
+  // Helper: get reliable position for the end of a selection, even for multi-block selections
+  const getSelectionPosition = useCallback((ed: Editor, from: number, to: number): { top: number; left: number } | null => {
+    // Try getBoundingClientRect from the DOM selection first
+    const domSel = window.getSelection()
+    if (domSel && domSel.rangeCount > 0) {
+      const range = domSel.getRangeAt(0)
+      const rect = range.getBoundingClientRect()
+      // Check if the rect is valid (not zero-size, not off-screen)
+      if (rect.width > 0 && rect.height > 0 && rect.top > 0) {
+        return { top: rect.bottom + 8, left: rect.left }
+      }
+    }
+
+    // Fallback: use TipTap's coordsAtPos for the end of the selection
+    try {
+      const endCoords = ed.view.coordsAtPos(to)
+      return { top: endCoords.bottom + 8, left: endCoords.left }
+    } catch {
+      // Last fallback: use the start of the selection
+      try {
+        const startCoords = ed.view.coordsAtPos(from)
+        return { top: startCoords.bottom + 8, left: startCoords.left }
+      } catch {
+        return null
+      }
+    }
+  }, [])
+
+  // Detect text selection for inline AI toolbar
+  useEffect(() => {
+    if (!editor?.view?.dom) return
+    const dom = editor.view.dom
+
+    const handleMouseUp = () => {
+      setTimeout(() => {
+        if (!editor) return
+        const { from, to } = editor.state.selection
+        if (to - from < 3) {
+          if (inlineAI) setInlineAI(null)
+          return
+        }
+
+        const selectedText = editor.state.doc.textBetween(from, to, " ")
+        if (selectedText.trim().length < 3) {
+          if (inlineAI) setInlineAI(null)
+          return
+        }
+
+        const position = getSelectionPosition(editor, from, to)
+        if (!position) return
+
+        setInlineAI({
+          selectedText: selectedText.trim(),
+          position,
+          from,
+          to,
+        })
+      }, 10)
+    }
+
+    dom.addEventListener("mouseup", handleMouseUp)
+    return () => dom.removeEventListener("mouseup", handleMouseUp)
+  }, [editor, inlineAI, getSelectionPosition])
+
+  // Handle inline AI apply — replace selected text
+  const handleInlineAIApply = useCallback((newText: string) => {
+    if (!editor || !inlineAI) return
+    const { from, to } = inlineAI
+    editor.chain().focus().deleteRange({ from, to }).insertContentAt(from, newText).run()
+    setInlineAI(null)
+  }, [editor, inlineAI])
+
   // Sync external content changes (undo/redo, insertContent, replaceContent) to editor
   useEffect(() => {
     if (!editor) return
@@ -376,15 +683,8 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
     }
   }, [content, editor])
 
-  // Toggle editable when view mode changes
-  useEffect(() => {
-    if (!editor) return
-    editor.setEditable(viewMode === "edit")
-  }, [viewMode, editor])
-
   // ── Smart pagination measurement ───────────────────────
   useEffect(() => {
-    if (viewMode === "source") return
     if (!hiddenMeasureRef.current) return
 
     const html = editor?.getHTML() || content
@@ -403,7 +703,7 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
     })
 
     return () => cancelAnimationFrame(raf)
-  }, [content, formatSettings, viewMode, availableHeight, editor])
+  }, [content, formatSettings, availableHeight, editor])
 
   // Re-paginate on resize
   useEffect(() => {
@@ -423,7 +723,7 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
   // Track current page via scroll
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
-    const page = Math.floor(scrollRef.current.scrollTop / (PAGE_HEIGHT + 48)) + 1
+    const page = Math.floor(scrollRef.current.scrollTop / (PAGE_HEIGHT + 48)) + 1  // space-y-12 = 48px
     setCurrentPage(Math.min(page, pageCount))
   }, [pageCount])
 
@@ -439,27 +739,11 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
     scrollRef.current.scrollTo({ top: (pageNum - 1) * (PAGE_HEIGHT + 48), behavior: "smooth" })
   }
 
-  // Source mode: direct HTML editing
-  const [sourceValue, setSourceValue] = useState("")
-  useEffect(() => {
-    if (viewMode === "source") {
-      setSourceValue(content)
-    }
-  }, [viewMode, content])
-
-  const handleSourceBlur = () => {
-    onContentChange(sourceValue)
-    lastEmittedContent.current = sourceValue
-    if (editor) {
-      editor.commands.setContent(sourceValue || "<p></p>", { emitUpdate: false })
-    }
-  }
-
   const totalPages = paginatedPages.length || 1
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-100 dark:bg-slate-950">
-      {/* Hidden measurement div for block height calculation */}
+    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0c1222]">
+      {/* Hidden measurement div */}
       <div
         ref={hiddenMeasureRef}
         aria-hidden
@@ -473,158 +757,193 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
         }}
       />
 
-      {/* View toggle */}
-      <div className="flex items-center gap-1 px-4 py-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-        <button
-          onClick={() => setViewMode("edit")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            viewMode === "edit"
-              ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
+      {/* Document canvas */}
+      <div ref={scrollRef} className="flex-1 overflow-auto py-8">
+        <div
+          id="document-preview"
+          className="mx-auto space-y-12"
+          style={{
+            width: `${PAGE_WIDTH}px`,
+            transform: `scale(${zoom})`,
+            transformOrigin: "top center",
+            marginBottom: zoom !== 1 ? `${(PAGE_HEIGHT + 48) * (zoom - 1)}px` : undefined,
+          }}
         >
-          <Pencil className="w-3.5 h-3.5" />
-          Edit
-        </button>
-        <button
-          onClick={() => setViewMode("preview")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            viewMode === "preview"
-              ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
-        >
-          <Eye className="w-3.5 h-3.5" />
-          Preview
-        </button>
-        <button
-          onClick={() => setViewMode("source")}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
-            viewMode === "source"
-              ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-          }`}
-        >
-          <Code2 className="w-3.5 h-3.5" />
-          Source
-        </button>
 
-        {viewMode !== "source" && (
-          <div className="ml-auto flex items-center gap-3">
-            {annotations && annotations.length > 0 && (
-              <span className="text-xs font-medium text-amber-600 dark:text-amber-400">
-                {annotations.length} {annotations.length === 1 ? "comment" : "comments"}
-              </span>
-            )}
-            <span className="text-xs text-slate-400 dark:text-slate-500">
-              {totalPages} {totalPages === 1 ? "page" : "pages"}
-            </span>
+          {/* Page 0: Live TipTap editor */}
+          <div
+            id="studio-page-0"
+            className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
+            style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
+          >
+            <PageHeader format={formatSettings} title="Document" />
+            <div
+              className="overflow-hidden"
+              style={{ height: contentHeight, padding: `0 ${marginPx}px` }}
+            >
+              <div
+                ref={measureRef}
+                className="tiptap-editor"
+                style={{ ...pageStyle, paddingTop: marginPx, paddingBottom: marginPx }}
+              >
+                {editor ? (
+                  <>
+                    <EditorContent editor={editor} />
+                    {/* BubbleMenu for formatting on text selection */}
+                    <EditorBubbleMenu
+                      editor={editor}
+                      onTriggerAI={() => {
+                        const { from, to } = editor.state.selection
+                        if (to - from < 3) return
+                        const selectedText = editor.state.doc.textBetween(from, to, " ")
+                        if (selectedText.trim().length < 3) return
+                        const position = getSelectionPosition(editor, from, to)
+                        if (!position) return
+                        setInlineAI({
+                          selectedText: selectedText.trim(),
+                          position,
+                          from,
+                          to,
+                        })
+                      }}
+                    />
+                    {/* Empty state overlay */}
+                    {(!content || content === "<p></p>") && (
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ top: marginPx + getHeaderHeight(formatSettings) }}>
+                        <div className="text-center pointer-events-auto">
+                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
+                            <Sparkles className="w-7 h-7 text-white" />
+                          </div>
+                          <p className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-1">Start a new document</p>
+                          <p className="text-sm text-slate-400 dark:text-slate-500 mb-8">Choose how you'd like to begin</p>
+                          <div className="flex gap-4 justify-center">
+                            {onOpenTemplates && (
+                              <button
+                                onClick={onOpenTemplates}
+                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                              >
+                                <LayoutTemplate className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <div>
+                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Template</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Use a template</span>
+                                </div>
+                              </button>
+                            )}
+                            {onImportFile && (
+                              <button
+                                onClick={onImportFile}
+                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                              >
+                                <Upload className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <div>
+                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Import</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Upload a file</span>
+                                </div>
+                              </button>
+                            )}
+                            {onFocusChat && (
+                              <button
+                                onClick={onFocusChat}
+                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                              >
+                                <Sparkles className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <div>
+                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Ask AI</span>
+                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Let AI write it</span>
+                                </div>
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-6">
+                            or start typing &mdash; press <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">/</kbd> for commands
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-[600px] text-slate-300 dark:text-slate-600">
+                    <p className="text-sm">Loading editor...</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <PageFooter format={formatSettings} pageNum={1} totalPages={totalPages} />
           </div>
-        )}
+
+          {/* Pages 1+: Paginated overflow blocks */}
+          {paginatedPages.slice(1).map((page, i) => (
+            <PaginatedPageView
+              key={i + 1}
+              page={page}
+              pageNum={i + 2}
+              totalPages={totalPages}
+              formatSettings={formatSettings}
+              contentHeight={contentHeight}
+              marginPx={marginPx}
+              pageStyle={pageStyle}
+            />
+          ))}
+
+        </div>
       </div>
 
-      {viewMode === "source" ? (
-        <div className="flex-1 overflow-y-auto py-8">
-          <div className="mx-auto" style={{ width: `${PAGE_WIDTH}px` }}>
-            <textarea
-              value={sourceValue}
-              onChange={(e) => setSourceValue(e.target.value)}
-              onBlur={handleSourceBlur}
-              className="w-full bg-white dark:bg-slate-900 rounded shadow-lg shadow-slate-300/50 dark:shadow-slate-900/50 min-h-[1056px] p-[72px] text-sm font-mono text-slate-700 dark:text-slate-300 border-none outline-none resize-none focus:ring-2 focus:ring-emerald-500/20"
-              placeholder="Write or paste HTML here..."
-              spellCheck={false}
-            />
+      {/* Bottom bar — page nav + zoom controls */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+        {/* Page navigator */}
+        {totalPages > 1 && (
+          <div className="flex items-center gap-0.5 px-2 py-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-full shadow-lg shadow-black/[0.08] dark:shadow-black/30 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums px-1.5">
+              {currentPage}/{totalPages}
+            </span>
+            <div className="w-px h-3 bg-slate-200 dark:bg-slate-700" />
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => scrollToPage(i + 1)}
+                className={`w-6 h-5 text-[10px] rounded-full transition-all tabular-nums ${
+                  currentPage === i + 1
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold"
+                    : "text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
+                }`}
+              >
+                {i + 1}
+              </button>
+            ))}
           </div>
+        )}
+
+        {/* Zoom controls */}
+        <div className="flex items-center gap-0.5 px-1.5 py-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-full shadow-lg shadow-black/[0.08] dark:shadow-black/30 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+          <button
+            onClick={zoomOut}
+            disabled={zoom <= 0.5}
+            className="w-6 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Zoom out"
+          >
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          <button
+            onClick={zoomReset}
+            className={`min-w-[40px] h-5 text-[10px] font-medium tabular-nums rounded-full transition-colors ${
+              zoom === 1
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+            }`}
+            title="Reset zoom"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            onClick={zoomIn}
+            disabled={zoom >= 2}
+            className="w-6 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            title="Zoom in"
+          >
+            <ZoomIn className="w-3 h-3" />
+          </button>
         </div>
-      ) : (
-        /* Paginated 8.5x11 view */
-        <>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto py-8">
-            <div id="document-preview" className="mx-auto space-y-12" style={{ width: `${PAGE_WIDTH}px` }}>
-
-              {viewMode === "edit" ? (
-                <>
-                  {/* Page 0: Live TipTap editor */}
-                  <div
-                    id="studio-page-0"
-                    className="relative bg-white dark:bg-slate-900 rounded shadow-lg shadow-slate-300/50 dark:shadow-slate-900/50"
-                    style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
-                  >
-                    <PageHeader format={formatSettings} title="Document" />
-                    <div
-                      className="overflow-hidden"
-                      style={{ height: contentHeight, padding: `0 ${marginPx}px` }}
-                    >
-                      <div
-                        ref={measureRef}
-                        className="tiptap-editor"
-                        style={{ ...pageStyle, paddingTop: marginPx, paddingBottom: marginPx }}
-                      >
-                        {editor ? (
-                          <EditorContent editor={editor} />
-                        ) : (
-                          <div className="flex items-center justify-center h-[600px] text-slate-300 dark:text-slate-600">
-                            <p className="text-sm">Loading editor...</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <PageFooter format={formatSettings} pageNum={1} totalPages={totalPages} />
-                  </div>
-
-                  {/* Pages 1+: Paginated overflow blocks */}
-                  {paginatedPages.slice(1).map((page, i) => (
-                    <PaginatedPageView
-                      key={i + 1}
-                      page={page}
-                      pageNum={i + 2}
-                      totalPages={totalPages}
-                      formatSettings={formatSettings}
-                      contentHeight={contentHeight}
-                      marginPx={marginPx}
-                      pageStyle={pageStyle}
-                    />
-                  ))}
-                </>
-              ) : (
-                /* Preview mode: all pages from paginated blocks */
-                paginatedPages.map((page, i) => (
-                  <PaginatedPageView
-                    key={i}
-                    page={page}
-                    pageNum={i + 1}
-                    totalPages={totalPages}
-                    formatSettings={formatSettings}
-                    contentHeight={contentHeight}
-                    marginPx={marginPx}
-                    pageStyle={pageStyle}
-                  />
-                ))
-              )}
-
-            </div>
-          </div>
-
-          {/* Page navigator */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-1 py-2 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700">
-              {Array.from({ length: totalPages }, (_, i) => (
-                <button
-                  key={i}
-                  onClick={() => scrollToPage(i + 1)}
-                  className={`w-8 h-6 text-[10px] rounded transition-colors ${
-                    currentPage === i + 1
-                      ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-medium"
-                      : "text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+      </div>
 
       {/* Comment popover */}
       {activeAnnotation && (
@@ -638,7 +957,6 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
           onApplyFix={(id) => {
             const ann = annotations?.find((a) => a.id === id)
             if (ann?.suggestedFix && editor) {
-              // Find and replace the quoted text
               const text = editor.state.doc.textContent
               const idx = text.indexOf(ann.quote)
               if (idx !== -1) {
@@ -651,6 +969,17 @@ export function DocumentEditor({ content, onContentChange, formatSettings, edito
             setActiveAnnotation(null)
           }}
           onClose={() => setActiveAnnotation(null)}
+        />
+      )}
+
+      {/* Inline AI toolbar on text selection */}
+      {inlineAI && (
+        <InlineAIToolbar
+          selectedText={inlineAI.selectedText}
+          position={inlineAI.position}
+          documentContext={content}
+          onApply={handleInlineAIApply}
+          onClose={() => setInlineAI(null)}
         />
       )}
     </div>

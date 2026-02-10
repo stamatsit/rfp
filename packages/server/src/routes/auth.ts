@@ -7,6 +7,7 @@ import {
   changePassword,
   getUserById,
   updateAvatarUrl,
+  markTourCompleted,
 } from "../services/userService.js"
 import { saveAvatar, deleteAvatarFile } from "../services/avatarService.js"
 
@@ -53,6 +54,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     req.session.userName = user.name
     req.session.userEmail = user.email
     req.session.mustChangePassword = user.mustChangePassword
+    req.session.hasCompletedTour = user.hasCompletedTour
     req.session.avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
 
     return res.json({
@@ -158,10 +160,31 @@ router.get("/status", async (req: Request, res: Response) => {
       email: req.session.userEmail,
       name: req.session.userName,
       avatarUrl: req.session.avatarUrl || null,
+      hasCompletedTour: req.session.hasCompletedTour ?? false,
     },
     mustChangePassword: req.session.mustChangePassword || false,
     loginTime: req.session.loginTime || null,
   })
+})
+
+/**
+ * POST /api/auth/complete-tour
+ * Mark the guided tour as completed for the current user
+ */
+router.post("/complete-tour", async (req: Request, res: Response) => {
+  try {
+    if (!req.session?.authenticated || !req.session.userId) {
+      return res.status(401).json({ error: "Authentication required" })
+    }
+
+    await markTourCompleted(req.session.userId)
+    req.session.hasCompletedTour = true
+
+    return res.json({ success: true })
+  } catch (error) {
+    console.error("Complete tour failed:", error)
+    res.status(500).json({ error: "Failed to complete tour" })
+  }
 })
 
 /**
