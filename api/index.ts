@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
+import crypto from "crypto"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import { createClient } from "@supabase/supabase-js"
@@ -787,6 +788,60 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const allAnswers = await db.select().from(answerItems).orderBy(desc(answerItems.createdAt))
         return res.json(allAnswers)
       }
+    }
+
+    // PUT /answers/:id - update answer
+    const answerUpdateMatch = path.match(/^\/answers\/([^/]+)$/)
+    if (answerUpdateMatch && method === "PUT") {
+      const answerId = answerUpdateMatch[1]
+      const { question, answer, topicId, subtopic, status, tags } = req.body || {}
+
+      const [existing] = await db.select().from(answerItems).where(eq(answerItems.id, answerId))
+      if (!existing) return res.status(404).json({ error: "Answer not found" })
+
+      // Build update object
+      const updates: Record<string, unknown> = {}
+      if (question !== undefined && question !== existing.question) updates.question = question.trim()
+      if (answer !== undefined && answer !== existing.answer) updates.answer = answer.trim()
+      if (topicId !== undefined && topicId !== existing.topicId) updates.topicId = topicId
+      if (subtopic !== undefined && subtopic !== existing.subtopic) updates.subtopic = subtopic?.trim()
+      if (status !== undefined && status !== existing.status) updates.status = status
+      if (tags !== undefined) {
+        const normalized = [...new Set(tags.map((t: string) => t.toLowerCase().trim()).filter((t: string) => t.length > 0))]
+        if (JSON.stringify(normalized) !== JSON.stringify(existing.tags)) updates.tags = normalized
+      }
+
+      // Regenerate fingerprint if question or topic changed
+      let topicName: string | undefined
+      if (topicId && topicId !== existing.topicId) {
+        const [topic] = await db.select().from(topics).where(eq(topics.id, topicId))
+        if (!topic) return res.status(400).json({ error: "Invalid topic ID" })
+        topicName = topic.name
+      } else if (question && question.trim() !== existing.question) {
+        const [topic] = await db.select().from(topics).where(eq(topics.id, existing.topicId))
+        if (topic) topicName = topic.name
+      }
+      if (topicName) {
+        const normalizedQ = (updates.question as string ?? existing.question).toLowerCase().trim().replace(/\s+/g, " ")
+        const normalizedT = topicName.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-")
+        updates.fingerprint = crypto.createHash("sha256").update(`${normalizedQ}|${normalizedT}`).digest("hex").slice(0, 16)
+      }
+
+      if (Object.keys(updates).length === 0) return res.json(existing)
+
+      updates.updatedAt = new Date()
+      const [updated] = await db.update(answerItems).set(updates).where(eq(answerItems.id, answerId)).returning()
+      return res.json(updated)
+    }
+
+    // DELETE /answers/:id - delete answer
+    const answerDeleteMatch = path.match(/^\/answers\/([^/]+)$/)
+    if (answerDeleteMatch && method === "DELETE") {
+      const answerId = answerDeleteMatch[1]
+      const [existing] = await db.select().from(answerItems).where(eq(answerItems.id, answerId))
+      if (!existing) return res.status(404).json({ error: "Answer not found" })
+      await db.delete(answerItems).where(eq(answerItems.id, answerId))
+      return res.json({ success: true, message: "Answer deleted successfully" })
     }
 
     // Search routes
