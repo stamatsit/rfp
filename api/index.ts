@@ -3,7 +3,7 @@ import crypto from "crypto"
 import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import { createClient } from "@supabase/supabase-js"
-import { pgTable, text, timestamp, uuid, integer, boolean } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, uuid, integer, boolean, primaryKey } from "drizzle-orm/pg-core"
 import { eq, ilike, or, desc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
@@ -390,6 +390,19 @@ export const photoAssets = pgTable("photo_assets", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
+
+export const linksAnswerPhoto = pgTable(
+  "links_answer_photo",
+  {
+    answerItemId: uuid("answer_item_id").notNull().references(() => answerItems.id, { onDelete: "cascade" }),
+    photoAssetId: uuid("photo_asset_id").notNull().references(() => photoAssets.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdBy: text("created_by").notNull().default("local"),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.answerItemId, table.photoAssetId] }),
+  })
+)
 
 // Proposals table (synced from Excel)
 export const proposals = pgTable("proposals", {
@@ -966,20 +979,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json(results)
       }
 
-      // GET /search/answers/:id - get single answer
+      // GET /search/answers/:id - get single answer with linked photos
       const answerMatch = path.match(/^\/search\/answers\/([^/]+)$/)
       if (answerMatch && method === "GET") {
         const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, answerMatch[1]))
         if (!answer) return res.status(404).json({ error: "Answer not found" })
-        return res.json({ ...answer, linkedPhotos: [] })
+        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.answerItemId, answerMatch[1]))
+        const linkedPhotos = []
+        for (const link of links) {
+          const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, link.photoAssetId))
+          if (photo) linkedPhotos.push(photo)
+        }
+        return res.json({ ...answer, linkedPhotos })
       }
 
-      // GET /search/photos/:id - get single photo
+      // GET /search/photos/:id - get single photo with linked answers
       const photoMatch = path.match(/^\/search\/photos\/([^/]+)$/)
       if (photoMatch && method === "GET") {
         const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, photoMatch[1]))
         if (!photo) return res.status(404).json({ error: "Photo not found" })
-        return res.json({ ...photo, linkedAnswers: [] })
+        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.photoAssetId, photoMatch[1]))
+        const linkedAnswers = []
+        for (const link of links) {
+          const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, link.answerItemId))
+          if (answer) linkedAnswers.push(answer)
+        }
+        return res.json({ ...photo, linkedAnswers })
       }
 
       // POST /search/answers/:id/copy - log copy event (just acknowledge)
@@ -988,16 +1013,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ success: true })
       }
 
-      // GET /search/answers/:id/photos - get linked photos (placeholder)
-      const linkedPhotosMatch = path.match(/^\/search\/answers\/([^/]+)\/photos$/)
-      if (linkedPhotosMatch && method === "GET") {
-        return res.json([])
+      // POST /search/link - link answer to photo
+      if ((path === "/search/link" || path === "/search/link/") && method === "POST") {
+        const { answerId, photoId } = req.body || {}
+        if (!answerId || !photoId) return res.status(400).json({ error: "answerId and photoId are required" })
+        const [existingAnswer] = await db.select().from(answerItems).where(eq(answerItems.id, answerId))
+        if (!existingAnswer) return res.status(404).json({ error: "Answer not found" })
+        const [existingPhoto] = await db.select().from(photoAssets).where(eq(photoAssets.id, photoId))
+        if (!existingPhoto) return res.status(404).json({ error: "Photo not found" })
+        const [existingLink] = await db.select().from(linksAnswerPhoto).where(and(eq(linksAnswerPhoto.answerItemId, answerId), eq(linksAnswerPhoto.photoAssetId, photoId)))
+        if (existingLink) return res.json(existingLink)
+        const [link] = await db.insert(linksAnswerPhoto).values({ answerItemId: answerId, photoAssetId: photoId, createdBy: session?.userName ?? "unknown" }).returning()
+        return res.json(link)
       }
 
-      // GET /search/photos/:id/answers - get linked answers (placeholder)
+      // DELETE /search/link - unlink answer from photo
+      if ((path === "/search/link" || path === "/search/link/") && method === "DELETE") {
+        const { answerId, photoId } = req.body || {}
+        if (!answerId || !photoId) return res.status(400).json({ error: "answerId and photoId are required" })
+        await db.delete(linksAnswerPhoto).where(and(eq(linksAnswerPhoto.answerItemId, answerId), eq(linksAnswerPhoto.photoAssetId, photoId)))
+        return res.json({ success: true })
+      }
+
+      // GET /search/answers/:id/photos - get linked photos
+      const linkedPhotosMatch = path.match(/^\/search\/answers\/([^/]+)\/photos$/)
+      if (linkedPhotosMatch && method === "GET") {
+        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.answerItemId, linkedPhotosMatch[1]))
+        if (links.length === 0) return res.json([])
+        const photos = []
+        for (const link of links) {
+          const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, link.photoAssetId))
+          if (photo) photos.push(photo)
+        }
+        return res.json(photos)
+      }
+
+      // GET /search/photos/:id/answers - get linked answers
       const linkedAnswersMatch = path.match(/^\/search\/photos\/([^/]+)\/answers$/)
       if (linkedAnswersMatch && method === "GET") {
-        return res.json([])
+        const links = await db.select().from(linksAnswerPhoto).where(eq(linksAnswerPhoto.photoAssetId, linkedAnswersMatch[1]))
+        if (links.length === 0) return res.json([])
+        const answers = []
+        for (const link of links) {
+          const [answer] = await db.select().from(answerItems).where(eq(answerItems.id, link.answerItemId))
+          if (answer) answers.push(answer)
+        }
+        return res.json(answers)
       }
 
       // Combined search (original route) with relevance scoring
