@@ -78,11 +78,10 @@ function FieldRow({ label, children }: { label: string; children: React.ReactNod
 
 const inputClass = "w-full text-[11px] bg-transparent border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-600 dark:text-slate-300 focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
 
-function LetterheadSection({ label, config, onUpdate, colorAccent }: {
+function LetterheadSection({ label, config, onUpdate }: {
   label: string
   config: LetterheadConfig
   onUpdate: (partial: Partial<LetterheadConfig>) => void
-  colorAccent: string
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploadTarget, setUploadTarget] = useState<"full" | "logo">("full")
@@ -471,14 +470,12 @@ function FormatTab({ format, onUpdate, hasDocumentId, onOpenHistory }: {
           // When activating letterhead, set legacy header to none
           ...(partial.mode && partial.mode !== "none" ? { headerStyle: "none" as HeaderStyle } : {}),
         })}
-        colorAccent={format.colorAccent}
       />
 
       <LetterheadSection
         label="Footer"
         config={format.letterheadFooter ?? DEFAULT_LETTERHEAD_FOOTER}
         onUpdate={(partial) => onUpdate({ letterheadFooter: { ...(format.letterheadFooter ?? DEFAULT_LETTERHEAD_FOOTER), ...partial } })}
-        colorAccent={format.colorAccent}
       />
 
       {/* ── Style ── */}
