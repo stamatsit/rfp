@@ -362,6 +362,20 @@ export const answerItems = pgTable("answer_items", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+export const answerItemVersions = pgTable("answer_item_versions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  answerItemId: uuid("answer_item_id").notNull().references(() => answerItems.id, { onDelete: "cascade" }),
+  question: text("question").notNull(),
+  answer: text("answer").notNull(),
+  topicId: uuid("topic_id").notNull(),
+  subtopic: text("subtopic"),
+  status: text("status").notNull(),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  versionNumber: integer("version_number").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text("created_by").notNull().default("local"),
+})
+
 export const photoAssets = pgTable("photo_assets", {
   id: uuid("id").primaryKey().defaultRandom(),
   displayTitle: text("display_title").notNull(),
@@ -831,7 +845,37 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       updates.updatedAt = new Date()
       const [updated] = await db.update(answerItems).set(updates).where(eq(answerItems.id, answerId)).returning()
+
+      // Create version record
+      if (updated) {
+        const [maxV] = await db.select({ maxVersion: sql<number>`COALESCE(MAX(version_number), 0)` }).from(answerItemVersions).where(eq(answerItemVersions.answerItemId, answerId))
+        const nextVersion = (maxV?.maxVersion ?? 0) + 1
+        await db.insert(answerItemVersions).values({
+          answerItemId: updated.id,
+          question: updated.question,
+          answer: updated.answer,
+          topicId: updated.topicId,
+          subtopic: updated.subtopic,
+          status: updated.status,
+          tags: updated.tags,
+          versionNumber: nextVersion,
+          createdBy: session?.userName ?? "unknown",
+        })
+      }
+
       return res.json(updated)
+    }
+
+    // GET /answers/:id/versions - get version history
+    const answerVersionsMatch = path.match(/^\/answers\/([^/]+)\/versions$/)
+    if (answerVersionsMatch && method === "GET") {
+      const answerId = answerVersionsMatch[1]
+      const [existing] = await db.select().from(answerItems).where(eq(answerItems.id, answerId))
+      if (!existing) return res.status(404).json({ error: "Answer not found" })
+      const versions = await db.select().from(answerItemVersions)
+        .where(eq(answerItemVersions.answerItemId, answerId))
+        .orderBy(answerItemVersions.versionNumber)
+      return res.json(versions)
     }
 
     // DELETE /answers/:id - delete answer
