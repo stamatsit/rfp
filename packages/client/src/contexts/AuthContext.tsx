@@ -20,6 +20,7 @@ interface AuthContextType {
   setAuthenticated: (value: boolean) => void
   refreshUser: () => Promise<void>
   markTourCompleted: () => Promise<void>
+  resetTour: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -107,6 +108,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(prev => prev ? { ...prev, hasCompletedTour: true } : prev)
   }, [])
 
+  const resetTour = useCallback(async () => {
+    await accountApi.resetTour()
+    // Don't update local state — we want the tour to show on next login, not immediately
+  }, [])
+
   useEffect(() => {
     checkAuth()
   }, [])
@@ -119,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [location.pathname])
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, mustChangePassword, logout, checkAuth, setAuthenticated, refreshUser, markTourCompleted }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, mustChangePassword, logout, checkAuth, setAuthenticated, refreshUser, markTourCompleted, resetTour }}>
       {children}
     </AuthContext.Provider>
   )

@@ -9,6 +9,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute"
 import { KeyboardShortcuts } from "./components/KeyboardShortcuts"
 import { NewEntryPanel } from "./components/NewEntryPanel"
 import { Toaster } from "./components/ui/toast"
+import { AICompanion } from "./components/AICompanion"
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -67,6 +68,7 @@ function AppRoutes() {
           <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
         </Routes>
       </PageTransition>
+      <AICompanion />
       <Toaster />
     </>
   )

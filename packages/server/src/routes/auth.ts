@@ -8,6 +8,7 @@ import {
   getUserById,
   updateAvatarUrl,
   markTourCompleted,
+  resetTour,
 } from "../services/userService.js"
 import { saveAvatar, deleteAvatarFile } from "../services/avatarService.js"
 
@@ -184,6 +185,26 @@ router.post("/complete-tour", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Complete tour failed:", error)
     res.status(500).json({ error: "Failed to complete tour" })
+  }
+})
+
+/**
+ * POST /api/auth/reset-tour
+ * Reset guided tour so it shows again on next login
+ */
+router.post("/reset-tour", async (req: Request, res: Response) => {
+  try {
+    if (!req.session?.authenticated || !req.session.userId) {
+      return res.status(401).json({ error: "Authentication required" })
+    }
+
+    await resetTour(req.session.userId)
+    req.session.hasCompletedTour = false
+
+    return res.json({ success: true })
+  } catch (error) {
+    console.error("Reset tour failed:", error)
+    res.status(500).json({ error: "Failed to reset tour" })
   }
 })
 

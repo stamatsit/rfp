@@ -1076,7 +1076,7 @@ export const unifiedAIApi = {
 
 // ─── Conversations (Chat History) ─────────────────────────────────
 
-export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general"
+export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general" | "companion"
 
 export interface ConversationSummary {
   id: string
@@ -1405,6 +1405,17 @@ export const accountApi = {
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
       throw new Error(err.error || "Failed to complete tour")
+    }
+    return response.json()
+  },
+
+  async resetTour(): Promise<{ success: boolean }> {
+    const response = await fetchWithCredentials(`${API_BASE}/auth/reset-tour`, {
+      method: "POST",
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || "Failed to reset tour")
     }
     return response.json()
   },

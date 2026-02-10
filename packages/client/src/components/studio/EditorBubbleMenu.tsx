@@ -23,7 +23,7 @@ const BLOCK_TYPES: { id: BlockType; label: string; shortLabel: string }[] = [
 ]
 
 function Separator() {
-  return <div className="w-px h-5 bg-slate-200 dark:bg-slate-600 mx-0.5" />
+  return <div className="w-px h-4 bg-slate-200/70 dark:bg-slate-600/70 mx-0.5" />
 }
 
 function BubbleBtn({
@@ -41,7 +41,7 @@ function BubbleBtn({
     <button
       onClick={onClick}
       title={title}
-      className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${
+      className={`w-7 h-7 flex items-center justify-center rounded-md transition-colors ${
         active
           ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300"
           : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -136,7 +136,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
 
   return (
     <BubbleMenu editor={editor} updateDelay={100}>
-      <div className="flex items-center gap-0.5 px-1.5 py-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 backdrop-blur-xl">
+      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl">
 
         {/* Font family dropdown */}
         <Dropdown
@@ -145,7 +145,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
           anchor={
             <button
               onClick={() => toggleMenu("font")}
-              className="flex items-center gap-1 px-2 h-8 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors max-w-[100px]"
+              className="flex items-center gap-1 px-1.5 h-7 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors max-w-[90px]"
               title="Font family"
             >
               <Type className="w-3 h-3 flex-shrink-0" />
@@ -190,7 +190,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
           anchor={
             <button
               onClick={() => toggleMenu("size")}
-              className="flex items-center gap-0.5 px-1.5 h-8 text-[11px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors min-w-[36px] justify-center"
+              className="flex items-center gap-0.5 px-1.5 h-7 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors min-w-[32px] justify-center tabular-nums"
               title="Font size"
             >
               {currentSizeLabel}
@@ -237,10 +237,10 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
           anchor={
             <button
               onClick={() => toggleMenu("block")}
-              className="flex items-center gap-1 px-2 h-8 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+              className="flex items-center gap-0.5 px-1.5 h-7 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
             >
               {currentBlock.shortLabel}
-              <ChevronDown className={`w-3 h-3 transition-transform ${openMenu === "block" ? "rotate-180" : ""}`} />
+              <ChevronDown className={`w-2.5 h-2.5 transition-transform ${openMenu === "block" ? "rotate-180" : ""}`} />
             </button>
           }
         >
@@ -280,7 +280,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
             <Separator />
             <button
               onClick={onTriggerAI}
-              className="flex items-center gap-1 px-2.5 h-8 text-xs font-medium text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-lg transition-all"
+              className="flex items-center gap-1 px-2 h-7 text-[10px] font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-md shadow-sm transition-all"
               title="AI Edit"
             >
               <Sparkles className="w-3 h-3" />

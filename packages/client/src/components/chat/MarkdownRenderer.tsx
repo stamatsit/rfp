@@ -27,6 +27,9 @@ function renderMarkdown(raw: string): string {
   // Horizontal rule
   html = html.replace(/^---$/gm, '<hr class="md-hr" />')
 
+  // Links: [text](url)
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="md-link">$1</a>')
+
   // Bold and italic
   html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>")
   html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
@@ -121,7 +124,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     const rendered = renderMarkdown(content)
     return DOMPurify.sanitize(rendered, {
       ALLOWED_TAGS: [
-        "strong", "em", "br", "ul", "ol", "li", "p", "div",
+        "a", "strong", "em", "br", "ul", "ol", "li", "p", "div",
         "h2", "h3", "pre", "code", "table", "thead",
         "tbody", "tr", "th", "td", "hr",
         // SVG elements
@@ -131,7 +134,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         "foreignObject", "marker", "pattern", "symbol", "title", "desc",
       ],
       ALLOWED_ATTR: [
-        "class",
+        "class", "href", "target", "rel",
         // SVG attributes
         "viewBox", "xmlns", "d", "cx", "cy", "r", "rx", "ry",
         "x", "y", "x1", "y1", "x2", "y2", "width", "height",
@@ -162,7 +165,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     [&_.md-table]:w-full [&_.md-table]:my-3 [&_.md-table]:border-collapse
                     [&_.md-th]:text-left [&_.md-th]:text-xs [&_.md-th]:font-semibold [&_.md-th]:text-slate-600 [&_.md-th]:dark:text-slate-300 [&_.md-th]:px-3 [&_.md-th]:py-2 [&_.md-th]:border-b [&_.md-th]:border-slate-200 [&_.md-th]:dark:border-slate-700 [&_.md-th]:bg-slate-50 [&_.md-th]:dark:bg-slate-800/50
                     [&_.md-td]:text-sm [&_.md-td]:px-3 [&_.md-td]:py-1.5 [&_.md-td]:border-b [&_.md-td]:border-slate-100 [&_.md-td]:dark:border-slate-800
-                    [&_.md-hr]:border-slate-200 [&_.md-hr]:dark:border-slate-700 [&_.md-hr]:my-4"
+                    [&_.md-hr]:border-slate-200 [&_.md-hr]:dark:border-slate-700 [&_.md-hr]:my-4
+                    [&_.md-link]:text-blue-600 [&_.md-link]:dark:text-blue-400 [&_.md-link]:underline [&_.md-link]:underline-offset-2 [&_.md-link]:decoration-blue-300 [&_.md-link]:dark:decoration-blue-600 [&_.md-link]:hover:text-blue-700 [&_.md-link]:dark:hover:text-blue-300 [&_.md-link]:transition-colors"
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

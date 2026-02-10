@@ -705,6 +705,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ success: true })
       }
 
+      // Reset tour
+      if (path === "/auth/reset-tour" && method === "POST") {
+        if (!isAuthenticated || !session?.userId || !db) {
+          return res.status(401).json({ error: "Authentication required" })
+        }
+        await db.update(users).set({ hasCompletedTour: false, updatedAt: new Date() }).where(eq(users.id, session.userId))
+        const newSessionToken = await createSession({
+          authenticated: true,
+          userId: session.userId,
+          userName: session.userName,
+          userEmail: session.userEmail,
+          mustChangePassword: session.mustChangePassword ?? false,
+          hasCompletedTour: false,
+          avatarUrl: session.avatarUrl,
+        })
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        return res.json({ success: true })
+      }
+
       // Avatar routes
       if (path.startsWith("/auth/avatar")) {
         // GET /auth/avatar/:userId — redirect to stored avatar
@@ -1919,6 +1938,251 @@ ${csStreamContext}`
           res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
           return res.end()
         }
+      }
+    }
+
+    // ─── AI Companion stream (super-powered with full data access) ──────────
+    if (path === "/companion/stream" && method === "POST") {
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured." })}\n\n`)
+        return res.end()
+      }
+
+      const { query: companionQuery, conversationHistory: companionHistory, behaviorContext } = req.body || {}
+      if (!companionQuery || typeof companionQuery !== "string" || companionQuery.trim().length < 2) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "Query must be at least 2 characters" })}\n\n`)
+        return res.end()
+      }
+
+      // Load ALL data sources in parallel
+      const compSearchWords = companionQuery.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
+      let compLibraryAnswers: any[] = []
+      if (compSearchWords.length > 0) {
+        const wordConditions = compSearchWords.flatMap((word: string) => [
+          ilike(answerItems.question, `%${word}%`),
+          ilike(answerItems.answer, `%${word}%`)
+        ])
+        compLibraryAnswers = await db.select().from(answerItems)
+          .where(or(...wordConditions))
+          .limit(15)
+      }
+
+      const compProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+      const compDecided = compProposals.filter(p => p.won === "Yes" || p.won === "No")
+      const compWon = compDecided.filter(p => p.won === "Yes")
+      const compWinRate = compDecided.length > 0 ? compWon.length / compDecided.length : 0
+
+      // Win rates by service
+      const compByService: Record<string, { won: number; total: number }> = {}
+      compDecided.forEach(p => {
+        ((p.servicesOffered as string[]) || []).forEach(s => {
+          if (!compByService[s]) compByService[s] = { won: 0, total: 0 }
+          compByService[s].total++
+          if (p.won === "Yes") compByService[s].won++
+        })
+      })
+
+      // Win rates by school type
+      const compBySchoolType: Record<string, { won: number; total: number }> = {}
+      compDecided.forEach(p => {
+        if (p.schoolType) {
+          if (!compBySchoolType[p.schoolType]) compBySchoolType[p.schoolType] = { won: 0, total: 0 }
+          compBySchoolType[p.schoolType].total++
+          if (p.won === "Yes") compBySchoolType[p.schoolType].won++
+        }
+      })
+
+      // Win rates by CE
+      const compByCE: Record<string, { won: number; total: number }> = {}
+      compDecided.forEach(p => {
+        if (p.ce) {
+          if (!compByCE[p.ce]) compByCE[p.ce] = { won: 0, total: 0 }
+          compByCE[p.ce].total++
+          if (p.won === "Yes") compByCE[p.ce].won++
+        }
+      })
+
+      const compFormatRate = (won: number, total: number) => total > 0 ? `${((won / total) * 100).toFixed(1)}%` : "N/A"
+
+      // Date range
+      const compDates = compProposals.filter(p => p.date).map(p => new Date(p.date!))
+      const compMinDate = compDates.length > 0 ? new Date(Math.min(...compDates.map(d => d.getTime()))) : null
+      const compMaxDate = compDates.length > 0 ? new Date(Math.max(...compDates.map(d => d.getTime()))) : null
+
+      // Build case study context
+      const compCsSummary = clientSuccessData.caseStudies.map((cs: any) => {
+        const metrics = cs.metrics.map((m: any) => `${m.value} ${m.label}`).join("; ")
+        const testimonial = cs.testimonial ? `\n  Quote: "${cs.testimonial.quote.slice(0, 120)}..." — ${cs.testimonial.attribution}` : ""
+        return `[${cs.client}] (${cs.category}, ${cs.focus})\n  Challenge: ${cs.challenge.slice(0, 120)}...\n  Metrics: ${metrics || "None"}${testimonial}`
+      }).join("\n\n")
+
+      const compTopResults = [...clientSuccessData.topLineResults].sort((a: any, b: any) => b.numericValue - a.numericValue)
+        .slice(0, 12)
+        .map((r: any) => `- ${r.result} ${r.metric} — ${r.client}`)
+        .join("\n")
+
+      const compTestimonials = clientSuccessData.testimonials.slice(0, 8).map((t: any) => {
+        const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+        return `"${t.quote.slice(0, 120)}..." — ${who}`
+      }).join("\n\n")
+
+      const compAwards = clientSuccessData.awards.slice(0, 8).map((a: any) => `- ${a.name} (${a.year}) — ${a.clientOrProject}`).join("\n")
+
+      // Build data context
+      const compDataContext = `
+═══ DATA SOURCE 1: PROPOSAL HISTORY ═══
+Total Proposals: ${compProposals.length}
+Date Range: ${compMinDate?.toISOString().split("T")[0] || "N/A"} to ${compMaxDate?.toISOString().split("T")[0] || "N/A"}
+Won: ${compWon.length} | Lost: ${compDecided.length - compWon.length} | Win Rate: ${compFormatRate(compWon.length, compDecided.length)}
+
+WIN RATES BY SCHOOL TYPE (top 8):
+${Object.entries(compBySchoolType).sort((a, b) => b[1].total - a[1].total).slice(0, 8).map(([type, s]) => `- ${type}: ${compFormatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+WIN RATES BY SERVICE (top 10):
+${Object.entries(compByService).sort((a, b) => b[1].total - a[1].total).slice(0, 10).map(([svc, s]) => `- ${svc}: ${compFormatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+WIN RATES BY ACCOUNT EXECUTIVE (top 8):
+${Object.entries(compByCE).sort((a, b) => b[1].total - a[1].total).slice(0, 8).map(([ce, s]) => `- ${ce}: ${compFormatRate(s.won, s.total)} (${s.won}/${s.total})`).join("\n") || "No data"}
+
+RECENT WINS (last 15):
+${compWon.slice(0, 15).map(p => `- ${p.client || "Unknown"} [${p.category || ""}] (${p.date ? new Date(p.date).toISOString().split("T")[0] : "N/A"}) — ${((p.servicesOffered as string[]) || []).slice(0, 3).join(", ") || "N/A"}`).join("\n") || "No recent wins"}
+
+═══ DATA SOURCE 2: CLIENT SUCCESS (${clientSuccessData.caseStudies.length} case studies) ═══
+
+CASE STUDIES:
+${compCsSummary}
+
+TOP-LINE RESULTS (${clientSuccessData.topLineResults.length} stats):
+${compTopResults}
+
+TESTIMONIALS (${clientSuccessData.testimonials.length} total):
+${compTestimonials}
+
+AWARDS (${clientSuccessData.awards.length} total):
+${compAwards}
+
+═══ DATA SOURCE 3: Q&A LIBRARY (${compLibraryAnswers.length} relevant answers) ═══
+
+${compLibraryAnswers.length > 0 ? compLibraryAnswers.map((a: any, i: number) => `[Answer ${i + 1}] (ID: ${a.id})
+Q: ${a.question}
+A: ${a.answer?.slice(0, 400)}${(a.answer?.length || 0) > 400 ? "..." : ""}`).join("\n\n") : "No relevant library answers found for this query."}`
+
+      const companionSystemPrompt = `You are the Stamats Content Library AI Companion — the most powerful assistant in the app. You combine the knowledge of a helpful colleague with FULL ACCESS to all data in the system. You're warm, conversational, and incredibly capable.
+
+You can do EVERYTHING:
+- Search and retrieve Q&A library entries, case studies, proposals, testimonials, awards, and stats
+- Provide win rate analytics, team performance, and strategic insights
+- Find specific client results, quotes, and proof points
+- Guide users to the right tools and pages with clickable links
+- Cross-reference all data sources for comprehensive answers
+- Answer detailed how-to questions about every feature
+
+== SOURCE ATTRIBUTION ==
+When you reference data from the system, ALWAYS tell the user where it came from:
+- For Q&A library entries: mention the question title and link [Search for "keyword"](/search?q=keyword)
+- For case studies: mention the client name and say "from Client Success data"
+- For proposals: mention the client and date
+- For testimonials: include the attribution
+- When providing Q&A content, include enough for the user to copy it directly.
+
+== LINKING FORMAT ==
+When mentioning a page, ALWAYS provide a clickable markdown link:
+[Search Library](/search), [Ask AI](/ai), [Import Data](/import), [New Entry](/new), [Photo Library](/photos), [RFP Analyzer](/analyze), [Saved Documents](/documents), [Proposal Insights](/insights), [Case Studies](/case-studies), [Unified AI](/unified-ai), [Document Studio](/studio), [Help](/help), [Support](/support), [Home](/)
+When referencing Q&A content: [View in Library](/search?q=SEARCH_TERM)
+
+== APPLICATION MAP ==
+**[Home](/)** — Dashboard. **[Search Library](/search)** — Full-text Q&A/photos/client success search. **[Ask AI](/ai)** — AI Q&A from library. **[Import Data](/import)** — Excel import. **[New Entry](/new)** — Manual Q&A. **[Photo Library](/photos)** — Image management. **[RFP Analyzer](/analyze)** — Upload & analyze RFPs. **[Saved Documents](/documents)** — Browse saved docs. **[Proposal Insights](/insights)** — Win/loss analytics. **[Case Studies](/case-studies)** — Client success AI. **[Unified AI](/unified-ai)** — Cross-references ALL data. **[Document Studio](/studio)** — Rich proposal editor. **Settings** — Customize everything.
+
+== RESPONSE RULES ==
+1. Be conversational and warm — you're a helpful colleague.
+2. When users ask for DATA, ACTUALLY PROVIDE IT. Don't just point to another page.
+3. Format data cleanly with bold, bullets, tables as appropriate.
+4. ALWAYS cite sources: "From the Q&A Library:", "From proposal data:", "From client success:"
+5. Include search links for Q&A entries: [Search for "keyword"](/search?q=keyword)
+6. Use markdown links for page references — they're clickable.
+7. Cross-reference data sources when relevant.
+8. For guidance questions, keep concise. For data questions, go detailed.
+9. NEVER make up data. Only use provided context.
+10. When providing Q&A content, include enough to copy directly.
+
+${CHART_PROMPT}
+
+${behaviorContext ? `== USER BEHAVIOR CONTEXT ==\n${behaviorContext}\n` : ""}
+Always end with 2-3 follow-up prompts:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+═══ LIVE DATA ═══
+${compDataContext}`
+
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      res.write(`event: metadata\ndata: ${JSON.stringify({
+        type: "companion",
+        stats: {
+          proposals: compProposals.length,
+          winRate: compWinRate,
+          libraryAnswers: compLibraryAnswers.length,
+          caseStudies: clientSuccessData.caseStudies.length,
+          testimonials: clientSuccessData.testimonials.length,
+        }
+      })}\n\n`)
+
+      const companionMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: companionSystemPrompt }
+      ]
+      if (companionHistory && Array.isArray(companionHistory) && companionHistory.length > 0) {
+        const truncated = truncateHistory(companionHistory)
+        for (const msg of truncated) {
+          companionMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+        }
+      }
+      companionMessages.push({ role: "user", content: companionQuery.trim() })
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: companionMessages,
+          temperature: 0.4,
+          max_tokens: 3000,
+          stream: true
+        })
+
+        let fullResponse = ""
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            fullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        const { cleanResponse: companionClean, followUpPrompts: companionFollows } = parseFollowUpPrompts(fullResponse, [
+          "What else can I help you find?",
+          "Want to dive deeper into any of this data?",
+          "What are you working on right now?"
+        ])
+        const { cleanText: compFinalText, chartData: compChartData } = parseChartData(companionClean)
+        res.write(`event: done\ndata: ${JSON.stringify({
+          cleanResponse: compFinalText,
+          followUpPrompts: companionFollows,
+          ...(compChartData ? { chartData: compChartData } : {})
+        })}\n\n`)
+        return res.end()
+      } catch (streamErr: any) {
+        console.error("Companion stream error:", streamErr?.message || streamErr)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+        return res.end()
       }
     }
 

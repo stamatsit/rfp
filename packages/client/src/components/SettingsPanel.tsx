@@ -249,6 +249,7 @@ interface AppSettings {
   commandPaletteEnabled: boolean
   aiPoweredSearch: boolean
   smartSuggestions: boolean
+  companionEnabled: boolean
   shortcuts: Record<string, string>
 }
 
@@ -275,6 +276,7 @@ const defaultSettings: AppSettings = {
   commandPaletteEnabled: true,
   aiPoweredSearch: false,
   smartSuggestions: true,
+  companionEnabled: false,
   shortcuts: {
     search: "Cmd+K",
     ai: "Cmd+J",
@@ -524,7 +526,7 @@ const SETTINGS_MAX_H = 820
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
-  const { user, refreshUser, checkAuth } = useAuth()
+  const { user, refreshUser, checkAuth, resetTour, markTourCompleted } = useAuth()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general")
 
@@ -536,6 +538,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const [avatarLoading, setAvatarLoading] = useState(false)
   const [cropFile, setCropFile] = useState<string | null>(null)
   const avatarInputRef = useRef<HTMLInputElement>(null)
+  const [tourEnabled, setTourEnabled] = useState<boolean | null>(null) // local override for toggle UI
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
@@ -1027,6 +1030,39 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       <span className="text-[12px] text-slate-400 dark:text-slate-500">View all</span>
                     </button>
                   </div>
+
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Guided Tour</h3>
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-3">
+                        <Rocket size={16} className="text-slate-500 dark:text-slate-400" />
+                        <div>
+                          <span className="text-[13px] text-slate-700 dark:text-slate-300">Show on Login</span>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Walk through features when you visit the home screen</p>
+                        </div>
+                      </div>
+                      <Toggle
+                        enabled={tourEnabled !== null ? tourEnabled : user?.hasCompletedTour === false}
+                        onChange={async () => {
+                          const currentlyEnabled = tourEnabled !== null ? tourEnabled : user?.hasCompletedTour === false
+                          try {
+                            if (currentlyEnabled) {
+                              await markTourCompleted()
+                              setTourEnabled(false)
+                              toast.success("Guided tour disabled")
+                            } else {
+                              await resetTour()
+                              setTourEnabled(true)
+                              toast.success("Guided tour will show on your next visit home")
+                            }
+                          } catch (err) {
+                            console.error("Tour toggle error:", err)
+                            toast.error(err instanceof Error ? err.message : "Failed to update tour setting")
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1311,6 +1347,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           </div>
                         </div>
                         <Toggle enabled={settings.smartSuggestions} onChange={() => updateSetting("smartSuggestions", !settings.smartSuggestions)} />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-sky-50/60 dark:bg-sky-900/20 border border-sky-200/60 dark:border-sky-800/40">
+                        <div className="flex items-center gap-3">
+                          <Sparkles size={16} className="text-sky-500 dark:text-sky-400" />
+                          <div>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">AI Companion</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Floating AI guide on every page</p>
+                          </div>
+                        </div>
+                        <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />
                       </div>
                     </div>
                   </div>

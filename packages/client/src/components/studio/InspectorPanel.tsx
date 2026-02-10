@@ -46,7 +46,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   return (
     <button
       onClick={onClick}
-      className={`flex-1 px-2.5 py-1 text-[11px] font-medium rounded-md transition-all duration-150 ${
+      className={`flex-1 px-2 py-1 text-[10px] font-medium rounded-md transition-all duration-150 ${
         active
           ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06]"
           : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
@@ -62,7 +62,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 const selectClass = "text-[11px] bg-transparent border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-600 dark:text-slate-300 focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none"
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-1 mb-0.5">{children}</div>
+  return <div className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2 mb-1">{children}</div>
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -299,8 +299,8 @@ function LetterheadSection({ label, config, onUpdate }: {
                 onChange={() => onUpdate({ showDivider: !config.showDivider })}
                 className="sr-only peer"
               />
-              <div className="w-8 h-[18px] rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-emerald-500 transition-colors" />
-              <div className="absolute left-0.5 top-0.5 w-[14px] h-[14px] rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-[14px]" />
+              <div className="w-7 h-4 rounded-full bg-slate-200 dark:bg-slate-700 peer-checked:bg-emerald-500 transition-colors" />
+              <div className="absolute left-0.5 top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform peer-checked:translate-x-3" />
             </div>
           </label>
         </div>
@@ -757,11 +757,11 @@ export function InspectorPanel({
   if (!activeTab) return null
 
   return (
-    <div className="w-72 flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200/60 dark:border-slate-700/60 flex flex-col overflow-hidden animate-inspector-in">
+    <div className="w-[276px] flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200/50 dark:border-slate-800/80 flex flex-col overflow-hidden animate-inspector-in">
       {/* Header with tabs */}
-      <div className="px-3 pt-2.5 pb-2 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Inspector</span>
+      <div className="px-3 pt-2 pb-1.5 border-b border-slate-100/80 dark:border-slate-800/80 flex-shrink-0">
+        <div className="flex items-center justify-between mb-1.5">
+          <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Inspector</span>
           <button
             onClick={() => onTabChange(null)}
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
@@ -770,7 +770,7 @@ export function InspectorPanel({
           </button>
         </div>
         {/* Segmented control */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
+        <div className="flex bg-slate-100/80 dark:bg-slate-800/80 rounded-lg p-0.5">
           <TabButton label="Format" active={activeTab === "format"} onClick={() => onTabChange("format")} />
           <TabButton label="Outline" active={activeTab === "outline"} onClick={() => onTabChange("outline")} />
           <TabButton label="Checklist" active={activeTab === "checklist"} onClick={() => onTabChange("checklist")} />

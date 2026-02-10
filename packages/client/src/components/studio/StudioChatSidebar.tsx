@@ -98,19 +98,19 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
   // Collapsed view
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-3 gap-3">
+      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-3 gap-2">
         <button
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title="Expand AI sidebar"
         >
-          <PanelLeftOpen className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+          <PanelLeftOpen className="w-4 h-4 text-slate-400 dark:text-slate-500" />
         </button>
         <div
-          className="w-8 h-8 rounded-lg flex items-center justify-center"
+          className="w-7 h-7 rounded-lg flex items-center justify-center shadow-sm"
           style={{ background: theme.botGradient }}
         >
-          <Sparkles className="w-4 h-4 text-white" />
+          <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
       </div>
     )
@@ -119,34 +119,34 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-10 flex-shrink-0 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex items-center justify-between px-3 h-10 flex-shrink-0 border-b border-slate-100/80 dark:border-slate-800/80">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded flex items-center justify-center" style={{ background: theme.botGradient }}>
-            <Sparkles className="w-3 h-3 text-white" />
+          <div className="w-5 h-5 rounded-md flex items-center justify-center shadow-sm" style={{ background: theme.botGradient }}>
+            <Sparkles className="w-2.5 h-2.5 text-white" />
           </div>
-          <span className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
+          <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 tracking-tight">
             {documentStore.mode === "review" ? "AI Review" : "AI Assistant"}
           </span>
         </div>
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="New conversation"
           >
-            <MessageSquarePlus className="w-3.5 h-3.5" />
+            <MessageSquarePlus className="w-3 h-3" />
           </button>
           <div className="relative" ref={historyRef}>
             <button
               onClick={() => setHistoryOpen((o) => !o)}
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${
+              className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
                 historyOpen
                   ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
                   : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
               title="Chat history"
             >
-              <History className="w-3.5 h-3.5" />
+              <History className="w-3 h-3" />
             </button>
             {historyOpen && (
               <ChatHistoryPopover
@@ -160,10 +160,10 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           </div>
           <button
             onClick={onToggleCollapse}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
             title="Collapse sidebar"
           >
-            <PanelLeftClose className="w-3.5 h-3.5" />
+            <PanelLeftClose className="w-3 h-3" />
           </button>
         </div>
       </div>
@@ -172,17 +172,17 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
       <div className="flex-1 overflow-y-auto min-h-0">
         {chat.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3 opacity-80"
+            <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-sm"
               style={{ background: theme.botGradient }}>
-              <Sparkles className="w-4 h-4 text-white" />
+              <Sparkles className="w-3.5 h-3.5 text-white" />
             </div>
-            <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center mb-4 leading-relaxed">
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mb-4 leading-relaxed max-w-[200px]">
               {documentStore.mode === "review"
                 ? "Paste content in the editor, then ask for a review."
-                : "Ask me to help with your document."}
+                : "Ask me to help draft, edit, or improve your document."}
             </p>
             {documentStore.mode === "editor" && (
-              <div className="space-y-0.5 w-full">
+              <div className="space-y-px w-full max-w-[240px]">
                 {[
                   "Write an executive summary",
                   "Create a timeline diagram",
@@ -191,7 +191,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
                   <button
                     key={prompt}
                     onClick={() => handleSubmit(prompt)}
-                    className="w-full text-left px-3 py-2 text-[12px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-slate-50 dark:hover:bg-slate-800/50 rounded-lg transition-colors"
+                    className="w-full text-left px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
                   >
                     {prompt}
                   </button>
@@ -200,26 +200,26 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
             )}
           </div>
         ) : (
-          <div className="px-3 py-2.5 space-y-2.5">
+          <div className="px-3 py-3 space-y-3">
             {chat.messages.map((message) => (
               <div key={message.id}>
                 {message.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-sm bg-emerald-50 dark:bg-emerald-900/20 text-[13px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                    <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-md bg-emerald-50 dark:bg-emerald-900/20 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
                       {message.content}
                     </div>
                   </div>
                 ) : message.refused ? (
-                  <div className="px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/10 text-[13px] text-amber-700 dark:text-amber-300">
+                  <div className="px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 text-[12px] text-amber-700 dark:text-amber-300">
                     {message.refusalReason || "Unable to process request."}
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    <div className="text-[13px] text-slate-700 dark:text-slate-300 leading-relaxed [&_.md-h2]:text-sm [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[13px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[13px] [&_p]:mb-1.5 [&_pre]:text-[11px] [&_pre]:p-2 [&_pre]:rounded-md [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800">
+                    <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed [&_.md-h2]:text-[13px] [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[12px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[12px] [&_p]:mb-1.5 [&_pre]:text-[10px] [&_pre]:p-2 [&_pre]:rounded-md [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800/60">
                       <MarkdownRenderer content={message.content} />
                     </div>
                     {message.svgData && (
-                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-2 overflow-x-auto [&_svg]:max-w-full [&_svg]:h-auto">
+                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-2 overflow-x-auto bg-white dark:bg-slate-900 [&_svg]:max-w-full [&_svg]:h-auto">
                         <div dangerouslySetInnerHTML={{ __html: message.svgData.svg }} />
                       </div>
                     )}
@@ -230,7 +230,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
                           <button
                             key={idx}
                             onClick={() => handleSubmit(prompt)}
-                            className="px-2 py-1 text-[11px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
+                            className="px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800"
                           >
                             {prompt}
                           </button>
@@ -239,31 +239,31 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
                     )}
                     {/* Deploy actions */}
                     {(message.content || message.svgData || message.reviewAnnotations?.length) && (
-                      <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      <div className="flex flex-wrap gap-1 pt-0.5">
                         {message.content && (
                           <button
                             onClick={() => documentStore.insertContent(markdownToHtml(message.content))}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
+                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
                           >
-                            <ArrowRight className="w-3 h-3" />
+                            <ArrowRight className="w-2.5 h-2.5" />
                             Insert
                           </button>
                         )}
                         {message.svgData && (
                           <button
                             onClick={() => documentStore.insertContent(message.svgData!.svg)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
+                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
                           >
-                            <ArrowRight className="w-3 h-3" />
+                            <ArrowRight className="w-2.5 h-2.5" />
                             Insert Diagram
                           </button>
                         )}
                         {message.reviewAnnotations && message.reviewAnnotations.length > 0 && (
                           <button
                             onClick={() => documentStore.setAnnotations(message.reviewAnnotations!)}
-                            className="flex items-center gap-1 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors"
+                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors border border-amber-200/60 dark:border-amber-800/40"
                           >
-                            <FileSearch className="w-3 h-3" />
+                            <FileSearch className="w-2.5 h-2.5" />
                             Comments ({message.reviewAnnotations.length})
                           </button>
                         )}
@@ -278,7 +278,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
             {chat.isStreaming && (
               <div className="flex items-center gap-1.5 py-1 pl-0.5">
                 <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-                <span className="text-[11px] text-slate-400 dark:text-slate-500">Thinking...</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">Thinking...</span>
               </div>
             )}
             <div ref={chat.messagesEndRef as React.RefObject<HTMLDivElement>} />
@@ -287,17 +287,17 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
       </div>
 
       {/* Input */}
-      <div className="flex-shrink-0 px-3 pb-2.5 pt-2 border-t border-slate-100 dark:border-slate-800">
+      <div className="flex-shrink-0 px-2.5 pb-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/80">
         {/* Attached file chip */}
         {attachedFile && (
-          <div className="flex items-center gap-1.5 px-2 py-1.5 mb-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-2 bg-emerald-50/80 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
             <FileText className="w-3 h-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            <span className="text-[11px] text-emerald-700 dark:text-emerald-300 flex-1 truncate">{attachedFile.name}</span>
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 flex-1 truncate font-medium">{attachedFile.name}</span>
             {attachedFile.isRFP && !isExtracting && (
-              <span className="px-1 py-px text-[9px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex-shrink-0">RFP</span>
+              <span className="px-1 py-px text-[8px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex-shrink-0 uppercase tracking-wider">RFP</span>
             )}
             {isExtracting ? (
-              <Loader2 className="w-3 h-3 text-emerald-500 animate-spin flex-shrink-0" />
+              <Loader2 className="w-2.5 h-2.5 text-emerald-500 animate-spin flex-shrink-0" />
             ) : (
               <button onClick={handleFileRemove} className="p-0.5 hover:bg-emerald-100 dark:hover:bg-emerald-800 rounded transition-colors flex-shrink-0">
                 <X className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
@@ -305,11 +305,11 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
             )}
           </div>
         )}
-        <div className="flex items-end gap-1.5">
+        <div className="flex items-end gap-1">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={chat.isLoading || isExtracting}
-            className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+            className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
             title="Attach file"
           >
             <Paperclip className="w-3.5 h-3.5" />
@@ -333,20 +333,20 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               placeholder={documentStore.mode === "review" ? "Ask for a review..." : "Ask AI anything..."}
               disabled={chat.isLoading}
               rows={1}
-              className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/80 px-3 py-2 text-[13px] text-slate-900 dark:text-white leading-snug placeholder:text-slate-400 dark:placeholder:text-slate-500 border border-transparent focus:border-emerald-400/40 focus:outline-none focus:ring-0 resize-none overflow-hidden disabled:opacity-50 transition-colors"
-              style={{ minHeight: "36px", maxHeight: "120px" }}
+              className="w-full rounded-lg bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-[12px] text-slate-900 dark:text-white leading-snug placeholder:text-slate-400 dark:placeholder:text-slate-500 border border-slate-200/60 dark:border-slate-700/40 focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/20 resize-none overflow-hidden disabled:opacity-50 transition-all"
+              style={{ minHeight: "34px", maxHeight: "120px" }}
             />
           </div>
           <button
             onClick={() => handleSubmit()}
             disabled={!chat.inputValue.trim() || chat.isLoading || isExtracting}
-            className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg transition-colors disabled:opacity-30"
+            className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-25"
             style={{ background: !chat.inputValue.trim() || chat.isLoading ? undefined : theme.botGradient }}
           >
             {chat.isLoading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-400" />
+              <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
             ) : (
-              <Send className={`w-3.5 h-3.5 ${chat.inputValue.trim() ? "text-white" : "text-slate-400"}`} />
+              <Send className={`w-3 h-3 ${chat.inputValue.trim() ? "text-white" : "text-slate-400"}`} />
             )}
           </button>
         </div>
@@ -400,9 +400,9 @@ function ChatHistoryPopover({
   }
 
   return (
-    <div className="absolute right-0 top-full mt-1.5 z-50 w-72 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden animate-fade-in-up">
-      <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
-        <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recent Conversations</p>
+    <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden animate-fade-in-up">
+      <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/60">
+        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recent Conversations</p>
       </div>
       <div className="max-h-64 overflow-y-auto">
         {conversations.length === 0 ? (

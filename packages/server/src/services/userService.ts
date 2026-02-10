@@ -110,6 +110,15 @@ export async function markTourCompleted(userId: string): Promise<void> {
     .where(eq(users.id, userId))
 }
 
+export async function resetTour(userId: string): Promise<void> {
+  if (!db) throw new Error("Database not available")
+
+  await db
+    .update(users)
+    .set({ hasCompletedTour: false, updatedAt: new Date() })
+    .where(eq(users.id, userId))
+}
+
 export async function getAllUsers(): Promise<User[]> {
   if (!db) throw new Error("Database not available")
 

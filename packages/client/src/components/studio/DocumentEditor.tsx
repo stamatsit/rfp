@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { LayoutTemplate, Upload, Sparkles, ZoomIn, ZoomOut } from "lucide-react"
+import { LayoutTemplate, Upload, Sparkles, ZoomIn, ZoomOut, FileText } from "lucide-react"
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -24,6 +24,7 @@ import { SlashCommandMenu, type SlashCommandMenuRef } from "./SlashCommandMenu"
 import type { SlashCommandItem } from "./extensions/SlashCommands"
 import type { ReviewAnnotation } from "@/types/chat"
 import type { FormatSettings, LetterheadConfig } from "@/types/studio"
+import { studioApi } from "@/lib/api"
 import { getFontDef, legacyFontToValue, legacySizeToValue, loadAllGoogleFonts } from "./fonts"
 import "./tiptap-editor.css"
 
@@ -41,6 +42,7 @@ interface DocumentEditorProps {
   onOpenPhotos?: () => void
   onOpenAssets?: () => void
   onOpenQALibrary?: () => void
+  onOpenDocument?: (id: string) => void
 }
 
 // 8.5 x 11 inches at 96 DPI
@@ -359,7 +361,7 @@ function PaginatedPageView({
   return (
     <div
       id={`studio-page-${pageNum - 1}`}
-      className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
+      className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_12px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_2px_4px_rgba(0,0,0,0.2),0_12px_32px_rgba(0,0,0,0.3)]"
       style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
     >
       <PageHeader format={formatSettings} title="Document" />
@@ -400,6 +402,7 @@ export function DocumentEditor({
   onOpenPhotos,
   onOpenAssets: _onOpenAssets,
   onOpenQALibrary,
+  onOpenDocument,
 }: DocumentEditorProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
@@ -411,6 +414,17 @@ export function DocumentEditor({
   const [activeAnnotation, setActiveAnnotation] = useState<{ annotation: ReviewAnnotation; position: { top: number; left: number } } | null>(null)
   const [inlineAI, setInlineAI] = useState<{ selectedText: string; position: { top: number; left: number }; from: number; to: number } | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [recentDocs, setRecentDocs] = useState<Array<{ id: string; title: string; updatedAt: string }>>([])
+
+  // Fetch recent documents for empty state
+  useEffect(() => {
+    if (content && content !== "<p></p>") return
+    if (!onOpenDocument) return
+    studioApi.listDocuments().then((data) => {
+      const docs = (data as Array<{ id: string; title: string; updatedAt: string }>).slice(0, 5)
+      setRecentDocs(docs)
+    }).catch(() => {})
+  }, [content, onOpenDocument])
 
   const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
   const zoomIn = useCallback(() => {
@@ -723,7 +737,7 @@ export function DocumentEditor({
   // Track current page via scroll
   const handleScroll = useCallback(() => {
     if (!scrollRef.current) return
-    const page = Math.floor(scrollRef.current.scrollTop / (PAGE_HEIGHT + 48)) + 1  // space-y-12 = 48px
+    const page = Math.floor(scrollRef.current.scrollTop / (PAGE_HEIGHT + 32)) + 1  // space-y-12 = 48px
     setCurrentPage(Math.min(page, pageCount))
   }, [pageCount])
 
@@ -736,13 +750,13 @@ export function DocumentEditor({
 
   const scrollToPage = (pageNum: number) => {
     if (!scrollRef.current) return
-    scrollRef.current.scrollTo({ top: (pageNum - 1) * (PAGE_HEIGHT + 48), behavior: "smooth" })
+    scrollRef.current.scrollTo({ top: (pageNum - 1) * (PAGE_HEIGHT + 32), behavior: "smooth" })
   }
 
   const totalPages = paginatedPages.length || 1
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-50 dark:bg-[#0c1222]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-slate-100/60 dark:bg-[#0b111e]">
       {/* Hidden measurement div */}
       <div
         ref={hiddenMeasureRef}
@@ -758,22 +772,22 @@ export function DocumentEditor({
       />
 
       {/* Document canvas */}
-      <div ref={scrollRef} className="flex-1 overflow-auto py-8">
+      <div ref={scrollRef} className="flex-1 overflow-auto py-6">
         <div
           id="document-preview"
-          className="mx-auto space-y-12"
+          className="mx-auto space-y-8"
           style={{
             width: `${PAGE_WIDTH}px`,
             transform: `scale(${zoom})`,
             transformOrigin: "top center",
-            marginBottom: zoom !== 1 ? `${(PAGE_HEIGHT + 48) * (zoom - 1)}px` : undefined,
+            marginBottom: zoom !== 1 ? `${(PAGE_HEIGHT + 32) * (zoom - 1)}px` : undefined,
           }}
         >
 
           {/* Page 0: Live TipTap editor */}
           <div
             id="studio-page-0"
-            className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.08),0_8px_24px_rgba(0,0,0,0.04)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_8px_24px_rgba(0,0,0,0.2)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
+            className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_12px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_2px_4px_rgba(0,0,0,0.2),0_12px_32px_rgba(0,0,0,0.3)]"
             style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
           >
             <PageHeader format={formatSettings} title="Document" />
@@ -811,20 +825,20 @@ export function DocumentEditor({
                     {(!content || content === "<p></p>") && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ top: marginPx + getHeaderHeight(formatSettings) }}>
                         <div className="text-center pointer-events-auto">
-                          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/20">
-                            <Sparkles className="w-7 h-7 text-white" />
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-500/15">
+                            <Sparkles className="w-6 h-6 text-white" />
                           </div>
-                          <p className="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-1">Start a new document</p>
-                          <p className="text-sm text-slate-400 dark:text-slate-500 mb-8">Choose how you'd like to begin</p>
-                          <div className="flex gap-4 justify-center">
+                          <p className="text-[17px] font-semibold text-slate-700 dark:text-slate-200 mb-1 tracking-tight">Start a new document</p>
+                          <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-7">Choose how you'd like to begin</p>
+                          <div className="flex gap-3 justify-center">
                             {onOpenTemplates && (
                               <button
                                 onClick={onOpenTemplates}
-                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                                className="flex flex-col items-center gap-2 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/15 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                               >
-                                <LayoutTemplate className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <LayoutTemplate className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
                                 <div>
-                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Template</span>
+                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Template</span>
                                   <span className="text-[10px] text-slate-400 dark:text-slate-500">Use a template</span>
                                 </div>
                               </button>
@@ -832,11 +846,11 @@ export function DocumentEditor({
                             {onImportFile && (
                               <button
                                 onClick={onImportFile}
-                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                                className="flex flex-col items-center gap-2 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/15 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                               >
-                                <Upload className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <Upload className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
                                 <div>
-                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Import</span>
+                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Import</span>
                                   <span className="text-[10px] text-slate-400 dark:text-slate-500">Upload a file</span>
                                 </div>
                               </button>
@@ -844,19 +858,40 @@ export function DocumentEditor({
                             {onFocusChat && (
                               <button
                                 onClick={onFocusChat}
-                                className="flex flex-col items-center gap-2.5 w-36 py-5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
+                                className="flex flex-col items-center gap-2 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/15 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
                               >
-                                <Sparkles className="w-6 h-6 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
+                                <Sparkles className="w-5 h-5 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
                                 <div>
-                                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Ask AI</span>
+                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block">Ask AI</span>
                                   <span className="text-[10px] text-slate-400 dark:text-slate-500">Let AI write it</span>
                                 </div>
                               </button>
                             )}
                           </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-6">
-                            or start typing &mdash; press <kbd className="px-1.5 py-0.5 text-[10px] bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">/</kbd> for commands
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-5">
+                            or start typing &mdash; press <kbd className="px-1.5 py-0.5 text-[9px] bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">/</kbd> for commands
                           </p>
+
+                          {/* Recent documents */}
+                          {recentDocs.length > 0 && onOpenDocument && (
+                            <div className="mt-8 pt-6 border-t border-slate-200/60 dark:border-slate-700/40">
+                              <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Recent Documents</p>
+                              <div className="flex gap-2 justify-center flex-wrap">
+                                {recentDocs.map((d) => (
+                                  <button
+                                    key={d.id}
+                                    onClick={() => onOpenDocument(d.id)}
+                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200/80 dark:border-slate-700/60 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/40 dark:hover:bg-emerald-900/15 transition-all duration-200 group max-w-[180px]"
+                                  >
+                                    <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 flex-shrink-0 transition-colors" />
+                                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 truncate transition-colors">
+                                      {d.title || "Untitled"}
+                                    </span>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -889,19 +924,19 @@ export function DocumentEditor({
       </div>
 
       {/* Bottom bar — page nav + zoom controls */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
         {/* Page navigator */}
         {totalPages > 1 && (
-          <div className="flex items-center gap-0.5 px-2 py-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-full shadow-lg shadow-black/[0.08] dark:shadow-black/30 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums px-1.5">
+          <div className="flex items-center gap-0.5 px-2 py-0.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)]">
+            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium tabular-nums px-1">
               {currentPage}/{totalPages}
             </span>
-            <div className="w-px h-3 bg-slate-200 dark:bg-slate-700" />
-            {Array.from({ length: totalPages }, (_, i) => (
+            <div className="w-px h-3 bg-slate-200/60 dark:bg-slate-700/60" />
+            {Array.from({ length: Math.min(totalPages, 10) }, (_, i) => (
               <button
                 key={i}
                 onClick={() => scrollToPage(i + 1)}
-                className={`w-6 h-5 text-[10px] rounded-full transition-all tabular-nums ${
+                className={`w-5 h-5 text-[9px] rounded-full transition-all tabular-nums ${
                   currentPage === i + 1
                     ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 font-semibold"
                     : "text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -914,18 +949,18 @@ export function DocumentEditor({
         )}
 
         {/* Zoom controls */}
-        <div className="flex items-center gap-0.5 px-1.5 py-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-full shadow-lg shadow-black/[0.08] dark:shadow-black/30 ring-1 ring-black/[0.04] dark:ring-white/[0.06]">
+        <div className="flex items-center gap-0.5 px-1 py-0.5 bg-white/90 dark:bg-slate-800/90 backdrop-blur-xl rounded-full shadow-[0_2px_8px_rgba(0,0,0,0.06),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_8px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)]">
           <button
             onClick={zoomOut}
             disabled={zoom <= 0.5}
-            className="w-6 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            className="w-5 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-25 disabled:hover:bg-transparent"
             title="Zoom out"
           >
             <ZoomOut className="w-3 h-3" />
           </button>
           <button
             onClick={zoomReset}
-            className={`min-w-[40px] h-5 text-[10px] font-medium tabular-nums rounded-full transition-colors ${
+            className={`min-w-[36px] h-5 text-[9px] font-medium tabular-nums rounded-full transition-colors ${
               zoom === 1
                 ? "text-emerald-600 dark:text-emerald-400"
                 : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
@@ -937,7 +972,7 @@ export function DocumentEditor({
           <button
             onClick={zoomIn}
             disabled={zoom >= 2}
-            className="w-6 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+            className="w-5 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-25 disabled:hover:bg-transparent"
             title="Zoom in"
           >
             <ZoomIn className="w-3 h-3" />

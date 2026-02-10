@@ -24,7 +24,7 @@ export const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="search-library"]',
     title: "Search Library",
     description:
-      "Find and copy approved Q&A answers and photos instantly. Search across all your content by keyword, topic, or tag.",
+      "Your starting point for finding content. Search across all Q&A answers and photos by keyword, topic, or tag \u2014 then copy what you need straight into your proposals.",
     placement: "right",
     spotlightPadding: 8,
   },
@@ -33,7 +33,7 @@ export const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="ask-ai"]',
     title: "Ask AI",
     description:
-      "Get AI-powered answers drawn from your entire approved content library. Ask questions in plain language and get proposal-ready responses.",
+      "Chat with AI that knows your entire content library. Ask questions in plain language and get proposal-ready answers drawn from your approved Q&A content. Think of it as a conversation with your library.",
     placement: "right",
     spotlightPadding: 8,
   },
@@ -42,7 +42,7 @@ export const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="proposal-insights"]',
     title: "Proposal Insights",
     description:
-      "Analyze your proposal win rates and trends with AI-powered analytics. Spot patterns across years, categories, and teams.",
+      "Different from Ask AI \u2014 this analyzes your proposal win rates and trends. Use it to spot patterns across years, categories, and teams so you can focus on what\u2019s winning.",
     placement: "left",
     spotlightPadding: 8,
   },
@@ -51,16 +51,43 @@ export const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="case-studies"]',
     title: "Client Success",
     description:
-      "Browse and format client results, stats, and testimonials. Use AI to find the most relevant case studies for your proposals.",
+      "Different from both \u2014 this is focused on client results, stats, and testimonials. Use AI to find the most relevant case studies for a specific proposal or audience.",
     placement: "left",
     spotlightPadding: 8,
   },
   {
-    id: "document-studio",
-    targetSelector: '[data-tour="document-studio"]',
-    title: "Document Studio",
+    id: "unified-ai",
+    targetSelector: '[data-tour="unified-ai"]',
+    title: "Unified AI",
     description:
-      "Create and edit proposal documents with AI assistance. Export to Word and PDF with professional formatting.",
+      "The power tool that combines everything. Cross-references proposals, client results, and library content in a single AI conversation. Enable it from Home Screen settings if it\u2019s not visible.",
+    placement: "left",
+    spotlightPadding: 8,
+  },
+  {
+    id: "import-data",
+    targetSelector: '[data-tour="import-data"]',
+    title: "Import Data",
+    description:
+      "Bulk-load Q&A content from Excel spreadsheets. This is how you populate the library \u2014 upload once, search and reuse across every proposal.",
+    placement: "right",
+    spotlightPadding: 8,
+  },
+  {
+    id: "new-entry",
+    targetSelector: '[data-tour="new-entry"]',
+    title: "New Entry",
+    description:
+      "Manually add individual answers to the library. Great for one-off content that didn\u2019t come from a spreadsheet import.",
+    placement: "right",
+    spotlightPadding: 8,
+  },
+  {
+    id: "photo-library",
+    targetSelector: '[data-tour="photo-library"]',
+    title: "Photo Library",
+    description:
+      "Upload, tag, and manage proposal images. Photos are searchable alongside Q&A content so you can find everything in one place.",
     placement: "left",
     spotlightPadding: 8,
   },
@@ -69,7 +96,7 @@ export const tourSteps: TourStep[] = [
     targetSelector: '[data-tour="settings"]',
     title: "Settings & Profile",
     description:
-      "Customize your dashboard tiles, theme, and profile from the user menu.",
+      "Customize your dashboard \u2014 rearrange tiles, change your theme, adjust AI behavior, and manage your account. You can also re-enable this tour from here.",
     placement: "bottom",
     spotlightPadding: 12,
   },
@@ -78,7 +105,7 @@ export const tourSteps: TourStep[] = [
     targetSelector: null,
     title: "You\u2019re all set!",
     description:
-      "You\u2019re ready to start using the platform. You can revisit this tour anytime from Settings.",
+      "You\u2019re ready to start using the platform. You can revisit this tour anytime from Settings \u2192 General \u2192 Guided Tour.",
     placement: "center",
   },
 ]

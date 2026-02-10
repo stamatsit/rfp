@@ -58,6 +58,7 @@ export function DocumentStudio() {
   const [serverTemplates, setServerTemplates] = useState<Array<{ id: string; name: string; content: string; category: string }>>([])
   const [dragContent, setDragContent] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [browserOpen, setBrowserOpen] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
 
   // Load server templates
@@ -124,6 +125,10 @@ export function DocumentStudio() {
       }
       if (e.key === "Escape") {
         setActiveModal(null)
+      }
+      if (meta && e.key === "o") {
+        e.preventDefault()
+        setBrowserOpen((prev) => !prev)
       }
       if (meta && e.shiftKey && e.key === "r") {
         e.preventDefault()
@@ -194,6 +199,23 @@ export function DocumentStudio() {
     e.target.value = ""
   }, [doc])
 
+  // Document browser handlers
+  const handleOpenDocument = useCallback(async (id: string) => {
+    if (doc.isDirty) {
+      const proceed = window.confirm("You have unsaved changes. Save before switching?")
+      if (proceed) await doc.saveToServer()
+    }
+    await doc.loadDocument(id)
+  }, [doc])
+
+  const handleNewDocument = useCallback(async () => {
+    if (doc.isDirty) {
+      const proceed = window.confirm("You have unsaved changes. Save before creating a new document?")
+      if (proceed) await doc.saveToServer()
+    }
+    doc.newDocument()
+  }, [doc])
+
   const allTemplates = [...SEED_TEMPLATES, ...serverTemplates]
 
   return (
@@ -205,7 +227,7 @@ export function DocumentStudio() {
         onChange={handleImportFile}
         className="hidden"
       />
-      <div className="h-screen bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden">
+      <div className="h-screen bg-slate-100/60 dark:bg-slate-950 flex flex-col overflow-hidden">
         <AppHeader title="Document Studio" />
         <StudioToolbar
           mode={doc.mode}
@@ -218,6 +240,11 @@ export function DocumentStudio() {
           onToggleInspector={() => setInspectorTab(inspectorTab ? null : "format")}
           inspectorOpen={!!inspectorTab}
           hasDocumentId={!!doc.documentId}
+          onNewDocument={() => void handleNewDocument()}
+          onOpenDocument={(id) => void handleOpenDocument(id)}
+          currentDocumentId={doc.documentId}
+          browserOpen={browserOpen}
+          onToggleBrowser={() => setBrowserOpen((prev) => !prev)}
         />
 
         {/* Split pane */}
@@ -248,9 +275,10 @@ export function DocumentStudio() {
           {!sidebarCollapsed && (
             <div
               onMouseDown={handleMouseDown}
-              className="w-1.5 flex-shrink-0 cursor-col-resize group flex items-center justify-center hover:w-2 transition-all"
+              className="w-1 flex-shrink-0 cursor-col-resize group relative"
             >
-              <div className="w-px h-full bg-transparent group-hover:bg-emerald-400/60 dark:group-hover:bg-emerald-500/60 transition-colors duration-200" />
+              <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
+              <div className="w-px h-full mx-auto bg-transparent group-hover:bg-emerald-500/50 dark:group-hover:bg-emerald-400/50 transition-colors duration-150" />
             </div>
           )}
 
@@ -272,6 +300,7 @@ export function DocumentStudio() {
                 onOpenPhotos={() => setActiveModal("photos")}
                 onOpenAssets={() => setActiveModal("assets")}
                 onOpenQALibrary={() => setActiveModal("qa-browser")}
+                onOpenDocument={(id) => void handleOpenDocument(id)}
               />
             </div>
 
@@ -323,36 +352,36 @@ export function DocumentStudio() {
 
       {/* Template picker — proper centered modal */}
       {activeModal === "templates" && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
-          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 w-[400px] max-h-[70vh] overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-700">
+        <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
+          <div className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 w-[400px] max-h-[70vh] overflow-hidden animate-scale-in">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-700/60">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                  <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Templates</h2>
+                <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-100">Templates</h2>
               </div>
               <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
-                <X className="w-4 h-4 text-slate-400" />
+                <X className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
-            <div className="overflow-y-auto max-h-[calc(70vh-120px)] p-2">
+            <div className="overflow-y-auto max-h-[calc(70vh-120px)] p-1.5">
               {allTemplates.map((t, i) => (
                 <button
                   key={t.name + i}
                   onClick={() => handleTemplateSelect(t)}
-                  className="w-full text-left px-4 py-3 rounded-xl text-sm text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors group"
+                  className="w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors group"
                 >
                   <span className="font-medium">{t.name}</span>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-2 group-hover:text-emerald-500">{t.category}</span>
+                  <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-2 group-hover:text-emerald-500">{t.category}</span>
                 </button>
               ))}
             </div>
-            <div className="border-t border-slate-100 dark:border-slate-700 p-3">
+            <div className="border-t border-slate-100 dark:border-slate-700/60 p-2.5">
               <button
                 onClick={() => { void handleSaveAsTemplate(); setActiveModal(null) }}
-                className="w-full text-center px-4 py-2.5 rounded-xl text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                className="w-full text-center px-4 py-2 rounded-lg text-[12px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
               >
                 Save current document as template
               </button>
