@@ -4,7 +4,9 @@
   "installCommand": "npm install --legacy-peer-deps",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 30
+      "maxDuration": 30,
+      "memory": 1024,
+      "maxRequestBodySize": "20mb"
     }
   },
   "headers": [

@@ -2519,14 +2519,20 @@ ${compDataContext}`
       }
 
       try {
+        console.log("[Photo Upload] Starting upload")
+        console.log("[Photo Upload] Content-Type:", req.headers["content-type"])
+        console.log("[Photo Upload] Body type:", typeof req.body, "isBuffer:", Buffer.isBuffer(req.body))
+
         // Parse multipart form data
         const contentType = req.headers["content-type"] || ""
         if (!contentType.includes("multipart/form-data")) {
+          console.log("[Photo Upload] ERROR: Missing multipart/form-data content-type")
           return res.status(400).json({ error: "Content-Type must be multipart/form-data" })
         }
 
         const boundaryMatch = contentType.match(/boundary=(.+)/)
         if (!boundaryMatch) {
+          console.log("[Photo Upload] ERROR: No boundary in content-type")
           return res.status(400).json({ error: "No boundary found in content-type" })
         }
 
@@ -2566,7 +2572,11 @@ ${compDataContext}`
           }
         }
 
+        console.log("[Photo Upload] Parsed files:", files.length)
+        console.log("[Photo Upload] Metadata JSON:", metadataJSON)
+
         if (files.length === 0) {
+          console.log("[Photo Upload] ERROR: No files parsed from multipart")
           return res.status(400).json({ error: "No files uploaded" })
         }
 
@@ -2582,12 +2592,16 @@ ${compDataContext}`
         if (metadataJSON) {
           try {
             metadata = JSON.parse(metadataJSON)
-          } catch {
+          } catch (e) {
+            console.log("[Photo Upload] ERROR: Failed to parse metadata JSON:", e)
             return res.status(400).json({ error: "Invalid metadata JSON" })
           }
         }
 
+        console.log("[Photo Upload] Parsed metadata:", metadata.length, "items")
+
         if (metadata.length !== files.length) {
+          console.log("[Photo Upload] ERROR: Metadata/file count mismatch")
           return res.status(400).json({
             error: `Metadata count (${metadata.length}) doesn't match file count (${files.length})`,
           })
