@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, primaryKey, jsonb, uuid, boolean } from "drizzle-orm/pg-core"
+import { pgTable, text, integer, timestamp, primaryKey, jsonb, uuid, boolean, index } from "drizzle-orm/pg-core"
 
 // Users
 export const users = pgTable("users", {
@@ -34,7 +34,12 @@ export const answerItems = pgTable("answer_items", {
   fingerprint: text("fingerprint").notNull().unique(), // for upsert deduplication
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  topicIdIdx: index("idx_answer_items_topic_id").on(table.topicId),
+  statusIdx: index("idx_answer_items_status").on(table.status),
+  updatedAtIdx: index("idx_answer_items_updated_at").on(table.updatedAt),
+  topicStatusIdx: index("idx_answer_items_topic_status").on(table.topicId, table.status),
+}))
 
 // Answer Item Versions (history)
 export const answerItemVersions = pgTable("answer_item_versions", {
@@ -65,7 +70,12 @@ export const photoAssets = pgTable("photo_assets", {
   mimeType: text("mime_type"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  topicIdIdx: index("idx_photo_assets_topic_id").on(table.topicId),
+  statusIdx: index("idx_photo_assets_status").on(table.status),
+  updatedAtIdx: index("idx_photo_assets_updated_at").on(table.updatedAt),
+  topicStatusIdx: index("idx_photo_assets_topic_status").on(table.topicId, table.status),
+}))
 
 // Photo Asset Versions (history)
 export const photoAssetVersions = pgTable("photo_asset_versions", {
@@ -137,7 +147,14 @@ export const proposals = pgTable("proposals", {
   websiteLink: text("website_link"), // Link to the actual website
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  categoryIdx: index("idx_proposals_category").on(table.category),
+  wonIdx: index("idx_proposals_won").on(table.won),
+  dateIdx: index("idx_proposals_date").on(table.date),
+  ceIdx: index("idx_proposals_ce").on(table.ce),
+  clientIdx: index("idx_proposals_client").on(table.client),
+  wonDateIdx: index("idx_proposals_won_date").on(table.won, table.date),
+}))
 
 // Proposal Pipeline (RFP intake/triage log from Proposal Planning Meeting Activity.xlsx)
 export const proposalPipeline = pgTable("proposal_pipeline", {
@@ -236,7 +253,11 @@ export const conversations = pgTable("conversations", {
   userId: text("user_id"), // Owner — null for legacy conversations
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  userIdIdx: index("idx_conversations_user_id").on(table.userId),
+  pageIdx: index("idx_conversations_page").on(table.page),
+  createdAtIdx: index("idx_conversations_created_at").on(table.createdAt),
+}))
 
 // ─── Document Studio ───
 

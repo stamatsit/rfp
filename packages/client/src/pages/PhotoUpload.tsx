@@ -371,7 +371,7 @@ export function PhotoUpload() {
 
       {/* Lightbox Detail Dialog */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl">
+        <DialogContent className="max-w-2xl p-0 rounded-2xl">
           <DialogHeader className="sr-only">
             <DialogTitle>Photo Details</DialogTitle>
             <DialogDescription>View and edit photo metadata</DialogDescription>
@@ -380,7 +380,7 @@ export function PhotoUpload() {
           {lightboxPhoto && (
             <div>
               {/* Photo area — dark background */}
-              <div className="relative bg-slate-950 flex items-center justify-center" style={{ maxHeight: "60vh" }}>
+              <div className="relative bg-slate-950 flex items-center justify-center overflow-hidden rounded-t-2xl" style={{ maxHeight: "60vh" }}>
                 <img
                   src={photosApi.getFileUrl(lightboxPhoto.storageKey)}
                   alt={lightboxPhoto.displayTitle}
@@ -415,7 +415,7 @@ export function PhotoUpload() {
                       <SelectTrigger className="h-9 text-sm rounded-lg">
                         <SelectValue placeholder="Select topic" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent side="top">
                         {topics.map(t => (
                           <SelectItem key={t.id} value={t.id}>{t.displayName}</SelectItem>
                         ))}

@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { accountApi } from "@/lib/api"
+import { clearCsrfToken } from "@/lib/csrfToken"
 
 export interface User {
   id: string
@@ -92,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error("Logout error:", error)
     } finally {
+      clearCsrfToken() // Clear cached CSRF token
       setIsAuthenticated(false)
       setUser(null)
       setMustChangePassword(false)

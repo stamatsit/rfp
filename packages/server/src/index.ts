@@ -3,6 +3,8 @@ import express from "express"
 import cors from "cors"
 import helmet from "helmet"
 import session from "express-session"
+import cookieParser from "cookie-parser"
+import rateLimit from "express-rate-limit"
 import path from "path"
 import { fileURLToPath } from "url"
 import routes from "./routes/index.js"
@@ -10,6 +12,7 @@ import authRoutes from "./routes/auth.js"
 import { getPhotoByStorageKey } from "./services/photoService.js"
 import fs from "fs/promises"
 import { requireAuth } from "./middleware/auth.js"
+import { generateCsrfToken, validateCsrfToken, getCsrfToken } from "./middleware/csrf.js"
 import { initializeDatabase } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
 import { startPipelineSyncPolling } from "./services/pipelineSyncService.js"
@@ -41,6 +44,7 @@ app.use(cors({
 }))
 app.use(express.json({ limit: "20mb" }))
 app.use(express.urlencoded({ extended: true, limit: "20mb" }))
+app.use(cookieParser())
 
 // Session middleware
 app.use(session({
@@ -59,6 +63,22 @@ app.use(session({
 if (process.env.NODE_ENV === "production") {
   app.set("trust proxy", 1)
 }
+
+// Global rate limiter (all API routes)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === "production" ? 100 : 1000, // 100 in prod, 1000 in dev
+  message: { error: "Too many requests, please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use("/api", globalLimiter)
+
+// CSRF protection - generate token for all requests
+app.use(generateCsrfToken)
+
+// CSRF token endpoint (public, before auth)
+app.get("/api/csrf-token", getCsrfToken)
 
 // Auth routes (before requireAuth middleware)
 app.use("/api/auth", authRoutes)
@@ -112,6 +132,9 @@ app.get("/api/auth/avatar/:userId", async (req, res) => {
 
 // Require authentication for all other API routes
 app.use("/api", requireAuth)
+
+// CSRF validation for all authenticated state-changing requests
+app.use("/api", validateCsrfToken)
 
 // Static file serving for photos (local fallback when not using Supabase Storage)
 const storageDir = path.resolve(__dirname, "../../../storage/photos")

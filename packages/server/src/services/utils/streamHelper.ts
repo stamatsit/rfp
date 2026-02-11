@@ -7,6 +7,7 @@
 
 import type { Response } from "express"
 import type OpenAI from "openai"
+import { validateTokenCount } from "../../lib/tokenCounter.js"
 
 export interface StreamOptions {
   openai: OpenAI
@@ -50,6 +51,32 @@ export async function streamCompletion({
   res.write(`event: metadata\ndata: ${JSON.stringify(metadata)}\n\n`)
 
   try {
+    // Validate token count before API call
+    const systemMessage = messages.find(m => m.role === "system")
+    const userMessages = messages.filter(m => m.role !== "system")
+
+    if (systemMessage && typeof systemMessage.content === "string") {
+      const messagesToValidate = userMessages
+        .filter(m => (m.role === "user" || m.role === "assistant"))
+        .map(m => ({
+          role: m.role as "user" | "assistant",
+          content: typeof m.content === "string" ? m.content : ""
+        }))
+
+      const validation = validateTokenCount(
+        systemMessage.content,
+        messagesToValidate
+      )
+
+      if (!validation.valid) {
+        console.warn(
+          `⚠️  Token limit warning: ${validation.tokenCount} tokens (limit: ${validation.limit})`
+        )
+        // Truncate history if needed
+        messages = truncateHistory(messages, validation.limit)
+      }
+    }
+
     const stream = await openai.chat.completions.create({
       model: "gpt-4o",
       messages,
