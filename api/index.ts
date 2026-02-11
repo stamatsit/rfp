@@ -2512,6 +2512,148 @@ ${compDataContext}`
       }
     }
 
+    // POST /photos/upload - multipart file upload
+    if ((path === "/photos/upload" || path === "/photos/upload/") && method === "POST") {
+      if (!supabase) {
+        return res.status(500).json({ error: "File storage not configured" })
+      }
+
+      try {
+        // Parse multipart form data
+        const contentType = req.headers["content-type"] || ""
+        if (!contentType.includes("multipart/form-data")) {
+          return res.status(400).json({ error: "Content-Type must be multipart/form-data" })
+        }
+
+        const boundaryMatch = contentType.match(/boundary=(.+)/)
+        if (!boundaryMatch) {
+          return res.status(400).json({ error: "No boundary found in content-type" })
+        }
+
+        // Parse the multipart body
+        const bodyBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body))
+        const boundary = boundaryMatch[1]
+        const boundaryBytes = Buffer.from(`--${boundary}`)
+        const parts = splitBuffer(bodyBuffer, boundaryBytes)
+
+        const files: Array<{ buffer: Buffer; filename: string; mimetype: string }> = []
+        let metadataJSON = ""
+
+        for (const part of parts) {
+          const headerEnd = part.indexOf("\r\n\r\n")
+          if (headerEnd === -1) continue
+          const headers = part.slice(0, headerEnd).toString()
+
+          // Extract field name
+          const nameMatch = headers.match(/name="([^"]*)"/)
+          if (!nameMatch) continue
+          const fieldName = nameMatch[1]
+
+          // Extract data (strip trailing \r\n)
+          let data = part.slice(headerEnd + 4)
+          if (data.length >= 2 && data[data.length - 2] === 0x0d && data[data.length - 1] === 0x0a) {
+            data = data.slice(0, -2)
+          }
+
+          if (fieldName === "files") {
+            const filenameMatch = headers.match(/filename="([^"]*)"/)
+            const contentTypeMatch = headers.match(/Content-Type:\s*(.+)/i)
+            const filename = filenameMatch?.[1] || "upload"
+            const mimetype = contentTypeMatch?.[1]?.trim() || "application/octet-stream"
+            files.push({ buffer: data, filename, mimetype })
+          } else if (fieldName === "metadata") {
+            metadataJSON = data.toString()
+          }
+        }
+
+        if (files.length === 0) {
+          return res.status(400).json({ error: "No files uploaded" })
+        }
+
+        // Parse metadata
+        let metadata: Array<{
+          title?: string
+          topicId: string
+          status?: "Approved" | "Draft"
+          tags?: string
+          description?: string
+        }> = []
+
+        if (metadataJSON) {
+          try {
+            metadata = JSON.parse(metadataJSON)
+          } catch {
+            return res.status(400).json({ error: "Invalid metadata JSON" })
+          }
+        }
+
+        if (metadata.length !== files.length) {
+          return res.status(400).json({
+            error: `Metadata count (${metadata.length}) doesn't match file count (${files.length})`,
+          })
+        }
+
+        // Validate topicIds
+        const allTopics = await db.select().from(topics).orderBy(topics.name)
+        const topicIds = new Set(allTopics.map((t) => t.id))
+
+        for (const meta of metadata) {
+          if (!meta.topicId || !topicIds.has(meta.topicId)) {
+            return res.status(400).json({ error: `Invalid topicId: ${meta.topicId}` })
+          }
+        }
+
+        const results = []
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i]!
+          const meta = metadata[i]!
+
+          // Generate storage key
+          const storageKey = crypto.randomBytes(16).toString("hex")
+          const ext = file.filename.match(/\.([^.]+)$/)?.[1] || "png"
+          const storagePath = `${storageKey}.${ext}`
+
+          // Upload to Supabase Storage
+          const { error: uploadError } = await supabase.storage
+            .from("photo-assets")
+            .upload(storagePath, file.buffer, {
+              contentType: file.mimetype,
+              upsert: false,
+            })
+
+          if (uploadError) {
+            console.error("Supabase upload error:", uploadError)
+            return res.status(500).json({ error: `Upload failed: ${uploadError.message}` })
+          }
+
+          // Create database record
+          const [photo] = await db.insert(photoAssets).values({
+            originalFilename: file.filename,
+            topicId: meta.topicId,
+            displayTitle: meta.title || file.filename,
+            status: meta.status || "Approved",
+            tags: meta.tags ? meta.tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+            description: meta.description || null,
+            fileSize: file.buffer.length,
+            mimeType: file.mimetype,
+            storageKey,
+          }).returning()
+
+          results.push(photo)
+        }
+
+        return res.json({
+          success: true,
+          uploaded: results.length,
+          photos: results,
+        })
+      } catch (error: any) {
+        console.error("Photo upload error:", error)
+        return res.status(500).json({ error: error?.message || "Failed to upload photos" })
+      }
+    }
+
     // Photo file serving - redirect to Supabase Storage
     const photoFileMatch = path.match(/^\/photos\/file\/([^/]+)$/)
     if (photoFileMatch && method === "GET") {
