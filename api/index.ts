@@ -844,13 +844,6 @@ function validateCsrfToken(req: VercelRequest): { valid: boolean; error?: string
   return { valid: true }
 }
 
-// Vercel config - disable body parsing for multipart uploads
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-}
-
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers - trim to remove any whitespace/newlines from env var
@@ -4120,8 +4113,6 @@ RULES:
 // Vercel config — increase body size limit for file uploads
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: "20mb",
-    },
+    bodyParser: false, // Disabled to handle multipart/form-data manually
   },
 }
