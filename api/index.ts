@@ -683,11 +683,12 @@ const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
 const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations, savedDocuments, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
 
-// Supabase client
+// Supabase client - use service role key for server-side operations (bypasses RLS)
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
+const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? "").trim()
 const SUPABASE_ANON_KEY = (process.env.SUPABASE_ANON_KEY ?? "").trim()
-const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const supabase = SUPABASE_URL && (SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY)
   : null
 
 // OpenAI client — lazy-initialized to avoid cold start overhead on non-AI endpoints
