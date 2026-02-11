@@ -2513,6 +2513,29 @@ ${compDataContext}`
       }
     }
 
+    // GET /photos/file/:storageKey - redirect to Supabase Storage URL
+    if (path.startsWith("/photos/file/") && method === "GET") {
+      const storageKey = path.replace("/photos/file/", "")
+      if (!storageKey) {
+        return res.status(400).json({ error: "Storage key required" })
+      }
+
+      // Get photo from database to find extension
+      const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.storageKey, storageKey)).limit(1)
+      if (!photo) {
+        return res.status(404).json({ error: "Photo not found" })
+      }
+
+      // Determine extension from original filename or mimetype
+      const ext = photo.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+                  (photo.mimeType?.includes("png") ? "png" :
+                   photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
+
+      // Redirect to Supabase Storage public URL
+      const supabaseStorageUrl = `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${storageKey}.${ext}`
+      return res.redirect(302, supabaseStorageUrl)
+    }
+
     // POST /photos/upload - multipart file upload
     if ((path === "/photos/upload" || path === "/photos/upload/") && method === "POST") {
       if (!supabase) {
