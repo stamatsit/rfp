@@ -3,13 +3,22 @@
  */
 
 import type { ImportPreview, ImportResult, ImportIssue } from "@/types"
+import { addCsrfHeader } from "./csrfToken"
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
 
 // Default fetch options to include credentials for session auth
-const fetchWithCredentials = (url: string, options: RequestInit = {}): Promise<Response> => {
+const fetchWithCredentials = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  // Add CSRF token for state-changing requests
+  const needsCsrf = ["POST", "PUT", "PATCH", "DELETE"].includes(options.method?.toUpperCase() || "GET")
+
+  const headers = needsCsrf
+    ? await addCsrfHeader(options.headers)
+    : options.headers
+
   return fetch(url, {
     ...options,
+    headers,
     credentials: "include",
   })
 }
@@ -1296,9 +1305,12 @@ export async function fetchSSE(
   callbacks: FetchSSECallbacks,
   signal?: AbortSignal
 ): Promise<void> {
+  // Add CSRF token to streaming POST requests (CRITICAL SECURITY FIX)
+  const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+
   const response = await fetch(`${API_BASE}${endpoint}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     credentials: "include",
     body: JSON.stringify(body),
     signal,

@@ -737,7 +737,20 @@ async function verifySession(token: string | undefined): Promise<SessionData | n
     if (decoded.expires < Date.now()) return null
 
     const expectedSig = await createHmac(payload)
-    if (signature !== expectedSig) return null
+
+    // Constant-time comparison to prevent timing attacks
+    try {
+      const sigBuffer = Buffer.from(signature, "base64url")
+      const expectedBuffer = Buffer.from(expectedSig, "base64url")
+
+      if (sigBuffer.length !== expectedBuffer.length) return null
+
+      const isValid = crypto.timingSafeEqual(sigBuffer, expectedBuffer)
+      if (!isValid) return null
+    } catch {
+      return null
+    }
+
     return decoded
   } catch {
     return null
