@@ -844,6 +844,13 @@ function validateCsrfToken(req: VercelRequest): { valid: boolean; error?: string
   return { valid: true }
 }
 
+// Vercel config - disable body parsing for multipart uploads
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers - trim to remove any whitespace/newlines from env var
@@ -2536,8 +2543,13 @@ ${compDataContext}`
           return res.status(400).json({ error: "No boundary found in content-type" })
         }
 
-        // Parse the multipart body
-        const bodyBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(String(req.body))
+        // Parse the multipart body - read raw stream since bodyParser is disabled
+        const bodyBuffer = await new Promise<Buffer>((resolve, reject) => {
+          const chunks: Buffer[] = []
+          req.on("data", (chunk) => chunks.push(chunk))
+          req.on("end", () => resolve(Buffer.concat(chunks)))
+          req.on("error", reject)
+        })
         const boundary = boundaryMatch[1]
         const boundaryBytes = Buffer.from(`--${boundary}`)
         const parts = splitBuffer(bodyBuffer, boundaryBytes)
