@@ -2728,6 +2728,47 @@ ${compDataContext}`
       return res.redirect(302, supabaseStorageUrl)
     }
 
+    // GET /photos/:id/download - download photo file with original filename
+    const photoDownloadMatch = path.match(/^\/photos\/([^/]+)\/download$/)
+    if (photoDownloadMatch && method === "GET") {
+      const photoId = photoDownloadMatch[1]
+      const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.id, photoId)).limit(1)
+
+      if (!photo) {
+        return res.status(404).json({ error: "Photo not found" })
+      }
+
+      // Determine extension from original filename or mimetype
+      const ext = photo.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+                  (photo.mimeType?.includes("png") ? "png" :
+                   photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
+
+      // Get the file from Supabase Storage
+      if (!supabase) {
+        return res.status(500).json({ error: "File storage not configured" })
+      }
+
+      const { data, error } = await supabase.storage
+        .from("photo-assets")
+        .download(`${photo.storageKey}.${ext}`)
+
+      if (error || !data) {
+        console.error("Supabase download error:", error)
+        return res.status(404).json({ error: "Photo file not found" })
+      }
+
+      // Convert blob to buffer
+      const buffer = Buffer.from(await data.arrayBuffer())
+
+      // Set download headers with original filename
+      const downloadName = `${photo.displayTitle}.${ext}`.replace(/[^a-zA-Z0-9.-]/g, "_")
+      res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`)
+      res.setHeader("Content-Type", photo.mimeType || "application/octet-stream")
+      res.setHeader("Content-Length", buffer.length.toString())
+
+      return res.send(buffer)
+    }
+
     // Proposals routes
     if (path.startsWith("/proposals")) {
       // Sync status - return status based on database content
