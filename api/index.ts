@@ -2520,6 +2520,10 @@ ${compDataContext}`
         return res.status(400).json({ error: "Storage key required" })
       }
 
+      if (!supabase) {
+        return res.status(500).json({ error: "Storage not configured" })
+      }
+
       // Get photo from database to find extension
       const [photo] = await db.select().from(photoAssets).where(eq(photoAssets.storageKey, storageKey)).limit(1)
       if (!photo) {
@@ -2531,9 +2535,19 @@ ${compDataContext}`
                   (photo.mimeType?.includes("png") ? "png" :
                    photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
 
-      // Redirect to Supabase Storage public URL
-      const supabaseStorageUrl = `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${storageKey}.${ext}`
-      return res.redirect(302, supabaseStorageUrl)
+      const storagePath = `${storageKey}.${ext}`
+
+      // Create a signed URL (valid for 1 hour) - works with private or public buckets
+      const { data, error } = await supabase.storage
+        .from("photo-assets")
+        .createSignedUrl(storagePath, 3600) // 1 hour
+
+      if (error || !data) {
+        console.error("Failed to create signed URL:", error)
+        return res.status(404).json({ error: "Photo file not found in storage" })
+      }
+
+      return res.redirect(302, data.signedUrl)
     }
 
     // POST /photos/upload - multipart file upload
