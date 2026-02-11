@@ -764,18 +764,94 @@ function getCookie(req: VercelRequest, name: string): string | undefined {
   return undefined
 }
 
+// ── Rate Limiting (in-memory, per-instance) ──
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>()
+const RATE_LIMIT_WINDOW_MS = 15 * 60 * 1000 // 15 minutes
+const RATE_LIMIT_MAX_REQUESTS = 100 // per IP per window
+
+function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
+  const now = Date.now()
+  const key = ip
+  const entry = rateLimitMap.get(key)
+
+  if (!entry || now > entry.resetTime) {
+    // Reset window
+    rateLimitMap.set(key, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS })
+    return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - 1 }
+  }
+
+  entry.count++
+  if (entry.count > RATE_LIMIT_MAX_REQUESTS) {
+    return { allowed: false, remaining: 0 }
+  }
+
+  return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count }
+}
+
+// ── CSRF Protection ──
+const CSRF_COOKIE_NAME = "csrf-token"
+const CSRF_HEADER_NAME = "x-csrf-token"
+
+function generateCsrfToken(): string {
+  return crypto.randomBytes(32).toString("hex")
+}
+
+function validateCsrfToken(req: VercelRequest): { valid: boolean; error?: string } {
+  // Skip for safe methods
+  const safeMethods = ["GET", "HEAD", "OPTIONS"]
+  if (safeMethods.includes(req.method || "GET")) {
+    return { valid: true }
+  }
+
+  const cookieToken = getCookie(req, CSRF_COOKIE_NAME)
+  const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined
+
+  if (!cookieToken) {
+    return { valid: false, error: "CSRF token missing. Please refresh the page." }
+  }
+
+  if (!headerToken) {
+    return { valid: false, error: "CSRF token not provided in request header." }
+  }
+
+  // Constant-time comparison
+  if (cookieToken.length !== headerToken.length) {
+    return { valid: false, error: "Invalid CSRF token." }
+  }
+
+  try {
+    const match = crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken))
+    if (!match) {
+      return { valid: false, error: "Invalid CSRF token." }
+    }
+  } catch {
+    return { valid: false, error: "Invalid CSRF token." }
+  }
+
+  return { valid: true }
+}
+
 // Main handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS headers - trim to remove any whitespace/newlines from env var
   const origin = (process.env.CORS_ORIGIN || "*").trim()
   res.setHeader("Access-Control-Allow-Origin", origin)
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization")
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token")
   res.setHeader("Access-Control-Allow-Credentials", "true")
 
   if (req.method === "OPTIONS") {
     return res.status(200).end()
   }
+
+  // Rate limiting
+  const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.headers["x-real-ip"] as string || "unknown"
+  const rateLimit = checkRateLimit(ip)
+  if (!rateLimit.allowed) {
+    return res.status(429).json({ error: "Too many requests, please try again later." })
+  }
+  res.setHeader("X-RateLimit-Limit", RATE_LIMIT_MAX_REQUESTS.toString())
+  res.setHeader("X-RateLimit-Remaining", rateLimit.remaining.toString())
 
   // Parse path - handle both /api/health and /health patterns
   const rawPath = req.url?.split("?")[0] || "/"
@@ -785,6 +861,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const session = await verifySession(sessionToken)
   const isAuthenticated = session?.authenticated === true
 
+  // CSRF token generation - set cookie if not present
+  if (!getCookie(req, CSRF_COOKIE_NAME)) {
+    const csrfToken = generateCsrfToken()
+    res.setHeader("Set-Cookie", `${CSRF_COOKIE_NAME}=${csrfToken}; Path=/; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Strict; Max-Age=${4 * 60 * 60}`)
+  }
+
   try {
     // Health check (no auth required)
     if (path === "/health" || path === "/health/") {
@@ -793,6 +875,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         database: db ? "connected" : "not configured",
         timestamp: new Date().toISOString()
       })
+    }
+
+    // CSRF token endpoint (public, before auth)
+    if (path === "/csrf-token" && method === "GET") {
+      const csrfToken = getCookie(req, CSRF_COOKIE_NAME)
+      if (!csrfToken) {
+        return res.status(500).json({ error: "CSRF token not initialized" })
+      }
+      return res.json({ csrfToken })
     }
 
     // Auth routes
@@ -1027,6 +1118,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // All other routes require authentication
     if (!isAuthenticated) {
       return res.status(401).json({ error: "Unauthorized" })
+    }
+
+    // CSRF validation for authenticated state-changing requests
+    const csrfValidation = validateCsrfToken(req)
+    if (!csrfValidation.valid) {
+      return res.status(403).json({ error: csrfValidation.error })
     }
 
     if (!db) {
