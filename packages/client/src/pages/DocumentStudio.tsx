@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react"
+import { Navigate } from "react-router-dom"
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core"
 import type { Editor } from "@tiptap/react"
 import { X, FileText } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   StudioToolbar, StudioChatSidebar, DocumentEditor,
   FindReplace, ExportDialog, PhotoPicker, AssetPanel,
@@ -43,6 +45,8 @@ const SEED_TEMPLATES = [
 ]
 
 export function DocumentStudio() {
+  const isAdmin = useIsAdmin()
+  if (!isAdmin) return <Navigate to="/" replace />
   const doc = useDocumentStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import { createPortal } from "react-dom"
 import {
   FileText,
@@ -89,6 +90,7 @@ const entryTypes: { id: EntryType; label: string; icon: typeof FileText; group: 
 ]
 
 export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntryPanelProps) {
+  const isAdmin = useIsAdmin()
   const [activeType, setActiveType] = useState<EntryType>(defaultType || "qa")
   useEffect(() => {
     if (defaultType) setActiveType(defaultType)
@@ -305,7 +307,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntr
     }
   }
 
-  if (!isVisible) return null
+  if (!isVisible || !isAdmin) return null
 
   return createPortal(
     <>

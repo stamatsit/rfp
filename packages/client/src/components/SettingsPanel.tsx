@@ -42,7 +42,7 @@ import {
   Lock,
   Loader2,
 } from "lucide-react"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
 import { AvatarCropDialog } from "@/components/AvatarCropDialog"
 import { accountApi } from "@/lib/api"
@@ -525,9 +525,12 @@ const SETTINGS_MIN_H = 360
 const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
+const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
+
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
   const { user, refreshUser, checkAuth, resetTour, markTourCompleted } = useAuth()
+  const isAdmin = useIsAdmin()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general")
 
@@ -699,11 +702,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setDragOverTile(null)
   }
 
-  const orderedTiles = [...defaultTiles].sort((a, b) => {
-    const orderA = settings.tiles.find(t => t.id === a.id)?.order ?? 999
-    const orderB = settings.tiles.find(t => t.id === b.id)?.order ?? 999
-    return orderA - orderB
-  })
+  const orderedTiles = [...defaultTiles]
+    .filter(tile => isAdmin || !ADMIN_ONLY_TILES.has(tile.id))
+    .sort((a, b) => {
+      const orderA = settings.tiles.find(t => t.id === a.id)?.order ?? 999
+      const orderB = settings.tiles.find(t => t.id === b.id)?.order ?? 999
+      return orderA - orderB
+    })
 
   const tileStates = settings.tiles.reduce((acc, t) => {
     acc[t.id] = t.enabled
