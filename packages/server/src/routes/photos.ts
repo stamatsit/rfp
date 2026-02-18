@@ -18,6 +18,7 @@ import { getAllTopics, upsertTopic } from "../services/topicService.js"
 import { logAudit } from "../services/auditService.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 import { requireWriteAccess } from "../middleware/auth.js"
+import { supabaseAdmin } from "../db/index.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const STORAGE_DIR = path.resolve(__dirname, "../../../../storage/photos")
@@ -75,6 +76,29 @@ router.get("/", async (req: Request, res: Response) => {
       offset: offset ? parseInt(offset as string, 10) : undefined,
     })
 
+    // Batch-generate signed URLs if Supabase is available
+    if (supabaseAdmin && photos.length > 0) {
+      const paths = photos.map(p => {
+        const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+        return `${p.storageKey}.${ext}`
+      })
+      const { data } = await supabaseAdmin.storage
+        .from("photo-assets")
+        .createSignedUrls(paths, 3600) // 1 hour
+
+      if (data) {
+        const urlMap = new Map<string, string>()
+        data.forEach((item, i) => {
+          if (item.signedUrl) urlMap.set(photos[i]!.storageKey, item.signedUrl)
+        })
+        const photosWithUrls = photos.map(p => ({
+          ...p,
+          fileUrl: urlMap.get(p.storageKey) || null,
+        }))
+        return res.json(photosWithUrls)
+      }
+    }
+
     res.json(photos)
   } catch (error) {
     console.error("Failed to list photos:", error)
@@ -100,12 +124,30 @@ router.get("/file/:storageKey", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Photo not found" })
     }
 
-    // Find the file
+    // Determine extension from original filename or mimetype
+    const ext = photo.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+                (photo.mimeType?.includes("png") ? "png" :
+                 photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
+
+    // Try Supabase Storage first
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.storage
+        .from("photo-assets")
+        .download(`${storageKey}.${ext}`)
+
+      if (data && !error) {
+        const buffer = Buffer.from(await data.arrayBuffer())
+        res.setHeader("Content-Type", photo.mimeType || "application/octet-stream")
+        return res.send(buffer)
+      }
+    }
+
+    // Fallback to local disk
     const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
     let filePath: string | null = null
 
-    for (const ext of extensions) {
-      const testPath = path.join(STORAGE_DIR, `${storageKey}${ext}`)
+    for (const localExt of extensions) {
+      const testPath = path.join(STORAGE_DIR, `${storageKey}${localExt}`)
       try {
         await fs.access(testPath)
         filePath = testPath
@@ -116,7 +158,7 @@ router.get("/file/:storageKey", async (req: Request, res: Response) => {
     }
 
     if (!filePath) {
-      return res.status(404).json({ error: "Photo file not found on disk" })
+      return res.status(404).json({ error: "Photo file not found" })
     }
 
     res.sendFile(filePath)
@@ -378,12 +420,37 @@ router.get("/:id/download", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Photo not found" })
     }
 
-    // Find the file (could have various extensions)
+    // Determine extension from original filename or mimetype
+    const ext = photo.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+                (photo.mimeType?.includes("png") ? "png" :
+                 photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
+
+    // Log the download
+    await recordDownload(photo.id)
+
+    const downloadName = `${photo.displayTitle}.${ext}`.replace(/[^a-zA-Z0-9.-]/g, "_")
+
+    // Try Supabase Storage first
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.storage
+        .from("photo-assets")
+        .download(`${photo.storageKey}.${ext}`)
+
+      if (data && !error) {
+        const buffer = Buffer.from(await data.arrayBuffer())
+        res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`)
+        res.setHeader("Content-Type", photo.mimeType || "application/octet-stream")
+        res.setHeader("Content-Length", buffer.length.toString())
+        return res.send(buffer)
+      }
+    }
+
+    // Fallback to local disk
     const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
     let filePath: string | null = null
 
-    for (const ext of extensions) {
-      const testPath = path.join(STORAGE_DIR, `${photo.storageKey}${ext}`)
+    for (const localExt of extensions) {
+      const testPath = path.join(STORAGE_DIR, `${photo.storageKey}${localExt}`)
       try {
         await fs.access(testPath)
         filePath = testPath
@@ -394,15 +461,8 @@ router.get("/:id/download", async (req: Request, res: Response) => {
     }
 
     if (!filePath) {
-      return res.status(404).json({ error: "Photo file not found on disk" })
+      return res.status(404).json({ error: "Photo file not found" })
     }
-
-    // Log the download
-    await recordDownload(photo.id)
-
-    // Send the file with original filename
-    const ext = path.extname(filePath)
-    const downloadName = `${photo.displayTitle}${ext}`.replace(/[^a-zA-Z0-9.-]/g, "_")
 
     res.download(filePath, downloadName)
   } catch (error) {

@@ -950,7 +950,8 @@ export function SearchLibrary() {
   const PAGE_SIZE = 50
   const [totalAnswers, setTotalAnswers] = useState(0)
   const [totalPhotos, setTotalPhotos] = useState(0)
-  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [isLoadingMoreAnswers, setIsLoadingMoreAnswers] = useState(false)
+  const [isLoadingMorePhotos, setIsLoadingMorePhotos] = useState(false)
 
   // Detail view state
   const [selectedAnswer, setSelectedAnswer] = useState<AnswerResponse | null>(null)
@@ -1075,25 +1076,49 @@ export function SearchLibrary() {
   }, [debouncedQuery, typeFilter, topicFilter, statusFilter])
 
   // Load more function - appends to existing results
-  const loadMore = useCallback(async () => {
-    setIsLoadingMore(true)
+  const loadMoreAnswers = useCallback(async () => {
+    setIsLoadingMoreAnswers(true)
     try {
       const result = await searchApi.search({
         q: debouncedQuery || undefined,
-        type: typeFilter === "all" ? undefined : typeFilter,
+        type: "answers",
         topicId: topicFilter === "all" ? undefined : topicFilter,
         status: statusFilter === "all" ? undefined : statusFilter,
         limit: PAGE_SIZE,
-        offset: answers.length, // Use current answers length as offset
+        offset: answers.length,
       })
-      setAnswers(prev => [...prev, ...result.answers])
-      setPhotos(prev => [...prev, ...result.photos])
+      setAnswers(prev => {
+        const existingIds = new Set(prev.map(a => a.id))
+        return [...prev, ...result.answers.filter(a => !existingIds.has(a.id))]
+      })
     } catch (err) {
-      console.error("Load more failed:", err)
+      console.error("Load more answers failed:", err)
     } finally {
-      setIsLoadingMore(false)
+      setIsLoadingMoreAnswers(false)
     }
-  }, [debouncedQuery, typeFilter, topicFilter, statusFilter, answers.length])
+  }, [debouncedQuery, topicFilter, statusFilter, answers.length])
+
+  const loadMorePhotos = useCallback(async () => {
+    setIsLoadingMorePhotos(true)
+    try {
+      const result = await searchApi.search({
+        q: debouncedQuery || undefined,
+        type: "photos",
+        topicId: topicFilter === "all" ? undefined : topicFilter,
+        status: statusFilter === "all" ? undefined : statusFilter,
+        limit: PAGE_SIZE,
+        offset: photos.length,
+      })
+      setPhotos(prev => {
+        const existingIds = new Set(prev.map(p => p.id))
+        return [...prev, ...result.photos.filter(p => !existingIds.has(p.id))]
+      })
+    } catch (err) {
+      console.error("Load more photos failed:", err)
+    } finally {
+      setIsLoadingMorePhotos(false)
+    }
+  }, [debouncedQuery, topicFilter, statusFilter, photos.length])
 
   // Debounce search query (300ms delay)
   useEffect(() => {
@@ -1934,6 +1959,28 @@ export function SearchLibrary() {
                   <p className="text-slate-500 dark:text-slate-400 text-[14px]">No answers found</p>
                 </div>
               )}
+
+              {answers.length < totalAnswers && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={loadMoreAnswers}
+                    disabled={isLoadingMoreAnswers}
+                    className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    {isLoadingMoreAnswers ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" />Loading...</>
+                    ) : (
+                      <>
+                        View More
+                        <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                          ({answers.length} of {totalAnswers})
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
 
             {/* Photos Column - Takes up 2 columns (hidden if searchIncludePhotos is off) */}
@@ -2021,35 +2068,30 @@ export function SearchLibrary() {
                   <p className="text-slate-500 dark:text-slate-400 text-[14px]">No photos found</p>
                 </div>
               )}
+
+              {photos.length < totalPhotos && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={loadMorePhotos}
+                    disabled={isLoadingMorePhotos}
+                    className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                  >
+                    {isLoadingMorePhotos ? (
+                      <><Loader2 size={14} className="mr-1.5 animate-spin" />Loading...</>
+                    ) : (
+                      <>
+                        View More
+                        <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                          ({photos.length} of {totalPhotos})
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>}
           </div>
-
-          {/* Load More Button */}
-          {(answers.length < totalAnswers || photos.length < totalPhotos) && (
-            <div className="flex justify-center pt-4">
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={loadMore}
-                disabled={isLoadingMore}
-                className="h-12 px-8 rounded-xl border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800"
-              >
-                {isLoadingMore ? (
-                  <>
-                    <Loader2 size={18} className="mr-2 animate-spin" />
-                    Loading...
-                  </>
-                ) : (
-                  <>
-                    Load More
-                    <span className="ml-2 text-slate-500 dark:text-slate-400">
-                      ({answers.length} of {totalAnswers} answers, {photos.length} of {totalPhotos} photos)
-                    </span>
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
 
           {/* Empty state when both are empty */}
           {answers.length === 0 && photos.length === 0 && (

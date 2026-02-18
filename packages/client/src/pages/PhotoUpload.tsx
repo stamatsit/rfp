@@ -317,8 +317,9 @@ export function PhotoUpload() {
             </div>
           ) : (
             /* Photo grid */
+            <>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredPhotos.map((photo) => {
+              {visiblePhotos.map((photo) => {
                 const topic = topics.find(t => t.id === photo.topicId)
                 return (
                   <div
@@ -328,7 +329,7 @@ export function PhotoUpload() {
                   >
                     {/* Image */}
                     <img
-                      src={photosApi.getFileUrl(photo.storageKey)}
+                      src={photo.fileUrl || photosApi.getFileUrl(photo.storageKey)}
                       alt={photo.displayTitle}
                       className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
                       loading="lazy"
@@ -378,6 +379,23 @@ export function PhotoUpload() {
                 )
               })}
             </div>
+
+            {/* View More button */}
+            {hasMorePhotos && (
+              <div className="flex justify-center pt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleCount(prev => prev + 50)}
+                  className="h-10 px-6 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  View More
+                  <span className="ml-2 text-slate-500 dark:text-slate-400 text-sm">
+                    ({visibleCount} of {filteredPhotos.length})
+                  </span>
+                </Button>
+              </div>
+            )}
+            </>
           )}
         </div>
       </main>
@@ -395,7 +413,7 @@ export function PhotoUpload() {
               {/* Photo area — dark background */}
               <div className="relative bg-slate-950 flex items-center justify-center overflow-hidden rounded-t-2xl" style={{ maxHeight: "60vh" }}>
                 <img
-                  src={photosApi.getFileUrl(lightboxPhoto.storageKey)}
+                  src={lightboxPhoto.fileUrl || photosApi.getFileUrl(lightboxPhoto.storageKey)}
                   alt={lightboxPhoto.displayTitle}
                   className="max-w-full max-h-[60vh] object-contain"
                 />

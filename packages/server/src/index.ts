@@ -14,7 +14,7 @@ import { getUserById } from "./services/userService.js"
 import fs from "fs/promises"
 import { requireAuth } from "./middleware/auth.js"
 import { generateCsrfToken, validateCsrfToken, getCsrfToken } from "./middleware/csrf.js"
-import { initializeDatabase } from "./db/index.js"
+import { initializeDatabase, supabaseAdmin } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
 import { startPipelineSyncPolling } from "./services/pipelineSyncService.js"
 
@@ -93,12 +93,32 @@ app.get("/api/photos/file/:storageKey", async (req, res) => {
     const photo = await getPhotoByStorageKey(storageKey)
     if (!photo) return res.status(404).json({ error: "Photo not found" })
 
+    // Determine extension from original filename or mimetype
+    const ext = photo.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+                (photo.mimeType?.includes("png") ? "png" :
+                 photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
+
+    // Try Supabase Storage first
+    if (supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.storage
+        .from("photo-assets")
+        .download(`${storageKey}.${ext}`)
+
+      if (data && !error) {
+        const buffer = Buffer.from(await data.arrayBuffer())
+        res.setHeader("Content-Type", photo.mimeType || "application/octet-stream")
+        res.setHeader("Cache-Control", "public, max-age=3600")
+        return res.send(buffer)
+      }
+    }
+
+    // Fallback to local disk
     const storagePhotosDir = path.resolve(__dirname, "../../../storage/photos")
     const extensions = [".png", ".jpg", ".jpeg", ".gif", ".webp"]
     let filePath: string | null = null
 
-    for (const ext of extensions) {
-      const testPath = path.join(storagePhotosDir, `${storageKey}${ext}`)
+    for (const localExt of extensions) {
+      const testPath = path.join(storagePhotosDir, `${storageKey}${localExt}`)
       try {
         await fs.access(testPath)
         filePath = testPath

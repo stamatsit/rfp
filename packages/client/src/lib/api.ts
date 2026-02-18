@@ -219,6 +219,7 @@ export interface PhotoResponse {
   createdAt: string
   updatedAt: string
   linkedAnswersCount?: number
+  fileUrl?: string | null // Pre-signed URL from server (avoids per-image API calls)
 }
 
 export const photosApi = {

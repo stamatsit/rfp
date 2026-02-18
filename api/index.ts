@@ -1415,6 +1415,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .limit(limit || 10000)
         }
 
+        // Batch-generate signed URLs
+        if (supabase && results.length > 0) {
+          const paths = results.map((p: any) => {
+            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+            return `${p.storageKey}.${ext}`
+          })
+          const { data: signedData } = await supabase.storage
+            .from("photo-assets")
+            .createSignedUrls(paths, 3600)
+
+          if (signedData) {
+            return res.json(results.map((p: any, i: number) => ({
+              ...p,
+              fileUrl: signedData[i]?.signedUrl || null,
+            })))
+          }
+        }
+
         return res.json(results)
       }
 
@@ -2600,6 +2618,26 @@ ${compDataContext}`
     if (path === "/photos" || path === "/photos/") {
       if (method === "GET") {
         const allPhotos = await db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt))
+
+        // Batch-generate signed URLs for all photos
+        if (supabase && allPhotos.length > 0) {
+          const paths = allPhotos.map((p: any) => {
+            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+            return `${p.storageKey}.${ext}`
+          })
+          const { data: signedData } = await supabase.storage
+            .from("photo-assets")
+            .createSignedUrls(paths, 3600)
+
+          if (signedData) {
+            const photosWithUrls = allPhotos.map((p: any, i: number) => ({
+              ...p,
+              fileUrl: signedData[i]?.signedUrl || null,
+            }))
+            return res.json(photosWithUrls)
+          }
+        }
+
         return res.json(allPhotos)
       }
     }
