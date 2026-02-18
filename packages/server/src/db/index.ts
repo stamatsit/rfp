@@ -7,7 +7,7 @@ import { createClient } from "@supabase/supabase-js"
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const SUPABASE_URL = process.env.SUPABASE_URL ?? ""
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? ""
-const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY ?? ""
+const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""
 
 // Validate required environment variables
 function validateEnv() {
@@ -36,8 +36,8 @@ export const supabase = SUPABASE_URL && SUPABASE_ANON_KEY
   : null
 
 // Supabase admin client (for server-side operations)
-export const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_KEY
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+export const supabaseAdmin = SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
   : null
 
 // Export schema for convenience

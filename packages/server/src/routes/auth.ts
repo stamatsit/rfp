@@ -10,7 +10,7 @@ import {
   markTourCompleted,
   resetTour,
 } from "../services/userService.js"
-import { saveAvatar, deleteAvatarFile } from "../services/avatarService.js"
+// avatarService.js no longer used — avatars stored as data URLs in DB (matching Vercel production)
 
 const router = Router()
 
@@ -211,6 +211,7 @@ router.post("/reset-tour", async (req: Request, res: Response) => {
 /**
  * POST /api/auth/avatar
  * Upload user avatar (base64 JSON: { image: "data:image/webp;base64,..." })
+ * Stores as data URL in DB (matching Vercel production behavior)
  */
 router.post("/avatar", async (req: Request, res: Response) => {
   try {
@@ -224,18 +225,28 @@ router.post("/avatar", async (req: Request, res: Response) => {
     }
 
     const dataUrlMatch = image.match(/^data:(image\/\w+);base64,(.+)$/)
-    const mimeType = dataUrlMatch?.[1] ?? "image/webp"
-    const base64Data = dataUrlMatch?.[2] ?? image
-    const fileBuffer = Buffer.from(base64Data, "base64")
+    let fileMimeType = "image/webp"
+    let base64Data: string
+    if (dataUrlMatch) {
+      fileMimeType = dataUrlMatch[1]
+      base64Data = dataUrlMatch[2]
+    } else {
+      base64Data = image
+    }
 
+    const fileBuffer = Buffer.from(base64Data, "base64")
     if (fileBuffer.length === 0) {
       return res.status(400).json({ error: "Empty image data" })
     }
+    if (fileBuffer.length > 2 * 1024 * 1024) {
+      return res.status(400).json({ error: "File too large (max 2MB)" })
+    }
 
-    const storagePath = await saveAvatar(req.session.userId, fileBuffer, mimeType)
+    // Store as data URL directly in DB (matching Vercel production)
+    const dataUrl = `data:${fileMimeType};base64,${fileBuffer.toString("base64")}`
+    await updateAvatarUrl(req.session.userId, dataUrl)
+
     const avatarUrl = `/api/auth/avatar/${req.session.userId}`
-
-    await updateAvatarUrl(req.session.userId, storagePath)
     req.session.avatarUrl = avatarUrl
 
     return res.json({ success: true, avatarUrl })
@@ -255,7 +266,6 @@ router.delete("/avatar", async (req: Request, res: Response) => {
       return res.status(401).json({ error: "Authentication required" })
     }
 
-    await deleteAvatarFile(req.session.userId)
     await updateAvatarUrl(req.session.userId, null)
     req.session.avatarUrl = null
 

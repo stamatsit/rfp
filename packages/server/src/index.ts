@@ -10,6 +10,7 @@ import { fileURLToPath } from "url"
 import routes from "./routes/index.js"
 import authRoutes from "./routes/auth.js"
 import { getPhotoByStorageKey } from "./services/photoService.js"
+import { getUserById } from "./services/userService.js"
 import fs from "fs/promises"
 import { requireAuth } from "./middleware/auth.js"
 import { generateCsrfToken, validateCsrfToken, getCsrfToken } from "./middleware/csrf.js"
@@ -119,11 +120,25 @@ app.get("/api/auth/avatar/:userId", async (req, res) => {
     const { userId } = req.params
     if (!userId) return res.status(400).json({ error: "User ID required" })
 
+    const user = await getUserById(userId)
+    if (!user?.avatarUrl) return res.status(404).json({ error: "No avatar" })
+
+    // avatarUrl is a data URL (data:image/webp;base64,...) — serve the bytes directly
+    const dataUrlMatch = user.avatarUrl.match(/^data:(image\/\w+);base64,(.+)$/)
+    if (dataUrlMatch && dataUrlMatch[1] && dataUrlMatch[2]) {
+      const mimeType = dataUrlMatch[1]
+      const buffer = Buffer.from(dataUrlMatch[2], "base64")
+      res.setHeader("Content-Type", mimeType)
+      res.setHeader("Cache-Control", "public, max-age=3600")
+      return res.send(buffer)
+    }
+
+    // Fallback: try serving from disk (legacy file-based avatars)
     const { getAvatarPath } = await import("./services/avatarService.js")
     const filePath = await getAvatarPath(userId)
-    if (!filePath) return res.status(404).json({ error: "Avatar not found" })
+    if (filePath) return res.sendFile(filePath)
 
-    res.sendFile(filePath)
+    return res.status(404).json({ error: "Avatar not found" })
   } catch (error) {
     console.error("Failed to get avatar:", error)
     res.status(500).json({ error: "Failed to get avatar" })
