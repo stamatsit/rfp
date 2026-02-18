@@ -305,6 +305,20 @@ router.post(
         const newPath = path.join(STORAGE_DIR, `${photo.storageKey}${ext}`)
         await fs.rename(file.path, newPath)
 
+        // Also upload to Supabase Storage so production can serve it
+        if (supabaseAdmin) {
+          const fileBuffer = await fs.readFile(newPath)
+          const { error: uploadError } = await supabaseAdmin.storage
+            .from("photo-assets")
+            .upload(`${photo.storageKey}${ext}`, fileBuffer, {
+              contentType: file.mimetype,
+              upsert: true,
+            })
+          if (uploadError) {
+            console.warn(`Supabase upload failed for ${photo.storageKey}: ${uploadError.message}`)
+          }
+        }
+
         results.push(photo)
       }
 
