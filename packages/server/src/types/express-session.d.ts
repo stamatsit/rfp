@@ -8,6 +8,8 @@ declare module "express-session" {
     userName?: string
     userEmail?: string
     mustChangePassword?: boolean
+    hasCompletedTour?: boolean
     avatarUrl?: string | null
+    role?: "admin" | "user"
   }
 }

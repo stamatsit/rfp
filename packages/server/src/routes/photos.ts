@@ -17,6 +17,7 @@ import {
 import { getAllTopics, upsertTopic } from "../services/topicService.js"
 import { logAudit } from "../services/auditService.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const STORAGE_DIR = path.resolve(__dirname, "../../../../storage/photos")
@@ -184,6 +185,7 @@ router.get("/:id", async (req: Request, res: Response) => {
  */
 router.post(
   "/upload",
+  requireWriteAccess,
   upload.array("files", 20),
   async (req: Request, res: Response) => {
     try {
@@ -301,7 +303,7 @@ router.post(
  * PUT /api/photos/:id
  * Update a photo's metadata
  */
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const id = req.params.id
     if (!id) {
@@ -334,7 +336,7 @@ router.put("/:id", async (req: Request, res: Response) => {
  * PUT /api/photos/:id/rename
  * Rename a photo (convenience endpoint)
  */
-router.put("/:id/rename", async (req: Request, res: Response) => {
+router.put("/:id/rename", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const id = req.params.id
     if (!id) {
@@ -413,7 +415,7 @@ router.get("/:id/download", async (req: Request, res: Response) => {
  * DELETE /api/photos/:id
  * Delete a photo (record only, file remains)
  */
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const id = req.params.id
     if (!id) {
@@ -440,7 +442,7 @@ router.delete("/:id", async (req: Request, res: Response) => {
  * Bulk import photos from a local folder
  * Extracts topic from filename pattern: topic-name-description.png
  */
-router.post("/import-folder", async (req: Request, res: Response) => {
+router.post("/import-folder", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { folderPath, defaultTopicId } = req.body
 

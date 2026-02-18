@@ -1,5 +1,6 @@
 import { Router } from "express"
 import { getAllTopics, getTopicById, createTopic, deleteTopic, deleteTopicsByPattern } from "../services/topicService.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 
 const router = Router()
 
@@ -31,7 +32,7 @@ router.get("/:id", async (req, res) => {
 })
 
 // POST /api/topics - Create a new topic
-router.post("/", async (req, res) => {
+router.post("/", requireWriteAccess, async (req, res) => {
   try {
     const { displayName } = req.body
 
@@ -54,7 +55,7 @@ router.post("/", async (req, res) => {
 })
 
 // DELETE /api/topics/:id - Delete a topic
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", requireWriteAccess, async (req, res) => {
   try {
     const { id } = req.params
 
@@ -76,7 +77,7 @@ router.delete("/:id", async (req, res) => {
 })
 
 // POST /api/topics/cleanup-test-data - Remove test topics matching patterns
-router.post("/cleanup-test-data", async (_req, res) => {
+router.post("/cleanup-test-data", requireWriteAccess, async (_req, res) => {
   try {
     const testPattern = /Test Topic|Find Test|Link Test|Photo Test|Upsert Test|Answer Test/i
     const deletedCount = await deleteTopicsByPattern(testPattern)

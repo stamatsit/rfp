@@ -14,11 +14,6 @@ export async function createUser(data: {
 
   const email = data.email.toLowerCase().trim()
 
-  // Enforce @stamats.com domain
-  if (!email.endsWith("@stamats.com")) {
-    throw new Error("Only @stamats.com email addresses are allowed")
-  }
-
   // Check if user exists
   const existing = await getUserByEmail(email)
   if (existing) {

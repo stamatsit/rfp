@@ -17,3 +17,15 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
   // Not authenticated
   return res.status(401).json({ error: "Authentication required" })
 }
+
+/**
+ * Middleware to require admin role for write operations.
+ * Returns 403 if the user is authenticated but has "user" (read-only) role.
+ */
+export function requireWriteAccess(req: Request, res: Response, next: NextFunction) {
+  const role = req.session?.role ?? "user"
+  if (role !== "admin") {
+    return res.status(403).json({ error: "Write access requires admin role" })
+  }
+  return next()
+}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   ArrowLeft,
   FileSearch,
@@ -44,6 +45,7 @@ interface DocumentState {
 }
 
 export function RFPAnalyzer() {
+  const isAdmin = useIsAdmin()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [isUploading, setIsUploading] = useState(false)
@@ -506,21 +508,23 @@ export function RFPAnalyzer() {
 
               {document && (
                 <>
-                  <Button
-                    variant="outline"
-                    onClick={handleSaveDocument}
-                    disabled={isSaving || !!document.savedId}
-                    className="rounded-xl h-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all duration-200"
-                  >
-                    {isSaving ? (
-                      <Loader2 size={16} className="mr-2 animate-spin" />
-                    ) : saveSuccess || document.savedId ? (
-                      <Check size={16} className="mr-2 text-emerald-500" />
-                    ) : (
-                      <Save size={16} className="mr-2" />
-                    )}
-                    {document.savedId ? "Saved" : saveSuccess ? "Saved!" : "Save"}
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      onClick={handleSaveDocument}
+                      disabled={isSaving || !!document.savedId}
+                      className="rounded-xl h-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all duration-200"
+                    >
+                      {isSaving ? (
+                        <Loader2 size={16} className="mr-2 animate-spin" />
+                      ) : saveSuccess || document.savedId ? (
+                        <Check size={16} className="mr-2 text-emerald-500" />
+                      ) : (
+                        <Save size={16} className="mr-2" />
+                      )}
+                      {document.savedId ? "Saved" : saveSuccess ? "Saved!" : "Save"}
+                    </Button>
+                  )}
                   <Button variant="outline" onClick={handleReupload} className="rounded-xl h-10 shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:shadow-[0_2px_4px_rgba(0,0,0,0.04)] transition-all duration-200">
                     <RefreshCw size={16} className="mr-2" />
                     Upload New

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   ArrowLeft,
   FolderOpen,
@@ -19,6 +20,7 @@ import { rfpApi, type SavedDocument } from "@/lib/api"
 type DocumentType = "RFP" | "Proposal" | "Other" | "all"
 
 export function SavedDocuments() {
+  const isAdmin = useIsAdmin()
   const navigate = useNavigate()
   const [documents, setDocuments] = useState<SavedDocument[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -261,22 +263,24 @@ export function SavedDocuments() {
                         >
                           <Eye size={16} className="text-slate-500" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            handleDelete(doc.id)
-                          }}
-                          disabled={deletingId === doc.id}
-                        >
-                          {deletingId === doc.id ? (
-                            <Loader2 size={16} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(doc.id)
+                            }}
+                            disabled={deletingId === doc.id}
+                          >
+                            {deletingId === doc.id ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={16} />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>

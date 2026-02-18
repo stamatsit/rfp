@@ -580,6 +580,7 @@ export const users = pgTable("users", {
   name: text("name").notNull(),
   mustChangePassword: boolean("must_change_password").notNull().default(true),
   avatarUrl: text("avatar_url"),
+  role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
   hasCompletedTour: boolean("has_completed_tour").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -712,6 +713,7 @@ interface SessionData {
   mustChangePassword?: boolean
   hasCompletedTour?: boolean
   avatarUrl?: string | null
+  role?: "admin" | "user"
   expires: number
 }
 
@@ -766,6 +768,25 @@ async function createSession(data: Omit<SessionData, "expires">): Promise<string
   const payloadStr = Buffer.from(JSON.stringify(payload)).toString("base64url")
   const signature = await createHmac(payloadStr)
   return `${payloadStr}.${signature}`
+}
+
+// Check if a non-GET path is exempt from admin-only write access
+// These are routes that read-only users are allowed to POST/PATCH/DELETE
+function isWriteExemptPath(path: string, _method: string): boolean {
+  // AI tools — always allowed
+  if (path.startsWith("/ai/")) return true
+  if (path.startsWith("/companion/")) return true
+  if (path.startsWith("/unified-ai/")) return true
+  if (path.startsWith("/proposals/query") || path.startsWith("/proposals/stream")) return true
+  if (path.startsWith("/studio/chat/") || path.startsWith("/studio/briefing/") ||
+      path.startsWith("/studio/checklist/") || path === "/studio/inline-edit") return true
+  // Conversations — user's own chat history
+  if (path.startsWith("/conversations")) return true
+  // Feedback — logging only
+  if (path === "/feedback" || path === "/feedback/") return true
+  // Copy events — audit log only
+  if (/^\/search\/answers\/[^/]+\/copy$/.test(path)) return true
+  return false
 }
 
 // Parse cookies from request
@@ -924,6 +945,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         // Store only a URL path in session (not full base64) to keep cookie under 4KB browser limit
         const avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
+        const userRole = (user.role as "admin" | "user") ?? "user"
         const newSessionToken = await createSession({
           authenticated: true,
           userId: user.id,
@@ -932,12 +954,67 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mustChangePassword: user.mustChangePassword,
           hasCompletedTour: user.hasCompletedTour,
           avatarUrl,
+          role: userRole,
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({
           success: true,
           mustChangePassword: user.mustChangePassword,
-          user: { id: user.id, email: user.email, name: user.name, avatarUrl },
+          user: { id: user.id, email: user.email, name: user.name, avatarUrl, role: userRole },
+        })
+      }
+
+      if (path === "/auth/register" && method === "POST") {
+        const { firstName, lastName, email, password } = req.body || {}
+        if (!firstName || !lastName || !email || !password) {
+          return res.status(400).json({ error: "First name, last name, email, and password are required" })
+        }
+        if (typeof firstName !== "string" || firstName.trim().length < 1) {
+          return res.status(400).json({ error: "First name is required" })
+        }
+        if (typeof lastName !== "string" || lastName.trim().length < 1) {
+          return res.status(400).json({ error: "Last name is required" })
+        }
+        if (typeof email !== "string" || !email.includes("@")) {
+          return res.status(400).json({ error: "Valid email is required" })
+        }
+        if (typeof password !== "string" || password.length < 8) {
+          return res.status(400).json({ error: "Password must be at least 8 characters" })
+        }
+        if (!db) return res.status(500).json({ error: "Database not configured" })
+
+        const normalizedEmail = email.toLowerCase().trim()
+        const name = `${firstName.trim()} ${lastName.trim()}`
+
+        // Check if email already exists
+        const [existing] = await db.select().from(users).where(eq(users.email, normalizedEmail)).limit(1)
+        if (existing) {
+          return res.status(409).json({ error: "Email already registered" })
+        }
+
+        const passwordHash = await bcrypt.hash(password, 12)
+        const [newUser] = await db.insert(users).values({
+          email: normalizedEmail,
+          passwordHash,
+          name,
+          mustChangePassword: false,
+        }).returning()
+
+        const userRole = (newUser.role as "admin" | "user") ?? "user"
+        const newSessionToken = await createSession({
+          authenticated: true,
+          userId: newUser.id,
+          userName: newUser.name,
+          userEmail: newUser.email,
+          mustChangePassword: false,
+          hasCompletedTour: false,
+          avatarUrl: null,
+          role: userRole,
+        })
+        res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
+        return res.status(201).json({
+          success: true,
+          user: { id: newUser.id, email: newUser.email, name: newUser.name, avatarUrl: null, role: userRole },
         })
       }
 
@@ -955,6 +1032,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let userEmail = session.userEmail
         let avatarUrl: string | null = session.avatarUrl || null
         let hasCompletedTour = session.hasCompletedTour ?? false
+        let role: "admin" | "user" = (session.role as "admin" | "user") ?? "user"
         if (session.userId && db) {
           const [dbUser] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1)
           if (dbUser) {
@@ -962,6 +1040,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             userEmail = dbUser.email
             avatarUrl = dbUser.avatarUrl ? `/api/auth/avatar/${session.userId}` : null
             hasCompletedTour = dbUser.hasCompletedTour
+            role = (dbUser.role as "admin" | "user") ?? "user"
           }
         }
         return res.json({
@@ -972,6 +1051,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             name: userName || userEmail || "User",
             avatarUrl,
             hasCompletedTour,
+            role,
           },
           mustChangePassword: session.mustChangePassword || false,
           loginTime: null,
@@ -1004,6 +1084,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mustChangePassword: false,
           hasCompletedTour: user.hasCompletedTour,
           avatarUrl: user.avatarUrl ? `/api/auth/avatar/${user.id}` : null,
+          role: (user.role as "admin" | "user") ?? "user",
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({ success: true })
@@ -1023,6 +1104,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mustChangePassword: session.mustChangePassword ?? false,
           hasCompletedTour: true,
           avatarUrl: session.avatarUrl,
+          role: session.role ?? "user",
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({ success: true })
@@ -1042,6 +1124,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           mustChangePassword: session.mustChangePassword ?? false,
           hasCompletedTour: false,
           avatarUrl: session.avatarUrl,
+          role: session.role ?? "user",
         })
         res.setHeader("Set-Cookie", `rfp-session=${newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${7 * 24 * 60 * 60}`)
         return res.json({ success: true })
@@ -1132,6 +1215,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // All other routes require authentication
     if (!isAuthenticated) {
       return res.status(401).json({ error: "Unauthorized" })
+    }
+
+    // Write access check for non-admin users (read-only users can only use GET + exempt POST routes)
+    if (method !== "GET" && session?.role !== "admin") {
+      const isExempt = isWriteExemptPath(path, method)
+      if (!isExempt) {
+        return res.status(403).json({ error: "Write access requires admin role" })
+      }
     }
 
     // CSRF validation for authenticated state-changing requests
@@ -2574,13 +2665,21 @@ ${compDataContext}`
           return res.status(400).json({ error: "No boundary found in content-type" })
         }
 
-        // Parse the multipart body - read raw stream since bodyParser is disabled
-        const bodyBuffer = await new Promise<Buffer>((resolve, reject) => {
-          const chunks: Buffer[] = []
-          req.on("data", (chunk) => chunks.push(chunk))
-          req.on("end", () => resolve(Buffer.concat(chunks)))
-          req.on("error", reject)
-        })
+        // Parse the multipart body - handle both parsed and raw body
+        let bodyBuffer: Buffer
+        if (Buffer.isBuffer(req.body)) {
+          bodyBuffer = req.body
+        } else if (typeof req.body === "string") {
+          bodyBuffer = Buffer.from(req.body, "binary")
+        } else {
+          // Try reading from stream (bodyParser disabled or didn't parse)
+          bodyBuffer = await new Promise<Buffer>((resolve, reject) => {
+            const chunks: Buffer[] = []
+            req.on("data", (chunk: Buffer) => chunks.push(chunk))
+            req.on("end", () => resolve(Buffer.concat(chunks)))
+            req.on("error", reject)
+          })
+        }
         const boundary = boundaryMatch[1]
         const boundaryBytes = Buffer.from(`--${boundary}`)
         const parts = splitBuffer(bodyBuffer, boundaryBytes)
@@ -4192,6 +4291,8 @@ RULES:
 // Vercel config — increase body size limit for file uploads
 export const config = {
   api: {
-    bodyParser: false, // Disabled to handle multipart/form-data manually
+    bodyParser: {
+      sizeLimit: "20mb",
+    },
   },
 }

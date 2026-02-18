@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express"
 import { createAnswer, updateAnswer, deleteAnswer, getAnswerById, getAnswerVersions } from "../services/answerService.js"
 import { getTopicById } from "../services/topicService.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 
 const router = Router()
 
@@ -34,7 +35,7 @@ router.get("/:id/versions", async (req: Request, res: Response) => {
  * POST /api/answers
  * Create a new answer entry
  */
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { question, answer, topicId, subtopic, status, tags } = req.body
 
@@ -79,7 +80,7 @@ router.post("/", async (req: Request, res: Response) => {
  * PUT /api/answers/:id
  * Update an existing answer entry
  */
-router.put("/:id", async (req: Request, res: Response) => {
+router.put("/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params
     const { question, answer, topicId, subtopic, status, tags } = req.body
@@ -130,7 +131,7 @@ router.put("/:id", async (req: Request, res: Response) => {
  * DELETE /api/answers/:id
  * Delete an answer entry
  */
-router.delete("/:id", async (req: Request, res: Response) => {
+router.delete("/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { id } = req.params
 

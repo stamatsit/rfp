@@ -12,7 +12,7 @@ import {
 import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
 import { GuidedTour } from "@/components/tour"
-import { useAuth } from "@/contexts/AuthContext"
+import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
 import { clientSuccessData } from "@/data/clientSuccessData"
@@ -303,8 +303,11 @@ function saveCachedStats(stats: HomeStats) {
   }
 }
 
+const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
+
 export function HomePage() {
   const { user, markTourCompleted } = useAuth()
+  const isAdmin = useIsAdmin()
   const [showTour, setShowTour] = useState(false)
   const firstName = user?.name?.split(" ")[0]
 
@@ -468,7 +471,7 @@ export function HomePage() {
 
           {/* Action Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
-            {visibleCards.map((card) => (
+            {visibleCards.filter((card) => isAdmin || !ADMIN_ONLY_TILES.has(card.id || "")).map((card) => (
               <Card
                 key={card.id || card.to}
                 {...card}

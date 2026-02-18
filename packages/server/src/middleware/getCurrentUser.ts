@@ -14,3 +14,10 @@ export function getCurrentUserName(req: Request): string {
 export function getCurrentUserId(req: Request): string | null {
   return req.session?.userId || null
 }
+
+/**
+ * Extract user role from session. Defaults to "user" (read-only).
+ */
+export function getCurrentUserRole(req: Request): "admin" | "user" {
+  return (req.session?.role as "admin" | "user") ?? "user"
+}

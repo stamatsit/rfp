@@ -9,6 +9,7 @@ import {
   updateAvatarUrl,
   markTourCompleted,
   resetTour,
+  createUser,
 } from "../services/userService.js"
 // avatarService.js no longer used — avatars stored as data URLs in DB (matching Vercel production)
 
@@ -57,6 +58,7 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
     req.session.mustChangePassword = user.mustChangePassword
     req.session.hasCompletedTour = user.hasCompletedTour
     req.session.avatarUrl = user.avatarUrl ? `/api/auth/avatar/${user.id}` : null
+    req.session.role = (user.role as "admin" | "user") ?? "user"
 
     return res.json({
       success: true,
@@ -66,11 +68,87 @@ router.post("/login", loginLimiter, async (req: Request, res: Response) => {
         email: user.email,
         name: user.name,
         avatarUrl: req.session.avatarUrl,
+        role: req.session.role,
       },
     })
   } catch (error) {
     console.error("Login failed:", error)
     res.status(500).json({ error: "Login failed" })
+  }
+})
+
+/**
+ * POST /api/auth/register
+ * Create a new account
+ */
+const registerLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  message: { error: "Too many registration attempts. Please try again in a minute." },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+router.post("/register", registerLimiter, async (req: Request, res: Response) => {
+  try {
+    const { firstName, lastName, email, password } = req.body
+
+    if (!firstName || !lastName || !email || !password) {
+      return res.status(400).json({ error: "First name, last name, email, and password are required" })
+    }
+
+    if (typeof firstName !== "string" || firstName.trim().length < 1) {
+      return res.status(400).json({ error: "First name is required" })
+    }
+
+    if (typeof lastName !== "string" || lastName.trim().length < 1) {
+      return res.status(400).json({ error: "Last name is required" })
+    }
+
+    if (typeof email !== "string" || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email is required" })
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" })
+    }
+
+    const name = `${firstName.trim()} ${lastName.trim()}`
+    const user = await createUser({
+      email,
+      password,
+      name,
+      mustChangePassword: false,
+    })
+
+    // Auto-login after registration
+    req.session.authenticated = true
+    req.session.loginTime = new Date().toISOString()
+    req.session.userId = user.id
+    req.session.userName = user.name
+    req.session.userEmail = user.email
+    req.session.mustChangePassword = false
+    req.session.hasCompletedTour = false
+    req.session.avatarUrl = null
+    req.session.role = (user.role as "admin" | "user") ?? "user"
+
+    return res.status(201).json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarUrl: null,
+        role: req.session.role,
+      },
+    })
+  } catch (error) {
+    console.error("Registration failed:", error)
+    const message = error instanceof Error ? error.message : "Registration failed"
+    if (message === "Email already registered") {
+      return res.status(409).json({ error: message })
+    }
+    res.status(500).json({ error: "Registration failed" })
   }
 })
 
@@ -162,6 +240,7 @@ router.get("/status", async (req: Request, res: Response) => {
       name: req.session.userName,
       avatarUrl: req.session.avatarUrl || null,
       hasCompletedTour: req.session.hasCompletedTour ?? false,
+      role: req.session.role ?? "user",
     },
     mustChangePassword: req.session.mustChangePassword || false,
     loginTime: req.session.loginTime || null,

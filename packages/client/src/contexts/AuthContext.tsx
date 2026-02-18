@@ -9,6 +9,7 @@ export interface User {
   name: string
   avatarUrl: string | null
   hasCompletedTour: boolean
+  role: "admin" | "user"
 }
 
 interface AuthContextType {
@@ -34,6 +35,11 @@ export function useAuth() {
   return context
 }
 
+export function useIsAdmin(): boolean {
+  const { user } = useAuth()
+  return user?.role === "admin"
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -55,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user || null)
       setMustChangePassword(data.mustChangePassword || false)
 
-      if (!data.authenticated && location.pathname !== "/login") {
+      if (!data.authenticated && location.pathname !== "/login" && location.pathname !== "/register") {
         navigate("/login", { replace: true })
       } else if (data.authenticated && data.mustChangePassword && location.pathname !== "/change-password") {
         navigate("/change-password", { replace: true })
@@ -64,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false)
       setUser(null)
       setMustChangePassword(false)
-      if (location.pathname !== "/login") {
+      if (location.pathname !== "/login" && location.pathname !== "/register") {
         navigate("/login", { replace: true })
       }
     } finally {

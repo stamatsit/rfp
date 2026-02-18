@@ -25,6 +25,7 @@ import { useChat } from "@/hooks/useChat"
 import { proposalInsightsApi, type ProposalSyncStatus } from "@/lib/api"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 import { loadSettings } from "@/components/SettingsPanel"
+import { useIsAdmin } from "@/contexts/AuthContext"
 
 const theme = CHAT_THEMES.cyan
 
@@ -77,6 +78,7 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function ProposalInsights() {
+  const isAdmin = useIsAdmin()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
   const chat = useChat({
@@ -215,16 +217,18 @@ export function ProposalInsights() {
                 </div>
               )}
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleSync}
-              disabled={isSyncing || !syncStatus?.configured}
-              className="h-8 border-cyan-200 hover:border-cyan-300 hover:bg-cyan-50"
-            >
-              <RefreshCw size={14} className={`mr-1.5 ${isSyncing ? "animate-spin text-cyan-500" : ""}`} />
-              {isSyncing ? "Syncing..." : "Sync Now"}
-            </Button>
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={isSyncing || !syncStatus?.configured}
+                className="h-8 border-cyan-200 hover:border-cyan-300 hover:bg-cyan-50"
+              >
+                <RefreshCw size={14} className={`mr-1.5 ${isSyncing ? "animate-spin text-cyan-500" : ""}`} />
+                {isSyncing ? "Syncing..." : "Sync Now"}
+              </Button>
+            )}
           </div>
         </div>
       }

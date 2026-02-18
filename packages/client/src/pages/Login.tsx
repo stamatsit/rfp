@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, Link } from "react-router-dom"
 import { ArrowRight, Lock, Mail, Bot, TrendingUp, BookOpen, Search } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -222,6 +222,13 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          <p className="text-center text-[14px] text-slate-500 dark:text-slate-400 mt-6">
+            Don&apos;t have an account?{" "}
+            <Link to="/register" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+              Create one
+            </Link>
+          </p>
 
           <p className="text-center text-[12px] text-slate-400 mt-10">
             &copy; {new Date().getFullYear()} Stamats

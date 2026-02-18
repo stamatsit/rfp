@@ -13,6 +13,7 @@ import {
   clientSuccessAwards,
 } from "../db/schema.js"
 import { eq } from "drizzle-orm"
+import { requireWriteAccess } from "../middleware/auth.js"
 
 const router = Router()
 
@@ -29,7 +30,7 @@ router.get("/entries", async (_req: Request, res: Response) => {
   }
 })
 
-router.post("/entries", async (req: Request, res: Response) => {
+router.post("/entries", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     const { client, category, focus, challenge, solution, metrics, testimonialQuote, testimonialAttribution } = req.body
@@ -53,7 +54,7 @@ router.post("/entries", async (req: Request, res: Response) => {
   }
 })
 
-router.delete("/entries/:id", async (req: Request, res: Response) => {
+router.delete("/entries/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     await db.delete(clientSuccessEntries).where(eq(clientSuccessEntries.id, req.params.id!))
@@ -77,7 +78,7 @@ router.get("/results", async (_req: Request, res: Response) => {
   }
 })
 
-router.post("/results", async (req: Request, res: Response) => {
+router.post("/results", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     const { metric, result, client, numericValue, direction } = req.body
@@ -98,7 +99,7 @@ router.post("/results", async (req: Request, res: Response) => {
   }
 })
 
-router.delete("/results/:id", async (req: Request, res: Response) => {
+router.delete("/results/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     await db.delete(clientSuccessResults).where(eq(clientSuccessResults.id, req.params.id!))
@@ -122,7 +123,7 @@ router.get("/testimonials", async (_req: Request, res: Response) => {
   }
 })
 
-router.post("/testimonials", async (req: Request, res: Response) => {
+router.post("/testimonials", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     const { quote, name, title, organization } = req.body
@@ -142,7 +143,7 @@ router.post("/testimonials", async (req: Request, res: Response) => {
   }
 })
 
-router.delete("/testimonials/:id", async (req: Request, res: Response) => {
+router.delete("/testimonials/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     await db.delete(clientSuccessTestimonials).where(eq(clientSuccessTestimonials.id, req.params.id!))
@@ -166,7 +167,7 @@ router.get("/awards", async (_req: Request, res: Response) => {
   }
 })
 
-router.post("/awards", async (req: Request, res: Response) => {
+router.post("/awards", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     const { name, year, clientOrProject } = req.body
@@ -185,7 +186,7 @@ router.post("/awards", async (req: Request, res: Response) => {
   }
 })
 
-router.delete("/awards/:id", async (req: Request, res: Response) => {
+router.delete("/awards/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     await db.delete(clientSuccessAwards).where(eq(clientSuccessAwards.id, req.params.id!))

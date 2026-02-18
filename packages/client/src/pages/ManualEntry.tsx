@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams, Navigate } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   Sparkles,
   CheckCircle2,
@@ -38,6 +39,8 @@ interface Topic {
 type EntryStatus = "Approved" | "Draft"
 
 export function ManualEntry() {
+  const isAdmin = useIsAdmin()
+  if (!isAdmin) return <Navigate to="/" replace />
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 

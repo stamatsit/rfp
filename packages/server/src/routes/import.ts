@@ -1,4 +1,5 @@
 import { Router } from "express"
+import { requireWriteAccess } from "../middleware/auth.js"
 import multer from "multer"
 import path from "path"
 import {
@@ -38,7 +39,7 @@ const upload = multer({
  * POST /api/import/preview
  * Upload an Excel file and get a preview of what will be imported
  */
-router.post("/preview", upload.single("file"), async (req, res) => {
+router.post("/preview", requireWriteAccess, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" })
@@ -62,7 +63,7 @@ router.post("/preview", upload.single("file"), async (req, res) => {
  * POST /api/import/execute
  * Upload an Excel file and execute the import
  */
-router.post("/execute", upload.single("file"), async (req, res) => {
+router.post("/execute", requireWriteAccess, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" })
@@ -103,7 +104,7 @@ function validateFilePath(filePath: string): string | null {
  * POST /api/import/preview-sample
  * Preview import using the sample file path (for development/testing)
  */
-router.post("/preview-sample", async (req, res) => {
+router.post("/preview-sample", requireWriteAccess, async (req, res) => {
   try {
     const { filePath } = req.body
 
@@ -132,7 +133,7 @@ router.post("/preview-sample", async (req, res) => {
  * POST /api/import/execute-sample
  * Execute import using the sample file path (for development/testing)
  */
-router.post("/execute-sample", async (req, res) => {
+router.post("/execute-sample", requireWriteAccess, async (req, res) => {
   try {
     const { filePath } = req.body
 

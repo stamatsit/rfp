@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react"
+import { Navigate } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   Upload,
   Image as ImageIcon,
@@ -28,6 +30,8 @@ import { topicsApi, photosApi, type PhotoResponse } from "@/lib/api"
 import type { Topic } from "@/types"
 
 export function PhotoUpload() {
+  const isAdmin = useIsAdmin()
+  if (!isAdmin) return <Navigate to="/" replace />
   const [topics, setTopics] = useState<Topic[]>([])
   const [photos, setPhotos] = useState<PhotoResponse[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -49,6 +53,7 @@ export function PhotoUpload() {
     description: "",
   })
   const [isSaving, setIsSaving] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(50)
 
   const filteredPhotos = useMemo(() => {
     return photos.filter((photo) => {
@@ -64,6 +69,14 @@ export function PhotoUpload() {
       return true
     })
   }, [photos, searchQuery, topicFilter, statusFilter])
+
+  // Reset visible count when filters change
+  useEffect(() => {
+    setVisibleCount(50)
+  }, [searchQuery, topicFilter, statusFilter])
+
+  const visiblePhotos = filteredPhotos.slice(0, visibleCount)
+  const hasMorePhotos = filteredPhotos.length > visibleCount
 
   const hasActiveFilters = topicFilter !== "all" || statusFilter !== "all"
 

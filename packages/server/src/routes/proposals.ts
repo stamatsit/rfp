@@ -8,6 +8,7 @@
 import { Router, type Request, type Response } from "express"
 import { queryProposalInsights, streamProposalInsights, getProposalMetrics } from "../services/proposalAIService.js"
 import { getSyncStatus, triggerSync } from "../services/proposalSyncService.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 
 const router = Router()
 
@@ -86,7 +87,7 @@ router.get("/sync/status", async (_req: Request, res: Response) => {
  * POST /api/proposals/sync/trigger
  * Manually trigger a sync
  */
-router.post("/sync/trigger", async (_req: Request, res: Response) => {
+router.post("/sync/trigger", requireWriteAccess, async (_req: Request, res: Response) => {
   try {
     const result = await triggerSync()
     res.json(result)

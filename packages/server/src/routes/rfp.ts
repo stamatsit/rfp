@@ -7,6 +7,7 @@ import { Router } from "express"
 import multer from "multer"
 import path from "path"
 import { extractDocumentText } from "../services/rfpService.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 import {
   saveDocument,
   getDocumentById,
@@ -47,7 +48,7 @@ const upload = multer({
  * POST /api/rfp/extract
  * Upload a document and extract its text content
  */
-router.post("/extract", upload.single("file"), async (req, res) => {
+router.post("/extract", requireWriteAccess, upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" })
@@ -87,7 +88,7 @@ router.get("/status", (_req, res) => {
  * POST /api/rfp/documents
  * Save a document (after extraction)
  */
-router.post("/documents", async (req, res) => {
+router.post("/documents", requireWriteAccess, async (req, res) => {
   try {
     const { name, type, originalFilename, mimeType, fileSize, pageCount, extractedText, notes, tags } = req.body
 
@@ -162,7 +163,7 @@ router.get("/documents/:id", async (req, res) => {
  * PATCH /api/rfp/documents/:id
  * Update a document's metadata
  */
-router.patch("/documents/:id", async (req, res) => {
+router.patch("/documents/:id", requireWriteAccess, async (req, res) => {
   try {
     const { name, type, notes, tags } = req.body
 
@@ -184,7 +185,7 @@ router.patch("/documents/:id", async (req, res) => {
  * DELETE /api/rfp/documents/:id
  * Delete a saved document
  */
-router.delete("/documents/:id", async (req, res) => {
+router.delete("/documents/:id", requireWriteAccess, async (req, res) => {
   try {
     const deleted = await deleteDocument(req.params.id)
 

@@ -8,6 +8,7 @@ import {
   getLinkedAnswers,
 } from "../services/linkService.js"
 import { logCopy } from "../services/auditService.js"
+import { requireWriteAccess } from "../middleware/auth.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const router = Router()
@@ -18,54 +19,53 @@ const router = Router()
  */
 router.get("/", async (req: Request, res: Response) => {
   try {
-    const { q, type, topicId, status, limit } = req.query
+    const { q, type, topicId, status, limit, offset } = req.query
 
     const query = (q as string)?.trim() || ""
     const searchType = type as "all" | "answers" | "photos" | undefined
-    const searchLimit = limit ? parseInt(limit as string, 10) : undefined
+    const searchLimit = limit ? parseInt(limit as string, 10) : 50
+    const searchOffset = offset ? parseInt(offset as string, 10) : 0
+    const filterOpts = {
+      topicId: topicId as string | undefined,
+      status: status as "Approved" | "Draft" | undefined,
+    }
 
     let answers: Awaited<ReturnType<typeof searchAnswers>> = []
     let photos: Awaited<ReturnType<typeof searchPhotos>> = []
+    let totalAnswers = 0
+    let totalPhotos = 0
 
     // If no query, just get all items with filters
     if (!query) {
       if (searchType !== "photos") {
-        answers = await getAnswers({
-          topicId: topicId as string | undefined,
-          status: status as "Approved" | "Draft" | undefined,
-          limit: searchLimit,
-        })
+        const allAnswers = await getAnswers(filterOpts)
+        totalAnswers = allAnswers.length
+        answers = allAnswers.slice(searchOffset, searchOffset + searchLimit)
       }
       if (searchType !== "answers") {
-        photos = await getPhotos({
-          topicId: topicId as string | undefined,
-          status: status as "Approved" | "Draft" | undefined,
-          limit: searchLimit,
-        })
+        const allPhotos = await getPhotos(filterOpts)
+        totalPhotos = allPhotos.length
+        photos = allPhotos.slice(searchOffset, searchOffset + searchLimit)
       }
     } else {
       // Search with query
       if (searchType !== "photos") {
-        answers = await searchAnswers(query, {
-          topicId: topicId as string | undefined,
-          status: status as "Approved" | "Draft" | undefined,
-          limit: searchLimit,
-        })
+        const allAnswers = await searchAnswers(query, filterOpts)
+        totalAnswers = allAnswers.length
+        answers = allAnswers.slice(searchOffset, searchOffset + searchLimit)
       }
       if (searchType !== "answers") {
-        photos = await searchPhotos(query, {
-          topicId: topicId as string | undefined,
-          status: status as "Approved" | "Draft" | undefined,
-          limit: searchLimit,
-        })
+        const allPhotos = await searchPhotos(query, filterOpts)
+        totalPhotos = allPhotos.length
+        photos = allPhotos.slice(searchOffset, searchOffset + searchLimit)
       }
     }
 
     res.json({
       answers,
       photos,
-      totalAnswers: answers.length,
-      totalPhotos: photos.length,
+      totalAnswers,
+      totalPhotos,
     })
   } catch (error) {
     console.error("Search failed:", error)
@@ -224,7 +224,7 @@ router.post("/answers/:id/copy", async (req: Request, res: Response) => {
  * POST /api/search/link
  * Link an answer to a photo
  */
-router.post("/link", async (req: Request, res: Response) => {
+router.post("/link", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { answerId, photoId } = req.body
 
@@ -248,7 +248,7 @@ router.post("/link", async (req: Request, res: Response) => {
  * DELETE /api/search/link
  * Unlink an answer from a photo
  */
-router.delete("/link", async (req: Request, res: Response) => {
+router.delete("/link", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     const { answerId, photoId } = req.body
 

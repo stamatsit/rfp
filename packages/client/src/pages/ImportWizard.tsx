@@ -1,5 +1,6 @@
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, Navigate } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import { ArrowLeft, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Sparkles, FileCheck, ListChecks, PartyPopper } from "lucide-react"
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@/components/ui"
 import { AppHeader } from "@/components/AppHeader"
@@ -19,6 +20,8 @@ const stepConfig = [
 ] as const
 
 export function ImportWizard() {
+  const isAdmin = useIsAdmin()
+  if (!isAdmin) return <Navigate to="/" replace />
   const [step, setStep] = useState<WizardStep>("upload")
   const [file, setFile] = useState<File | null>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)

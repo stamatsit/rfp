@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
+import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   Search,
   Copy,
@@ -911,6 +912,7 @@ function ProposalsSection() {
 }
 
 export function SearchLibrary() {
+  const isAdmin = useIsAdmin()
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeSection, setActiveSection] = useState<LibrarySection>("qa")
   const [showNewEntry, setShowNewEntry] = useState(false)
@@ -1498,11 +1500,13 @@ export function SearchLibrary() {
                 <span className="text-[13px] font-medium">{section.label}</span>
               </button>
             ))}
-            <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
-              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
-                <Plus size={15} /> New Entry
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
+                <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
+                  <Plus size={15} /> New Entry
+                </button>
+              </div>
+            )}
           </aside>
           <main className="flex-1">
             <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
@@ -1555,11 +1559,13 @@ export function SearchLibrary() {
               <span className="text-[13px] font-medium">{section.label}</span>
             </button>
           ))}
-          <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
-            <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
-              <Plus size={15} /> New Entry
-            </button>
-          </div>
+          {isAdmin && (
+            <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
+              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
+                <Plus size={15} /> New Entry
+              </button>
+            </div>
+          )}
         </aside>
 
         {/* Content Area */}
@@ -2121,24 +2127,28 @@ export function SearchLibrary() {
                     )}
                     History
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => startEditingAnswer(selectedAnswer)}
-                    className="rounded-lg"
-                  >
-                    <Pencil size={14} className="mr-1.5" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
-                  >
-                    <Trash2 size={14} className="mr-1.5" />
-                    Delete
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => startEditingAnswer(selectedAnswer)}
+                      className="rounded-lg"
+                    >
+                      <Pencil size={14} className="mr-1.5" />
+                      Edit
+                    </Button>
+                  )}
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 border-red-200 dark:border-red-800"
+                    >
+                      <Trash2 size={14} className="mr-1.5" />
+                      Delete
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -2593,15 +2603,17 @@ export function SearchLibrary() {
                     <span className="text-slate-500 dark:text-slate-400 font-normal">({linkedPhotos.length})</span>
                     {loadingLinked && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
                   </h4>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openLinkPicker("photo", selectedAnswer.id)}
-                    className="rounded-lg"
-                  >
-                    <Link2 size={14} className="mr-1.5" />
-                    Link Photos
-                  </Button>
+                  {isAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openLinkPicker("photo", selectedAnswer.id)}
+                      className="rounded-lg"
+                    >
+                      <Link2 size={14} className="mr-1.5" />
+                      Link Photos
+                    </Button>
+                  )}
                 </div>
                 {linkedPhotos.length === 0 ? (
                   <p className="text-slate-500 dark:text-slate-400 text-sm text-center py-6 bg-slate-50 dark:bg-slate-800 rounded-xl">
@@ -2619,14 +2631,16 @@ export function SearchLibrary() {
                           alt={photo.displayTitle}
                           className="w-full h-full object-cover"
                         />
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg rounded-lg"
-                          onClick={() => handleUnlink(selectedAnswer.id, photo.id)}
-                        >
-                          <Unlink size={12} />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            className="absolute top-2 right-2 h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg rounded-lg"
+                            onClick={() => handleUnlink(selectedAnswer.id, photo.id)}
+                          >
+                            <Unlink size={12} />
+                          </Button>
+                        )}
                         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                           <p className="text-white text-xs truncate font-medium">
                             {photo.displayTitle}
@@ -2859,14 +2873,16 @@ export function SearchLibrary() {
                             {answer.answer}
                           </p>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
-                          onClick={() => handleUnlink(answer.id, selectedPhoto.id)}
-                        >
-                          <X size={14} />
-                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => handleUnlink(answer.id, selectedPhoto.id)}
+                          >
+                            <X size={14} />
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>

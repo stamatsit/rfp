@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom"
 import { HomePage } from "./pages"
 import Login from "./pages/Login"
+import Register from "./pages/Register"
 import ChangePassword from "./pages/ChangePassword"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
@@ -67,6 +68,7 @@ function AppRoutes() {
         <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/change-password" element={<ChangePassword />} />
           <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
           <Route path="/import" element={<ProtectedRoute><ImportWizard /></ProtectedRoute>} />
