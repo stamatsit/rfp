@@ -107,7 +107,7 @@ export function AppHeader({
   const displayBreadcrumbs = breadcrumbs || defaultBreadcrumbs
 
   return (
-    <header className="sticky top-0 z-50 backdrop-blur-premium border-b border-black/[0.03] dark:border-white/[0.06] transition-colors duration-300"
+    <header className="sticky top-0 z-[200] backdrop-blur-premium border-b border-black/[0.03] dark:border-white/[0.06] transition-colors duration-300"
       style={{
         background: 'linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.75))',
       }}
