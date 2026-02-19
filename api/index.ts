@@ -1242,7 +1242,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Write access check for non-admin users (read-only users can only use GET + exempt POST routes)
-    if (method !== "GET" && session?.role !== "admin") {
+    // Always check the DB for the latest role (session cookie may be stale)
+    let effectiveRole = session?.role
+    if (method !== "GET" && effectiveRole !== "admin" && session?.userId && db) {
+      const [dbUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, session.userId)).limit(1)
+      if (dbUser) effectiveRole = dbUser.role
+    }
+    if (method !== "GET" && effectiveRole !== "admin") {
       const isExempt = isWriteExemptPath(path, method)
       if (!isExempt) {
         return res.status(403).json({ error: "Write access requires admin role" })
