@@ -2672,6 +2672,35 @@ ${compDataContext}`
       }
     }
 
+    // PUT /photos/:id - update photo metadata
+    const photoUpdateMatch = path.match(/^\/photos\/([^/]+)$/)
+    if (photoUpdateMatch && method === "PUT") {
+      const id = photoUpdateMatch[1]
+      const { displayTitle, topicId, status, tags, description } = req.body || {}
+
+      // Fetch existing photo
+      const [existing] = await db.select().from(photoAssets).where(eq(photoAssets.id, id)).limit(1)
+      if (!existing) {
+        return res.status(404).json({ error: "Photo not found" })
+      }
+
+      const updates: Record<string, any> = {}
+      if (displayTitle !== undefined) updates.displayTitle = displayTitle.trim()
+      if (topicId !== undefined) updates.topicId = topicId
+      if (status !== undefined) updates.status = status
+      if (description !== undefined) updates.description = description?.trim()
+      if (tags !== undefined) updates.tags = Array.isArray(tags) ? tags : []
+
+      if (Object.keys(updates).length === 0) {
+        return res.json(existing)
+      }
+
+      updates.updatedAt = new Date()
+
+      const [updated] = await db.update(photoAssets).set(updates).where(eq(photoAssets.id, id)).returning()
+      return res.json(updated)
+    }
+
     // GET /photos/file/:storageKey - redirect to Supabase Storage URL
     if (path.startsWith("/photos/file/") && method === "GET") {
       const storageKey = path.replace("/photos/file/", "")
