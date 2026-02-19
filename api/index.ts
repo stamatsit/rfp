@@ -879,6 +879,30 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).end()
   }
 
+  // Manually parse JSON body since bodyParser is disabled (needed for multipart uploads)
+  const contentType = req.headers["content-type"] || ""
+  if (!contentType.includes("multipart/form-data") && (req.method === "POST" || req.method === "PUT" || req.method === "PATCH" || req.method === "DELETE")) {
+    if (!req.body || (typeof req.body !== "object") || Buffer.isBuffer(req.body)) {
+      try {
+        const chunks: Buffer[] = []
+        await new Promise<void>((resolve, reject) => {
+          req.on("data", (chunk: Buffer) => chunks.push(chunk))
+          req.on("end", () => resolve())
+          req.on("error", reject)
+        })
+        const raw = Buffer.concat(chunks).toString("utf-8")
+        if (raw) {
+          req.body = JSON.parse(raw)
+        } else {
+          req.body = {}
+        }
+      } catch {
+        // If JSON parse fails, leave body as-is (could be form-encoded etc.)
+        if (!req.body) req.body = {}
+      }
+    }
+  }
+
   // Rate limiting
   const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0] || req.headers["x-real-ip"] as string || "unknown"
   const rateLimit = checkRateLimit(ip)
@@ -4326,11 +4350,11 @@ RULES:
   }
 }
 
-// Vercel config — increase body size limit for file uploads
+// Vercel config — disable bodyParser so multipart/form-data arrives as raw Buffer
+// (Vercel's built-in parser corrupts binary data in multipart uploads)
+// JSON bodies are manually parsed in the handler instead
 export const config = {
   api: {
-    bodyParser: {
-      sizeLimit: "20mb",
-    },
+    bodyParser: false,
   },
 }
