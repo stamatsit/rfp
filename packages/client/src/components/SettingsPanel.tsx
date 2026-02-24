@@ -25,9 +25,6 @@ import {
   Command,
   Rocket,
   TrendingUp,
-  Target,
-  MessageSquare,
-  Award,
   GripVertical,
   Keyboard,
   Save,
@@ -41,6 +38,7 @@ import {
   Trash2,
   Lock,
   Loader2,
+  Quote,
 } from "lucide-react"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
@@ -119,11 +117,11 @@ const defaultTiles: TileConfig[] = [
     id: "rfp-analyzer",
     to: "/analyze",
     icon: <FileSearch size={22} strokeWidth={2} />,
-    title: "RFP Analyzer",
-    description: "Upload RFPs and auto-match to your library content",
-    gradient: "linear-gradient(135deg, #F43F5E 0%, #E11D48 50%, #BE123C 100%)",
-    shadowColor: "rgba(244, 63, 94, 0.15)",
-    enabled: false,
+    title: "Document Scanner",
+    description: "Upload RFPs & proposals — AI flags key items automatically",
+    gradient: "linear-gradient(135deg, #FF3B30 0%, #E0312B 50%, #C5221F 100%)",
+    shadowColor: "rgba(255, 59, 48, 0.15)",
+    enabled: true,
   },
   {
     id: "proposal-insights",
@@ -148,13 +146,24 @@ const defaultTiles: TileConfig[] = [
     badge: "BETA",
   },
   {
+    id: "testimonials",
+    to: "/testimonials",
+    icon: <Quote size={22} strokeWidth={2} />,
+    title: "Testimonials",
+    description: "Browse, approve, and find the perfect client quote",
+    gradient: "linear-gradient(135deg, #F97316 0%, #EA580C 50%, #C2410C 100%)",
+    shadowColor: "rgba(249, 115, 22, 0.15)",
+    enabled: true,
+    badge: "NEW",
+  },
+  {
     id: "unified-ai",
     to: "/unified-ai",
     icon: <Layers size={22} strokeWidth={2} />,
     title: "Unified AI",
     description: "Cross-reference all your data: proposals, client results, and library",
-    gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
-    shadowColor: "rgba(99, 102, 241, 0.15)",
+    gradient: "linear-gradient(135deg, #0EA5E9 0%, #0284C7 50%, #0369A1 100%)",
+    shadowColor: "rgba(14, 165, 233, 0.15)",
     enabled: false,
     badge: "POWER",
   },
@@ -277,7 +286,7 @@ const defaultSettings: AppSettings = {
   commandPaletteEnabled: true,
   aiPoweredSearch: false,
   smartSuggestions: true,
-  companionEnabled: false,
+  companionEnabled: true,
   shortcuts: {
     search: "Cmd+K",
     ai: "Cmd+J",
@@ -370,7 +379,7 @@ export function getWidgetDefaults() {
 const accentColors = [
   { name: "Blue", value: "#3B82F6", gradient: "from-blue-500 to-blue-600" },
   { name: "Purple", value: "#8B5CF6", gradient: "from-purple-500 to-purple-600" },
-  { name: "Pink", value: "#EC4899", gradient: "from-pink-500 to-pink-600" },
+  { name: "Indigo", value: "#6366F1", gradient: "from-indigo-500 to-indigo-600" },
   { name: "Red", value: "#EF4444", gradient: "from-red-500 to-red-600" },
   { name: "Orange", value: "#F97316", gradient: "from-orange-500 to-orange-600" },
   { name: "Yellow", value: "#EAB308", gradient: "from-yellow-500 to-yellow-600" },
@@ -800,7 +809,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       <span className={`ml-auto px-1.5 py-0.5 text-[9px] font-bold uppercase text-white rounded-full ${
                         cat.id === "widgets"
                           ? "bg-gradient-to-r from-blue-500 to-indigo-500"
-                          : "bg-gradient-to-r from-purple-500 to-pink-500"
+                          : "bg-gradient-to-r from-purple-500 to-indigo-500"
                       }`}>
                         {badge}
                       </span>
@@ -898,7 +907,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             onChange={(e) => { setCurrentPw(e.target.value) }}
                             className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
                                        border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
-                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                             placeholder="Enter current password"
                           />
                         </div>
@@ -913,7 +922,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             onChange={(e) => { setNewPw(e.target.value) }}
                             className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
                                        border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
-                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                             placeholder="Min 8 characters"
                           />
                         </div>
@@ -928,7 +937,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             onChange={(e) => { setConfirmPw(e.target.value) }}
                             className="w-full pl-9 pr-3 py-2.5 text-[13px] rounded-xl bg-slate-50 dark:bg-slate-800
                                        border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white
-                                       focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                                       focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
                             placeholder="Confirm new password"
                           />
                         </div>
@@ -1364,26 +1373,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         </div>
                         <Toggle enabled={settings.commandPaletteEnabled} onChange={() => updateSetting("commandPaletteEnabled", !settings.commandPaletteEnabled)} />
                       </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-3">
-                          <Rocket size={16} className="text-slate-500 dark:text-slate-400" />
-                          <div>
-                            <p className="text-[13px] text-slate-700 dark:text-slate-300">AI-Powered Search</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Semantic search understanding</p>
-                          </div>
-                        </div>
-                        <Toggle enabled={settings.aiPoweredSearch} onChange={() => updateSetting("aiPoweredSearch", !settings.aiPoweredSearch)} />
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                        <div className="flex items-center gap-3">
-                          <Target size={16} className="text-slate-500 dark:text-slate-400" />
-                          <div>
-                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Smart Suggestions</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Activity-based recommendations</p>
-                          </div>
-                        </div>
-                        <Toggle enabled={settings.smartSuggestions} onChange={() => updateSetting("smartSuggestions", !settings.smartSuggestions)} />
-                      </div>
                       <div className="flex items-center justify-between p-3 rounded-xl bg-sky-50/60 dark:bg-sky-900/20 border border-sky-200/60 dark:border-sky-800/40">
                         <div className="flex items-center gap-3">
                           <Sparkles size={16} className="text-sky-500 dark:text-sky-400" />
@@ -1397,24 +1386,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                     </div>
                   </div>
 
-                  <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Coming Soon</h3>
-                    <div className="space-y-2">
-                      {[
-                        { icon: MessageSquare, label: "Team Collaboration" },
-                        { icon: Award, label: "Weekly Challenges" },
-                      ].map(item => {
-                        const Icon = item.icon
-                        return (
-                          <div key={item.label} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 opacity-60">
-                            <Icon size={16} className="text-slate-400 dark:text-slate-500" />
-                            <span className="text-[13px] text-slate-500 dark:text-slate-400">{item.label}</span>
-                            <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 uppercase font-medium">Soon</span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
                 </div>
               )}
             </div>
