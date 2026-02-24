@@ -83,8 +83,22 @@ function splitBuffer(buf: Buffer, delimiter: Buffer): Buffer[] {
   return parts
 }
 
+// --- Extracted image type ---
+interface ExtractedImage {
+  dataUrl: string
+  name: string
+  width: number
+  height: number
+  pageNumber?: number
+  contentType: string
+  sizeBytes: number
+}
+
+const MAX_IMAGES = 50
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024
+
 // --- Document text extraction (PDF, DOCX, TXT) ---
-async function extractDocumentText(buffer: Buffer, mimetype: string, filename: string): Promise<{ text: string; filename: string; pageCount?: number }> {
+async function extractDocumentText(buffer: Buffer, mimetype: string, filename: string): Promise<{ text: string; filename: string; pageCount?: number; images?: ExtractedImage[] }> {
   const ext = filename.toLowerCase().split(".").pop()
 
   // PDF
@@ -96,9 +110,44 @@ async function extractDocumentText(buffer: Buffer, mimetype: string, filename: s
       await parser.load()
       const info = await parser.getInfo()
       const textResult = await parser.getText()
+
+      // Extract images (deduplicated)
+      let images: ExtractedImage[] = []
+      const seenHashes = new Set<string>()
+      try {
+        const imgResult = await parser.getImage({
+          imageBuffer: false,
+          imageDataUrl: true,
+          imageThreshold: 80,
+        })
+        for (const page of imgResult.pages) {
+          for (const img of page.images) {
+            if (images.length >= MAX_IMAGES) break
+            const sizeBytes = Math.round((img.dataUrl.length - img.dataUrl.indexOf(",") - 1) * 0.75)
+            if (sizeBytes > MAX_IMAGE_BYTES) continue
+            const hash = crypto.createHash("md5").update(img.dataUrl).digest("hex")
+            if (seenHashes.has(hash)) continue
+            seenHashes.add(hash)
+            const contentType = img.dataUrl.match(/^data:(image\/[^;]+);/)?.[1] || "image/png"
+            images.push({
+              dataUrl: img.dataUrl,
+              name: img.name || `page${page.pageNumber}-img${page.images.indexOf(img)}`,
+              width: img.width,
+              height: img.height,
+              pageNumber: page.pageNumber,
+              contentType,
+              sizeBytes,
+            })
+          }
+          if (images.length >= MAX_IMAGES) break
+        }
+      } catch (err) {
+        console.warn("Image extraction failed for PDF:", err)
+      }
+
       parser.destroy()
       const pdfText = textResult.pages.map((p: { text: string }) => p.text).join("\n\n")
-      return { text: pdfText, filename, pageCount: info.numPages }
+      return { text: pdfText, filename, pageCount: info.numPages, images: images.length > 0 ? images : undefined }
     } catch (pdfErr: any) {
       console.error("PDF parse error:", pdfErr?.message)
       return { text: buffer.toString("utf-8"), filename }
@@ -107,14 +156,68 @@ async function extractDocumentText(buffer: Buffer, mimetype: string, filename: s
 
   // DOCX
   if (ext === "docx" || mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-    const result = await mammoth.extractRawText({ buffer })
-    return { text: result.value, filename }
+    const images: ExtractedImage[] = []
+    const seenHashes = new Set<string>()
+    let imgIndex = 0
+    const htmlResult = await mammoth.convertToHtml(
+      { buffer },
+      {
+        convertImage: mammoth.images.imgElement(async (image) => {
+          if (images.length >= MAX_IMAGES) return { src: "" }
+          try {
+            const base64 = await image.readAsBase64String()
+            const hash = crypto.createHash("md5").update(base64).digest("hex")
+            if (seenHashes.has(hash)) return { src: "" }
+            seenHashes.add(hash)
+            const ct = image.contentType || "image/png"
+            const dataUrl = `data:${ct};base64,${base64}`
+            const sizeBytes = Math.round(base64.length * 0.75)
+            if (sizeBytes <= MAX_IMAGE_BYTES) {
+              imgIndex++
+              images.push({ dataUrl, name: `image_${imgIndex}`, width: 0, height: 0, contentType: ct, sizeBytes })
+            }
+          } catch (err) {
+            console.warn(`Failed to extract DOCX image ${imgIndex}:`, err)
+          }
+          return { src: "" }
+        }),
+      }
+    )
+    const text = htmlResult.value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    return { text, filename, images: images.length > 0 ? images : undefined }
   }
 
   // DOC
   if (ext === "doc" || mimetype === "application/msword") {
-    const result = await mammoth.extractRawText({ buffer })
-    return { text: result.value, filename }
+    const images: ExtractedImage[] = []
+    const seenHashes = new Set<string>()
+    let imgIndex = 0
+    const htmlResult = await mammoth.convertToHtml(
+      { buffer },
+      {
+        convertImage: mammoth.images.imgElement(async (image) => {
+          if (images.length >= MAX_IMAGES) return { src: "" }
+          try {
+            const base64 = await image.readAsBase64String()
+            const hash = crypto.createHash("md5").update(base64).digest("hex")
+            if (seenHashes.has(hash)) return { src: "" }
+            seenHashes.add(hash)
+            const ct = image.contentType || "image/png"
+            const dataUrl = `data:${ct};base64,${base64}`
+            const sizeBytes = Math.round(base64.length * 0.75)
+            if (sizeBytes <= MAX_IMAGE_BYTES) {
+              imgIndex++
+              images.push({ dataUrl, name: `image_${imgIndex}`, width: 0, height: 0, contentType: ct, sizeBytes })
+            }
+          } catch (err) {
+            console.warn(`Failed to extract DOC image ${imgIndex}:`, err)
+          }
+          return { src: "" }
+        }),
+      }
+    )
+    const text = htmlResult.value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim()
+    return { text, filename, images: images.length > 0 ? images : undefined }
   }
 
   // TXT or fallback
@@ -488,6 +591,8 @@ export const answerItems = pgTable("answer_items", {
   status: text("status").notNull().default("Approved"),
   tags: jsonb("tags").$type<string[]>().default([]),
   fingerprint: text("fingerprint").notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -610,6 +715,24 @@ export const savedDocuments = pgTable("saved_documents", {
   extractedText: text("extracted_text").notNull(),
   notes: text("notes"),
   tags: jsonb("tags").$type<string[]>().default([]),
+  userId: text("user_id"),
+  uploaderName: text("uploader_name"),
+  scanResults: jsonb("scan_results").default([]),
+  scanCriteria: jsonb("scan_criteria_snapshot").default([]),
+  scanSummary: text("scan_summary"),
+  scannedAt: timestamp("scanned_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Scan Criteria (persistent user-defined flags to look for)
+export const scanCriteria = pgTable("scan_criteria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -682,7 +805,7 @@ export const studioAssets = pgTable("studio_assets", {
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations, savedDocuments, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations, savedDocuments, scanCriteria, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
 
 // Supabase client - use service role key for server-side operations (bypasses RLS)
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -786,6 +909,15 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   if (path === "/feedback" || path === "/feedback/") return true
   // Copy events — audit log only
   if (/^\/search\/answers\/[^/]+\/copy$/.test(path)) return true
+  // Usage tracking — any user can mark items as used
+  if (/^\/client-success\/testimonials\/[^/]+\/usage$/.test(path)) return true
+  if (/^\/client-success\/entries\/[^/]+\/usage$/.test(path)) return true
+  if (/^\/client-success\/results\/[^/]+\/usage$/.test(path)) return true
+  if (/^\/client-success\/awards\/[^/]+\/usage$/.test(path)) return true
+  // RFP scanning — all users can upload, scan, and manage criteria
+  if (path.startsWith("/rfp/scan")) return true
+  if (path.startsWith("/rfp/extract")) return true
+  if (path.startsWith("/rfp/documents")) return true
   return false
 }
 
@@ -1490,9 +1622,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ ...photo, linkedAnswers: linkedAnswers.map(r => r.answer) })
       }
 
-      // POST /search/answers/:id/copy - log copy event (just acknowledge)
+      // POST /search/answers/:id/copy - log copy event + increment usage count
       const copyMatch = path.match(/^\/search\/answers\/([^/]+)\/copy$/)
       if (copyMatch && method === "POST") {
+        const answerId = copyMatch[1]
+        try {
+          await db.update(answerItems).set({ usageCount: sql`${answerItems.usageCount} + 1`, lastUsedAt: new Date() }).where(eq(answerItems.id, answerId))
+        } catch { /* best-effort */ }
         return res.json({ success: true })
       }
 
@@ -2396,6 +2532,377 @@ ${csStreamContext}`
           res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
           return res.end()
         }
+      }
+    }
+
+    // ─── AI Testimonial Finder ──────────
+    if (path === "/ai/testimonial-finder" && method === "POST") {
+      if (!openai) return res.status(503).json({ error: "AI service not configured." })
+      const { description, sector, limit: findLimit } = req.body || {}
+      if (!description || typeof description !== "string" || description.trim().length < 3) {
+        return res.status(400).json({ error: "Description must be at least 3 characters" })
+      }
+      try {
+        // Get approved testimonials from DB
+        let testimonials: any[] = []
+        try {
+          if (!queryClient) throw new Error("No DB")
+          const result = await queryClient`SELECT id, quote, name, title, organization, sector, tags FROM client_success_testimonials WHERE status != 'hidden'`
+          testimonials = result
+        } catch { testimonials = [] }
+
+        if (testimonials.length === 0) {
+          return res.json({ matches: [], totalSearched: 0, tokensUsed: 0 })
+        }
+
+        // Apply sector filter
+        if (sector) {
+          testimonials = testimonials.filter((t: any) => t.sector === sector)
+        }
+
+        const maxResults = findLimit ? parseInt(findLimit, 10) : 5
+        const contextLines = testimonials.map((t: any) => {
+          const who = [t.name, t.title].filter(Boolean).join(", ")
+          const tags = Array.isArray(t.tags) && t.tags.length > 0 ? ` [tags: ${t.tags.join(", ")}]` : ""
+          return `ID:${t.id} | "${t.quote}" — ${who ? `${who}, ` : ""}${t.organization} [${t.sector || "unknown"}]${tags}`
+        })
+
+        const finderPrompt = `You are a testimonial matching assistant for Stamats, a marketing agency specializing in higher education and healthcare marketing.
+
+You have access to ${testimonials.length} approved client testimonials. The user will describe what they need a testimonial for, and you must select the ${maxResults} most relevant testimonials.
+
+RULES:
+1. Only select testimonials from the provided list — never invent quotes
+2. Rank by relevance to the user's description
+3. For each match, explain WHY it's relevant in 1-2 sentences
+4. Return EXACTLY valid JSON (no markdown, no code fences)
+5. If fewer than ${maxResults} are relevant, return fewer
+
+Return format:
+{"matches":[{"id":"uuid","reason":"why this testimonial is relevant"}]}
+
+--- TESTIMONIALS ---
+${contextLines.join("\n")}`
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: finderPrompt },
+            { role: "user", content: description.trim() },
+          ],
+          temperature: 0.3,
+          max_tokens: 2000,
+          response_format: { type: "json_object" },
+        })
+
+        const rawResponse = completion.choices[0]?.message?.content || "{}"
+        const tokensUsed = completion.usage?.total_tokens || 0
+
+        let parsed: { matches?: Array<{ id: string; reason: string }> }
+        try { parsed = JSON.parse(rawResponse) } catch { parsed = {} }
+
+        const testimonialMap = new Map(testimonials.map((t: any) => [t.id, t]))
+        const matches: any[] = []
+        for (const m of parsed.matches || []) {
+          const t = testimonialMap.get(m.id)
+          if (!t) continue
+          matches.push({
+            testimonialId: t.id,
+            quote: t.quote,
+            name: t.name,
+            title: t.title,
+            organization: t.organization,
+            sector: t.sector,
+            relevanceReason: m.reason,
+          })
+        }
+
+        return res.json({ matches, totalSearched: testimonials.length, tokensUsed })
+      } catch (err: any) {
+        console.error("Testimonial finder error:", err?.message || err)
+        return res.status(500).json({ error: "Failed to find testimonials" })
+      }
+    }
+
+    // ─── Client Success Testimonials CRUD ──────────
+    if (path === "/client-success/testimonials" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const { status, sector, search, sort = "recent", limit: lim = "50", offset: off = "0", featured } = req.query as any
+        let whereClause = "WHERE 1=1"
+        if (status && ["approved", "draft", "hidden"].includes(status)) whereClause += ` AND status = '${status}'`
+        if (sector && ["higher-ed", "healthcare", "other"].includes(sector)) whereClause += ` AND sector = '${sector}'`
+        if (featured === "true") whereClause += ` AND featured = true`
+        if (search) whereClause += ` AND (quote ILIKE '%${search.replace(/'/g, "''")}%' OR organization ILIKE '%${search.replace(/'/g, "''")}%' OR name ILIKE '%${search.replace(/'/g, "''")}%')`
+        let orderBy = "ORDER BY created_at DESC"
+        if (sort === "most-used") orderBy = "ORDER BY usage_count DESC"
+        else if (sort === "org-asc") orderBy = "ORDER BY organization ASC"
+        else if (sort === "shortest") orderBy = "ORDER BY length(quote) ASC"
+        else if (sort === "longest") orderBy = "ORDER BY length(quote) DESC"
+        const limitVal = Math.min(parseInt(lim) || 50, 200)
+        const offsetVal = parseInt(off) || 0
+        const [rows, countResult] = await Promise.all([
+          queryClient.unsafe(`SELECT * FROM client_success_testimonials ${whereClause} ${orderBy} LIMIT ${limitVal} OFFSET ${offsetVal}`),
+          queryClient.unsafe(`SELECT COUNT(*)::int as count FROM client_success_testimonials ${whereClause}`),
+        ])
+        return res.json({ testimonials: rows, total: countResult[0]?.count ?? 0 })
+      } catch (err: any) {
+        console.error("Get testimonials error:", err?.message)
+        return res.status(500).json({ error: "Failed to get testimonials" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        const [row] = await queryClient`SELECT * FROM client_success_testimonials WHERE id = ${id}`
+        if (!row) return res.status(404).json({ error: "Not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get testimonial" })
+      }
+    }
+
+    if (path === "/client-success/testimonials" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { quote, name, title, organization, source, sector, tags } = req.body || {}
+      if (!quote?.trim() || !organization?.trim()) return res.status(400).json({ error: "Quote and organization are required" })
+      try {
+        const userName = session?.userName || "unknown"
+        const [row] = await queryClient`INSERT INTO client_success_testimonials (quote, name, title, organization, source, status, sector, tags, added_by) VALUES (${quote.trim()}, ${name?.trim() || null}, ${title?.trim() || null}, ${organization.trim()}, ${source?.trim() || null}, 'draft', ${sector || null}, ${JSON.stringify(tags || [])}::jsonb, ${userName}) RETURNING *`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to create testimonial" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+$/) && method === "PUT") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      const { quote, name, title, organization, source, sector, tags } = req.body || {}
+      if (!quote?.trim() || !organization?.trim()) return res.status(400).json({ error: "Quote and organization are required" })
+      try {
+        const [row] = await queryClient`UPDATE client_success_testimonials SET quote = ${quote.trim()}, name = ${name?.trim() || null}, title = ${title?.trim() || null}, organization = ${organization.trim()}, source = ${source?.trim() || null}, sector = ${sector || null}, tags = ${JSON.stringify(tags || [])}::jsonb, updated_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update testimonial" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+\/status$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      const { status } = req.body || {}
+      if (!status || !["approved", "draft", "hidden"].includes(status)) return res.status(400).json({ error: "Valid status required" })
+      try {
+        const userName = session?.userName || "unknown"
+        let row
+        if (status === "approved") {
+          ;[row] = await queryClient`UPDATE client_success_testimonials SET status = ${status}, approved_by = ${userName}, approved_at = NOW(), updated_at = NOW() WHERE id = ${id} RETURNING *`
+        } else {
+          ;[row] = await queryClient`UPDATE client_success_testimonials SET status = ${status}, updated_at = NOW() WHERE id = ${id} RETURNING *`
+        }
+        if (!row) return res.status(404).json({ error: "Not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update status" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+\/usage$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [row] = await queryClient`UPDATE client_success_testimonials SET usage_count = usage_count + 1, last_used_at = NOW(), updated_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to increment usage" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+\/featured$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [row] = await queryClient`UPDATE client_success_testimonials SET featured = NOT featured, updated_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to toggle featured" })
+      }
+    }
+
+    if (path === "/client-success/testimonials/bulk-status" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { ids, status } = req.body || {}
+      if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids array required" })
+      if (!status || !["approved", "draft", "hidden"].includes(status)) return res.status(400).json({ error: "Valid status required" })
+      try {
+        const userName = session?.userName || "unknown"
+        let rows
+        if (status === "approved") {
+          rows = await queryClient`UPDATE client_success_testimonials SET status = ${status}, approved_by = ${userName}, approved_at = NOW(), updated_at = NOW() WHERE id = ANY(${ids}) RETURNING *`
+        } else {
+          rows = await queryClient`UPDATE client_success_testimonials SET status = ${status}, updated_at = NOW() WHERE id = ANY(${ids}) RETURNING *`
+        }
+        return res.json({ updated: rows.length, testimonials: rows })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to bulk update" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/testimonials\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        await queryClient`DELETE FROM client_success_testimonials WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete testimonial" })
+      }
+    }
+
+    // ─── Client Success Entries CRUD ──────────
+
+    if (path === "/client-success/entries" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`SELECT * FROM client_success_entries ORDER BY created_at`
+        return res.json(rows)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get entries" })
+      }
+    }
+
+    if (path === "/client-success/entries" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { client, category, focus, challenge, solution, metrics, testimonialQuote, testimonialAttribution } = req.body || {}
+      if (!client?.trim() || !category || !focus?.trim()) return res.status(400).json({ error: "Client, category, and focus are required" })
+      try {
+        const [row] = await queryClient`INSERT INTO client_success_entries (client, category, focus, challenge, solution, metrics, testimonial_quote, testimonial_attribution) VALUES (${client.trim()}, ${category}, ${focus.trim()}, ${challenge?.trim() || null}, ${solution?.trim() || null}, ${JSON.stringify(metrics || [])}::jsonb, ${testimonialQuote?.trim() || null}, ${testimonialAttribution?.trim() || null}) RETURNING *`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to create entry" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/entries\/[^/]+\/usage$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [row] = await queryClient`UPDATE client_success_entries SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Entry not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to increment usage" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/entries\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        await queryClient`DELETE FROM client_success_entries WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete entry" })
+      }
+    }
+
+    // ─── Client Success Results CRUD ──────────
+
+    if (path === "/client-success/results" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`SELECT * FROM client_success_results ORDER BY created_at`
+        return res.json(rows)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get results" })
+      }
+    }
+
+    if (path === "/client-success/results" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { metric, result: resultVal, client, numericValue, direction } = req.body || {}
+      if (!metric?.trim() || !resultVal?.trim() || !client?.trim() || numericValue == null || !direction) return res.status(400).json({ error: "All fields are required" })
+      try {
+        const [row] = await queryClient`INSERT INTO client_success_results (metric, result, client, numeric_value, direction) VALUES (${metric.trim()}, ${resultVal.trim()}, ${client.trim()}, ${Number(numericValue)}, ${direction}) RETURNING *`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to create result" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/results\/[^/]+\/usage$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [row] = await queryClient`UPDATE client_success_results SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Result not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to increment usage" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/results\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        await queryClient`DELETE FROM client_success_results WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete result" })
+      }
+    }
+
+    // ─── Client Success Awards CRUD ──────────
+
+    if (path === "/client-success/awards" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`SELECT * FROM client_success_awards ORDER BY created_at`
+        return res.json(rows)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get awards" })
+      }
+    }
+
+    if (path === "/client-success/awards" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { name, year, clientOrProject } = req.body || {}
+      if (!name?.trim() || !year?.trim() || !clientOrProject?.trim()) return res.status(400).json({ error: "All fields are required" })
+      try {
+        const [row] = await queryClient`INSERT INTO client_success_awards (name, year, client_or_project) VALUES (${name.trim()}, ${year.trim()}, ${clientOrProject.trim()}) RETURNING *`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to create award" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/awards\/[^/]+\/usage$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [row] = await queryClient`UPDATE client_success_awards SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Award not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to increment usage" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/awards\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        await queryClient`DELETE FROM client_success_awards WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete award" })
       }
     }
 
@@ -3881,8 +4388,8 @@ RULES:
       if ((path === "/rfp/extract" || path === "/rfp/extract/") && method === "POST") {
         try {
           const { buffer, mimetype, filename } = await parseMultipartForm(req)
-          if (buffer.length > 20 * 1024 * 1024) {
-            return res.status(413).json({ error: "File too large (max 20MB)" })
+          if (buffer.length > 50 * 1024 * 1024) {
+            return res.status(413).json({ error: "File too large (max 50MB)" })
           }
           const result = await extractDocumentText(buffer, mimetype, filename)
           return res.json(result)
@@ -3894,10 +4401,217 @@ RULES:
 
       // GET /rfp/status
       if ((path === "/rfp/status" || path === "/rfp/status/") && method === "GET") {
-        return res.json({ available: true, supportedFormats: ["pdf", "docx", "doc", "txt"], maxFileSize: "20MB" })
+        return res.json({ available: true, supportedFormats: ["pdf", "docx", "doc", "txt"], maxFileSize: "50MB" })
       }
 
       if (!db) return res.status(503).json({ error: "Database unavailable" })
+
+      // POST /rfp/scan — AI scan a document for flags
+      if ((path === "/rfp/scan" || path === "/rfp/scan/") && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "OpenAI not configured" })
+        const { documentId, documentText, documentType, criteria, originalFilename, mimeType: mt, fileSize: fs, pageCount, name } = req.body || {}
+        if (!documentText) return res.status(400).json({ error: "Missing documentText" })
+
+        const today = new Date().toISOString().split("T")[0]
+        const customCriteria = (criteria || []) as Array<{ id: string; label: string; description?: string }>
+        const customCriteriaBlock = customCriteria.length > 0
+          ? customCriteria.map((c: any, i: number) => `${i + 1}. ${c.label}${c.description ? `: ${c.description}` : ""}`).join("\n")
+          : "None specified."
+
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            {
+              role: "system",
+              content: `You are a document analyst for Stamats, a marketing agency specializing in higher education and healthcare.
+
+The user has uploaded a ${documentType || "RFP"}. Analyze it against the criteria below and produce a list of flags.
+
+DEFAULT CRITERIA (always check these):
+1. Dollar amounts above $500,000 — flag any budget figures, contract values, or cost estimates exceeding $500K. Include the exact amount found.
+2. Insurance liability — flag any insurance requirements (general liability, professional liability, E&O, cyber liability) and note the required amounts so Stamats can verify coverage.
+3. Deadlines — flag all deadline dates, submission dates, and required timelines. Today is ${today}. Calculate and include how many days remain for any deadline.
+
+CUSTOM CRITERIA:
+${customCriteriaBlock}
+
+For each flag, provide:
+- id: "flag-1", "flag-2", etc.
+- severity: "high" (action needed urgently or critical issue), "medium" (should review), "low" (informational)
+- category: descriptive category (e.g., "budget", "insurance", "deadline", "compliance", or a custom one matching the criterion)
+- title: brief summary (under 80 chars)
+- excerpt: the exact text from the document that triggered this flag (verbatim quote, max 250 chars)
+- criterionId: if triggered by a custom criterion, include the criterion's id. Omit for default criteria.
+
+Return JSON: { "flags": [...], "summary": "1-3 sentence overall assessment of the document" }
+If nothing matches any criteria, return: { "flags": [], "summary": "No flags found." }
+Return ONLY valid JSON, no markdown fencing.`,
+            },
+            { role: "user", content: (documentText as string).slice(0, 12000) },
+          ],
+          temperature: 0.2,
+          max_tokens: 4000,
+          response_format: { type: "json_object" },
+        })
+
+        const raw = completion.choices[0]?.message?.content || "{}"
+        const parsed = JSON.parse(raw) as { flags: any[]; summary: string }
+        const flags = (parsed.flags || []).map((f: any) => ({ ...f, dismissed: false }))
+        const summary = parsed.summary || "Scan complete."
+        const scannedAt = new Date().toISOString()
+
+        let savedDocId = documentId
+        if (documentId) {
+          // Re-scan: update existing document
+          await db.update(savedDocuments).set({
+            scanResults: flags,
+            scanCriteria: customCriteria,
+            scanSummary: summary,
+            scannedAt: new Date(),
+            updatedAt: new Date(),
+          }).where(eq(savedDocuments.id, documentId))
+        } else {
+          // New upload: save document + scan results
+          const docName = name || (originalFilename || "Untitled").replace(/\.[^/.]+$/, "")
+          const [doc] = await db.insert(savedDocuments).values({
+            name: docName,
+            type: (documentType as "RFP" | "Proposal") ?? "RFP",
+            originalFilename: originalFilename || "uploaded-document",
+            mimeType: mt,
+            fileSize: fs,
+            pageCount,
+            extractedText: documentText,
+            userId: session?.userId || null,
+            uploaderName: session?.userName || null,
+            scanResults: flags,
+            scanCriteria: customCriteria,
+            scanSummary: summary,
+            scannedAt: new Date(),
+          }).returning()
+          savedDocId = doc.id
+        }
+
+        return res.json({ documentId: savedDocId, flags, summary, scannedAt })
+      }
+
+      // GET /rfp/scan-criteria — list user's criteria + system defaults
+      if ((path === "/rfp/scan-criteria" || path === "/rfp/scan-criteria/") && method === "GET") {
+        const userId = session?.userId || ""
+        // Seed system defaults if they don't exist
+        const systemRows = await db.select().from(scanCriteria).where(eq(scanCriteria.userId, "system"))
+        if (systemRows.length === 0) {
+          await db.insert(scanCriteria).values([
+            { userId: "system", label: "Budget over $500K", description: "Flag dollar amounts exceeding $500,000 including budgets, contract values, and cost estimates", isDefault: true, isActive: true },
+            { userId: "system", label: "Insurance liability", description: "Flag insurance requirements and liability amounts — note discrepancies with standard coverage", isDefault: true, isActive: true },
+            { userId: "system", label: "Deadlines", description: "Flag all deadline dates, submission dates, and required timelines. Note urgency for deadlines within 30 days", isDefault: true, isActive: true },
+          ])
+        }
+        const allCriteria = await db.select().from(scanCriteria).where(
+          or(eq(scanCriteria.userId, userId), eq(scanCriteria.userId, "system"))
+        ).orderBy(desc(scanCriteria.isDefault), scanCriteria.createdAt)
+        const defaults = allCriteria.filter(c => c.isDefault)
+        const custom = allCriteria.filter(c => !c.isDefault)
+        return res.json({ criteria: custom, defaults })
+      }
+
+      // POST /rfp/scan-criteria — add a custom criterion
+      if ((path === "/rfp/scan-criteria" || path === "/rfp/scan-criteria/") && method === "POST") {
+        const { label, description } = req.body || {}
+        if (!label) return res.status(400).json({ error: "Missing label" })
+        const [row] = await db.insert(scanCriteria).values({
+          userId: session?.userId || "",
+          label,
+          description: description || null,
+          isDefault: false,
+          isActive: true,
+        }).returning()
+        return res.json(row)
+      }
+
+      // DELETE /rfp/scan-criteria/:id
+      const criteriaMatch = path.match(/^\/rfp\/scan-criteria\/([^/]+)$/)
+      if (criteriaMatch && method === "DELETE") {
+        const id = criteriaMatch[1]
+        // Only allow deleting own criteria (not system defaults)
+        const result = await db.delete(scanCriteria).where(
+          and(eq(scanCriteria.id, id), eq(scanCriteria.userId, session?.userId || ""))
+        ).returning()
+        if (result.length === 0) return res.status(404).json({ error: "Criterion not found or not owned by you" })
+        return res.json({ success: true })
+      }
+
+      // PATCH /rfp/documents/:id/flags — update flags (dismiss, add notes)
+      const flagsMatch = path.match(/^\/rfp\/documents\/([^/]+)\/flags$/)
+      if (flagsMatch && method === "PATCH") {
+        const docId = flagsMatch[1]
+        const { flags } = req.body || {}
+        if (!Array.isArray(flags)) return res.status(400).json({ error: "flags must be an array" })
+        const [doc] = await db.update(savedDocuments).set({
+          scanResults: flags,
+          updatedAt: new Date(),
+        }).where(eq(savedDocuments.id, docId)).returning()
+        if (!doc) return res.status(404).json({ error: "Document not found" })
+        return res.json({ success: true })
+      }
+
+      // POST /rfp/save-images — save extracted images to photo library
+      if ((path === "/rfp/save-images" || path === "/rfp/save-images/") && method === "POST") {
+        const { images, topicId, documentName } = req.body || {}
+        if (!Array.isArray(images) || images.length === 0) {
+          return res.status(400).json({ error: "images array is required" })
+        }
+        if (!topicId) {
+          return res.status(400).json({ error: "topicId is required" })
+        }
+        if (!supabase) {
+          return res.status(503).json({ error: "Storage not configured" })
+        }
+
+        const results = []
+        const baseName = (documentName || "document").replace(/\.[^.]+$/, "")
+
+        for (const img of images) {
+          try {
+            const match = img.dataUrl?.match(/^data:(image\/(\w+));base64,(.+)$/)
+            if (!match) continue
+
+            const mimeType = match[1]!
+            const ext = match[2]!
+            const buffer = Buffer.from(match[3]!, "base64")
+            const storageKey = crypto.randomBytes(16).toString("hex")
+            const storagePath = `${storageKey}.${ext}`
+            const originalFilename = `${baseName}-${img.name}.${ext}`
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+              .from("photo-assets")
+              .upload(storagePath, buffer, { contentType: mimeType, upsert: true })
+
+            if (uploadError) {
+              console.warn(`Supabase upload failed for ${storageKey}: ${uploadError.message}`)
+              continue
+            }
+
+            // Create DB record
+            const [photo] = await db.insert(photoAssets).values({
+              originalFilename,
+              topicId,
+              displayTitle: `${baseName} - ${img.name}`,
+              status: "Draft",
+              tags: [],
+              mimeType,
+              fileSize: buffer.length,
+              storageKey,
+            }).returning()
+
+            if (photo) results.push(photo)
+          } catch (err: any) {
+            console.warn(`Failed to save image ${img.name}:`, err?.message)
+          }
+        }
+
+        return res.json({ success: true, saved: results.length, photos: results })
+      }
 
       // POST /rfp/documents — save a document
       if ((path === "/rfp/documents" || path === "/rfp/documents/") && method === "POST") {
@@ -3907,6 +4621,7 @@ RULES:
         }
         const [doc] = await db.insert(savedDocuments).values({
           name, type: type ?? "RFP", originalFilename, mimeType: mt, fileSize: fs, pageCount, extractedText, notes, tags: tags ?? [],
+          userId: session?.userId || null, uploaderName: session?.userName || null,
         }).returning()
         return res.status(201).json(doc)
       }
@@ -3959,8 +4674,8 @@ RULES:
       if ((path === "/studio/extract-document" || path === "/studio/extract-document/") && method === "POST") {
         try {
           const { buffer, mimetype, filename } = await parseMultipartForm(req)
-          if (buffer.length > 20 * 1024 * 1024) {
-            return res.status(413).json({ error: "File too large (max 20MB)" })
+          if (buffer.length > 50 * 1024 * 1024) {
+            return res.status(413).json({ error: "File too large (max 50MB)" })
           }
           const result = await extractDocumentText(buffer, mimetype, filename)
           const { isRFP } = detectRFPSignals(result.text)
