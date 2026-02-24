@@ -11,7 +11,7 @@
     "dev:client": "npm run dev -w @rfp-proposals/client",
     "dev:server": "npm run dev -w @rfp-proposals/server",
     "build": "npm run build -w @rfp-proposals/client && npm run build -w @rfp-proposals/server",
-    "vercel-build": "npm run build -w @rfp-proposals/client",
+    "vercel-build": "vite build --config packages/client/vite.config.ts",
     "test": "npm run test --workspaces --if-present"
   },
   "devDependencies": {
