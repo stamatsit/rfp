@@ -13,6 +13,7 @@ import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
 import { GuidedTour } from "@/components/tour"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
+import { useTheme } from "@/contexts/ThemeContext"
 import { getVisibleTiles, TileConfig } from "./Settings"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
 import { clientSuccessData } from "@/data/clientSuccessData"
@@ -136,14 +137,14 @@ function TypewriterText({ phrases }: { phrases: StatPhrase[] }) {
 
   return (
     <span className="relative inline-block">
-      <span className="bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+      <span className="text-[#C41230]">
         {displayedNumber}
       </span>
       <span className="text-slate-900 dark:text-white">
         {displayedText}
       </span>
       {showCursor && (
-        <span className="inline-block w-[3px] h-[1em] ml-1 align-middle bg-gradient-to-b from-red-500 to-rose-600 animate-blink" />
+        <span className="inline-block w-[3px] h-[1em] ml-1 align-middle bg-[#C41230] animate-blink" />
       )}
     </span>
   )
@@ -162,21 +163,29 @@ interface CardProps {
 
 function Card({ to, icon, title, description, gradient, shadowColor, badge, onClick, dataTour }: CardProps & { onClick?: () => void; dataTour?: string }) {
   const [isHovered, setIsHovered] = useState(false)
-  const className = "group relative block rounded-2xl p-6 cursor-pointer bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.06] transition-all duration-[350ms] ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
-  const style = { boxShadow: '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)' }
+  const { theme } = useTheme()
+  const isDark = theme === "dark"
+  const className = "group relative block rounded-2xl p-6 cursor-pointer bg-white dark:bg-slate-900 border border-black/[0.04] dark:border-white/[0.08] transition-all duration-[350ms] ease-out hover:-translate-y-1 active:translate-y-0 active:scale-[0.99]"
+  const restShadow = isDark
+    ? '0 0 0 1px rgb(255 255 255 / 0.03), 0 1px 2px rgb(0 0 0 / 0.3), 0 4px 8px rgb(0 0 0 / 0.2)'
+    : '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
+  const hoverShadow = isDark
+    ? `0 0 0 1px rgb(255 255 255 / 0.06), 0 4px 8px rgb(0 0 0 / 0.4), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.3)`
+    : `0 0 0 1px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.03)`
+  const style = { boxShadow: restShadow }
   const handleMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
     setIsHovered(true)
-    e.currentTarget.style.boxShadow = `0 0 0 1px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.04), 0 12px 24px ${shadowColor}, 0 24px 48px rgb(0 0 0 / 0.03)`
+    e.currentTarget.style.boxShadow = hoverShadow
   }
   const handleMouseLeave = (e: React.MouseEvent<HTMLElement>) => {
     setIsHovered(false)
-    e.currentTarget.style.boxShadow = '0 0 0 1px rgb(0 0 0 / 0.02), 0 1px 2px rgb(0 0 0 / 0.03), 0 4px 8px rgb(0 0 0 / 0.02)'
+    e.currentTarget.style.boxShadow = restShadow
   }
 
   const glowElement = (
     <div
       className="absolute -inset-1 rounded-2xl blur-2xl transition-opacity duration-500 -z-10"
-      style={{ backgroundColor: shadowColor, opacity: isHovered ? 0.5 : 0 }}
+      style={{ backgroundColor: shadowColor, opacity: isHovered ? 0.35 : 0 }}
     />
   )
 
@@ -185,7 +194,7 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
       {glowElement}
       {badge && (
         <div className="absolute top-3 right-3">
-          <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-full shadow-lg animate-pulse">
+          <span className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-teal-500 text-white rounded-full shadow-lg animate-pulse-subtle">
             {badge}
           </span>
         </div>
@@ -400,7 +409,7 @@ export function HomePage() {
   }, [handleSettingsChange])
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
       <AppHeader />
 
       {/* Hero */}
@@ -455,7 +464,7 @@ export function HomePage() {
             {typewriterPhrases ? (
               <TypewriterText phrases={typewriterPhrases} />
             ) : (
-              <span className="bg-gradient-to-r from-red-500 to-rose-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-500 to-indigo-600 bg-clip-text text-transparent">
                 {fallbackGreeting}
               </span>
             )}
@@ -484,7 +493,7 @@ export function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-5 px-6 border-t border-black/[0.04] dark:border-white/[0.06] bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm transition-colors">
+      <footer className="py-5 px-6 border-t border-slate-200/40 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-[13px] text-slate-400 dark:text-slate-500 transition-colors">
             © {new Date().getFullYear()} Stamats

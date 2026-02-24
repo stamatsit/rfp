@@ -19,14 +19,14 @@ const SearchLibrary = lazy(() => import("./pages/SearchLibrary").then(m => ({ de
 const ManualEntry = lazy(() => import("./pages/ManualEntry").then(m => ({ default: m.ManualEntry })))
 const AskAI = lazy(() => import("./pages/AskAI").then(m => ({ default: m.AskAI })))
 const RFPAnalyzer = lazy(() => import("./pages/RFPAnalyzer").then(m => ({ default: m.RFPAnalyzer })))
-const SavedDocuments = lazy(() => import("./pages/SavedDocuments").then(m => ({ default: m.SavedDocuments })))
+
 const Help = lazy(() => import("./pages/Help").then(m => ({ default: m.Help })))
 const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Support })))
-const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.Settings })))
 const ProposalInsights = lazy(() => import("./pages/ProposalInsights").then(m => ({ default: m.ProposalInsights })))
 const CaseStudies = lazy(() => import("./pages/CaseStudies").then(m => ({ default: m.CaseStudies })))
 const UnifiedAI = lazy(() => import("./pages/UnifiedAI").then(m => ({ default: m.UnifiedAI })))
 const DocumentStudio = lazy(() => import("./pages/DocumentStudio").then(m => ({ default: m.DocumentStudio })))
+const TestimonialManager = lazy(() => import("./pages/TestimonialManager").then(m => ({ default: m.TestimonialManager })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -77,14 +77,13 @@ function AppRoutes() {
           <Route path="/new" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
           <Route path="/ai" element={<ProtectedRoute><AskAI /></ProtectedRoute>} />
           <Route path="/analyze" element={<ProtectedRoute><RFPAnalyzer /></ProtectedRoute>} />
-          <Route path="/documents" element={<ProtectedRoute><SavedDocuments /></ProtectedRoute>} />
           <Route path="/help" element={<ProtectedRoute><Help /></ProtectedRoute>} />
           <Route path="/support" element={<ProtectedRoute><Support /></ProtectedRoute>} />
-          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/insights" element={<ProtectedRoute><ProposalInsights /></ProtectedRoute>} />
           <Route path="/case-studies" element={<ProtectedRoute><CaseStudies /></ProtectedRoute>} />
           <Route path="/unified-ai" element={<ProtectedRoute><UnifiedAI /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
+          <Route path="/testimonials" element={<ProtectedRoute><TestimonialManager /></ProtectedRoute>} />
         </Routes>
         </Suspense>
       </PageTransition>

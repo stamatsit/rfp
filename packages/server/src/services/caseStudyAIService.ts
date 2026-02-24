@@ -10,6 +10,7 @@ import OpenAI from "openai"
 import type { Response } from "express"
 import { clientSuccessData } from "../data/clientSuccessData.js"
 import { streamCompletion, truncateHistory, CHART_PROMPT, parseChartData } from "./utils/streamHelper.js"
+import { getApprovedTestimonials } from "./utils/dbTestimonials.js"
 
 // ─── Lazy-initialized OpenAI client ─────────────────────────
 
@@ -39,12 +40,16 @@ export interface CaseStudyInsightResult {
   refusalReason?: string
 }
 
-// ─── Context Builder (memoized — static data doesn't change at runtime) ───
+// ─── Context Builder (async — pulls testimonials from DB with TTL cache) ───
 
 let cachedContext: string | null = null
+let contextExpiry = 0
+const CONTEXT_TTL = 5 * 60 * 1000 // 5 minutes
 
-function buildContext(): string {
-  if (cachedContext) return cachedContext
+async function buildContext(): Promise<string> {
+  const now = Date.now()
+  if (cachedContext && now < contextExpiry) return cachedContext
+
   const sections: string[] = []
 
   // Section 1: Case Studies
@@ -70,8 +75,9 @@ function buildContext(): string {
   )
   sections.push(`=== TOP-LINE RESULTS (${resultLines.length}) ===\n${resultLines.join("\n")}`)
 
-  // Section 3: Testimonials
-  const testimonialLines = clientSuccessData.testimonials.map((t) => {
+  // Section 3: Testimonials (from DB — includes approval status filtering)
+  const dbTestimonials = await getApprovedTestimonials()
+  const testimonialLines = dbTestimonials.map((t) => {
     const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
     return `"${t.quote}" — ${who}`
   })
@@ -123,6 +129,7 @@ function buildContext(): string {
   sections.push(`=== CONFERENCE PRESENCE ===\n${confLines.join("\n")}`)
 
   cachedContext = sections.join("\n\n")
+  contextExpiry = now + CONTEXT_TTL
   return cachedContext
 }
 
@@ -233,7 +240,7 @@ export async function queryCaseStudyInsights(
   }
 
   try {
-    const context = buildContext()
+    const context = await buildContext()
 
     // Determine categories referenced
     const categories = new Set<string>()
@@ -306,7 +313,7 @@ export async function streamCaseStudyInsights(
     return
   }
 
-  const context = buildContext()
+  const context = await buildContext()
   const categories = new Set<string>()
   clientSuccessData.caseStudies.forEach((cs) => categories.add(cs.category))
 

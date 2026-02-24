@@ -35,8 +35,8 @@ export function ContextualHelp({
         variant="ghost"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className={`text-slate-400 hover:text-slate-600 h-8 w-8 p-0 rounded-lg transition-all ${
-          isOpen ? "bg-slate-100 text-slate-600" : ""
+        className={`text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 h-8 w-8 p-0 rounded-lg transition-all ${
+          isOpen ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" : ""
         }`}
         title="Help"
       >
@@ -65,7 +65,7 @@ export function ContextualHelp({
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600"
+                  className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   <X size={14} />
                 </Button>
@@ -106,14 +106,14 @@ export function ContextualHelp({
                 <Link
                   to={`/help`}
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center justify-between p-3 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors group"
+                  className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors group"
                 >
-                  <span className="text-sm font-medium text-slate-700 group-hover:text-slate-900">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">
                     Learn more
                   </span>
                   <ExternalLink
                     size={14}
-                    className="text-slate-400 group-hover:text-slate-600"
+                    className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"
                   />
                 </Link>
               )}

@@ -31,7 +31,7 @@ const categoryMeta: Record<string, CategoryInfo> = {
   "Getting Started": { icon: <Lightbulb size={20} />, color: "text-amber-500", bg: "bg-amber-50" },
   "Search Library": { icon: <Search size={20} />, color: "text-emerald-500", bg: "bg-emerald-50" },
   "Ask AI": { icon: <Sparkles size={20} />, color: "text-violet-500", bg: "bg-violet-50" },
-  "RFP Analyzer": { icon: <FileSearch size={20} />, color: "text-rose-500", bg: "bg-rose-50" },
+  "RFP Analyzer": { icon: <FileSearch size={20} />, color: "text-amber-500", bg: "bg-amber-50" },
   "Import Data": { icon: <FileSpreadsheet size={20} />, color: "text-blue-500", bg: "bg-blue-50" },
   "Photo Library": { icon: <Image size={20} />, color: "text-orange-500", bg: "bg-orange-50" },
   "New Entry": { icon: <PenLine size={20} />, color: "text-indigo-500", bg: "bg-indigo-50" },
@@ -121,8 +121,8 @@ const helpArticles: HelpArticle[] = [
   {
     id: "rfp-2",
     category: "RFP Analyzer",
-    question: "How do I find matching content for RFP questions?",
-    answer: "Select any text in the document viewer (highlight a question or requirement). A toolbar appears with three options: 'Find Matches' searches your library, 'Ask AI' gets an AI response, and 'Add to Library' saves the selection as a new entry. Results appear in a side panel.",
+    question: "How does the AI document scan work?",
+    answer: "After uploading a document, configure your scan criteria (checkboxes for what to look for, like missing sections or unclear language). Click 'Scan' and the AI analyzes the entire document against your criteria, flagging issues by severity (critical, warning, info). You can dismiss flags, add notes, or restore dismissed items. Custom criteria can be added for your specific needs.",
   },
   {
     id: "rfp-3",
@@ -296,7 +296,7 @@ export function Help() {
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-14 pr-5 h-12 text-[17px] rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-0 dark:border dark:border-white/10 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/30 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            className="w-full pl-14 pr-5 h-12 text-[17px] rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
           />
         </div>

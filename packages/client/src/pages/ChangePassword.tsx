@@ -85,7 +85,7 @@ export default function ChangePassword() {
               placeholder="Current password"
               autoFocus
               autoComplete="current-password"
-              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)' }}
             />
           </div>
@@ -103,7 +103,7 @@ export default function ChangePassword() {
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder="New password (min 8 characters)"
               autoComplete="new-password"
-              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)' }}
             />
           </div>
@@ -121,7 +121,7 @@ export default function ChangePassword() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               placeholder="Confirm new password"
               autoComplete="new-password"
-              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-transparent dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="w-full pl-12 pr-4 h-[52px] rounded-xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 text-[16px] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400"
               style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.03)' }}
             />
           </div>
@@ -141,8 +141,8 @@ export default function ChangePassword() {
               flex items-center justify-center gap-2
               transition-all duration-200
               ${isLoading || !isFormValid
-                ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98]'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
               }
             `}
           >

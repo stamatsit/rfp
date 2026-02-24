@@ -344,6 +344,8 @@ export interface AnswerResponse {
   status: "Approved" | "Draft"
   tags: string[]
   fingerprint: string
+  usageCount: number
+  lastUsedAt: string | null
   createdAt: string
   updatedAt: string
   linkedPhotosCount?: number
@@ -622,16 +624,63 @@ export interface AIAdaptResponse {
 /**
  * RFP API
  */
+export interface ExtractedImage {
+  dataUrl: string
+  name: string
+  width: number
+  height: number
+  pageNumber?: number
+  contentType: string
+  sizeBytes: number
+}
+
 export interface RFPExtractResponse {
   text: string
   filename: string
   pageCount?: number
+  images?: ExtractedImage[]
 }
 
 export interface RFPStatusResponse {
   available: boolean
   supportedFormats: string[]
   maxFileSize: string
+}
+
+export interface ScanFlag {
+  id: string
+  severity: "high" | "medium" | "low"
+  category: string
+  title: string
+  excerpt: string
+  position?: number
+  dismissed: boolean
+  note?: string
+  criterionId?: string
+}
+
+export interface ScanCriterion {
+  id: string
+  userId: string
+  label: string
+  description?: string | null
+  isDefault: boolean
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ScanCriterionSnapshot {
+  id: string
+  label: string
+  description?: string
+}
+
+export interface ScanResponse {
+  documentId: string
+  flags: ScanFlag[]
+  summary: string
+  scannedAt: string
 }
 
 export interface SavedDocument {
@@ -645,6 +694,12 @@ export interface SavedDocument {
   extractedText: string
   notes?: string
   tags: string[]
+  userId?: string
+  uploaderName?: string
+  scanResults?: ScanFlag[]
+  scanCriteria?: ScanCriterionSnapshot[]
+  scanSummary?: string
+  scannedAt?: string
   createdAt: string
   updatedAt: string
 }
@@ -752,6 +807,86 @@ export const rfpApi = {
       method: "DELETE",
     })
     return handleResponse<{ success: boolean }>(response)
+  },
+
+  /**
+   * AI scan a document for flags
+   */
+  async scan(data: {
+    documentId?: string
+    documentText: string
+    documentType: "RFP" | "Proposal"
+    criteria: ScanCriterionSnapshot[]
+    originalFilename?: string
+    mimeType?: string
+    fileSize?: number
+    pageCount?: number
+    name?: string
+  }): Promise<ScanResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/scan`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ScanResponse>(response)
+  },
+
+  /**
+   * Get scan criteria (user custom + system defaults)
+   */
+  async getScanCriteria(): Promise<{ criteria: ScanCriterion[]; defaults: ScanCriterion[] }> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/scan-criteria`)
+    return handleResponse<{ criteria: ScanCriterion[]; defaults: ScanCriterion[] }>(response)
+  },
+
+  /**
+   * Add a custom scan criterion
+   */
+  async addScanCriterion(data: { label: string; description?: string }): Promise<ScanCriterion> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/scan-criteria`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ScanCriterion>(response)
+  },
+
+  /**
+   * Delete a custom scan criterion
+   */
+  async deleteScanCriterion(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/scan-criteria/${id}`, {
+      method: "DELETE",
+    })
+    await handleResponse(response)
+  },
+
+  /**
+   * Update flags on a document (dismiss, add notes)
+   */
+  async updateFlags(documentId: string, flags: ScanFlag[]): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/documents/${documentId}/flags`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flags }),
+    })
+    await handleResponse(response)
+  },
+
+  /**
+   * Save extracted images to the photo library
+   */
+  async saveImages(
+    images: Array<{ dataUrl: string; name: string; contentType: string }>,
+    topicId: string,
+    documentName: string
+  ): Promise<{ success: boolean; saved: number; photos: PhotoResponse[] }> {
+    const response = await fetchWithCredentials(`${API_BASE}/rfp/save-images`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ images, topicId, documentName }),
+    })
+    return handleResponse(response)
   },
 }
 
@@ -937,6 +1072,8 @@ export interface ClientSuccessEntryResponse {
   metrics: { label: string; value: string }[]
   testimonialQuote: string | null
   testimonialAttribution: string | null
+  usageCount: number
+  lastUsedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -948,6 +1085,8 @@ export interface ClientSuccessResultResponse {
   client: string
   numericValue: number
   direction: "increase" | "decrease"
+  usageCount: number
+  lastUsedAt: string | null
   createdAt: string
 }
 
@@ -957,7 +1096,41 @@ export interface ClientSuccessTestimonialResponse {
   name: string | null
   title: string | null
   organization: string
+  source: string | null
+  status: "approved" | "draft" | "hidden"
+  sector: "higher-ed" | "healthcare" | "other" | null
+  tags: string[]
+  usageCount: number
+  lastUsedAt: string | null
+  featured: boolean
+  addedBy: string | null
+  approvedBy: string | null
+  approvedAt: string | null
+  fingerprint: string | null
   createdAt: string
+  updatedAt: string
+}
+
+export interface TestimonialListResponse {
+  testimonials: ClientSuccessTestimonialResponse[]
+  total: number
+}
+
+export interface TestimonialFinderMatch {
+  testimonialId: string
+  quote: string
+  name: string | null
+  title: string | null
+  organization: string
+  sector: string | null
+  relevanceReason: string
+}
+
+export interface TestimonialFinderResponse {
+  matches: TestimonialFinderMatch[]
+  totalSearched: number
+  tokensUsed: number
+  error?: string
 }
 
 export interface ClientSuccessAwardResponse {
@@ -965,6 +1138,8 @@ export interface ClientSuccessAwardResponse {
   name: string
   year: string
   clientOrProject: string
+  usageCount: number
+  lastUsedAt: string | null
   createdAt: string
 }
 
@@ -988,6 +1163,9 @@ export const clientSuccessApi = {
   async deleteEntry(id: string): Promise<void> {
     await fetchWithCredentials(`${API_BASE}/client-success/entries/${id}`, { method: "DELETE" })
   },
+  async incrementEntryUsage(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/entries/${id}/usage`, { method: "PATCH" })
+  },
 
   // Results
   async getResults(): Promise<ClientSuccessResultResponse[]> {
@@ -1005,22 +1183,14 @@ export const clientSuccessApi = {
   async deleteResult(id: string): Promise<void> {
     await fetchWithCredentials(`${API_BASE}/client-success/results/${id}`, { method: "DELETE" })
   },
+  async incrementResultUsage(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/results/${id}/usage`, { method: "PATCH" })
+  },
 
-  // Testimonials
-  async getTestimonials(): Promise<ClientSuccessTestimonialResponse[]> {
+  // Testimonials (legacy — use testimonialsApi for full CRUD)
+  async getTestimonials(): Promise<TestimonialListResponse> {
     const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`)
-    return handleResponse<ClientSuccessTestimonialResponse[]>(response)
-  },
-  async createTestimonial(data: {
-    quote: string; name?: string; title?: string; organization: string;
-  }): Promise<ClientSuccessTestimonialResponse> {
-    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`, {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data),
-    })
-    return handleResponse<ClientSuccessTestimonialResponse>(response)
-  },
-  async deleteTestimonial(id: string): Promise<void> {
-    await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`, { method: "DELETE" })
+    return handleResponse<TestimonialListResponse>(response)
   },
 
   // Awards
@@ -1038,6 +1208,119 @@ export const clientSuccessApi = {
   },
   async deleteAward(id: string): Promise<void> {
     await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}`, { method: "DELETE" })
+  },
+  async incrementAwardUsage(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}/usage`, { method: "PATCH" })
+  },
+}
+
+// ─── Testimonials API (Full CRUD + AI Finder) ──────
+
+export const testimonialsApi = {
+  async list(params?: {
+    status?: "approved" | "draft" | "hidden"
+    sector?: "higher-ed" | "healthcare" | "other"
+    search?: string
+    sort?: "recent" | "most-used" | "org-asc" | "shortest" | "longest"
+    limit?: number
+    offset?: number
+    featured?: boolean
+  }): Promise<TestimonialListResponse> {
+    const searchParams = new URLSearchParams()
+    if (params?.status) searchParams.set("status", params.status)
+    if (params?.sector) searchParams.set("sector", params.sector)
+    if (params?.search) searchParams.set("search", params.search)
+    if (params?.sort) searchParams.set("sort", params.sort)
+    if (params?.limit) searchParams.set("limit", params.limit.toString())
+    if (params?.offset) searchParams.set("offset", params.offset.toString())
+    if (params?.featured) searchParams.set("featured", "true")
+    const query = searchParams.toString()
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials${query ? `?${query}` : ""}`)
+    return handleResponse<TestimonialListResponse>(response)
+  },
+
+  async getById(id: string): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`)
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async create(data: {
+    quote: string
+    name?: string
+    title?: string
+    organization: string
+    source?: string
+    sector?: "higher-ed" | "healthcare" | "other"
+    tags?: string[]
+  }): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async update(id: string, data: {
+    quote: string
+    name?: string
+    title?: string
+    organization: string
+    source?: string
+    sector?: "higher-ed" | "healthcare" | "other" | null
+    tags?: string[]
+  }): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async updateStatus(id: string, status: "approved" | "draft" | "hidden"): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async incrementUsage(id: string): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}/usage`, {
+      method: "PATCH",
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async toggleFeatured(id: string): Promise<ClientSuccessTestimonialResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}/featured`, {
+      method: "PATCH",
+    })
+    return handleResponse<ClientSuccessTestimonialResponse>(response)
+  },
+
+  async bulkUpdateStatus(ids: string[], status: "approved" | "draft" | "hidden"): Promise<{ updated: number; testimonials: ClientSuccessTestimonialResponse[] }> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/bulk-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids, status }),
+    })
+    return handleResponse<{ updated: number; testimonials: ClientSuccessTestimonialResponse[] }>(response)
+  },
+
+  async delete(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`, { method: "DELETE" })
+  },
+
+  async findWithAI(description: string, filters?: { sector?: string; limit?: number }): Promise<TestimonialFinderResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/ai/testimonial-finder`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ description, ...filters }),
+    })
+    return handleResponse<TestimonialFinderResponse>(response)
   },
 }
 
@@ -1435,5 +1718,22 @@ export const accountApi = {
 
   getAvatarUrl(userId: string): string {
     return `${API_BASE}/auth/avatar/${userId}`
+  },
+}
+
+// ─── Feedback API ────────────────────────────────────────
+
+export const feedbackApi = {
+  async submit(data: { messageId: string; score: string; page: string; query: string }): Promise<{ success: boolean }> {
+    const response = await fetchWithCredentials(`${API_BASE}/feedback`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.error || "Failed to submit feedback")
+    }
+    return response.json()
   },
 }

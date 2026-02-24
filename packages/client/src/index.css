@@ -283,6 +283,10 @@
     box-shadow: 0 0 0 1px rgb(59 130 246 / 0.1);
   }
 
+  .dark .input-premium {
+    @apply bg-slate-800/80 border-slate-700/80;
+  }
+
   /* Premium badge */
   .badge-premium {
     @apply inline-flex items-center;
@@ -635,7 +639,7 @@
 
   /* Dark mode premium card */
   .dark .premium-card {
-    @apply bg-slate-900 border-white/[0.06];
+    @apply bg-slate-900 border-white/[0.08];
     box-shadow:
       0 0 0 1px rgb(255 255 255 / 0.03),
       0 1px 2px rgb(0 0 0 / 0.3),
@@ -643,8 +647,9 @@
   }
 
   .dark .premium-card:hover {
+    @apply border-white/[0.12];
     box-shadow:
-      0 0 0 1px rgb(255 255 255 / 0.05),
+      0 0 0 1px rgb(255 255 255 / 0.06),
       0 2px 4px rgb(0 0 0 / 0.4),
       0 8px 16px rgb(0 0 0 / 0.3);
   }
@@ -778,7 +783,7 @@
 
 /* Premium gradient text */
 .gradient-text {
-  background: linear-gradient(135deg, var(--accent-color), #EC4899);
+  background: linear-gradient(135deg, var(--accent-color), #6366F1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

@@ -62,15 +62,15 @@ export default function Login() {
       >
         {/* Ambient floating orbs */}
         <div
-          className="absolute top-20 -left-20 w-80 h-80 rounded-full opacity-[0.08] blur-3xl animate-float"
+          className="absolute top-20 -left-20 w-80 h-80 rounded-full opacity-[0.12] blur-3xl animate-float"
           style={{ background: 'radial-gradient(circle, #3B82F6, transparent 70%)', animationDelay: '0s' }}
         />
         <div
-          className="absolute bottom-10 right-10 w-96 h-96 rounded-full opacity-[0.06] blur-3xl animate-float"
+          className="absolute bottom-10 right-10 w-96 h-96 rounded-full opacity-[0.10] blur-3xl animate-float"
           style={{ background: 'radial-gradient(circle, #8B5CF6, transparent 70%)', animationDelay: '1.5s' }}
         />
         <div
-          className="absolute top-1/2 left-1/3 w-64 h-64 rounded-full opacity-[0.05] blur-3xl animate-float"
+          className="absolute top-1/2 left-1/3 w-64 h-64 rounded-full opacity-[0.08] blur-3xl animate-float"
           style={{ background: 'radial-gradient(circle, #06B6D4, transparent 70%)', animationDelay: '3s' }}
         />
 
@@ -149,11 +149,11 @@ export default function Login() {
                 className={`
                   w-full pl-12 pr-4 h-[52px] rounded-xl
                   bg-white dark:bg-slate-800
-                  border ${error ? 'border-red-300' : 'border-transparent dark:border-slate-700'}
+                  border ${error ? 'border-red-300' : 'border-slate-200/60 dark:border-slate-700'}
                   text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
                   text-[16px]
                   transition-all duration-200
-                  focus:outline-none focus:ring-2 focus:ring-blue-500/30
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
                 `}
                 style={{
                   boxShadow: error
@@ -178,11 +178,11 @@ export default function Login() {
                 className={`
                   w-full pl-12 pr-4 h-[52px] rounded-xl
                   bg-white dark:bg-slate-800
-                  border ${error ? 'border-red-300' : 'border-transparent dark:border-slate-700'}
+                  border ${error ? 'border-red-300' : 'border-slate-200/60 dark:border-slate-700'}
                   text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
                   text-[16px]
                   transition-all duration-200
-                  focus:outline-none focus:ring-2 focus:ring-blue-500/30
+                  focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
                 `}
                 style={{
                   boxShadow: error
@@ -208,7 +208,7 @@ export default function Login() {
                 transition-all duration-200
                 ${isLoading || !email || !password
                   ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                  : 'bg-blue-600 text-white hover:bg-blue-500 active:scale-[0.98]'
+                  : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
                 }
               `}
             >

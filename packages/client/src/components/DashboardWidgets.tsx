@@ -206,12 +206,16 @@ function TopServicesWidget({ widget, metrics }: WidgetProps) {
 // Proposal Momentum Widget
 // ============================================================================
 
-function ProposalMomentumWidget({ widget }: WidgetProps) {
+function ProposalMomentumWidget({ widget, metrics }: WidgetProps) {
   const sizes = sizeClasses[widget.size]
   const [animatedPercent, setAnimatedPercent] = useState(0)
 
-  // Sample momentum data
-  const momentum = 75
+  // Calculate real momentum from metrics
+  const winRate = metrics?.summary?.winRate ?? 0
+  const momentum = Math.round(winRate * 100)
+  const totalProposals = metrics?.summary?.total ?? 0
+  const wonProposals = metrics?.summary?.won ?? 0
+
   const status = momentum >= 70 ? "Accelerating" : momentum >= 40 ? "Steady" : "Slowing"
   const statusColor = momentum >= 70 ? "text-emerald-500" : momentum >= 40 ? "text-amber-500" : "text-red-500"
 
@@ -222,6 +226,15 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
 
   const circumference = 2 * Math.PI * 40
   const strokeDashoffset = circumference - (animatedPercent / 100) * circumference
+
+  if (!metrics || totalProposals === 0) {
+    return (
+      <div className={`${sizes.container} rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center`}>
+        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Momentum</p>
+        <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No proposal data yet</p>
+      </div>
+    )
+  }
 
   return (
     <Link
@@ -237,7 +250,6 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
         {/* Circular Gauge */}
         <div className="relative w-20 h-20 flex-shrink-0">
           <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-            {/* Background circle */}
             <circle
               cx="50"
               cy="50"
@@ -247,7 +259,6 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
               strokeWidth="8"
               className="text-slate-100 dark:text-slate-800"
             />
-            {/* Progress circle */}
             <circle
               cx="50"
               cy="50"
@@ -263,7 +274,6 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
               }}
             />
           </svg>
-          {/* Center text */}
           <div className="absolute inset-0 flex items-center justify-center">
             <span className="text-lg font-bold text-slate-900 dark:text-white">{momentum}%</span>
           </div>
@@ -272,12 +282,12 @@ function ProposalMomentumWidget({ widget }: WidgetProps) {
         {/* Stats */}
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400 dark:text-slate-500">This month</span>
-            <span className="font-medium text-slate-700 dark:text-slate-300">12 proposals</span>
+            <span className="text-slate-400 dark:text-slate-500">Total</span>
+            <span className="font-medium text-slate-700 dark:text-slate-300">{totalProposals} proposals</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400 dark:text-slate-500">Win rate</span>
-            <span className="font-medium text-emerald-500">+8% vs last</span>
+            <span className="text-slate-400 dark:text-slate-500">Won</span>
+            <span className="font-medium text-emerald-500">{wonProposals} won</span>
           </div>
         </div>
       </div>

@@ -30,6 +30,7 @@ import {
   photosApi,
   topicsApi,
   clientSuccessApi,
+  testimonialsApi,
   type PhotoUploadMetadata,
 } from "@/lib/api"
 import { usePanelResize, ResizeHandles } from "@/hooks/usePanelResize"
@@ -285,7 +286,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntr
         }
         case "testimonial": {
           if (!testQuote.trim() || !testOrg.trim()) throw new Error("Quote and organization are required")
-          await clientSuccessApi.createTestimonial({
+          await testimonialsApi.create({
             quote: testQuote.trim(), name: testName.trim() || undefined,
             title: testTitle.trim() || undefined, organization: testOrg.trim(),
           })
@@ -426,7 +427,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntr
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{photoFile?.name}</p>
                         <p className="text-xs text-slate-400">{photoFile && (photoFile.size / 1024).toFixed(0)} KB</p>
                       </div>
-                      <button onClick={e => { e.stopPropagation(); setPhotoFile(null); setPhotoPreview(null) }} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+                      <button onClick={e => { e.stopPropagation(); setPhotoFile(null); setPhotoPreview(null) }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={16} /></button>
                     </div>
                   ) : (
                     <div className="py-4">

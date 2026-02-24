@@ -60,7 +60,7 @@ export function ChatContainer({
   const [sidebarOpen, setSidebarOpen] = useState(!!sidebar)
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       {statusBar}

@@ -16,6 +16,8 @@ export interface SaveDocumentInput {
   extractedText: string
   notes?: string
   tags?: string[]
+  userId?: string
+  uploaderName?: string
 }
 
 export interface UpdateDocumentInput {
@@ -50,6 +52,8 @@ export async function saveDocument(input: SaveDocumentInput): Promise<SavedDocum
       extractedText: input.extractedText,
       notes: input.notes,
       tags: input.tags ?? [],
+      userId: input.userId,
+      uploaderName: input.uploaderName,
     })
     .returning()
 

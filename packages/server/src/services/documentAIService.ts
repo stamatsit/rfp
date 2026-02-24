@@ -488,6 +488,96 @@ RULES:
   }
 }
 
+// ─── Document Scanning (Upload → AI Flags) ───
+
+export interface ScanCriterion {
+  id: string
+  label: string
+  description?: string
+}
+
+export interface ScanFlag {
+  id: string
+  severity: "high" | "medium" | "low"
+  category: string
+  title: string
+  excerpt: string
+  position?: number
+  dismissed: boolean
+  note?: string
+  criterionId?: string
+}
+
+export interface ScanResult {
+  flags: ScanFlag[]
+  summary: string
+  scannedAt: string
+}
+
+export async function scanDocument(
+  documentText: string,
+  documentType: "RFP" | "Proposal",
+  criteria: ScanCriterion[]
+): Promise<ScanResult> {
+  const openai = getOpenAI()
+  if (!openai) throw new Error("OpenAI API key not configured")
+
+  const today = new Date().toISOString().split("T")[0]
+
+  const customCriteriaBlock = criteria.length > 0
+    ? criteria.map((c, i) => `${i + 1}. ${c.label}${c.description ? `: ${c.description}` : ""}`).join("\n")
+    : "None specified."
+
+  const completion = await openai.chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      {
+        role: "system",
+        content: `You are a document analyst for Stamats, a marketing agency specializing in higher education and healthcare.
+
+The user has uploaded a ${documentType}. Analyze it against the criteria below and produce a list of flags.
+
+DEFAULT CRITERIA (always check these):
+1. Dollar amounts above $500,000 — flag any budget figures, contract values, or cost estimates exceeding $500K. Include the exact amount found.
+2. Insurance liability — flag any insurance requirements (general liability, professional liability, E&O, cyber liability) and note the required amounts so Stamats can verify coverage.
+3. Deadlines — flag all deadline dates, submission dates, and required timelines. Today is ${today}. Calculate and include how many days remain for any deadline.
+
+CUSTOM CRITERIA:
+${customCriteriaBlock}
+
+For each flag, provide:
+- id: "flag-1", "flag-2", etc.
+- severity: "high" (action needed urgently or critical issue), "medium" (should review), "low" (informational)
+- category: descriptive category (e.g., "budget", "insurance", "deadline", "compliance", or a custom one matching the criterion)
+- title: brief summary (under 80 chars)
+- excerpt: the exact text from the document that triggered this flag (verbatim quote, max 250 chars)
+- criterionId: if triggered by a custom criterion, include the criterion's id. Omit for default criteria.
+
+Return JSON: { "flags": [...], "summary": "1-3 sentence overall assessment of the document" }
+
+If nothing matches any criteria, return: { "flags": [], "summary": "No flags found." }
+Return ONLY valid JSON, no markdown fencing.`,
+      },
+      {
+        role: "user",
+        content: documentText.slice(0, 12000),
+      },
+    ],
+    temperature: 0.2,
+    max_tokens: 4000,
+    response_format: { type: "json_object" },
+  })
+
+  const raw = completion.choices[0]?.message?.content || "{}"
+  const parsed = JSON.parse(raw) as { flags: Omit<ScanFlag, "dismissed">[]; summary: string }
+
+  return {
+    flags: (parsed.flags || []).map((f) => ({ ...f, dismissed: false })),
+    summary: parsed.summary || "Scan complete.",
+    scannedAt: new Date().toISOString(),
+  }
+}
+
 // ─── RFP Compliance Checklist ───
 
 export interface ChecklistItem {

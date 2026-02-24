@@ -20,19 +20,20 @@ interface AppHeaderProps {
 // Page metadata for automatic breadcrumb generation
 const pageConfig: Record<string, { title: string }> = {
   "/": { title: "Content Library" },
-  "/search": { title: "Search" },
+  "/search": { title: "Search Library" },
   "/ai": { title: "Ask AI" },
-  "/import": { title: "Import" },
-  "/photos": { title: "Photos" },
+  "/import": { title: "Import Data" },
+  "/photos": { title: "Photo Library" },
   "/new": { title: "New Entry" },
-  "/analyze": { title: "Analyzer" },
-  "/documents": { title: "Documents" },
+  "/analyze": { title: "Document Scanner" },
   "/help": { title: "Help" },
   "/support": { title: "Support" },
   "/settings": { title: "Settings" },
   "/case-studies": { title: "Client Success" },
   "/insights": { title: "Proposal Insights" },
   "/unified-ai": { title: "Unified AI" },
+  "/testimonials": { title: "Testimonials" },
+  "/studio": { title: "Document Studio" },
 }
 
 function ThemeToggle() {
@@ -107,7 +108,7 @@ export function AppHeader({
   const displayBreadcrumbs = breadcrumbs || defaultBreadcrumbs
 
   return (
-    <header className="sticky top-0 z-[200] backdrop-blur-premium border-b border-black/[0.03] dark:border-white/[0.06] transition-colors duration-300"
+    <header className="sticky top-0 z-[200] backdrop-blur-premium border-b border-black/[0.05] dark:border-white/[0.08] transition-colors duration-300"
       style={{
         background: 'linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.75))',
       }}
@@ -134,14 +135,14 @@ export function AppHeader({
                 className="w-9 h-9 object-contain transition-all duration-300 ease-out group-hover:scale-105"
               />
               {/* Subtle glow on hover */}
-              <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 rounded-full bg-blue-500/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
             <div className="hidden sm:block">
               <span className="text-[15px] font-semibold text-slate-900 dark:text-white tracking-[-0.02em] block leading-none transition-colors">
                 Stamats
               </span>
               <span className="text-[11px] text-slate-400 dark:text-slate-500 tracking-wide block mt-0.5 transition-colors">
-                RFPs & Proposals
+                Content Library
               </span>
             </div>
           </Link>

@@ -175,7 +175,7 @@ export function PhotoUpload() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 transition-colors">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-amber-500" />
           <p className="text-slate-500 dark:text-slate-400 text-sm">Loading photos...</p>
@@ -185,7 +185,7 @@ export function PhotoUpload() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       <main className="flex-1">
@@ -201,12 +201,12 @@ export function PhotoUpload() {
           <div className="flex items-center gap-3 flex-wrap">
             {/* Title + count */}
             <div className="flex items-center gap-2.5 mr-auto">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, #F59E0B, #B45309)" }}>
-                <ImageIcon size={16} className="text-white" />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
+                style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)", boxShadow: "0 4px 14px rgba(245, 158, 11, 0.3), 0 1px 3px rgba(0,0,0,0.1)" }}>
+                <ImageIcon size={22} className="text-white" strokeWidth={2.25} />
               </div>
               <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
-                Photos
+                Photo Library
               </h1>
               <span className="text-sm text-slate-400 dark:text-slate-500 tabular-nums">
                 {filteredPhotos.length}
@@ -278,7 +278,7 @@ export function PhotoUpload() {
           </div>
 
           {/* Rule */}
-          <div className="border-t" style={{ borderColor: 'rgba(0,0,0,0.06)' }} />
+          <div className="border-t border-slate-200/60 dark:border-slate-700/60" />
 
           {/* Content */}
           {photos.length === 0 ? (

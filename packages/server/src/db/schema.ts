@@ -33,6 +33,8 @@ export const answerItems = pgTable("answer_items", {
   status: text("status", { enum: ["Approved", "Draft"] }).notNull().default("Approved"),
   tags: jsonb("tags").$type<string[]>().default([]),
   fingerprint: text("fingerprint").notNull().unique(), // for upsert deduplication
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
@@ -40,6 +42,7 @@ export const answerItems = pgTable("answer_items", {
   statusIdx: index("idx_answer_items_status").on(table.status),
   updatedAtIdx: index("idx_answer_items_updated_at").on(table.updatedAt),
   topicStatusIdx: index("idx_answer_items_topic_status").on(table.topicId, table.status),
+  usageCountIdx: index("idx_answer_items_usage_count").on(table.usageCount),
 }))
 
 // Answer Item Versions (history)
@@ -118,9 +121,51 @@ export const savedDocuments = pgTable("saved_documents", {
   extractedText: text("extracted_text").notNull(),
   notes: text("notes"),
   tags: jsonb("tags").$type<string[]>().default([]),
+  userId: text("user_id"),
+  uploaderName: text("uploader_name"),
+  scanResults: jsonb("scan_results").$type<ScanFlag[]>().default([]),
+  scanCriteria: jsonb("scan_criteria_snapshot").$type<ScanCriterionSnapshot[]>().default([]),
+  scanSummary: text("scan_summary"),
+  scannedAt: timestamp("scanned_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  userIdIdx: index("idx_saved_documents_user_id").on(table.userId),
+  typeIdx: index("idx_saved_documents_type").on(table.type),
+}))
+
+// Scan Criteria (persistent user-defined flags to look for)
+export const scanCriteria = pgTable("scan_criteria", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  label: text("label").notNull(),
+  description: text("description"),
+  isDefault: boolean("is_default").notNull().default(false),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("idx_scan_criteria_user_id").on(table.userId),
+}))
+
+// JSONB types for scan results
+export interface ScanFlag {
+  id: string
+  severity: "high" | "medium" | "low"
+  category: string
+  title: string
+  excerpt: string
+  position?: number
+  dismissed: boolean
+  note?: string
+  criterionId?: string
+}
+
+export interface ScanCriterionSnapshot {
+  id: string
+  label: string
+  description?: string
+}
 
 // Proposals (synced from Excel - Proposal Summary, ALL 5 sheets)
 export const proposals = pgTable("proposals", {
@@ -211,6 +256,8 @@ export const clientSuccessEntries = pgTable("client_success_entries", {
   metrics: jsonb("metrics").$type<{ label: string; value: string }[]>().default([]),
   testimonialQuote: text("testimonial_quote"),
   testimonialAttribution: text("testimonial_attribution"),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -222,6 +269,8 @@ export const clientSuccessResults = pgTable("client_success_results", {
   client: text("client").notNull(),
   numericValue: integer("numeric_value").notNull(),
   direction: text("direction", { enum: ["increase", "decrease"] }).notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -232,15 +281,33 @@ export const clientSuccessTestimonials = pgTable("client_success_testimonials", 
   name: text("name"),
   title: text("title"),
   organization: text("organization").notNull(),
+  source: text("source"), // External source (e.g., "PR Newswire", "The Gazette")
+  status: text("status", { enum: ["approved", "draft", "hidden"] }).notNull().default("draft"),
+  sector: text("sector", { enum: ["higher-ed", "healthcare", "other"] }),
+  tags: jsonb("tags").$type<string[]>().default([]),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+  featured: boolean("featured").notNull().default(false),
+  addedBy: text("added_by"),
+  approvedBy: text("approved_by"),
+  approvedAt: timestamp("approved_at", { withTimezone: true }),
+  fingerprint: text("fingerprint").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  statusIdx: index("idx_testimonials_status").on(table.status),
+  sectorIdx: index("idx_testimonials_sector").on(table.sector),
+  orgIdx: index("idx_testimonials_organization").on(table.organization),
+  usageIdx: index("idx_testimonials_usage_count").on(table.usageCount),
+}))
 
 export const clientSuccessAwards = pgTable("client_success_awards", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   year: text("year").notNull(),
   clientOrProject: text("client_or_project").notNull(),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -346,6 +413,8 @@ export type AuditLogEntry = typeof auditLog.$inferSelect
 export type NewAuditLogEntry = typeof auditLog.$inferInsert
 export type SavedDocument = typeof savedDocuments.$inferSelect
 export type NewSavedDocument = typeof savedDocuments.$inferInsert
+export type ScanCriteriaRow = typeof scanCriteria.$inferSelect
+export type NewScanCriteria = typeof scanCriteria.$inferInsert
 export type Proposal = typeof proposals.$inferSelect
 export type NewProposal = typeof proposals.$inferInsert
 export type ProposalSyncLogEntry = typeof proposalSyncLog.$inferSelect

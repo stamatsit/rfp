@@ -38,7 +38,7 @@ import {
 import { AppHeader } from "@/components/AppHeader"
 import { RelatedContent } from "@/components/RelatedContent"
 import { clientSuccessData } from "@/data/clientSuccessData"
-import { proposalInsightsApi, type ProposalMetrics, clientSuccessApi } from "@/lib/api"
+import { proposalInsightsApi, type ProposalMetrics, clientSuccessApi, testimonialsApi } from "@/lib/api"
 import { NewEntryPanel } from "@/components/NewEntryPanel"
 import {
   Button,
@@ -88,7 +88,7 @@ function getTopicColor(topicId: string, index: number): { bg: string; text: stri
     { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
     { bg: "bg-teal-50", text: "text-teal-700", border: "border-teal-200" },
     { bg: "bg-orange-50", text: "text-orange-700", border: "border-orange-200" },
-    { bg: "bg-pink-50", text: "text-pink-700", border: "border-pink-200" },
+    { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
     { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
   ]
 
@@ -96,7 +96,7 @@ function getTopicColor(topicId: string, index: number): { bg: string; text: stri
   return colors[idx] ?? topicColors.default!
 }
 
-type SortOption = "relevance" | "newest" | "oldest" | "alphabetical"
+type SortOption = "relevance" | "most-used" | "newest" | "oldest" | "alphabetical"
 
 /** Cache the highlight regex per query to avoid re-creating on every call */
 let _hlCache: { query: string; regex: RegExp } | null = null
@@ -173,10 +173,10 @@ function matchesSearch(text: string, query: string): boolean {
 }
 
 // ─── Sort option types per tab ───
-type SuccessSort = "client-az" | "client-za" | "metrics-most" | "metrics-least" | "category"
-type ResultsSort = "value-high" | "value-low" | "client-az" | "client-za" | "metric-az"
-type TestimonialsSort = "org-az" | "org-za" | "name-az" | "shortest" | "longest"
-type AwardsSort = "newest" | "oldest" | "client-az" | "name-az"
+type SuccessSort = "most-used" | "client-az" | "client-za" | "metrics-most" | "metrics-least" | "category"
+type ResultsSort = "most-used" | "value-high" | "value-low" | "client-az" | "client-za" | "metric-az"
+type TestimonialsSort = "most-used" | "org-az" | "org-za" | "name-az" | "shortest" | "longest"
+type AwardsSort = "most-used" | "newest" | "oldest" | "client-az" | "name-az"
 
 // ─── Client Success Section ───
 function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
@@ -193,17 +193,17 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   const [awardSort, setAwardSort] = useState<AwardsSort>("newest")
 
   // DB-sourced entries (merged with static data)
-  const [dbEntries, setDbEntries] = useState<{ id: string; client: string; category: "higher-ed" | "healthcare" | "other"; focus: string; challenge: string | null; solution: string | null; metrics: { label: string; value: string }[]; testimonialQuote: string | null; testimonialAttribution: string | null }[]>([])
-  const [dbResults, setDbResults] = useState<{ id: string; metric: string; result: string; client: string; numericValue: number; direction: "increase" | "decrease" }[]>([])
-  const [dbTestimonials, setDbTestimonials] = useState<{ id: string; quote: string; name: string | null; title: string | null; organization: string }[]>([])
-  const [dbAwards, setDbAwards] = useState<{ id: string; name: string; year: string; clientOrProject: string }[]>([])
+  const [dbEntries, setDbEntries] = useState<{ id: string; client: string; category: "higher-ed" | "healthcare" | "other"; focus: string; challenge: string | null; solution: string | null; metrics: { label: string; value: string }[]; testimonialQuote: string | null; testimonialAttribution: string | null; usageCount: number }[]>([])
+  const [dbResults, setDbResults] = useState<{ id: string; metric: string; result: string; client: string; numericValue: number; direction: "increase" | "decrease"; usageCount: number }[]>([])
+  const [dbTestimonials, setDbTestimonials] = useState<{ id: string; quote: string; name: string | null; title: string | null; organization: string; usageCount: number }[]>([])
+  const [dbAwards, setDbAwards] = useState<{ id: string; name: string; year: string; clientOrProject: string; usageCount: number }[]>([])
 
   // Fetch DB entries
   useEffect(() => {
     Promise.all([
       clientSuccessApi.getEntries().catch(() => []),
       clientSuccessApi.getResults().catch(() => []),
-      clientSuccessApi.getTestimonials().catch(() => []),
+      testimonialsApi.list({ limit: 200 }).then(r => r.testimonials).catch(() => []),
       clientSuccessApi.getAwards().catch(() => []),
     ]).then(([entries, results, testimonials, awards]) => {
       setDbEntries(entries as any)
@@ -217,7 +217,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     try {
       if (type === "entry") { await clientSuccessApi.deleteEntry(id); setDbEntries(prev => prev.filter(e => e.id !== id)) }
       if (type === "result") { await clientSuccessApi.deleteResult(id); setDbResults(prev => prev.filter(e => e.id !== id)) }
-      if (type === "testimonial") { await clientSuccessApi.deleteTestimonial(id); setDbTestimonials(prev => prev.filter(e => e.id !== id)) }
+      if (type === "testimonial") { await testimonialsApi.delete(id); setDbTestimonials(prev => prev.filter(e => e.id !== id)) }
       if (type === "award") { await clientSuccessApi.deleteAward(id); setDbAwards(prev => prev.filter(e => e.id !== id)) }
     } catch { /* ignore */ }
   }, [])
@@ -237,15 +237,21 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     setExpandedId(null)
   }, [tab])
 
-  const handleCopy = useCallback(async (text: string, id: string) => {
+  const handleCopy = useCallback(async (text: string, id: string, usageType?: "entry" | "result" | "testimonial" | "award", dbId?: string | null) => {
     await navigator.clipboard.writeText(text)
     setCopiedId(id)
+    if (dbId && usageType) {
+      if (usageType === "entry") clientSuccessApi.incrementEntryUsage(dbId).catch(() => {})
+      if (usageType === "result") clientSuccessApi.incrementResultUsage(dbId).catch(() => {})
+      if (usageType === "testimonial") testimonialsApi.incrementUsage(dbId).catch(() => {})
+      if (usageType === "award") clientSuccessApi.incrementAwardUsage(dbId).catch(() => {})
+    }
     setTimeout(() => setCopiedId(null), 2000)
   }, [])
 
   // Filtered + sorted data (merge static + DB entries)
   const filteredSuccessItems = useMemo(() => {
-    const staticItems = clientSuccessData.caseStudies.map(cs => ({ ...cs, source: "static" as const, dbId: null as string | null }))
+    const staticItems = clientSuccessData.caseStudies.map(cs => ({ ...cs, source: "static" as const, dbId: null as string | null, usageCount: 0 }))
     const userItems = dbEntries.map((e, i) => ({
       id: 10000 + i,
       client: e.client,
@@ -258,6 +264,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
       awards: [] as string[],
       source: "user" as const,
       dbId: e.id as string | null,
+      usageCount: e.usageCount || 0,
     }))
     const all = [...staticItems, ...userItems]
     const filtered = all.filter((cs) => {
@@ -267,6 +274,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     })
     return filtered.sort((a, b) => {
       switch (successSort) {
+        case "most-used": return b.usageCount - a.usageCount
         case "client-az": return a.client.localeCompare(b.client)
         case "client-za": return b.client.localeCompare(a.client)
         case "metrics-most": return b.metrics.length - a.metrics.length
@@ -278,7 +286,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   }, [debouncedQuery, categoryFilter, successSort, dbEntries])
 
   const filteredResults = useMemo(() => {
-    const staticItems = clientSuccessData.topLineResults.map(r => ({ ...r, source: "static" as const, dbId: null as string | null }))
+    const staticItems = clientSuccessData.topLineResults.map(r => ({ ...r, source: "static" as const, dbId: null as string | null, usageCount: 0 }))
     const userItems = dbResults.map(r => ({
       metric: r.metric,
       result: r.result,
@@ -287,6 +295,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
       direction: r.direction,
       source: "user" as const,
       dbId: r.id as string | null,
+      usageCount: r.usageCount || 0,
     }))
     const all = [...staticItems, ...userItems]
     const filtered = all.filter((r) => {
@@ -296,6 +305,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     })
     return filtered.sort((a, b) => {
       switch (resultsSort) {
+        case "most-used": return b.usageCount - a.usageCount
         case "value-high": return b.numericValue - a.numericValue
         case "value-low": return a.numericValue - b.numericValue
         case "client-az": return a.client.localeCompare(b.client)
@@ -307,7 +317,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   }, [debouncedQuery, directionFilter, resultsSort, dbResults])
 
   const filteredTestimonials = useMemo(() => {
-    const staticItems = clientSuccessData.testimonials.map(t => ({ ...t, source: "static" as const, dbId: null as string | null }))
+    const staticItems = clientSuccessData.testimonials.map(t => ({ ...t, source: "static" as const, dbId: null as string | null, usageCount: 0 }))
     const userItems = dbTestimonials.map(t => ({
       quote: t.quote,
       name: t.name || "",
@@ -315,6 +325,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
       organization: t.organization,
       source: "user" as const,
       dbId: t.id as string | null,
+      usageCount: (t as any).usageCount || 0,
     }))
     const all = [...staticItems, ...userItems]
     const filtered = all.filter((t) => {
@@ -323,6 +334,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     })
     return filtered.sort((a, b) => {
       switch (testimonialSort) {
+        case "most-used": return b.usageCount - a.usageCount
         case "org-az": return a.organization.localeCompare(b.organization)
         case "org-za": return b.organization.localeCompare(a.organization)
         case "name-az": return (a.name || "").localeCompare(b.name || "")
@@ -334,13 +346,14 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   }, [debouncedQuery, testimonialSort, dbTestimonials])
 
   const filteredAwards = useMemo(() => {
-    const staticItems = clientSuccessData.awards.map(a => ({ ...a, source: "static" as const, dbId: null as string | null }))
+    const staticItems = clientSuccessData.awards.map(a => ({ ...a, source: "static" as const, dbId: null as string | null, usageCount: 0 }))
     const userItems = dbAwards.map(a => ({
       name: a.name,
       year: a.year,
       clientOrProject: a.clientOrProject,
       source: "user" as const,
       dbId: a.id as string | null,
+      usageCount: a.usageCount || 0,
     }))
     const all = [...staticItems, ...userItems]
     const filtered = all.filter((a) => {
@@ -349,6 +362,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     })
     return filtered.sort((a, b) => {
       switch (awardSort) {
+        case "most-used": return b.usageCount - a.usageCount
         case "newest": return b.year.localeCompare(a.year)
         case "oldest": return a.year.localeCompare(b.year)
         case "client-az": return a.clientOrProject.localeCompare(b.clientOrProject)
@@ -421,7 +435,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               className="pl-9 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg"
             />
             {query && (
-              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 <X size={14} />
               </button>
             )}
@@ -459,6 +473,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="client-az">Client A–Z</SelectItem>
                 <SelectItem value="client-za">Client Z–A</SelectItem>
                 <SelectItem value="metrics-most">Most Metrics</SelectItem>
@@ -473,6 +488,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="value-high">Highest Value</SelectItem>
                 <SelectItem value="value-low">Lowest Value</SelectItem>
                 <SelectItem value="client-az">Client A–Z</SelectItem>
@@ -487,6 +503,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="org-az">Organization A–Z</SelectItem>
                 <SelectItem value="org-za">Organization Z–A</SelectItem>
                 <SelectItem value="name-az">Name A–Z</SelectItem>
@@ -501,6 +518,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="newest">Newest First</SelectItem>
                 <SelectItem value="oldest">Oldest First</SelectItem>
                 <SelectItem value="client-az">Client A–Z</SelectItem>
@@ -585,12 +603,15 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                     )}
                     <div className="flex items-center gap-3 mt-2">
                       <button
-                        onClick={() => handleCopy(formatSuccessItem(cs), `cs-${cs.id}`)}
+                        onClick={() => handleCopy(formatSuccessItem(cs), `cs-${cs.id}`, "entry", cs.dbId)}
                         className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
                       >
                         {copiedId === `cs-${cs.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                         {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
                       </button>
+                      {cs.usageCount > 0 && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Used {cs.usageCount}x</span>
+                      )}
                       {cs.source === "user" && cs.dbId && (
                         <button
                           onClick={() => handleDelete("entry", cs.dbId!)}
@@ -605,7 +626,13 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             ))}
             {filteredSuccessItems.length === 0 && (
-              <div className="text-center py-12 text-sm text-slate-400">No results match your search.</div>
+              <div className="text-center py-16">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Trophy size={22} className="text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching client results</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              </div>
             )}
           </div>
         )}
@@ -626,8 +653,11 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 }
                 <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{r.metric}</span>
                 <span className="text-xs text-slate-400 shrink-0">{r.client}</span>
+                {r.usageCount > 0 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">{r.usageCount}x</span>
+                )}
                 <button
-                  onClick={() => handleCopy(`${r.result} ${r.metric} — ${r.client}`, `r-${i}`)}
+                  onClick={() => handleCopy(`${r.result} ${r.metric} — ${r.client}`, `r-${i}`, "result", r.dbId)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                 >
                   {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
@@ -643,7 +673,13 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             ))}
             {filteredResults.length === 0 && (
-              <div className="text-center py-12 text-sm text-slate-400">No results match your search.</div>
+              <div className="text-center py-16">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <TrendingUp size={22} className="text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching results</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              </div>
             )}
           </div>
         )}
@@ -670,11 +706,16 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                       {t.organization}
                     </p>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {t.usageCount > 0 && (
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{t.usageCount}x</span>
+                    )}
                     <button
                       onClick={() => handleCopy(
                         `"${t.quote}"\n— ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`,
-                        `t-${i}`
+                        `t-${i}`,
+                        "testimonial",
+                        t.dbId
                       )}
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
@@ -693,7 +734,13 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             ))}
             {filteredTestimonials.length === 0 && (
-              <div className="text-center py-12 text-sm text-slate-400">No testimonials match your search.</div>
+              <div className="text-center py-16">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Quote size={22} className="text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching testimonials</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              </div>
             )}
           </div>
         )}
@@ -707,6 +754,15 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <span className="text-sm font-medium text-slate-900 dark:text-white flex-1">{a.name}</span>
                 <Badge variant="outline" className="text-[11px] text-slate-500 border-slate-200 dark:border-slate-700">{a.year}</Badge>
                 <span className="text-xs text-slate-400">{a.clientOrProject}</span>
+                {a.usageCount > 0 && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">{a.usageCount}x</span>
+                )}
+                <button
+                  onClick={() => handleCopy(`${a.name} (${a.year}) — ${a.clientOrProject}`, `a-${i}`, "award", a.dbId)}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  {copiedId === `a-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                </button>
                 {a.source === "user" && a.dbId && (
                   <button
                     onClick={() => handleDelete("award", a.dbId!)}
@@ -718,7 +774,13 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             ))}
             {filteredAwards.length === 0 && (
-              <div className="text-center py-12 text-sm text-slate-400">No awards match your search.</div>
+              <div className="text-center py-16">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                  <Award size={22} className="text-slate-300 dark:text-slate-600" />
+                </div>
+                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching awards</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              </div>
             )}
           </div>
         )}
@@ -778,7 +840,7 @@ function ProposalsSection() {
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-slate-400" />
+        <Loader2 size={24} className="animate-spin text-blue-500" />
       </div>
     )
   }
@@ -1148,6 +1210,8 @@ export function SearchLibrary() {
     ? answers
     : [...answers].sort((a, b) => {
         switch (sortBy) {
+          case "most-used":
+            return (b.usageCount || 0) - (a.usageCount || 0)
           case "newest":
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           case "oldest":
@@ -1503,7 +1567,7 @@ export function SearchLibrary() {
 
   if (isLoading && activeSection === "qa") {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
         <AppHeader />
         <div className="flex-1 flex">
           <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 pt-4 pb-6 px-2.5 space-y-1">
@@ -1560,7 +1624,7 @@ export function SearchLibrary() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       <div className="flex-1 flex">
@@ -1698,6 +1762,7 @@ export function SearchLibrary() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="relevance">Relevance</SelectItem>
+                <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="newest">Newest</SelectItem>
                 <SelectItem value="oldest">Oldest</SelectItem>
                 <SelectItem value="alphabetical">A-Z</SelectItem>
@@ -1705,7 +1770,7 @@ export function SearchLibrary() {
             </Select>
 
             {isSearching && (
-              <Loader2 className="w-5 h-5 animate-spin text-teal-500" />
+              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
             )}
           </div>
 
@@ -1795,6 +1860,11 @@ export function SearchLibrary() {
                                     <ImageIcon size={10} className="mr-1" />
                                     {answer.linkedPhotosCount}
                                   </Badge>
+                                )}
+                                {(answer.usageCount || 0) > 0 && (
+                                  <span className={`text-[10px] text-slate-400 dark:text-slate-500 ${!(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) ? "ml-auto" : ""}`}>
+                                    Used {answer.usageCount}x
+                                  </span>
                                 )}
                               </div>
                             </div>
@@ -1910,6 +1980,11 @@ export function SearchLibrary() {
                                           {answer.linkedPhotosCount}
                                         </Badge>
                                       )}
+                                      {(answer.usageCount || 0) > 0 && (
+                                        <span className={`text-[10px] text-slate-400 dark:text-slate-500 ${!(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) ? "ml-auto" : ""}`}>
+                                          Used {answer.usageCount}x
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                   <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
@@ -1952,7 +2027,7 @@ export function SearchLibrary() {
               })}
 
               {sortedAnswers.length === 0 && (
-                <div className="text-center py-14 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
+                <div className="text-center py-14 bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
                   <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
                     <FileText size={24} className="text-slate-300 dark:text-slate-500" />
                   </div>
@@ -2061,7 +2136,7 @@ export function SearchLibrary() {
               )}
 
               {sortedPhotos.length === 0 && (
-                <div className="text-center py-14 bg-gradient-to-b from-slate-50 to-white dark:from-slate-800 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
+                <div className="text-center py-14 bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
                   <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
                     <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
                   </div>

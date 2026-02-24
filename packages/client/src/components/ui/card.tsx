@@ -9,7 +9,7 @@ const Card = React.forwardRef<
     ref={ref}
     className={cn(
       `rounded-2xl bg-white dark:bg-slate-900 text-card-foreground
-       border border-black/[0.04] dark:border-white/[0.06]
+       border border-black/[0.04] dark:border-white/[0.08]
        shadow-[0_0_0_1px_rgb(0_0_0_/_0.02),0_1px_2px_rgb(0_0_0_/_0.03),0_4px_8px_rgb(0_0_0_/_0.02)]
        dark:shadow-[0_0_0_1px_rgb(255_255_255_/_0.03),0_1px_2px_rgb(0_0_0_/_0.2),0_4px_8px_rgb(0_0_0_/_0.15)]
        transition-all duration-300 ease-out`,

@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express"
 import { queryAI, adaptContent, streamAI, type AdaptationType } from "../services/aiService.js"
 import { queryCaseStudyInsights, streamCaseStudyInsights } from "../services/caseStudyAIService.js"
+import { findTestimonials } from "../services/testimonialAIService.js"
 
 const router = Router()
 
@@ -165,6 +166,38 @@ router.post("/case-studies/stream", async (req: Request, res: Response) => {
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to stream case study response" })
     }
+  }
+})
+
+/**
+ * POST /api/ai/testimonial-finder
+ * AI-powered testimonial finder — describe what you need, get the best matches
+ */
+router.post("/testimonial-finder", async (req: Request, res: Response) => {
+  try {
+    const { description, sector, limit } = req.body
+
+    if (!description || typeof description !== "string") {
+      return res.status(400).json({ error: "Description is required" })
+    }
+
+    if (description.trim().length < 3) {
+      return res.status(400).json({ error: "Description must be at least 3 characters" })
+    }
+
+    if (description.length > 2000) {
+      return res.status(400).json({ error: "Description must be less than 2000 characters" })
+    }
+
+    const result = await findTestimonials(description.trim(), {
+      sector: sector as string | undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    })
+
+    res.json(result)
+  } catch (error) {
+    console.error("Testimonial finder failed:", error)
+    res.status(500).json({ error: "Failed to find testimonials" })
   }
 })
 

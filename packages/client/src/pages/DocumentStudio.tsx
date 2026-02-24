@@ -4,6 +4,7 @@ import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from 
 import type { Editor } from "@tiptap/react"
 import { X, FileText } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { ConfirmDialog } from "@/components/ConfirmDialog"
 import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   StudioToolbar, StudioChatSidebar, DocumentEditor,
@@ -203,27 +204,51 @@ export function DocumentStudio() {
     e.target.value = ""
   }, [doc])
 
-  // Document browser handlers
+  // Document browser handlers — unsaved changes confirmation
+  const [unsavedAction, setUnsavedAction] = useState<{ type: "open"; id: string } | { type: "new" } | null>(null)
+
   const handleOpenDocument = useCallback(async (id: string) => {
     if (doc.isDirty) {
-      const proceed = window.confirm("You have unsaved changes. Save before switching?")
-      if (proceed) await doc.saveToServer()
+      setUnsavedAction({ type: "open", id })
+      return
     }
     await doc.loadDocument(id)
   }, [doc])
 
   const handleNewDocument = useCallback(async () => {
     if (doc.isDirty) {
-      const proceed = window.confirm("You have unsaved changes. Save before creating a new document?")
-      if (proceed) await doc.saveToServer()
+      setUnsavedAction({ type: "new" })
+      return
     }
     doc.newDocument()
   }, [doc])
+
+  const handleUnsavedConfirm = useCallback(async () => {
+    await doc.saveToServer()
+    if (unsavedAction?.type === "open") await doc.loadDocument(unsavedAction.id)
+    else if (unsavedAction?.type === "new") doc.newDocument()
+    setUnsavedAction(null)
+  }, [doc, unsavedAction])
+
+  const handleUnsavedDiscard = useCallback(async () => {
+    if (unsavedAction?.type === "open") await doc.loadDocument(unsavedAction.id)
+    else if (unsavedAction?.type === "new") doc.newDocument()
+    setUnsavedAction(null)
+  }, [doc, unsavedAction])
 
   const allTemplates = [...SEED_TEMPLATES, ...serverTemplates]
 
   return (
     <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <ConfirmDialog
+        open={!!unsavedAction}
+        onOpenChange={(open) => { if (!open) handleUnsavedDiscard() }}
+        title="Unsaved changes"
+        description="You have unsaved changes. Would you like to save before continuing?"
+        confirmLabel="Save & continue"
+        cancelLabel="Discard changes"
+        onConfirm={handleUnsavedConfirm}
+      />
       <input
         ref={importInputRef}
         type="file"

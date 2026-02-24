@@ -9,6 +9,9 @@ import {
 } from "../services/linkService.js"
 import { logCopy } from "../services/auditService.js"
 import { requireWriteAccess } from "../middleware/auth.js"
+import { db } from "../db/index.js"
+import { answerItems } from "../db/schema.js"
+import { eq, sql } from "drizzle-orm"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const router = Router()
@@ -213,6 +216,18 @@ router.post("/answers/:id/copy", async (req: Request, res: Response) => {
     }
 
     await logCopy(id)
+
+    // Also increment usage count
+    if (db) {
+      await db
+        .update(answerItems)
+        .set({
+          usageCount: sql`${answerItems.usageCount} + 1`,
+          lastUsedAt: new Date(),
+        })
+        .where(eq(answerItems.id, id))
+    }
+
     res.json({ success: true })
   } catch (error) {
     console.error("Failed to log copy:", error)

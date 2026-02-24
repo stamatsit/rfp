@@ -3,6 +3,8 @@
  */
 
 import { Router, type Request, type Response } from "express"
+import { logAudit } from "../services/auditService.js"
+import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 
 const router = Router()
 
@@ -22,8 +24,17 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "score must be 'up' or 'down'" })
     }
 
-    // v1: Log to console. Database table can come later.
-    console.log(`[Feedback] ${score === "up" ? "👍" : "👎"} messageId=${messageId} page=${page || "unknown"} query="${(query || "").slice(0, 80)}"`)
+    await logAudit({
+      actionType: "AI_REQUEST",
+      entityType: "SYSTEM",
+      entityId: messageId,
+      details: {
+        feedbackScore: score,
+        page: page || "unknown",
+        query: (query || "").slice(0, 200),
+      },
+      actor: getCurrentUserName(req),
+    })
 
     res.json({ success: true })
   } catch (error) {

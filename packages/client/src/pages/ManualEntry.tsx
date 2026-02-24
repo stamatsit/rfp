@@ -223,12 +223,12 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
     "bg-purple-100 text-purple-700 border-purple-200",
     "bg-teal-100 text-teal-700 border-teal-200",
     "bg-orange-100 text-orange-700 border-orange-200",
-    "bg-pink-100 text-pink-700 border-pink-200",
+    "bg-amber-100 text-amber-700 border-amber-200",
     "bg-emerald-100 text-emerald-700 border-emerald-200",
   ]
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       {/* Content */}
@@ -262,7 +262,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
+            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertCircle className="text-red-600" size={20} />
               </div>

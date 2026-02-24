@@ -45,9 +45,9 @@ const badgeVariants = cva(
           border-transparent bg-orange-50 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300
           shadow-[0_0_0_1px_rgba(249,115,22,0.1)]
         `,
-        pink: `
-          border-transparent bg-pink-50 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300
-          shadow-[0_0_0_1px_rgba(236,72,153,0.1)]
+        sky: `
+          border-transparent bg-sky-50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300
+          shadow-[0_0_0_1px_rgba(14,165,233,0.1)]
         `,
         indigo: `
           border-transparent bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300

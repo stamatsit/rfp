@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { useIsAdmin } from "@/contexts/AuthContext"
+import { ConfirmDialog } from "@/components/ConfirmDialog"
 import {
   ArrowLeft,
   FolderOpen,
@@ -29,6 +30,7 @@ export function SavedDocuments() {
   const [typeFilter, setTypeFilter] = useState<DocumentType>("all")
   const [total, setTotal] = useState(0)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   // Load documents
   useEffect(() => {
@@ -55,8 +57,6 @@ export function SavedDocuments() {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this document?")) return
-
     setDeletingId(id)
     try {
       await rfpApi.deleteDocument(id)
@@ -92,14 +92,23 @@ export function SavedDocuments() {
   }
 
   const typeColors = {
-    RFP: "bg-rose-100 text-rose-700",
+    RFP: "bg-amber-100 text-amber-700",
     Proposal: "bg-blue-100 text-blue-700",
     Other: "bg-slate-100 text-slate-700",
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
+      <ConfirmDialog
+        open={!!confirmDeleteId}
+        onOpenChange={(open) => { if (!open) setConfirmDeleteId(null) }}
+        title="Delete document"
+        description="This document will be permanently deleted. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
+        onConfirm={() => { if (confirmDeleteId) handleDelete(confirmDeleteId) }}
+      />
 
       <main className="flex-1 px-6 py-6">
         <div className="max-w-5xl mx-auto">
@@ -107,17 +116,17 @@ export function SavedDocuments() {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <Link to="/analyze">
-                <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100">
-                  <ArrowLeft size={20} className="text-slate-600" />
+                <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800">
+                  <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
                 </Button>
               </Link>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                  <FolderOpen size={20} className="text-white" />
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)", boxShadow: "0 4px 14px rgba(99, 102, 241, 0.3), 0 1px 3px rgba(0,0,0,0.1)" }}>
+                  <FolderOpen size={22} className="text-white" strokeWidth={2.25} />
                 </div>
                 <div>
-                  <h1 className="text-xl font-semibold text-slate-900">Saved Documents</h1>
-                  <p className="text-slate-500 text-sm">
+                  <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Saved Documents</h1>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm">
                     {total} {total === 1 ? "document" : "documents"} saved
                   </p>
                 </div>
@@ -125,7 +134,7 @@ export function SavedDocuments() {
             </div>
 
             <Link to="/analyze">
-              <Button className="rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-400 hover:to-pink-500">
+              <Button className="rounded-xl bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500">
                 <FileSearch size={16} className="mr-2" />
                 Analyze New
               </Button>
@@ -144,7 +153,7 @@ export function SavedDocuments() {
                 placeholder="Search documents..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full h-10 pl-10 pr-4 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full h-10 pl-10 pr-4 text-sm border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all duration-200"
               />
             </div>
 
@@ -155,8 +164,8 @@ export function SavedDocuments() {
                   onClick={() => setTypeFilter(type)}
                   className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors ${
                     typeFilter === type
-                      ? "bg-indigo-100 text-indigo-700"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      ? "bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300"
+                      : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                   }`}
                 >
                   {type === "all" ? "All" : type}
@@ -167,8 +176,8 @@ export function SavedDocuments() {
 
           {/* Error */}
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
-              <p className="text-red-700 text-sm">{error}</p>
+            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl">
+              <p className="text-red-700 dark:text-red-400 text-sm">{error}</p>
             </div>
           )}
 
@@ -176,16 +185,16 @@ export function SavedDocuments() {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 size={40} className="text-indigo-500 animate-spin mb-4" />
-              <p className="text-slate-500">Loading documents...</p>
+              <p className="text-slate-500 dark:text-slate-400">Loading documents...</p>
             </div>
           ) : documents.length === 0 ? (
             /* Empty State */
             <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-20 h-20 rounded-2xl bg-slate-100 flex items-center justify-center mb-6">
-                <FolderOpen size={40} className="text-slate-400" />
+              <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-6">
+                <FolderOpen size={40} className="text-slate-400 dark:text-slate-500" />
               </div>
-              <h2 className="text-xl font-semibold text-slate-900 mb-2">No documents saved</h2>
-              <p className="text-slate-500 mb-6 text-center max-w-md">
+              <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">No documents saved</h2>
+              <p className="text-slate-500 dark:text-slate-400 mb-6 text-center max-w-md">
                 {searchQuery || typeFilter !== "all"
                   ? "No documents match your filters. Try adjusting your search."
                   : "Upload and save RFPs or proposals to access them later."}
@@ -203,21 +212,21 @@ export function SavedDocuments() {
               {documents.map((doc) => (
                 <Card
                   key={doc.id}
-                  className="rounded-xl border-slate-200 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer group"
+                  className="rounded-xl border-slate-200 dark:border-slate-700 hover:border-indigo-200 dark:hover:border-indigo-800 hover:shadow-md transition-all cursor-pointer group"
                   onClick={() => handleOpenDocument(doc)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-50 transition-colors">
-                        <FileText size={24} className="text-slate-500 group-hover:text-indigo-600" />
+                      <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors">
+                        <FileText size={24} className="text-slate-500 dark:text-slate-400 group-hover:text-indigo-600 dark:group-hover:text-indigo-400" />
                       </div>
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-medium text-slate-900 truncate">{doc.name}</h3>
+                          <h3 className="font-medium text-slate-900 dark:text-white truncate">{doc.name}</h3>
                           <Badge className={`text-xs ${typeColors[doc.type]}`}>{doc.type}</Badge>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400">
                           <span className="flex items-center gap-1">
                             <FileText size={12} />
                             {doc.originalFilename}
@@ -237,7 +246,7 @@ export function SavedDocuments() {
                             {doc.tags.slice(0, 3).map((tag) => (
                               <span
                                 key={tag}
-                                className="px-2 py-0.5 bg-slate-100 text-slate-600 text-xs rounded-md"
+                                className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-xs rounded-md"
                               >
                                 {tag}
                               </span>
@@ -267,10 +276,10 @@ export function SavedDocuments() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+                            className="h-8 w-8 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600"
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleDelete(doc.id)
+                              setConfirmDeleteId(doc.id)
                             }}
                             disabled={deletingId === doc.id}
                           >

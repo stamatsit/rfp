@@ -1,16 +1,13 @@
 import { useState } from "react"
 import { Link, Navigate } from "react-router-dom"
 import { useIsAdmin } from "@/contexts/AuthContext"
-import { ArrowLeft, Upload, FileSpreadsheet, AlertCircle, CheckCircle2, Sparkles, FileCheck, ListChecks, PartyPopper } from "lucide-react"
+import { ArrowLeft, Upload, AlertCircle, CheckCircle2, Sparkles, FileCheck, ListChecks, PartyPopper } from "lucide-react"
 import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@/components/ui"
 import { AppHeader } from "@/components/AppHeader"
 import { importApi, ApiError } from "@/lib/api"
 import type { ImportPreview, ImportResult, ImportIssue } from "@/types"
 
 type WizardStep = "upload" | "preview" | "issues" | "complete"
-
-// Sample file path for development testing
-const SAMPLE_FILE_PATH = "/Users/ericyerke/Desktop/Spreadsheets/Loopio-jan-26.xlsx"
 
 const stepConfig = [
   { key: "upload", label: "Upload", icon: Upload },
@@ -28,7 +25,6 @@ export function ImportWizard() {
   const [result, setResult] = useState<ImportResult | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [usingSampleFile, setUsingSampleFile] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
   const currentStepIndex = stepConfig.findIndex(s => s.key === step)
@@ -37,7 +33,6 @@ export function ImportWizard() {
     setFile(selectedFile)
     setIsLoading(true)
     setError(null)
-    setUsingSampleFile(false)
 
     try {
       const previewData = await importApi.preview(selectedFile)
@@ -69,9 +64,7 @@ export function ImportWizard() {
     try {
       let importResult
 
-      if (usingSampleFile) {
-        importResult = await importApi.executeSample(SAMPLE_FILE_PATH)
-      } else if (file) {
+      if (file) {
         importResult = await importApi.execute(file)
       } else {
         throw new Error("No file selected")
@@ -97,46 +90,16 @@ export function ImportWizard() {
     }
   }
 
-  const handleUseSampleFile = async () => {
-    setIsLoading(true)
-    setError(null)
-    setUsingSampleFile(true)
-    setFile(null)
-
-    try {
-      const previewData = await importApi.previewSample(SAMPLE_FILE_PATH)
-
-      setPreview({
-        totalRows: previewData.totalRows,
-        previewRows: previewData.previewRows,
-        issues: previewData.issues,
-        newCount: previewData.newCount,
-        updateCount: previewData.updateCount,
-      })
-      setStep("preview")
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError("Failed to load sample file. Is the server running?")
-      }
-      console.error("Sample file error:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   const resetWizard = () => {
     setStep("upload")
     setFile(null)
     setPreview(null)
     setResult(null)
     setError(null)
-    setUsingSampleFile(false)
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-white dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       {/* Progress indicator */}
@@ -193,7 +156,7 @@ export function ImportWizard() {
         <div className="w-full max-w-3xl animate-fade-in-up">
           {/* Error display */}
           {error && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-rose-50 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
+            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertCircle className="text-red-600" size={20} />
               </div>
@@ -261,27 +224,6 @@ export function ImportWizard() {
                   </div>
                 </div>
 
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-slate-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-3 bg-white text-slate-500">or for testing</span>
-                  </div>
-                </div>
-
-                <div className="text-center">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleUseSampleFile}
-                    disabled={isLoading}
-                    className="rounded-xl border-slate-300 hover:border-teal-400 hover:bg-teal-50 transition-all duration-200"
-                  >
-                    <FileSpreadsheet className="mr-2 text-teal-600" size={20} />
-                    {isLoading ? "Loading..." : "Use Sample File"}
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           )}
