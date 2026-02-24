@@ -17,8 +17,10 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@vercel/node": "^3.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
     "concurrently": "^8.2.2",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vite": "^6.0.7"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",
