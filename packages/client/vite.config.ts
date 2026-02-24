@@ -9,6 +9,11 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    modules: [
+      path.resolve(__dirname, 'node_modules'),
+      path.resolve(__dirname, '../../node_modules'),
+      'node_modules',
+    ],
   },
   css: {
     postcss: path.resolve(__dirname, './postcss.config.js'),
@@ -16,6 +21,12 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, './dist'),
     emptyOutDir: true,
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
+        warn(warning)
+      },
+    },
   },
   server: {
     port: 5173,
