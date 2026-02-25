@@ -1,0 +1,5141 @@
+[
+  {
+    "id": "aba3c43a-4d4f-4dcc-b870-76db88dd2d1b",
+    "question": ".ORG or .EDU Website Content",
+    "topic": "Education",
+    "answerLength": 754,
+    "keptId": "6d0b1dc9-b1e1-4c2d-897e-6b356d075e8d",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 768
+  },
+  {
+    "id": "23c58ea8-e70f-40fd-a17e-8a8a721d39ad",
+    "question": "100% Accessible HTML Template Build",
+    "topic": "Education",
+    "answerLength": 2224,
+    "keptId": "bda79f6a-bc76-4b43-a298-ee152ae40311",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 2266
+  },
+  {
+    "id": "c48f234c-f081-412e-b102-603cf840ca44",
+    "question": "A History of Working with Higher Education Associations",
+    "topic": "General",
+    "answerLength": 736,
+    "keptId": "ebe6f62b-61ca-4514-b182-4c52c17abf7d",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 736
+  },
+  {
+    "id": "19f93a4a-6a3c-48ff-8568-a3d2e4864a3d",
+    "question": "A Note on Cost Control and Factors Affecting Costs",
+    "topic": "General",
+    "answerLength": 798,
+    "keptId": "f6c1072f-d3e0-4929-9416-fcb83ef44147",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 798
+  },
+  {
+    "id": "780b1bca-231b-405d-9c34-d2782d9dc8b6",
+    "question": "A Recommendation for an In Place Redesign",
+    "topic": "Website Design & Creative",
+    "answerLength": 1732,
+    "keptId": "a31b0be8-cd05-46c2-b75d-8a69a750724b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1756
+  },
+  {
+    "id": "a4042641-7951-409f-89c0-0edf99c9cce0",
+    "question": "A SEM Philosophy That Drives Performance at Every Stage",
+    "topic": "Education",
+    "answerLength": 1633,
+    "keptId": "c0753946-5e5d-424b-add5-66464e0b0bc6",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1643
+  },
+  {
+    "id": "8e89af94-d1e5-4adb-9ec8-5594024b96e9",
+    "question": "Ability to Customize Solutions to Meet Unique Needs of the Client - Alternative",
+    "topic": "Education",
+    "answerLength": 1079,
+    "keptId": "2c3bdbc1-ebf7-4d9a-9792-73697e5a7890",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1087
+  },
+  {
+    "id": "487c09e8-7a65-4810-a8f9-6755ea1aca45",
+    "question": "Ability to Negotiate Media Opportunities",
+    "topic": "Education",
+    "answerLength": 578,
+    "keptId": "b44282e6-73bd-4bf2-997b-7605512bc7ea",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 578
+  },
+  {
+    "id": "fe9be5fb-afa3-4107-8002-42e114511446",
+    "question": "Ability to provide real-time reporting, dashboard access",
+    "topic": "Education",
+    "answerLength": 748,
+    "keptId": "053c6d82-11a9-4e26-a870-7fbc5f37618a",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 756
+  },
+  {
+    "id": "192bd87d-d744-41ee-8fe1-d3f9efd9067a",
+    "question": "Ability to Respond Quickly to Emerging Needs",
+    "topic": "Education",
+    "answerLength": 1332,
+    "keptId": "4e8ab2f5-30e4-4904-b5b2-15fa618b6f3d",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1332
+  },
+  {
+    "id": "49a75bb2-4769-4bfd-a95b-37135cbcadaf",
+    "question": "About Stamats - Higher Education & Healthcare Experience",
+    "topic": "General",
+    "answerLength": 690,
+    "keptId": "f4d66412-d68d-4807-a41f-7634a77ddc9c",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 690
+  },
+  {
+    "id": "b8380f46-1ed8-4dad-ad39-59a7b673b951",
+    "question": "About Stamats - Short",
+    "topic": "General",
+    "answerLength": 1158,
+    "keptId": "010ed1e0-7d80-48e9-b64a-5a75720fc7b8",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1166
+  },
+  {
+    "id": "ab21ffb2-e476-4ea0-8475-0046fdcf9d0d",
+    "question": "Academic Medical Center Introduction - Website",
+    "topic": "Healthcare",
+    "answerLength": 820,
+    "keptId": "e4273649-5bc5-4f5a-9cca-0da2abf7531c",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 820
+  },
+  {
+    "id": "74d760af-aef6-47e0-983b-0136c874e793",
+    "question": "Academic Program Assessment Preparation",
+    "topic": "Education",
+    "answerLength": 1278,
+    "keptId": "302cae0a-d863-4986-837b-aa056d0a7380",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 1300
+  },
+  {
+    "id": "6adb2e7c-42fa-426e-a2f2-af94979b6fa4",
+    "question": "Accelerated Content Pathway",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 764,
+    "keptId": "2c709d4e-2a94-42ca-a644-661d27dd676b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 765
+  },
+  {
+    "id": "0c3ab6a6-3566-469e-bf73-585b1ae187a4",
+    "question": "Accessibility policy",
+    "topic": "Education",
+    "answerLength": 1115,
+    "keptId": "484d5439-7c86-4eb0-99aa-abc7145da447",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1131
+  },
+  {
+    "id": "6e7ccee9-afa9-432a-88a0-007c21ca4160",
+    "question": "Accessibility Review Checklist",
+    "topic": "Education",
+    "answerLength": 1717,
+    "keptId": "e27c5375-467d-4834-9263-e8bcfdf12229",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1779
+  },
+  {
+    "id": "0ebc79b2-94bc-4841-aa26-0708dfd19654",
+    "question": "Accessibility Testing Prior to Major Release",
+    "topic": "Education",
+    "answerLength": 298,
+    "keptId": "c3b52d48-edc1-4941-bb7a-af730dae804b",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 306
+  },
+  {
+    "id": "1ddeebd1-1129-4f56-a903-e1586d3f32f8",
+    "question": "Accessibility Validation",
+    "topic": "Education",
+    "answerLength": 1679,
+    "keptId": "4a059784-f8cc-4195-94fd-dbd66c02e5f0",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1721
+  },
+  {
+    "id": "0a598604-f2c7-45ec-9f7a-6083caada975",
+    "question": "Accessible PDFs and PDF Strategy",
+    "topic": "Education",
+    "answerLength": 1522,
+    "keptId": "31d847da-029c-4538-81f9-e4faa19f3c06",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1542
+  },
+  {
+    "id": "b2434299-cafe-4a98-9aae-e1d91b11fe98",
+    "question": "Accessible Social Media Content",
+    "topic": "Healthcare",
+    "answerLength": 794,
+    "keptId": "cd17beba-32ad-4741-b564-d45de041e771",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 804
+  },
+  {
+    "id": "db291854-06c3-4bff-8122-ae95d04fc7ea",
+    "question": "Account and Project Management",
+    "topic": "General",
+    "answerLength": 799,
+    "keptId": "ad5e8b7a-d9e7-48fb-ad17-73ac10224b72",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 807
+  },
+  {
+    "id": "c1d64c5d-ac74-4b09-9ce3-44d5ede153f0",
+    "question": "Account Management Process",
+    "topic": "General",
+    "answerLength": 801,
+    "keptId": "569064a1-8c86-4848-b67e-f116316b5168",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 801
+  },
+  {
+    "id": "eb412923-56cf-4274-a7df-8bbccd198625",
+    "question": "Achievement of Performance Milestones",
+    "topic": "Education",
+    "answerLength": 725,
+    "keptId": "8e5bc0db-d4f2-4e32-9db5-0cf25d16605b",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 725
+  },
+  {
+    "id": "99a6c2ac-0f92-4b2b-8f90-f20268e53867",
+    "question": "Achieving Success with Technology",
+    "topic": "Education",
+    "answerLength": 4774,
+    "keptId": "33bb9c2b-6c6a-4dfe-842e-2d9fae7c2755",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 4776
+  },
+  {
+    "id": "55edb101-ae6b-4940-bc84-8fca857bedf2",
+    "question": "ADA Compliance Tools - WordPress",
+    "topic": "Education",
+    "answerLength": 246,
+    "keptId": "128055cb-382f-4ce6-8af7-e8630e393703",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 252
+  },
+  {
+    "id": "09d7a5f2-0516-44ad-ab75-316108f0d446",
+    "question": "Additional Software or License Purchases Required",
+    "topic": "Education",
+    "answerLength": 273,
+    "keptId": "a13e341a-734a-4f85-89db-2676450eb674",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 279
+  },
+  {
+    "id": "53523b8a-56f6-424e-b708-e6f0a2e1adb6",
+    "question": "Adhering to Timelines",
+    "topic": "General",
+    "answerLength": 469,
+    "keptId": "e0c4dd03-6d76-4a9f-b016-3cfc99451b46",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 469
+  },
+  {
+    "id": "4e7fe2ba-9156-4754-b74b-f513491d3f06",
+    "question": "Admissions Communication Sequence Mapping",
+    "topic": "Education",
+    "answerLength": 2289,
+    "keptId": "b49f5cf5-fe56-46d0-8e36-8a9ac263e742",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 2321
+  },
+  {
+    "id": "df36793f-4677-48f5-9542-b96f2fa9935f",
+    "question": "Advance Form Capabilities",
+    "topic": "Education",
+    "answerLength": 719,
+    "keptId": "e7faa201-306d-49a2-8255-c888dd6d7206",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 729
+  },
+  {
+    "id": "39088322-0751-487f-a3a1-701df81556b4",
+    "question": "Agency Billing Breakdown",
+    "topic": "General",
+    "answerLength": 192,
+    "keptId": "2232403d-3045-4be4-9542-d08972ff8ae3",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 192
+  },
+  {
+    "id": "423e12f2-7323-4e2e-9ad9-e9bef2994ed6",
+    "question": "Agency Owners/Key Principals/Corporate Structure",
+    "topic": "General",
+    "answerLength": 1330,
+    "keptId": "e24a0a93-0b65-4fad-9a15-bf93879beb32",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1346
+  },
+  {
+    "id": "812a02da-081e-48da-9cf1-4fd7a584322f",
+    "question": "Agency Ownership %",
+    "topic": "Company Information",
+    "answerLength": 473,
+    "keptId": "0e8e45fd-67cd-4ef4-8408-6a4514804989",
+    "keptTopic": "General",
+    "keptAnswerLength": 509
+  },
+  {
+    "id": "6c3cf827-9162-4988-9fa1-0d0f52a22021",
+    "question": "AI & Future-Proofing",
+    "topic": "Education",
+    "answerLength": 1256,
+    "keptId": "effd686d-6d41-49c8-8186-ce5335597cd6",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1256
+  },
+  {
+    "id": "c22ed7dd-0fbd-4fdd-9aa4-9111e2da9388",
+    "question": "AI Content Research Support",
+    "topic": "Education",
+    "answerLength": 582,
+    "keptId": "92f3ec13-7bc7-4843-93c4-0abe58494d3b",
+    "keptTopic": "Emerging Technologies",
+    "keptAnswerLength": 582
+  },
+  {
+    "id": "f2c2e1f1-d4f1-46c7-8927-c466d7953940",
+    "question": "AI Readiness Training/Workshops",
+    "topic": "Education",
+    "answerLength": 558,
+    "keptId": "08df1d71-e345-4a0b-92f5-2723af8e9b0e",
+    "keptTopic": "Emerging Technologies",
+    "keptAnswerLength": 566
+  },
+  {
+    "id": "721fe12f-0b9f-46db-89cb-4fc33aabb83c",
+    "question": "AI-Powered Chatbot Integration",
+    "topic": "Education",
+    "answerLength": 1292,
+    "keptId": "c00a0f9f-750f-4799-8500-7becc18c80bb",
+    "keptTopic": "Emerging Technologies",
+    "keptAnswerLength": 1302
+  },
+  {
+    "id": "d9e6160e-d200-4e0f-bc67-52915b2d4736",
+    "question": "Alternate Digital Marketing Introduction",
+    "topic": "Education",
+    "answerLength": 1832,
+    "keptId": "1c2c3ca3-2db6-4e6d-999f-ba80ab6ca07c",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1832
+  },
+  {
+    "id": "fdbb1622-2047-467c-a5ff-54c7360918a3",
+    "question": "American Standard Case Study",
+    "topic": "Brand Campaign",
+    "answerLength": 1771,
+    "keptId": "cbc29725-f2f4-453b-9d90-24ac5c68df92",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1775
+  },
+  {
+    "id": "cc643fb5-f055-4b5a-bc85-c37cae339cee",
+    "question": "Analysis, Goal Setting, and Education",
+    "topic": "Education",
+    "answerLength": 3167,
+    "keptId": "a64ade7e-adae-474b-87b1-52f495d3397e",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 3173
+  },
+  {
+    "id": "eb06ff58-5a08-4355-850e-0ea189e67b84",
+    "question": "Analytics-Driven Recommendations",
+    "topic": "Education",
+    "answerLength": 828,
+    "keptId": "96ac1021-33f4-44e8-8fa0-48dc962bc8a6",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 832
+  },
+  {
+    "id": "e7bebec8-4190-4e85-8290-c14ab6df0cdc",
+    "question": "Annual Digital Marketing Services Monthly Retainer - EXAMPLE STARTING POINT",
+    "topic": "Education",
+    "answerLength": 3088,
+    "keptId": "6b609bbe-06dd-406f-a546-8f82490edec9",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 3168
+  },
+  {
+    "id": "a7e78dfc-b25e-4fa2-afd5-38e6b0caa76e",
+    "question": "Applications Used for File Transfer Between Firm and Customer",
+    "topic": "Data Stewardship",
+    "answerLength": 891,
+    "keptId": "6ae15dd4-2698-4de9-ab1e-7cf6c74b0ab0",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 897
+  },
+  {
+    "id": "444faec8-950d-422a-bff0-05bcff6fffdc",
+    "question": "Approach to Adjusting Content for an Audience",
+    "topic": "Healthcare",
+    "answerLength": 1036,
+    "keptId": "cd234a94-8371-412b-a55d-bbc989ec490a",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 1036
+  },
+  {
+    "id": "2e11444b-ce5e-4c61-94c8-6b5b4f61e347",
+    "question": "Approach to Competitor Analysis",
+    "topic": "Education",
+    "answerLength": 3240,
+    "keptId": "334bc65c-2edb-431a-8904-0090ad871964",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 3276
+  },
+  {
+    "id": "7eb4194c-37c2-4bd4-84ce-7083391757bf",
+    "question": "Approach to Developing an Effective Strategy for Analytics",
+    "topic": "Education",
+    "answerLength": 1273,
+    "keptId": "80711433-7ed9-4fbb-b87e-1dcf0366bcfd",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 1279
+  },
+  {
+    "id": "6aa98782-f993-4414-9df6-f3717abc3c22",
+    "question": "Approach to Engaging Targeted Audiences Through Social Media Channels",
+    "topic": "Education",
+    "answerLength": 681,
+    "keptId": "eb7e5737-f24d-4adb-b17a-66504634d4b7",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 681
+  },
+  {
+    "id": "75f03e43-6de7-4dd7-8a2d-d0d487801b83",
+    "question": "Approach to Granular Editing Permissions",
+    "topic": "Education",
+    "answerLength": 1783,
+    "keptId": "e4b128d0-9f3b-4bd3-a43c-4897880322bd",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1787
+  },
+  {
+    "id": "9e153c3c-1493-4f91-a97d-1274acefce4a",
+    "question": "Approach to Link Building Strategy and Implementation",
+    "topic": "Education",
+    "answerLength": 1491,
+    "keptId": "720e3221-4dce-45e7-8654-a0c128cd6274",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1491
+  },
+  {
+    "id": "56be9b82-50b5-469f-9781-7536b14844fc",
+    "question": "Approach to Optimization",
+    "topic": "Education",
+    "answerLength": 656,
+    "keptId": "d68902f0-758b-4a36-9274-16257619c1fc",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 656
+  },
+  {
+    "id": "b7e0b57c-a6d4-4532-8c19-ede6b9da1b44",
+    "question": "Approach to Website Sustainability",
+    "topic": "Education",
+    "answerLength": 582,
+    "keptId": "c99fdb0a-eefa-4aae-96c4-b42d77abb796",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 582
+  },
+  {
+    "id": "e62335ab-aaba-4ff3-a6fe-8299bae00174",
+    "question": "Audience-Focused Blogging",
+    "topic": "Healthcare",
+    "answerLength": 740,
+    "keptId": "fb7d5e89-60f8-4e10-84c2-a55091a2be6c",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 752
+  },
+  {
+    "id": "111f6170-a277-49ee-813d-65cad2f96d24",
+    "question": "Banking Information",
+    "topic": "General",
+    "answerLength": 187,
+    "keptId": "15237fdd-12e7-4ced-9ed0-a27d8b06d0f5",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 197
+  },
+  {
+    "id": "02d81d58-9e8e-42d4-a125-4f48f5c5c265",
+    "question": "Best Way to Work With Stamats",
+    "topic": "General",
+    "answerLength": 793,
+    "keptId": "ccec5f44-1ec5-4e83-a66c-60b1524c259d",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 793
+  },
+  {
+    "id": "4e1d9eb8-a45f-420b-a11b-67c566fc247e",
+    "question": "Better Business Bureau",
+    "topic": "Company Information",
+    "answerLength": 160,
+    "keptId": "7602797f-c8d1-4c5c-855b-750c1158e5e0",
+    "keptTopic": "General",
+    "keptAnswerLength": 161
+  },
+  {
+    "id": "2a3181ca-434b-47e7-b460-e39cbfba7396",
+    "question": "Blog",
+    "topic": "Healthcare",
+    "answerLength": 553,
+    "keptId": "2f94de1e-92fb-4315-b205-3cb2650b21b0",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 563
+  },
+  {
+    "id": "0980b49b-46f0-45e2-b022-6a82d9151c5e",
+    "question": "Brand Audience Surveys",
+    "topic": "Education",
+    "answerLength": 1111,
+    "keptId": "9619a5aa-0a77-4524-965c-eac1b8b7ccdb",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 1151
+  },
+  {
+    "id": "d8b775cb-1ed1-419d-9767-d5b0a639db17",
+    "question": "Brand Book",
+    "topic": "Education",
+    "answerLength": 648,
+    "keptId": "9a4c0770-5f6c-467d-9a2a-596a8d3997ea",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 648
+  },
+  {
+    "id": "a012d0ac-990c-42a8-ade7-e6f9cff3ab8f",
+    "question": "Brand Concept Testing and Refinement",
+    "topic": "Education",
+    "answerLength": 764,
+    "keptId": "ce0d256a-749e-415c-b062-287f12febc4d",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 776
+  },
+  {
+    "id": "81fbac01-34cb-49c6-abe4-6fa1c5313014",
+    "question": "Brand Creative/Visual Identity",
+    "topic": "Education",
+    "answerLength": 1091,
+    "keptId": "8dc140a6-f109-46a9-8fc4-fd8e220c9e56",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1111
+  },
+  {
+    "id": "87f4f46b-11ff-466c-9d25-3b684c02b1a2",
+    "question": "Brand Development Research and Perception Study",
+    "topic": "Education",
+    "answerLength": 1736,
+    "keptId": "b4074311-be1f-4da1-9b05-71323184ec24",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1736
+  },
+  {
+    "id": "72bef23c-ab51-45bb-afcb-cba4aebf9395",
+    "question": "Brand Ethos Video",
+    "topic": "Education",
+    "answerLength": 395,
+    "keptId": "039afd2f-a2df-4f07-b046-bf3802dce874",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 403
+  },
+  {
+    "id": "d282fe15-0db6-44f8-a30c-8b456004c25c",
+    "question": "Brand Proposal Pricing",
+    "topic": "Education",
+    "answerLength": 3104,
+    "keptId": "74b60147-2191-4988-af49-e30796f022a6",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 3148
+  },
+  {
+    "id": "ed186fbb-a4a5-46d6-abaa-40038e5dd3c3",
+    "question": "Brand Review and Enhancement Recommendation Report",
+    "topic": "Education",
+    "answerLength": 598,
+    "keptId": "78df995b-46b4-4b69-aa1d-c471afba1edc",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 598
+  },
+  {
+    "id": "cffda7b1-87a8-419d-9b37-9d30bb59be92",
+    "question": "Brand Training for Employees",
+    "topic": "Education",
+    "answerLength": 3795,
+    "keptId": "ef90f8f3-fdbd-4a5a-85f1-bc8b41931f59",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 3819
+  },
+  {
+    "id": "8e1f88fc-cb10-4b81-9087-ad4bf7f65d2b",
+    "question": "Branded SEM Campaigns",
+    "topic": "Education",
+    "answerLength": 473,
+    "keptId": "3b85c4a5-473a-4cf6-b501-c3f5d77650f1",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 473
+  },
+  {
+    "id": "837fd931-5ab7-4530-af51-f6f954de26b9",
+    "question": "Briefly include the process your company uses for referrals.",
+    "topic": "General",
+    "answerLength": 347,
+    "keptId": "331290e0-49f9-4b05-a121-9e99100ccc29",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 347
+  },
+  {
+    "id": "c62fd225-46f4-4e0f-ac75-fae1b4bc37a0",
+    "question": "Built for Exceptions: We Handle Tight Deadlines, Tough Challenges",
+    "topic": "Education",
+    "answerLength": 1795,
+    "keptId": "81446c0d-2825-4a0c-ac20-07ac35fbc24f",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1855
+  },
+  {
+    "id": "c96b60da-3e54-4bd9-8fff-db4493108686",
+    "question": "Business Model",
+    "topic": "General",
+    "answerLength": 605,
+    "keptId": "d6b2d0e6-5846-41e2-80ab-fa8f48fabf9e",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 605
+  },
+  {
+    "id": "0cc0daa4-6ab4-4527-83b2-2c8c57ca6bbc",
+    "question": "Call-to-Action Strategy: Intentional, Action-Driven Content",
+    "topic": "Education",
+    "answerLength": 2016,
+    "keptId": "cc78dce6-4158-420b-adb5-66c2caceb102",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2029
+  },
+  {
+    "id": "cc12bdb6-20eb-4458-b1d2-dcbace63b200",
+    "question": "Campaign Landing Pages",
+    "topic": "Education",
+    "answerLength": 659,
+    "keptId": "4dfad8c4-2419-4e21-9fa3-ac2607ccde4d",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 659
+  },
+  {
+    "id": "33b241a9-a652-4038-b97c-c857fe2e20ef",
+    "question": "Campaign Landing Pages & SEO Support",
+    "topic": "Education",
+    "answerLength": 694,
+    "keptId": "d4865c27-5096-48f6-87dd-292738a33ff7",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 694
+  },
+  {
+    "id": "edf6a22e-95e8-46ab-90df-4e78342b89e2",
+    "question": "Campaign Launch & Working Media",
+    "topic": "Education",
+    "answerLength": 1312,
+    "keptId": "e99c93bd-e9c1-4a34-8b89-292e581f1eb3",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1312
+  },
+  {
+    "id": "3ef638d2-25fd-44b7-a3a2-07b3ce787fc5",
+    "question": "Campaign Management and Optimization",
+    "topic": "Education",
+    "answerLength": 796,
+    "keptId": "0d11a44f-8e83-44ba-8a1d-6fffbaf01e72",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 796
+  },
+  {
+    "id": "127bc6ab-cb84-4952-8553-314b34db9725",
+    "question": "Campaign Reach",
+    "topic": "Healthcare",
+    "answerLength": 893,
+    "keptId": "165269f6-78b8-4d9f-88a4-d8b06b506aeb",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 901
+  },
+  {
+    "id": "0c218317-f61b-4db3-8866-594980d2bbe7",
+    "question": "Campaign Reporting",
+    "topic": "Education",
+    "answerLength": 3091,
+    "keptId": "998c1f98-c782-4567-b99d-2180906d53c5",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 3123
+  },
+  {
+    "id": "e0882ce2-4f8b-4e1f-b0b7-58e0f2b1f19b",
+    "question": "Can automated email be added to the mix? Other technologies?",
+    "topic": "Education",
+    "answerLength": 2877,
+    "keptId": "9f3ba0c4-1428-46f3-acc4-9b33c23246e6",
+    "keptTopic": "Enrollment Strategies",
+    "keptAnswerLength": 2895
+  },
+  {
+    "id": "2e2e475d-74f5-4a7a-bf4b-ca4736a02d0b",
+    "question": "Can your agency take on new projects at the current time?",
+    "topic": "Education",
+    "answerLength": 946,
+    "keptId": "ebb52dc7-3b5f-4f0e-b133-66dc846ab5dc",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 946
+  },
+  {
+    "id": "025960b3-7ebe-4c1e-bcb8-cbb6f18a91f8",
+    "question": "Capacity for Face-to-Face Client Meetings and Onsite Work and Monthly Conference Calls & Emails",
+    "topic": "General",
+    "answerLength": 1059,
+    "keptId": "0e333958-9c45-44b6-8191-7f9144c53587",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 1059
+  },
+  {
+    "id": "60080afc-978a-43d3-951c-3ea6343ff32a",
+    "question": "Capacity to Perform the Engagement In-House",
+    "topic": "General",
+    "answerLength": 1283,
+    "keptId": "95becc0c-cb17-4d4f-88a7-14c04a3c47d9",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1283
+  },
+  {
+    "id": "7ab37c86-382c-45fe-afd9-d32603e5e912",
+    "question": "Cascade & Tech Stack",
+    "topic": "Education",
+    "answerLength": 2940,
+    "keptId": "7e6ff953-c370-4eb8-8a31-1cd51fb4246c",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 2976
+  },
+  {
+    "id": "425b091f-7b02-46fd-84ef-e81a09e10773",
+    "question": "Cascade Training Options",
+    "topic": "Education",
+    "answerLength": 496,
+    "keptId": "cec24847-cfe1-49bc-b800-29e67d4d7541",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 500
+  },
+  {
+    "id": "9869c598-9a03-47a5-b99e-756c3999a5c5",
+    "question": "Changes to Project Scope & Pricing",
+    "topic": "Pricing Information",
+    "answerLength": 903,
+    "keptId": "33fadf78-5f7b-42f7-be37-1de378288567",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 903
+  },
+  {
+    "id": "7604c312-9eff-49b0-a353-242125dc2881",
+    "question": "Clean, Focused, Goal-Oriented Design",
+    "topic": "Education",
+    "answerLength": 508,
+    "keptId": "a59a2c49-2076-4a33-af16-d52f1aa1e9f7",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 508
+  },
+  {
+    "id": "a8a5360c-db32-42c4-9bea-951848e42b27",
+    "question": "Client Engagement During Digital Campaigns",
+    "topic": "Education",
+    "answerLength": 2047,
+    "keptId": "2105f4ee-f3b7-498a-8e25-9b11c44554fa",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2059
+  },
+  {
+    "id": "e20e5eab-86f3-4e08-8381-990c9eae0cb9",
+    "question": "Client Expectations for Digital/SEM Projects",
+    "topic": "Education",
+    "answerLength": 2052,
+    "keptId": "fa5ab2ea-130b-4167-a26c-d04f3e2ea448",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2064
+  },
+  {
+    "id": "6ce256df-ece4-4c79-9209-cca9606044ff",
+    "question": "Client Interactions and Onboarding",
+    "topic": "Education",
+    "answerLength": 716,
+    "keptId": "481b9929-639a-430f-b51f-0a35e7cd3698",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 716
+  },
+  {
+    "id": "4545ff7b-0c0c-40fd-886d-b7d91525e00a",
+    "question": "Client PM Expectations",
+    "topic": "Education",
+    "answerLength": 1387,
+    "keptId": "ae67fb49-1b80-4ec8-b223-d15000bd49e0",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1413
+  },
+  {
+    "id": "9d458de6-49d9-4143-be64-262c238af6e0",
+    "question": "Client Training for Demand Generation Project",
+    "topic": "Digital Marketing",
+    "answerLength": 539,
+    "keptId": "b4abe314-6e23-408b-9764-e381d4703caf",
+    "keptTopic": "Education",
+    "keptAnswerLength": 540
+  },
+  {
+    "id": "c1cc4802-6672-40cd-9c9b-ebb016c271ad",
+    "question": "Clive Experience",
+    "topic": "Healthcare",
+    "answerLength": 1075,
+    "keptId": "a809ea8d-c41e-471c-b652-e89fcbf3fe66",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1075
+  },
+  {
+    "id": "f3498174-7d19-4ecf-8b36-ca0e83a26c4e",
+    "question": "Cloud Hosting - WordPress",
+    "topic": "Education",
+    "answerLength": 520,
+    "keptId": "d1e0d0fd-8d94-4e95-ae6b-262064ca1f83",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 520
+  },
+  {
+    "id": "414b29cf-4e2e-4924-843c-7ad86b2e8ec2",
+    "question": "Cloud Hosting Benefits",
+    "topic": "General",
+    "answerLength": 442,
+    "keptId": "ac8810ed-382a-421c-83ef-b0941b332522",
+    "keptTopic": "Hosting & Environment Management",
+    "keptAnswerLength": 442
+  },
+  {
+    "id": "69059ae4-e4f7-406f-a5cc-1f8b833ec11d",
+    "question": "Cloud-Based Platform and Integration",
+    "topic": "Education",
+    "answerLength": 803,
+    "keptId": "87426256-269c-449b-9939-ccd6256dafa6",
+    "keptTopic": "Hosting & Environment Management",
+    "keptAnswerLength": 803
+  },
+  {
+    "id": "a38e4569-2d93-4678-89a2-d7cf4375b87d",
+    "question": "CMS Discovery, Assessment, and Recommendation",
+    "topic": "Education",
+    "answerLength": 1567,
+    "keptId": "707112d4-7a1d-4d5d-8a0f-11a1c28a8d74",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1567
+  },
+  {
+    "id": "fc5f2b01-1a9d-4a4b-9324-5e68b6516965",
+    "question": "CMS Integration",
+    "topic": "Education",
+    "answerLength": 699,
+    "keptId": "752cd43d-2488-4c48-b3dc-eb72d56805d5",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 699
+  },
+  {
+    "id": "54bc0c01-756c-40a8-b6cc-55229557a1e8",
+    "question": "CMS Licensing Model",
+    "topic": "Education",
+    "answerLength": 676,
+    "keptId": "d11bddc1-a008-4ff0-8a06-ef82db51214b",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 688
+  },
+  {
+    "id": "c7862652-51e6-40e4-b277-f0d4f9d5d317",
+    "question": "Coding Standards and Validation",
+    "topic": "Education",
+    "answerLength": 1085,
+    "keptId": "027edc76-cc31-48b4-b9ae-ef73c84538fd",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1093
+  },
+  {
+    "id": "5ce6cec0-a1df-433f-88ef-fa2787de84a0",
+    "question": "Community College Clients Are Our Favorite Clients",
+    "topic": "Education",
+    "answerLength": 634,
+    "keptId": "2fd1bf5e-8d09-4a71-9bd4-697b9ab65177",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 634
+  },
+  {
+    "id": "3553375e-5afb-441e-98f2-dc77805e7af8",
+    "question": "Community Services Oriented Marketing Plan",
+    "topic": "General",
+    "answerLength": 1556,
+    "keptId": "b65bd00e-5816-4edb-9a90-e3b18525dbcf",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 1576
+  },
+  {
+    "id": "6b27ed34-ffda-40dc-8cec-6ba2363bf2a5",
+    "question": "Company Background - Brief History & Focus",
+    "topic": "General",
+    "answerLength": 742,
+    "keptId": "b7041df3-3550-49a9-bfe7-da2f4285ce79",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 742
+  },
+  {
+    "id": "719d9687-43e8-40a2-8129-9aa3505a4703",
+    "question": "Company History - Long Version",
+    "topic": "Company Information",
+    "answerLength": 11534,
+    "keptId": "1388f754-59d3-4ed5-8fa7-d02c3b46d4d4",
+    "keptTopic": "History",
+    "keptAnswerLength": 11537
+  },
+  {
+    "id": "22c06610-35b8-4d49-b69d-8d98d4d833ae",
+    "question": "Company Overview - Research Experience/Heritage (Higher Ed)",
+    "topic": "General",
+    "answerLength": 501,
+    "keptId": "e26af7a9-535f-41cc-94a9-d17d37127392",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 501
+  },
+  {
+    "id": "2b994788-88a9-4330-93e3-7470f46bc359",
+    "question": "Company Profile",
+    "topic": "History",
+    "answerLength": 1173,
+    "keptId": "8840fd88-2b22-459f-bb29-bf341c6edc09",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1173
+  },
+  {
+    "id": "fd1000ae-8a9d-4f0a-a4bb-c467f318a127",
+    "question": "Competitive Advantages over Other Firms",
+    "topic": "General",
+    "answerLength": 1629,
+    "keptId": "9c422716-da30-47d5-a933-01a93e24a1be",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1629
+  },
+  {
+    "id": "cb40dafa-5a3d-450a-9561-efbee4353258",
+    "question": "Competitor Analysis",
+    "topic": "Education",
+    "answerLength": 2174,
+    "keptId": "457f46e5-8f32-473d-a396-2c6c453be557",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2180
+  },
+  {
+    "id": "5936cc1c-d36e-48d2-a820-3814f5235386",
+    "question": "Complete a comparison of Empire lexicon vs. industry standards.",
+    "topic": "Education",
+    "answerLength": 608,
+    "keptId": "164c4990-d26f-40f8-bdf9-b8befe8892d9",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 608
+  },
+  {
+    "id": "62898f2a-1d3c-4cec-a336-85153c439a0f",
+    "question": "Comprehensive List of Research Project Assumptions",
+    "topic": "Education",
+    "answerLength": 905,
+    "keptId": "713af51d-007e-456b-aedd-e529ef90a9fa",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 913
+  },
+  {
+    "id": "b3f83ea2-f798-4c41-8a29-f54085259db0",
+    "question": "Comprehensive Monthly Reports",
+    "topic": "Education",
+    "answerLength": 724,
+    "keptId": "f0638167-330f-4098-973c-e34e323ed20c",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 730
+  },
+  {
+    "id": "a1850b3c-e582-44ce-b351-9aca69b6d27e",
+    "question": "Confidential Personally Identifiable Data Handling Policy",
+    "topic": "Data Stewardship",
+    "answerLength": 839,
+    "keptId": "d037053c-d021-48cf-ac98-46359aecb9bd",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 855
+  },
+  {
+    "id": "6d24f5fc-f06a-4368-893e-b34b12e4cf64",
+    "question": "Confidentiality Agreement",
+    "topic": "General",
+    "answerLength": 2054,
+    "keptId": "d883ecbc-b066-4431-9f89-317973edc6f8",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 2060
+  },
+  {
+    "id": "fe5fdb42-948a-4c79-ab56-aae60e9e47c8",
+    "question": "Conflict of Interest Policy",
+    "topic": "General",
+    "answerLength": 607,
+    "keptId": "4c888625-3332-43e7-be2d-6e17ae2e830b",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 607
+  },
+  {
+    "id": "dd4a4056-3ee1-450a-a90f-6063d159dfa6",
+    "question": "Connected User Journey",
+    "topic": "Virtual Tour",
+    "answerLength": 790,
+    "keptId": "84754225-f2c6-400e-aa2a-15dddd962d86",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 800
+  },
+  {
+    "id": "9fb30d2f-082e-486d-98d3-a2ef619260c1",
+    "question": "Content and Creative Specific KPIs",
+    "topic": "Education",
+    "answerLength": 687,
+    "keptId": "20be7ea3-264b-4391-aee4-3610813efcc0",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 697
+  },
+  {
+    "id": "b3e380c3-fd76-4cc6-b94f-4918c49141fb",
+    "question": "Content Approval Workflow Integrated Across Different CMS Systems",
+    "topic": "Education",
+    "answerLength": 1076,
+    "keptId": "a5339741-4428-4938-9b99-fbb409b900d5",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1076
+  },
+  {
+    "id": "a8836228-5ce8-4bdf-9dd2-e033dc714386",
+    "question": "Content Approval Workflow Integrated Through CMS",
+    "topic": "Education",
+    "answerLength": 620,
+    "keptId": "85bec73b-49ca-4327-95ac-e3913378ea01",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 620
+  },
+  {
+    "id": "19f84409-55b5-452e-b9ad-3001d92c7e0b",
+    "question": "Content Audit Services",
+    "topic": "Education",
+    "answerLength": 695,
+    "keptId": "62328f8f-bf67-4d9f-9169-e566ff96d05d",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 709
+  },
+  {
+    "id": "a3af36a4-e257-4945-9eea-d95c11835d78",
+    "question": "Content Creation: Content and SEO",
+    "topic": "Education",
+    "answerLength": 4347,
+    "keptId": "111141d7-2e47-4ba5-bb8b-591cdaeeacaf",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 4379
+  },
+  {
+    "id": "c2a0a10f-fdd4-4aec-9dff-a8c7a8a2d3f0",
+    "question": "Content Development",
+    "topic": "Healthcare",
+    "answerLength": 775,
+    "keptId": "7661b8fa-6440-49ea-ab73-e9e1bebc0315",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 781
+  },
+  {
+    "id": "34f68fcb-3bf8-47da-b87a-09d6a6a2af08",
+    "question": "Content formats for text, images, and video",
+    "topic": "Education",
+    "answerLength": 378,
+    "keptId": "c7026582-7b62-435b-8ec5-4059c317c93a",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 378
+  },
+  {
+    "id": "af6c6c17-16f4-4246-9344-d74efcd78f62",
+    "question": "Content SEO Dashboard Training",
+    "topic": "Education",
+    "answerLength": 780,
+    "keptId": "95581209-a512-4d64-b243-6e83c8e0c68e",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 790
+  },
+  {
+    "id": "678e1fc9-0587-4650-9b29-a5e6b9682aed",
+    "question": "Content Strategy & Management Experience",
+    "topic": "Education",
+    "answerLength": 1516,
+    "keptId": "a6c8dac9-9db7-4172-932c-d1c32f39c600",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1516
+  },
+  {
+    "id": "794c78f6-209d-4b49-98b3-74cf18380cab",
+    "question": "Content Strategy and Web Services",
+    "topic": "Education",
+    "answerLength": 518,
+    "keptId": "064bf668-0acc-4834-81bf-6673ee17da3d",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 518
+  },
+  {
+    "id": "bae60032-c5b2-45d4-b3ae-c9f86fe5b7c9",
+    "question": "Content Strategy Development",
+    "topic": "Education",
+    "answerLength": 604,
+    "keptId": "3bf476c2-127b-4d75-bbd5-722a0c30a0f8",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 610
+  },
+  {
+    "id": "b34f6f38-3900-46f8-aeef-280ee72a9340",
+    "question": "Content Strategy: Page Tables",
+    "topic": "Education",
+    "answerLength": 551,
+    "keptId": "47db570f-a512-41ba-946e-e57d4242b241",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 551
+  },
+  {
+    "id": "43aa45fd-95a0-4e18-a30b-2b5fe3f45c73",
+    "question": "Content Templates",
+    "topic": "Education",
+    "answerLength": 512,
+    "keptId": "b5d89592-2c64-4ecb-8435-948b4c2ea725",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 512
+  },
+  {
+    "id": "8143da11-3bea-4314-8c68-c2d172fa0c7b",
+    "question": "Content Upload Time and Support - Process and Cost for Uploads",
+    "topic": "Education",
+    "answerLength": 372,
+    "keptId": "30d4bb5f-b45d-4dc3-be45-f4b724810cde",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 372
+  },
+  {
+    "id": "fcb8bc0c-da71-4072-a508-bd56da2517d7",
+    "question": "Content Upload Time and Support - Process for Receiving Content",
+    "topic": "",
+    "answerLength": 344,
+    "keptId": "99a59e59-376b-45c8-8d94-0a11cc293808",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 344
+  },
+  {
+    "id": "674bb6f2-91d1-4212-b2c8-8faee34454dd",
+    "question": "Content Upload Time and Support - Time Needed to Upload Content",
+    "topic": "Education",
+    "answerLength": 350,
+    "keptId": "16ec905a-2a6d-4ed9-b98e-e756aa118426",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 350
+  },
+  {
+    "id": "bc74773f-d4b5-49be-a064-e0f48f658fc8",
+    "question": "Content Work Plan/Timeline",
+    "topic": "Education",
+    "answerLength": 767,
+    "keptId": "30dbd899-ed9d-4d96-99be-d9314a20aa2f",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 769
+  },
+  {
+    "id": "768e15b5-c124-44c7-b45a-35bc13f2a488",
+    "question": "Contingency Plan or Disaster Recovery Plan",
+    "topic": "General",
+    "answerLength": 388,
+    "keptId": "bf26ba46-5f26-4e8a-bda8-a8e90862d2f9",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 388
+  },
+  {
+    "id": "39c2e180-8546-4899-88c8-f9abf36b6dff",
+    "question": "Contract or Other Terms of Agreement",
+    "topic": "Pricing Information",
+    "answerLength": 984,
+    "keptId": "58f5e360-28a9-4927-bf26-a7ac347c70d9",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 984
+  },
+  {
+    "id": "407a997c-d2ab-4505-9c03-6e3fa6731b87",
+    "question": "Controls to detect security breaches",
+    "topic": "General",
+    "answerLength": 845,
+    "keptId": "f0dd826f-59c0-4ca4-b8bf-5196c921e5c6",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 845
+  },
+  {
+    "id": "5c44c98a-0878-43dd-ae91-b2fab34607af",
+    "question": "Conversion Tactics",
+    "topic": "Education",
+    "answerLength": 865,
+    "keptId": "9d249433-6362-4136-bf71-046eb12d538f",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 865
+  },
+  {
+    "id": "4a418474-34a9-4703-92c5-c01136e83592",
+    "question": "Cost Savings Ideas",
+    "topic": "Pricing Information",
+    "answerLength": 675,
+    "keptId": "94f96380-3812-4776-8529-3417266bd06e",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 675
+  },
+  {
+    "id": "a7b449c7-d825-4d60-9696-c7b449fbfe49",
+    "question": "Costs for Website Migration",
+    "topic": "Education",
+    "answerLength": 5292,
+    "keptId": "26f29eee-04df-410b-9f46-9fdb5cd6e688",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 5398
+  },
+  {
+    "id": "c0d954a3-b417-42ff-b906-21e2de41a379",
+    "question": "Creation of Social Media Stories",
+    "topic": "Healthcare",
+    "answerLength": 820,
+    "keptId": "2d8c000b-94d2-4ee0-ba5c-1176788c5328",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 832
+  },
+  {
+    "id": "9e6c7072-bb84-43e4-a2cc-838eec48bda5",
+    "question": "Creative Assets Production",
+    "topic": "Education",
+    "answerLength": 1787,
+    "keptId": "736de6aa-1f67-4112-925e-582228317f18",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1805
+  },
+  {
+    "id": "7dee05cf-0f1f-46b9-a345-a7b3046681ae",
+    "question": "Creative Capabilities (Higher Ed)",
+    "topic": "General",
+    "answerLength": 1137,
+    "keptId": "cdafe910-35c1-4aa0-979b-f6d21f643f55",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1177
+  },
+  {
+    "id": "a8e6bbef-fb3b-40fa-8494-9024c75384bd",
+    "question": "Creative Concept Test - Web Survey",
+    "topic": "Education",
+    "answerLength": 2553,
+    "keptId": "dee1890f-8eae-4df4-9caa-fe70f2252b81",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 2577
+  },
+  {
+    "id": "20ee0b04-3feb-4c48-8a7c-1876baf930af",
+    "question": "Creative Content Collaboration",
+    "topic": "Education",
+    "answerLength": 999,
+    "keptId": "ec04aaa7-c18c-4d52-8eeb-c343d833e13a",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 999
+  },
+  {
+    "id": "d3ce41b9-7c39-479c-b84f-90e092a771bc",
+    "question": "CRM Support",
+    "topic": "Education",
+    "answerLength": 1023,
+    "keptId": "e1afecb3-9bc9-4076-a628-34599cd58b7e",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1023
+  },
+  {
+    "id": "ec55c227-ab56-4e93-a389-b27c2fb2fc20",
+    "question": "Current Website Challenges & Opportunities",
+    "topic": "Education",
+    "answerLength": 1846,
+    "keptId": "026897fb-5501-4f6f-8008-22c6259a39bb",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1846
+  },
+  {
+    "id": "761b4d66-4382-48b3-b18b-6d5e52804da9",
+    "question": "Custom Email Templates",
+    "topic": "Education",
+    "answerLength": 679,
+    "keptId": "5674105e-d418-4748-bf0f-9c83972d85a8",
+    "keptTopic": "Enrollment Strategies",
+    "keptAnswerLength": 679
+  },
+  {
+    "id": "4a737138-6006-4e05-8090-e3c6436aa40f",
+    "question": "Custom Software and App Development Experience",
+    "topic": "Education",
+    "answerLength": 347,
+    "keptId": "74966b15-ab95-46eb-8c12-0ecafca3b207",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 355
+  },
+  {
+    "id": "a09b8644-35e6-473f-9f55-51156da6653a",
+    "question": "Customer Relationship Management",
+    "topic": "Education",
+    "answerLength": 750,
+    "keptId": "a4910e25-880c-42d1-b8f1-5fff735f118c",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 750
+  },
+  {
+    "id": "c0864456-7672-4138-b303-8809c4686ee1",
+    "question": "Customer Service, Support, and Escalation Process",
+    "topic": "Education",
+    "answerLength": 809,
+    "keptId": "e861494c-572f-434f-9c45-f29d7ea21305",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 815
+  },
+  {
+    "id": "598c2907-0a6f-4c6b-afc7-182d440b4253",
+    "question": "Dashboard, Analytics Review, Monitoring, and Reporting",
+    "topic": "Healthcare",
+    "answerLength": 896,
+    "keptId": "2a466828-8086-4687-a260-f69287709134",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 912
+  },
+  {
+    "id": "f58685be-9f32-4683-a480-b29d32b05763",
+    "question": "Data Center/Network Topology and Capacity",
+    "topic": "General",
+    "answerLength": 609,
+    "keptId": "22dc48d0-2d0a-4992-b1d2-e1092650fb77",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 609
+  },
+  {
+    "id": "97037287-c72b-4b5e-9389-3e1a91de2e3b",
+    "question": "Data Expectations",
+    "topic": "General",
+    "answerLength": 3143,
+    "keptId": "e62b0a5d-d079-42ba-874c-0e1f63b247e4",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 3177
+  },
+  {
+    "id": "64e5be79-c12d-4ab7-836c-4f1f72f102cc",
+    "question": "Data Privacy",
+    "topic": "Data Stewardship",
+    "answerLength": 657,
+    "keptId": "fe050998-d722-4be9-a471-f5cd04d7d428",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 657
+  },
+  {
+    "id": "7095db0a-e7e8-46d2-89d4-8091af21a737",
+    "question": "Deep Higher Education Experience",
+    "topic": "Education",
+    "answerLength": 3286,
+    "keptId": "f3377570-9141-49e9-accf-aa55a46123f5",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 3286
+  },
+  {
+    "id": "bd2fc3c8-62c1-434a-b829-2af52bd85587",
+    "question": "Deep knowledge of adult learners in professional, continuing, and online education",
+    "topic": "Education",
+    "answerLength": 1720,
+    "keptId": "fa23a3aa-1e40-4aad-bbf7-ae94550f4301",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1720
+  },
+  {
+    "id": "a2301a5c-842a-4b73-b3a4-be3b5d6fd715",
+    "question": "Deeper Dive into Live Dashboard with Real-Time Data",
+    "topic": "Education",
+    "answerLength": 996,
+    "keptId": "acb052bc-9b17-44da-908c-904e000cd645",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 1002
+  },
+  {
+    "id": "2d4a3663-0964-41a7-968b-09be9d23bab1",
+    "question": "Deeper Dive into Live Dashboard with Real-Time Data -- SHORT VERSION",
+    "topic": "Education",
+    "answerLength": 936,
+    "keptId": "6953206d-bcef-425b-8cdd-eac684c70562",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 942
+  },
+  {
+    "id": "39eaa170-a3d8-49bd-b59e-e6019880251c",
+    "question": "Define Campaign Parameters (Day 1)",
+    "topic": "Education",
+    "answerLength": 1475,
+    "keptId": "d43df5e9-a9ed-4172-a9ad-cc4c658ab808",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1487
+  },
+  {
+    "id": "76251aad-5c10-4a81-80b3-9e661438b3a7",
+    "question": "Deliverables Provided at the Conclusion of Research Projects",
+    "topic": "Education",
+    "answerLength": 1883,
+    "keptId": "10334b79-d76e-4880-aaee-6b60d51be018",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 1887
+  },
+  {
+    "id": "1bbda710-ecc4-4a41-a1e2-70a6e8641396",
+    "question": "Demonstrated experience with new formats and strategies that have successful track records recruiting and retaining today’s new students",
+    "topic": "Education",
+    "answerLength": 620,
+    "keptId": "acf409bd-2595-44e7-b563-6530ad3b5b92",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 620
+  },
+  {
+    "id": "d2ded125-0158-4eab-86b0-8c31850a5f1a",
+    "question": "Department Toolkits - for Templates, Content, Unit Training, etc.",
+    "topic": "Education",
+    "answerLength": 1468,
+    "keptId": "44b8e9c2-99f9-406a-abf9-7b052b005bca",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1488
+  },
+  {
+    "id": "b8582472-a054-48f1-b205-1ccc5a3dfbc9",
+    "question": "Describe developer and project manager accessibility training.",
+    "topic": "Education",
+    "answerLength": 301,
+    "keptId": "bf39c9ae-65db-460a-8fad-826c138291e8",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 301
+  },
+  {
+    "id": "16d67a35-ddf1-43c5-b28e-24b7a86b405b",
+    "question": "Describe how site cookie notifications are handled.",
+    "topic": "Education",
+    "answerLength": 630,
+    "keptId": "7e87d1cf-ade8-4b3b-8535-a91d109c7769",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 630
+  },
+  {
+    "id": "f64a2b2a-2a67-434a-ba7c-448c48918e8f",
+    "question": "Describe how the agency’s team remains up to date with marketing trends and best practices.",
+    "topic": "General",
+    "answerLength": 707,
+    "keptId": "f377ed4b-5782-491c-9c9e-14b04f4307cf",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 707
+  },
+  {
+    "id": "2c725959-6251-47d4-bff4-88e071cf9001",
+    "question": "Describe how you avoid cost overruns. If possible, please share details of a time when a project went over budget and how you addressed the situation.",
+    "topic": "Pricing Information",
+    "answerLength": 883,
+    "keptId": "58f0c124-7db7-4bc2-b70d-e509acd9539e",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 883
+  },
+  {
+    "id": "b4b46aee-52a7-4a6a-a5c5-9e4dc82fba02",
+    "question": "Describe project management processes and previous experience managing large website projects with multiple user profiles that has required broad-based stakeholder engagement in every phase of the project, kick-off to launch.",
+    "topic": "Education",
+    "answerLength": 1478,
+    "keptId": "412a2716-f574-4f2e-9018-8123b816e4c6",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1490
+  },
+  {
+    "id": "c766b6f8-deb5-4c8a-8574-734129cbc917",
+    "question": "Describe the on-going support model for website issues or concerns for three months.",
+    "topic": "Education",
+    "answerLength": 246,
+    "keptId": "08bb483d-adf9-4c80-8023-c5fe659b710c",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 246
+  },
+  {
+    "id": "4eb88367-5982-44fa-9b8a-1e160c359321",
+    "question": "Describe the percentage of your staff that would be working on this project relative to your entire staff.",
+    "topic": "Education",
+    "answerLength": 1013,
+    "keptId": "aef10031-c4ed-4007-b119-ee117f2dee85",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1013
+  },
+  {
+    "id": "9b80d3d6-a7fb-4a3e-93ca-03f366db814b",
+    "question": "Describe the process for requesting reports.",
+    "topic": "General",
+    "answerLength": 622,
+    "keptId": "25ce05a9-15ce-40e1-af28-75538c4413c1",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 622
+  },
+  {
+    "id": "fc864980-b813-4370-a5d5-203d32983042",
+    "question": "Describe the ways in which the CMS facilitates and enhances SEO.",
+    "topic": "Education",
+    "answerLength": 465,
+    "keptId": "3f7b5908-03f5-4a66-af9a-1757323aa33a",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 465
+  },
+  {
+    "id": "165b8f3d-691e-4d3e-bf0b-50e53e21a6a3",
+    "question": "Describe your Accessibility Conformance Testing Process.",
+    "topic": "Education",
+    "answerLength": 286,
+    "keptId": "ecbe1438-cf88-4a63-ba0c-998855efd81a",
+    "keptTopic": "Website Assessment Services",
+    "keptAnswerLength": 296
+  },
+  {
+    "id": "bed40fef-3e14-4280-9318-a76f0fa79581",
+    "question": "Describe your company’s plan to take care of any/all copyright procurement. Confirm that all content shall be owned by the University and that the University shall retain all rights associated with the completed program.",
+    "topic": "General",
+    "answerLength": 397,
+    "keptId": "554dd840-1be5-492e-8805-9f2abfe00867",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 397
+  },
+  {
+    "id": "a59a7153-66ae-4fb9-9121-5d4cabba2d95",
+    "question": "Describe your experience in building an intranet platform",
+    "topic": "Education",
+    "answerLength": 1730,
+    "keptId": "6ddd3b17-a499-438b-8c6c-9b676dccd450",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1740
+  },
+  {
+    "id": "c8b5431d-ade3-415f-9e26-2424ee255b5b",
+    "question": "Describe your incident response policies and practices",
+    "topic": "General",
+    "answerLength": 895,
+    "keptId": "ff87b2cc-967e-433e-b48e-62bd3c1321ca",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 903
+  },
+  {
+    "id": "fcdd440a-4340-48e7-8fae-4196834d43a9",
+    "question": "Describe your philosophy regarding working in partnership with a client’s in-house communication/creative team.",
+    "topic": "General",
+    "answerLength": 1684,
+    "keptId": "a663a580-8237-44c4-9e11-b5c65b6fca4a",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 1694
+  },
+  {
+    "id": "91132375-e94b-4d86-ac32-2e88d7156b72",
+    "question": "Describe your post launch three-month training plan for creating/editing pages in the CMS.",
+    "topic": "Education",
+    "answerLength": 353,
+    "keptId": "1566eebd-c08e-425f-a4e6-ee598563b46f",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 353
+  },
+  {
+    "id": "c0da5992-c891-490f-87b6-c0389c7ba842",
+    "question": "Describe your system or process to ensure fast page load speeds.",
+    "topic": "Education",
+    "answerLength": 692,
+    "keptId": "77c66682-f52d-4312-9b75-d0e3554ccc07",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 692
+  },
+  {
+    "id": "708c17a7-c154-4217-bab8-3873499d1761",
+    "question": "Description of information security. Include how Client Name confidential and PII data is protected.",
+    "topic": "Data Stewardship",
+    "answerLength": 531,
+    "keptId": "3bac932d-dd20-49fa-8a04-a0d4b4873e48",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 531
+  },
+  {
+    "id": "8e71fdc8-2bbd-43c3-8db0-6fdbafef61ca",
+    "question": "Design and Ad Copy Specifications",
+    "topic": "Education",
+    "answerLength": 598,
+    "keptId": "b8022733-6ade-42e5-a952-6d5a5d739adf",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 598
+  },
+  {
+    "id": "923b3869-57f7-46a6-be2d-ef90cf9d7f03",
+    "question": "Design compatibility with assistive technologies tested for blind/visually impaired",
+    "topic": "Education",
+    "answerLength": 321,
+    "keptId": "7ba87811-cdab-4e8b-bcf3-4f66fb3f3348",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 327
+  },
+  {
+    "id": "2aa783f2-824e-49d9-82eb-4d445e376dcf",
+    "question": "Design Library",
+    "topic": "Education",
+    "answerLength": 527,
+    "keptId": "99437507-7222-4741-90aa-3aa97143c471",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 528
+  },
+  {
+    "id": "22c91eb1-5724-4954-8b68-225b1f1bb993",
+    "question": "Design Mockups",
+    "topic": "Education",
+    "answerLength": 454,
+    "keptId": "09a02115-649b-493e-a94b-1e1fe3294897",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 454
+  },
+  {
+    "id": "a1e6cbf7-ff0a-454f-986a-fa6db84b7ac5",
+    "question": "Design Production",
+    "topic": "Education",
+    "answerLength": 467,
+    "keptId": "0aaa3d90-b6d0-400a-a2cd-cdb111a54f25",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 467
+  },
+  {
+    "id": "e2d8ce54-8545-46ce-9612-7b7c40edf429",
+    "question": "Design Strategy",
+    "topic": "Healthcare",
+    "answerLength": 1782,
+    "keptId": "ffcc1bd4-320f-4f07-9425-e7f19a0bec96",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1798
+  },
+  {
+    "id": "02c0bc32-a0d4-4f97-82f3-f7f96fc1e6d7",
+    "question": "Designing in Place: A Strategic Refresh for XXX",
+    "topic": "Education",
+    "answerLength": 3056,
+    "keptId": "4c187e85-672c-47aa-9ccf-3a054c16d480",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 3092
+  },
+  {
+    "id": "10319553-6255-40c7-a71e-289c70ccd059",
+    "question": "Detailed Change Management Response",
+    "topic": "Education",
+    "answerLength": 1060,
+    "keptId": "0d278dfd-02b8-4243-a786-144eb7b29339",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 1060
+  },
+  {
+    "id": "a4e750f2-1fe1-44ba-ac82-6c9d172f7bbc",
+    "question": "Develop Collateral Templates",
+    "topic": "Education",
+    "answerLength": 1225,
+    "keptId": "40862579-dfdb-40f8-8f63-89e44248964d",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1251
+  },
+  {
+    "id": "7141362b-2902-4109-a831-a00c57501fe0",
+    "question": "Developing Effective, Measurable Outcomes",
+    "topic": "Education",
+    "answerLength": 471,
+    "keptId": "3e538c24-ec80-457e-bd95-e699e8cea43e",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 471
+  },
+  {
+    "id": "7239819d-4aa0-4658-b129-a6e08ff2cc8f",
+    "question": "Development of Microsites",
+    "topic": "",
+    "answerLength": 417,
+    "keptId": "e10c9942-ded5-4267-a962-8bd4ae15eacb",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 417
+  },
+  {
+    "id": "141dc8d1-b657-4e6c-a8d3-30aaeba301c4",
+    "question": "Difficulties",
+    "topic": "General",
+    "answerLength": 687,
+    "keptId": "0a428ba4-b7da-4c1e-8e19-ab454a15f8b3",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 687
+  },
+  {
+    "id": "eb5d636c-01a2-4c75-a7c9-afd2e4b4ce22",
+    "question": "Difficulties Anticipated - Content Projects",
+    "topic": "Education",
+    "answerLength": 1126,
+    "keptId": "8f6e618f-afdf-4a5e-8cd6-e9fbcb59e900",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1126
+  },
+  {
+    "id": "dbbf9a3c-9e48-4d43-a0ed-65e8a9808398",
+    "question": "Digital Advertising Analytics & Reporting Examples",
+    "topic": "Digital Advertising",
+    "answerLength": 455,
+    "keptId": "8e15dd46-63c3-4f8a-972b-5917d2d8179a",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 455
+  },
+  {
+    "id": "bb5b1d49-a0a0-4b02-8edb-aff1f19524cf",
+    "question": "Digital Advertising, Analytics, and Reporting",
+    "topic": "Education",
+    "answerLength": 1030,
+    "keptId": "d9c6669a-9140-44fd-9a98-86546b70bb2c",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 1046
+  },
+  {
+    "id": "29eb2fcf-3df2-4e94-abce-c28d7a0e335f",
+    "question": "Digital Analytics & SEO Dashboards",
+    "topic": "Education",
+    "answerLength": 1784,
+    "keptId": "4eb2d024-3235-4c86-91af-eaa78aabcc6e",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 1826
+  },
+  {
+    "id": "81346ef9-b4a3-4308-982b-fd03428ca81c",
+    "question": "Digital Campaign Concept Development",
+    "topic": "Education",
+    "answerLength": 1106,
+    "keptId": "106fd753-8120-43c3-a933-7c8a0e58efcb",
+    "keptTopic": "Brand Campaign",
+    "keptAnswerLength": 1114
+  },
+  {
+    "id": "c2e41e37-f96f-44b3-be86-c54fc1b754f4",
+    "question": "Digital Campaign Discovery",
+    "topic": "Research",
+    "answerLength": 3961,
+    "keptId": "26987d08-3407-4ded-b48b-a3bb3cbcbd1c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 3961
+  },
+  {
+    "id": "1c6a0b27-4569-4410-82c2-b61a0c120b17",
+    "question": "Digital Campaigns",
+    "topic": "Education",
+    "answerLength": 696,
+    "keptId": "dc9d4bf5-e7ef-488d-89e1-2e1422add625",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 706
+  },
+  {
+    "id": "576d151f-9df9-44c3-afd1-766e909ab3fd",
+    "question": "Digital Content Distribution Expertise",
+    "topic": "Digital Marketing",
+    "answerLength": 1749,
+    "keptId": "5131b612-43b2-4ccf-9a00-3ae3b8bbc1d6",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1749
+  },
+  {
+    "id": "e2d83f5c-8064-4d53-b5fa-e36782ef21a4",
+    "question": "Digital Marketing Experience",
+    "topic": "Education",
+    "answerLength": 3025,
+    "keptId": "d47e6495-bd7c-4778-b820-8f13c6ebbdec",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 3039
+  },
+  {
+    "id": "a20c551b-3fb5-43b5-88be-b638c94e049d",
+    "question": "Digital Marketing Project Approach & Timing Recommendations",
+    "topic": "Education",
+    "answerLength": 849,
+    "keptId": "58b009a9-ef9f-4c6e-966a-3ed64ea16a53",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 855
+  },
+  {
+    "id": "ac48d96c-dad6-400f-a4e4-41b253387d49",
+    "question": "Digital Media Buying",
+    "topic": "Digital Advertising",
+    "answerLength": 923,
+    "keptId": "c51f67d4-4089-4533-b426-3e961ceb1700",
+    "keptTopic": "Education",
+    "keptAnswerLength": 923
+  },
+  {
+    "id": "d186ce91-d2c3-4b2e-b367-dd3508b75ee7",
+    "question": "Digital Messaging Creation",
+    "topic": "Education",
+    "answerLength": 1257,
+    "keptId": "13c55cac-97fc-435c-8a28-05cd1364bc34",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 1265
+  },
+  {
+    "id": "d4ef793b-5933-48c6-b86e-cda5fcf44b22",
+    "question": "Digital Platforms and Management Tools",
+    "topic": "Education",
+    "answerLength": 2225,
+    "keptId": "22543f74-30de-4bd0-bd55-7d7bbd4ec5b8",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2239
+  },
+  {
+    "id": "f66bed97-cfa7-4c94-ac21-71c34c273639",
+    "question": "Digital Timeline - Standard or Average Timeline",
+    "topic": "Project Management & Operations",
+    "answerLength": 843,
+    "keptId": "84b81fe6-5b4a-487d-8ca1-7f87022b4db0",
+    "keptTopic": "Education",
+    "keptAnswerLength": 843
+  },
+  {
+    "id": "08320778-6c34-4480-a82e-9d7b57cddf1a",
+    "question": "Discontinued Clients",
+    "topic": "General",
+    "answerLength": 621,
+    "keptId": "30c5b0ee-3f1c-47bf-9f90-a8020ea8b3d7",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 637
+  },
+  {
+    "id": "0ce14a14-7d76-4cab-b6f7-3e91aa3bbd7d",
+    "question": "Discounting",
+    "topic": "General",
+    "answerLength": 722,
+    "keptId": "a679edc9-bb37-491e-a9b2-6eac147c9486",
+    "keptTopic": "Pricing Information",
+    "keptAnswerLength": 726
+  },
+  {
+    "id": "d2af85c3-e9f7-4019-b6f0-5eda96b1281e",
+    "question": "Discovery",
+    "topic": "Education",
+    "answerLength": 875,
+    "keptId": "6b3f6aad-1881-4a58-b0ef-124aab3aa4e4",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 885
+  },
+  {
+    "id": "62af417e-0ded-481f-92b5-678b01eed941",
+    "question": "Discovery - Brand",
+    "topic": "Education",
+    "answerLength": 757,
+    "keptId": "947f6a0a-d726-44bc-8b12-a1bc4b92af0f",
+    "keptTopic": "Brand Campaign",
+    "keptAnswerLength": 771
+  },
+  {
+    "id": "0ac32111-6d81-4aae-808b-0477b4b271cb",
+    "question": "Discovery - Qualitative",
+    "topic": "Education",
+    "answerLength": 1362,
+    "keptId": "976e6196-3efc-4b8a-b308-4d1e768935f4",
+    "keptTopic": "Research",
+    "keptAnswerLength": 1370
+  },
+  {
+    "id": "0d47f8f1-c377-49ac-b110-c400373fad11",
+    "question": "Discovery - Tracking Study",
+    "topic": "Education",
+    "answerLength": 937,
+    "keptId": "90f74029-b496-40c6-ba8b-ee854066ed8f",
+    "keptTopic": "Research",
+    "keptAnswerLength": 949
+  },
+  {
+    "id": "f42af72f-a628-47c4-be27-b9da8cf5e179",
+    "question": "Discovery: Experience Mapping and Mystery Shopping",
+    "topic": "User Experience Audit",
+    "answerLength": 475,
+    "keptId": "2387c94e-124d-49ce-847b-6bbc7fe5c60e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 475
+  },
+  {
+    "id": "efc88aa7-f36e-424d-b49b-15a1a2a36297",
+    "question": "Discovery: Goals and Audience Definition & Prioritization",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 502,
+    "keptId": "2ec26408-37d9-44ac-8e2b-885a9fcbf704",
+    "keptTopic": "Education",
+    "keptAnswerLength": 502
+  },
+  {
+    "id": "7182502d-dab3-46d7-b8a0-15fa7aefd7b8",
+    "question": "Discovery: Onsite Discovery",
+    "topic": "Website Assessment Services",
+    "answerLength": 508,
+    "keptId": "9a6eef7e-ab48-4aa9-ba99-094e37b9e50d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 508
+  },
+  {
+    "id": "f02157d2-a0e9-4d9f-a474-fd85b8951184",
+    "question": "Discuss how your firm approaches outreach to historically underserved markets in higher education.",
+    "topic": "Education",
+    "answerLength": 2602,
+    "keptId": "8b85eb70-8b2c-41fe-b0c1-384265d6cd0f",
+    "keptTopic": "Enrollment Strategies",
+    "keptAnswerLength": 2608
+  },
+  {
+    "id": "ec6ae4fc-35f9-4a5c-affb-1e25b97b1b7a",
+    "question": "Distributed Project Management Experts",
+    "topic": "Company Information",
+    "answerLength": 516,
+    "keptId": "6cffa1db-ec49-437b-abc8-f4b7008bb96b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 516
+  },
+  {
+    "id": "255ff146-2521-429c-9d41-dc2e852e8a8c",
+    "question": "Do you use a third-party accessibility evaluation company to verify your accessibility compliance? If so, are you willing to provide a copy of your most recent evaluation report?",
+    "topic": "IT & Security",
+    "answerLength": 450,
+    "keptId": "32d9d9f9-ac8d-42ae-ad10-bcc410cc8933",
+    "keptTopic": "Education",
+    "keptAnswerLength": 450
+  },
+  {
+    "id": "98553b2c-a5b3-4589-a750-f4d58c493b25",
+    "question": "Does your product undergo accessibility testing prior to each major release?",
+    "topic": "Education",
+    "answerLength": 220,
+    "keptId": "4487a720-75af-4069-9c91-08a05211bd8d",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 228
+  },
+  {
+    "id": "82bd18a8-682d-436b-bf38-34662184e465",
+    "question": "E-newsletter Expertise",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 432,
+    "keptId": "5bd8db4c-7894-442b-8c2f-6c492168f40c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 432
+  },
+  {
+    "id": "cab9c3b9-b6b4-40f4-b202-afc073707604",
+    "question": "E-Verify Program Number",
+    "topic": "Company Information",
+    "answerLength": 23,
+    "keptId": "f054f643-f627-46d7-8d79-87c1fda2a755",
+    "keptTopic": "General",
+    "keptAnswerLength": 23
+  },
+  {
+    "id": "75348b5c-a24c-4dc0-bcdd-ef7537a1ec80",
+    "question": "Education and Outreach Plan",
+    "topic": "Education",
+    "answerLength": 585,
+    "keptId": "e955b907-112e-4046-87c4-53c0ee996543",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 596
+  },
+  {
+    "id": "45a67e6c-e08e-485c-a526-d552472e494e",
+    "question": "Efficiency and Consistency in Performance of Duties",
+    "topic": "Company Information",
+    "answerLength": 841,
+    "keptId": "d83cae1b-8299-4ef7-8262-b6ecc61bf4da",
+    "keptTopic": "General",
+    "keptAnswerLength": 841
+  },
+  {
+    "id": "1a10cc70-a550-48fa-a139-fbef5c337a7b",
+    "question": "Email Campaigns",
+    "topic": "Education",
+    "answerLength": 3536,
+    "keptId": "f989b494-18ce-4638-92c4-3ec0095f3579",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 3548
+  },
+  {
+    "id": "d0b8cea5-9d6b-479e-9520-f26871e5fc90",
+    "question": "Email Drip Campaign",
+    "topic": "Education",
+    "answerLength": 1265,
+    "keptId": "cfecd3ff-0ebc-499f-b3c1-6fdcb67e11ae",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1285
+  },
+  {
+    "id": "f8f3e3c5-ddf2-4430-aca3-ffd9866a0339",
+    "question": "Employees",
+    "topic": "General",
+    "answerLength": 1089,
+    "keptId": "ca27663a-4a60-4db2-9f50-3da6bb4bab95",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1112
+  },
+  {
+    "id": "0c560056-6dac-4659-89ae-20f32da6fea4",
+    "question": "Encryption",
+    "topic": "IT & Security",
+    "answerLength": 705,
+    "keptId": "e9b88f02-eec1-4be4-b002-bc344f91c046",
+    "keptTopic": "General",
+    "keptAnswerLength": 705
+  },
+  {
+    "id": "515ada84-a4aa-4b91-a691-fafe33624384",
+    "question": "Enewsletter Expertise",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 593,
+    "keptId": "1c0c7807-2ed9-4fba-b8d3-c7e6bfc808d5",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 593
+  },
+  {
+    "id": "02a87c48-0c7f-4c1a-b74a-e0415ea054fe",
+    "question": "Enrollment Pathway Mapping",
+    "topic": "Education",
+    "answerLength": 791,
+    "keptId": "3692104b-b8bf-4aeb-9f03-c8154a68b600",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 801
+  },
+  {
+    "id": "cda7fc49-8d70-46f7-beca-9a8acdbb8079",
+    "question": "Ensure that redesigned website is a complete turn-key system that will become CLIENT property",
+    "topic": "Website Design & Creative",
+    "answerLength": 434,
+    "keptId": "173c9f59-9f2d-4509-b0f8-4394411470a4",
+    "keptTopic": "Education",
+    "keptAnswerLength": 434
+  },
+  {
+    "id": "64f22c75-2f81-4c2a-a546-71246186974f",
+    "question": "Equal Opportunity Statement",
+    "topic": "Company Information",
+    "answerLength": 1164,
+    "keptId": "ef2f9024-3acb-41c5-bead-8036ae86a202",
+    "keptTopic": "General",
+    "keptAnswerLength": 1164
+  },
+  {
+    "id": "ec8558d8-3fc0-41f9-b16b-c9c622dc7400",
+    "question": "Established Media Contacts",
+    "topic": "Healthcare",
+    "answerLength": 1308,
+    "keptId": "ae253978-f281-462d-9c08-000fde208b4f",
+    "keptTopic": "General",
+    "keptAnswerLength": 1330
+  },
+  {
+    "id": "cd04e391-4857-4d47-babf-ca3b404c881f",
+    "question": "Estimated Timeline",
+    "topic": "Project Management & Operations",
+    "answerLength": 1239,
+    "keptId": "a0a6d3d3-af67-4668-83af-b4f8af10ab96",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1241
+  },
+  {
+    "id": "9be229d9-20d9-465d-8149-8615607e2132",
+    "question": "Examples of Reporting Dashboards (Website)",
+    "topic": "Data & Analytics",
+    "answerLength": 339,
+    "keptId": "f8cb6f86-6f43-4b50-9b66-3aae83bb6f60",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 339
+  },
+  {
+    "id": "9e56b093-dd19-4d1b-b139-16d980150bb6",
+    "question": "Exceptions to Insurance",
+    "topic": "General",
+    "answerLength": 764,
+    "keptId": "231a1406-f482-407b-bdda-c7a4244e55c6",
+    "keptTopic": "Invoicing",
+    "keptAnswerLength": 770
+  },
+  {
+    "id": "760cc154-b3de-4518-a558-1c2befa6d1ea",
+    "question": "Executive/Stakeholder/Department Presentations",
+    "topic": "Education",
+    "answerLength": 1008,
+    "keptId": "ab8d9c07-45ca-4f89-91a2-5e2ea248cc2d",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1034
+  },
+  {
+    "id": "7e567542-d5ff-4bfe-a63c-17729d31e7aa",
+    "question": "Expectations/contribution's of employees for the website redesign project.",
+    "topic": "Education",
+    "answerLength": 1562,
+    "keptId": "ee7e32c7-564d-4e2b-b6f1-59315e7ad1ea",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1572
+  },
+  {
+    "id": "63383911-9131-4451-919c-5b6a7ead21cd",
+    "question": "Experience Building Custom Analytics Reporting Strategy",
+    "topic": "Data & Analytics",
+    "answerLength": 1058,
+    "keptId": "6b94ee59-9627-4776-9024-0a6502804de1",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1058
+  },
+  {
+    "id": "79d0b636-3ca1-4b51-819c-333e569e2cff",
+    "question": "Experience Map and Onsite Interviews",
+    "topic": "Healthcare",
+    "answerLength": 1173,
+    "keptId": "28391562-cedb-4b50-a6e8-9eee35aac257",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1185
+  },
+  {
+    "id": "5ce80cd9-ccc5-466b-a853-acf8ea540cc5",
+    "question": "Experience Optimizing Written and Visual Content",
+    "topic": "Education",
+    "answerLength": 468,
+    "keptId": "671c074e-a281-4cc2-b6f6-d099932eadf9",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 474
+  },
+  {
+    "id": "d6d47886-ac61-4a0a-b3d4-dc16236ec0a9",
+    "question": "Experience with GDPR legislation and data privacy requirements",
+    "topic": "General",
+    "answerLength": 569,
+    "keptId": "897a28e4-aea7-4828-a327-5c53d766c01f",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 573
+  },
+  {
+    "id": "a4bc1241-57d2-469a-91fd-fae0ed4695a8",
+    "question": "Experience with Google Keywording",
+    "topic": "Education",
+    "answerLength": 431,
+    "keptId": "c8761a86-1a60-4263-8c0b-a1b4d0b4178e",
+    "keptTopic": "SEM/SEO",
+    "keptAnswerLength": 435
+  },
+  {
+    "id": "87fef7c8-78ed-4230-b242-25c103b0c234",
+    "question": "Experience with Web Content Management Systems: Cascade",
+    "topic": "CMS Strategy & Implementation",
+    "answerLength": 1295,
+    "keptId": "4345bce1-b59a-408b-969b-7f9c56151633",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1295
+  },
+  {
+    "id": "88f83ccf-b00e-440e-85b8-648d95973c7f",
+    "question": "Experience with Web Content Management Systems: Modern Campus",
+    "topic": "CMS Strategy & Implementation",
+    "answerLength": 1377,
+    "keptId": "84172382-9646-47b4-8cd9-9981fc20a155",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1377
+  },
+  {
+    "id": "1afa657e-94a0-4471-923e-aec7a3ec2a4f",
+    "question": "Experience Working with Cascade",
+    "topic": "",
+    "answerLength": 1497,
+    "keptId": "ff4b08e1-db82-4eaf-9ef0-b8db270c04f8",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1519
+  },
+  {
+    "id": "e8fe3a0b-d1ef-4ef1-b1d8-c468ab4ad4f7",
+    "question": "Experienced and Preferred Hannon Hill/Cascade Partnership",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1045,
+    "keptId": "1baabc9b-de78-43fb-a1e7-f0dcfe26cd3b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1045
+  },
+  {
+    "id": "d38b8935-89a4-4da9-8500-5fda2c8fb4ce",
+    "question": "Experienced Partner: Web",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 543,
+    "keptId": "0ecb00c3-e5d4-4632-b695-e1b29fbb9a9a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 543
+  },
+  {
+    "id": "5865b9d3-008b-4619-9c21-05ed2393eacc",
+    "question": "Expertise in the Recommendation, Planning, and Implementation of Customized Websites",
+    "topic": "Healthcare",
+    "answerLength": 1765,
+    "keptId": "8536c47c-7458-4713-868b-84f065f5363b",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1777
+  },
+  {
+    "id": "627a488e-eb85-46d3-84ab-a53c0bd04041",
+    "question": "Expertise with Website Audits",
+    "topic": "Education",
+    "answerLength": 1180,
+    "keptId": "423bb11d-7564-4db0-96d4-f38e97225f48",
+    "keptTopic": "Website Assessment Services",
+    "keptAnswerLength": 1186
+  },
+  {
+    "id": "08ebd9c2-8041-4ac4-8bc0-2d6c0d1ed7e0",
+    "question": "Experts and Expertise",
+    "topic": "Brand",
+    "answerLength": 895,
+    "keptId": "ce4ddf3c-1c6c-4c7c-84a1-cceb2cfc35a2",
+    "keptTopic": "General",
+    "keptAnswerLength": 896
+  },
+  {
+    "id": "64aee3e8-9439-4144-a2eb-2516d2b1fcb2",
+    "question": "Extended Intro to Stamats Team and Bios",
+    "topic": "Company Information",
+    "answerLength": 1183,
+    "keptId": "9c8250c1-bca6-4d9e-8406-16bf32019044",
+    "keptTopic": "General",
+    "keptAnswerLength": 1183
+  },
+  {
+    "id": "05ffb641-3d53-4729-9762-80dd79a00641",
+    "question": "Extensive Migration Experience",
+    "topic": "Education",
+    "answerLength": 1095,
+    "keptId": "14a47ea2-3e53-43c4-8500-72a991ac7b6d",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 1131
+  },
+  {
+    "id": "e6ac839c-2ae6-4bc5-a9e7-060f995644dd",
+    "question": "Extra Fast Web Timeline (Short Version)",
+    "topic": "Project Management & Operations",
+    "answerLength": 501,
+    "keptId": "50a3dc6b-b9a7-4c38-9c1e-6eab61e7858e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 501
+  },
+  {
+    "id": "55548b2c-6649-45d9-bb51-c32af6bc9619",
+    "question": "Factors that Impact Research Project Timelines",
+    "topic": "Education",
+    "answerLength": 1196,
+    "keptId": "1b499bd3-a0bd-486d-92c9-b028af18ba8f",
+    "keptTopic": "Research",
+    "keptAnswerLength": 1206
+  },
+  {
+    "id": "e7009cf8-8e1c-4b26-9b96-cfcccc13f003",
+    "question": "Feedback, Focus Groups, and Surveys with Students, Faculty, and Stakeholders",
+    "topic": "Content",
+    "answerLength": 1250,
+    "keptId": "c9680335-9b5f-4949-89c7-e8d45da8b047",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1250
+  },
+  {
+    "id": "965a85b5-d2be-457b-82bd-e3f78f02e1f9",
+    "question": "Fees/Pricing for Marketing Website, Internal Intranet & Internal Extranet",
+    "topic": "Education",
+    "answerLength": 3415,
+    "keptId": "d4b3dfd2-3bd9-4a36-ae90-6616bb6bba78",
+    "keptTopic": "Pricing Information",
+    "keptAnswerLength": 3517
+  },
+  {
+    "id": "ae28a26e-4d17-4528-ab18-cb7983f16fe1",
+    "question": "Filtering Mechanism for Search Results",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 408,
+    "keptId": "9f002b2e-5616-4430-b88c-419c6e003728",
+    "keptTopic": "Education",
+    "keptAnswerLength": 408
+  },
+  {
+    "id": "6aae87e9-ca51-4983-85a4-4a4c11a3e5d7",
+    "question": "Final Campaign Reporting: Insights to Inform What’s Next",
+    "topic": "Education",
+    "answerLength": 874,
+    "keptId": "7e23a6c7-68eb-48a7-8740-af2a4431c5f3",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 886
+  },
+  {
+    "id": "c6dc9fe2-4cf8-44a6-93d0-89bcf89b0b61",
+    "question": "Financial References",
+    "topic": "General",
+    "answerLength": 494,
+    "keptId": "46959281-60ce-412b-8cb6-ce31cc5448b2",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 506
+  },
+  {
+    "id": "4882f408-3678-4e52-a192-6bfe48b78b15",
+    "question": "Financial Stability and Growth",
+    "topic": "Company Information",
+    "answerLength": 919,
+    "keptId": "e8d10fca-c383-4db1-8b8e-e4d517c3dec4",
+    "keptTopic": "General",
+    "keptAnswerLength": 919
+  },
+  {
+    "id": "1bd3771c-2afc-4988-bc82-70d128030746",
+    "question": "First Party Data",
+    "topic": "Education",
+    "answerLength": 695,
+    "keptId": "91d18428-dbd7-4cdd-bc5f-f060797c1689",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 699
+  },
+  {
+    "id": "db9ccf8d-3037-40a3-a1f6-0118dafa960a",
+    "question": "First-Party and Third-Party Data",
+    "topic": "Data & Analytics",
+    "answerLength": 703,
+    "keptId": "4d0110a3-18bc-44c9-af64-4d21a498eb04",
+    "keptTopic": "Education",
+    "keptAnswerLength": 703
+  },
+  {
+    "id": "7368d8af-72ce-4990-8407-e3675c6bf20a",
+    "question": "Flexibility to Add or Change Content Services",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 412,
+    "keptId": "ae7fd3da-9a27-471d-9bf2-10039c5954a8",
+    "keptTopic": "Education",
+    "keptAnswerLength": 412
+  },
+  {
+    "id": "896a9125-49e5-4149-8697-18c884c8f267",
+    "question": "Flexibility to Scale Project as Needed",
+    "topic": "Project Management & Operations",
+    "answerLength": 634,
+    "keptId": "26731c85-73ca-4b1e-b63c-8c8d7a10b0d9",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 634
+  },
+  {
+    "id": "5ed6c6ee-8ac0-40d2-bb1c-d3355bdc44dd",
+    "question": "Focus on the Admin User",
+    "topic": "User Experience Audit",
+    "answerLength": 474,
+    "keptId": "59c4c55f-ff71-41d2-8ffd-ef26afc34e47",
+    "keptTopic": "",
+    "keptAnswerLength": 474
+  },
+  {
+    "id": "1637b729-d1e2-44ab-b328-7a79cb07c12e",
+    "question": "Foster Content Creation",
+    "topic": "Education",
+    "answerLength": 1625,
+    "keptId": "d4f46ea9-7287-4c36-8573-3c319064dcf8",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1635
+  },
+  {
+    "id": "b8328781-7f5a-4717-8ae8-07048dbb4b3e",
+    "question": "Free Post-Go-Live Analysis Report",
+    "topic": "Education",
+    "answerLength": 488,
+    "keptId": "628542f5-8c42-4680-b222-08d754676f8d",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 500
+  },
+  {
+    "id": "7deca67c-1a10-4ab4-bf4e-94d8e11b5f98",
+    "question": "Full Suite of Digital Advertising Services",
+    "topic": "Education",
+    "answerLength": 242,
+    "keptId": "e620e6c2-c957-4d1d-bcc3-e885f7034eff",
+    "keptTopic": "Digital Advertising",
+    "keptAnswerLength": 254
+  },
+  {
+    "id": "bb58f4ec-ab75-400e-acd2-4a573e0c126c",
+    "question": "Full-Service Content Team",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 596,
+    "keptId": "11c80306-5bda-48fc-af6a-220ec4f27236",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 596
+  },
+  {
+    "id": "d6f26db3-68a9-419d-989e-15d4a21132ab",
+    "question": "Fully Responsive Creative Concepts",
+    "topic": "Creative",
+    "answerLength": 772,
+    "keptId": "02ee87c5-3325-4b47-8aaa-c29192b992b8",
+    "keptTopic": "Education",
+    "keptAnswerLength": 772
+  },
+  {
+    "id": "6c90a0c6-0dc4-4966-86e6-ef8c8f36a463",
+    "question": "Functionality That Reduces the Required Level of Technical Training for Non-Technical Users",
+    "topic": "User Experience Audit",
+    "answerLength": 493,
+    "keptId": "3d52ab3b-8cf0-41bd-8833-db43ee600468",
+    "keptTopic": "Education",
+    "keptAnswerLength": 493
+  },
+  {
+    "id": "6d7746fd-9577-49e7-a89b-f022186d8659",
+    "question": "General SEM Campaign",
+    "topic": "SEM/SEO",
+    "answerLength": 597,
+    "keptId": "9326ba1c-96a9-4c54-9fc5-23526d1ed3f6",
+    "keptTopic": "Education",
+    "keptAnswerLength": 597
+  },
+  {
+    "id": "4a86931c-e6aa-4421-9f11-5fc0bbed8e8b",
+    "question": "Give an example of how you analyzed data to yield actionable insights for a client and how you leveraged those insights to further the client’s goals.",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1361,
+    "keptId": "32db65d2-411f-4232-9434-70f01e4d617c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1362
+  },
+  {
+    "id": "d1e40ef7-ca44-42e4-837d-a92367cf4de2",
+    "question": "Google Analytics Audit",
+    "topic": "Education",
+    "answerLength": 1955,
+    "keptId": "fcd25341-5366-40e3-9672-eea774aafe63",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 1993
+  },
+  {
+    "id": "e9c7c98e-219a-4be0-83cc-1b57e612a0de",
+    "question": "Google Analytics Remediation Hours",
+    "topic": "Education",
+    "answerLength": 757,
+    "keptId": "9c7a9630-86de-49b3-975c-85edccec9eb7",
+    "keptTopic": "Data Stewardship",
+    "keptAnswerLength": 765
+  },
+  {
+    "id": "e9388f36-4f0b-47b9-b7a4-501c338c5ecb",
+    "question": "Google Business Profile Audit and Listings Management",
+    "topic": "Digital Marketing",
+    "answerLength": 482,
+    "keptId": "53c4f6d0-af1f-4b0c-b652-4850b31e6381",
+    "keptTopic": "Education",
+    "keptAnswerLength": 482
+  },
+  {
+    "id": "6889dd88-23d2-405b-87db-60ac864ac12d",
+    "question": "Governance Audit, Plan, and Implementation (Optional)",
+    "topic": "Education",
+    "answerLength": 1288,
+    "keptId": "0e44233e-3e53-4ade-bce0-dcabca441d5b",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1306
+  },
+  {
+    "id": "89eb1be9-2445-441b-9aac-6f980256a371",
+    "question": "Governance Upsell Options",
+    "topic": "Project Management & Operations",
+    "answerLength": 910,
+    "keptId": "422a2b6b-c677-449e-9635-86dd3350102d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 982
+  },
+  {
+    "id": "65e457cc-12c4-467c-8f6e-82a89f431047",
+    "question": "Graphic Design",
+    "topic": "Creative",
+    "answerLength": 1814,
+    "keptId": "d4f05e1e-ef94-4bb8-a60c-87576f409b2a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1814
+  },
+  {
+    "id": "2581d781-a6ad-408a-b9b6-a42b58ce051e",
+    "question": "Guerilla Marketing",
+    "topic": "Digital Marketing",
+    "answerLength": 1129,
+    "keptId": "0b9be00e-9946-4a91-9691-2c564404b422",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1129
+  },
+  {
+    "id": "b2bf9a67-f6e1-4235-8065-7032a56db42e",
+    "question": "Guidance on Brand Launch (Internal and External)",
+    "topic": "Education",
+    "answerLength": 2128,
+    "keptId": "00b769a7-dbb6-4970-841e-78f905efb9c9",
+    "keptTopic": "Brand Campaign",
+    "keptAnswerLength": 2154
+  },
+  {
+    "id": "704e8cce-9d61-4fe6-9530-5376d9dfc249",
+    "question": "Guided Pathways Program Experience",
+    "topic": "Education",
+    "answerLength": 1139,
+    "keptId": "99703404-fa46-4599-a011-b5d3aaf7f5c7",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1141
+  },
+  {
+    "id": "46e1a41d-8357-4864-a872-919c3b0d3ee3",
+    "question": "Guided Pathways Redesign",
+    "topic": "Website Redesign",
+    "answerLength": 1016,
+    "keptId": "71c5ce6c-b3c7-4576-94c1-5b378d5808cb",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1016
+  },
+  {
+    "id": "362135a3-6029-49cb-a9e5-600d25e053a7",
+    "question": "Higher Ed Industry Knowledge - Digital Marketing Focus",
+    "topic": "General",
+    "answerLength": 1774,
+    "keptId": "31a1e917-3e4e-4e33-a34a-1f863f3dfcce",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1774
+  },
+  {
+    "id": "2eacc4b1-1041-4ab0-aa23-5441b6859588",
+    "question": "History and Capacity to Respond to Rush Requests",
+    "topic": "General",
+    "answerLength": 605,
+    "keptId": "254b9db6-90f5-4073-af45-a4bd2f0dff63",
+    "keptTopic": "History",
+    "keptAnswerLength": 609
+  },
+  {
+    "id": "b90f8d5e-1691-44c4-9976-844bd6c2f070",
+    "question": "Hosting Options - WordPress",
+    "topic": "Hosting & Environment Management",
+    "answerLength": 887,
+    "keptId": "a7903101-5a35-419f-bc06-939d5c1acaaa",
+    "keptTopic": "Education",
+    "keptAnswerLength": 887
+  },
+  {
+    "id": "a9e30337-6b4d-43bf-b918-163be4019814",
+    "question": "How do you define the line between support requests covered in the initial implementation of your CMS versus what is post-launch support?",
+    "topic": "CMS Strategy & Implementation",
+    "answerLength": 431,
+    "keptId": "8df4ea97-1151-4750-a7fe-2037852a9dad",
+    "keptTopic": "Education",
+    "keptAnswerLength": 431
+  },
+  {
+    "id": "0e174216-89bc-4967-85df-ab4d759da585",
+    "question": "How do you mesh paid search/paid social and digital display to optimize campaign performance?",
+    "topic": "Digital Marketing",
+    "answerLength": 731,
+    "keptId": "a9c00e1d-c305-46b5-8ee6-139303eed656",
+    "keptTopic": "Education",
+    "keptAnswerLength": 731
+  },
+  {
+    "id": "78fc6ab3-bd84-4d99-9d0c-daf3883acb72",
+    "question": "How do you track and prioritize accessibility issues?",
+    "topic": "Data Stewardship",
+    "answerLength": 437,
+    "keptId": "73b4ba19-8235-4e33-8d08-c8a25288aa42",
+    "keptTopic": "Education",
+    "keptAnswerLength": 437
+  },
+  {
+    "id": "78a54913-6c27-48f6-ac0f-1b2ca8077324",
+    "question": "How do you use analytics and user data in discovery?",
+    "topic": "Data & Analytics",
+    "answerLength": 345,
+    "keptId": "a726e8f1-2255-44f9-b933-059af59e1090",
+    "keptTopic": "Education",
+    "keptAnswerLength": 345
+  },
+  {
+    "id": "c4533392-09c5-43af-9e6b-5e1900d2820e",
+    "question": "How has your company responded to the demise of third-party cookies?",
+    "topic": "Education",
+    "answerLength": 1084,
+    "keptId": "7c7aa580-90ba-4fca-ac90-404e730389a0",
+    "keptTopic": "Emerging Technologies",
+    "keptAnswerLength": 1086
+  },
+  {
+    "id": "43aededb-ca60-4fc9-9be9-e560d514596d",
+    "question": "How is your company preparing to leverage emerging technologies?",
+    "topic": "Emerging Technologies",
+    "answerLength": 2656,
+    "keptId": "0af2c945-f910-4ccd-b445-b685e969235e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2656
+  },
+  {
+    "id": "10227f39-39a6-47f0-8e7a-0437f3b968d6",
+    "question": "How Proposed Redesign Services Will Achieve Result Requirements: Attract, Inform, and Engage Audiences",
+    "topic": "Website Redesign",
+    "answerLength": 1021,
+    "keptId": "a8472e74-6ed7-404d-a08a-10b8bbfc31c5",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1021
+  },
+  {
+    "id": "fdc5632b-7092-4ecb-803d-5cfc60c53390",
+    "question": "How Proposed Redesign Services Will Achieve Result Requirements: Integrate Content to Provide a Targeted Experience",
+    "topic": "Education",
+    "answerLength": 1389,
+    "keptId": "f06d82b4-3696-424b-9559-8a0eb3ab5d6e",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1395
+  },
+  {
+    "id": "66162d8c-edec-4b50-a8bd-3af3f88615a4",
+    "question": "How Proposed Redesign Services Will Achieve Result Requirements: Market on the Ground, Online, and Non-Credit Programs",
+    "topic": "Education",
+    "answerLength": 1691,
+    "keptId": "75c5a02e-aca8-4d97-8c8b-2e4a76cd0c94",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1699
+  },
+  {
+    "id": "afe72609-0e93-4dd4-96fd-f65f95709173",
+    "question": "How Proposed Redesign Services Will Achieve Result Requirements: Recommend on Web App Integration and Integrate Client Name's Social Media Networking Sites",
+    "topic": "Education",
+    "answerLength": 2169,
+    "keptId": "cd73aa2f-7555-4910-a100-bec024b4acb0",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2177
+  },
+  {
+    "id": "d058bdcf-1f02-4166-99a9-6cbe85959374",
+    "question": "How Stamats Would Provide Timely and Accurate Information on Marketing Plan/Campaign Performance",
+    "topic": "Education",
+    "answerLength": 2163,
+    "keptId": "cc0c2ade-870e-4052-bcf0-3de300bb356e",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 2167
+  },
+  {
+    "id": "95d61423-ad43-4469-b747-45afe021065b",
+    "question": "How to Test PDFs for Accessibility",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 473,
+    "keptId": "a812367b-ebfb-4e66-8501-500286462575",
+    "keptTopic": "Education",
+    "keptAnswerLength": 473
+  },
+  {
+    "id": "7f78fba6-d982-49b4-8fe3-a9d28072c5cd",
+    "question": "How We Would Handle the Risks and Issues - Portal",
+    "topic": "Project Management & Operations",
+    "answerLength": 490,
+    "keptId": "77ef301d-866e-40ed-a517-1445e3aa84cd",
+    "keptTopic": "Education",
+    "keptAnswerLength": 490
+  },
+  {
+    "id": "14e064b0-efca-48ac-ade8-10cd032dd396",
+    "question": "How will you measure quantitative output for this website redesign project?",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 648,
+    "keptId": "e1ca0630-6ac2-49e2-a7e4-eb701041e722",
+    "keptTopic": "Education",
+    "keptAnswerLength": 648
+  },
+  {
+    "id": "1994f70a-4959-46a0-ab3b-bc8aa9df0f25",
+    "question": "How would you involve the college's development team in the project to facilitate the transition?",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 616,
+    "keptId": "3ea05a6e-fac8-4464-a4df-b9cb3a74537b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 616
+  },
+  {
+    "id": "535b50e7-5d44-49d2-b0b1-e0a5380184a0",
+    "question": "How would you mitigate the impact to SEO of moving to a new platform, especially considering that the new site will likely have 90% fewer pages than the current site, broken links, etc.?",
+    "topic": "Education",
+    "answerLength": 453,
+    "keptId": "b40925b3-a51e-4e0d-9f71-63803c9fea35",
+    "keptTopic": "SEM/SEO",
+    "keptAnswerLength": 460
+  },
+  {
+    "id": "2eddc9b4-0e78-4b6e-a689-375ccd900a94",
+    "question": "HTML Template Build: Accessibility Testing",
+    "topic": "Education",
+    "answerLength": 1577,
+    "keptId": "10a75376-0a59-4ea6-8328-184d86c9a20d",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1593
+  },
+  {
+    "id": "7e44ecb0-52bb-434d-842c-97cd9cec7991",
+    "question": "Image Optimization Cost",
+    "topic": "Education",
+    "answerLength": 596,
+    "keptId": "a602a19c-0080-4eda-b33a-4403a72de8fb",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 599
+  },
+  {
+    "id": "86f5bf94-24c7-4992-a4ea-7c6ecedd777d",
+    "question": "Implementation of Marketing and Communications Plan",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1059,
+    "keptId": "84e6789c-73f7-4eac-a37e-7aa702406179",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1059
+  },
+  {
+    "id": "566d1742-aa53-4ea3-9c81-640bbfdf177d",
+    "question": "In-Depth Interviews",
+    "topic": "Education",
+    "answerLength": 4275,
+    "keptId": "01b85d54-af34-4725-a83e-b84f76760710",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 4314
+  },
+  {
+    "id": "fae17405-c281-46a8-903f-7b0bc59ddbb4",
+    "question": "Include the retention rate of employees over the last ten years.",
+    "topic": "Company Information",
+    "answerLength": 302,
+    "keptId": "da301db8-2800-4d70-bf37-5d83c1fe709c",
+    "keptTopic": "General",
+    "keptAnswerLength": 302
+  },
+  {
+    "id": "2654a17d-de66-4342-bf0e-c46c872e79f6",
+    "question": "Indicate how the quality of the staff will be assured throughout the term of the contract.",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 676,
+    "keptId": "42929d34-9e29-448b-8a93-496c49c92c16",
+    "keptTopic": "General",
+    "keptAnswerLength": 676
+  },
+  {
+    "id": "520c008a-3c15-4ff9-a626-f9cf63762317",
+    "question": "Industry Publications - Meetings Today",
+    "topic": "General",
+    "answerLength": 324,
+    "keptId": "8e2d973a-9275-4f31-8a02-ffd4a09a92fa",
+    "keptTopic": "Blog Content",
+    "keptAnswerLength": 330
+  },
+  {
+    "id": "2cd92aa0-821f-4218-85e8-dc7edefd284c",
+    "question": "Infographics",
+    "topic": "Creative",
+    "answerLength": 661,
+    "keptId": "08fb860a-645d-4110-ad67-d0c439f0d8e4",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 661
+  },
+  {
+    "id": "6ae3223e-2fa1-4e81-a9d4-d60d8a9a1bfd",
+    "question": "Information Architecture - Alternate",
+    "topic": "User Experience Audit",
+    "answerLength": 945,
+    "keptId": "043b00f9-7e19-4151-8c18-ed8891ab1fab",
+    "keptTopic": "Education",
+    "keptAnswerLength": 945
+  },
+  {
+    "id": "80e4f29c-8e27-442f-9f09-0a9f36530139",
+    "question": "Information Architecture and Content Strategy: Content Assessment",
+    "topic": "Education",
+    "answerLength": 699,
+    "keptId": "d30b9982-0964-4ebd-9541-b510469f15dd",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 709
+  },
+  {
+    "id": "2029a46e-e4cf-495e-a4be-c4e729321f5e",
+    "question": "Information Architecture and Content Strategy: Content Inventory and Matrix",
+    "topic": "Education",
+    "answerLength": 1039,
+    "keptId": "77dd90a4-402f-45bf-b451-205ea62ed8e4",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 1059
+  },
+  {
+    "id": "e9f1a254-0fb2-4551-ba18-b99988bfc442",
+    "question": "Information Architecture and Content Strategy: Content Strategy and Practice",
+    "topic": "Education",
+    "answerLength": 3388,
+    "keptId": "bd00e8ce-b15e-448a-9ab1-ca480e32d43b",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 3416
+  },
+  {
+    "id": "a8328ce4-b29c-4edf-8ed7-75da94f6f987",
+    "question": "Information Architecture and Content Strategy: Taxonomy (Optional)",
+    "topic": "Education",
+    "answerLength": 2125,
+    "keptId": "0a90cdf2-b90d-4375-a9fd-35fc440b65d4",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 2131
+  },
+  {
+    "id": "3daf9778-d70e-46b8-b405-ab52de43ae3a",
+    "question": "Information Design and Visual Design",
+    "topic": "User Experience Audit",
+    "answerLength": 835,
+    "keptId": "5b93a05e-33f9-4767-84cb-5520f385f2ae",
+    "keptTopic": "Education",
+    "keptAnswerLength": 835
+  },
+  {
+    "id": "c13ca2ff-0f81-45ac-ae3b-242ba02ded3b",
+    "question": "Integrating/Coordinating SEO and SEM",
+    "topic": "SEM/SEO",
+    "answerLength": 787,
+    "keptId": "32985f5b-8efb-4866-acea-a0968a821f9d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 787
+  },
+  {
+    "id": "937a0e8a-e203-4091-81b7-efc5da8115c1",
+    "question": "Interaction with Lead Content Strategist",
+    "topic": "Project Management & Operations",
+    "answerLength": 926,
+    "keptId": "40b7e3e7-73ea-419f-af08-b159ad806e73",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 926
+  },
+  {
+    "id": "8158ffbd-a4db-4e35-8323-7b2c74ce1506",
+    "question": "Interactive Flipbook Component",
+    "topic": "Education",
+    "answerLength": 2181,
+    "keptId": "033e94f5-7fa2-4db4-895a-9ae62927baba",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 2191
+  },
+  {
+    "id": "df5dd266-cd30-4dcf-a714-0b0bd48de758",
+    "question": "Internal Site Search with Filters and Local SEO Optimization",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1041,
+    "keptId": "fed54ee5-2229-458b-b3f5-e8c8f8d88d9d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1041
+  },
+  {
+    "id": "779b7ed3-9226-4b7c-8c96-ae48d8c24392",
+    "question": "Internal Websites/Intranets/Employee & Student Hubs",
+    "topic": "Education",
+    "answerLength": 2329,
+    "keptId": "d086af58-da03-4432-be3a-3d87019d62e2",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 2347
+  },
+  {
+    "id": "379022eb-bce5-4197-b4ae-f8a43438a78d",
+    "question": "Intranet",
+    "topic": "Education",
+    "answerLength": 8088,
+    "keptId": "3d797d27-b81c-46cf-8b62-9ae7140452fb",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 8180
+  },
+  {
+    "id": "bac73307-d86a-4025-909f-4effddec1563",
+    "question": "Introduction for an Existing Client",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1400,
+    "keptId": "df7987b2-e5e5-4915-86aa-e69001ec44f1",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1400
+  },
+  {
+    "id": "db47aeb0-c512-469d-b381-0fec833db549",
+    "question": "Introduction for Marketing Services",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1971,
+    "keptId": "57d34f46-1d7b-4a2e-bb0a-d996d19ab420",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1971
+  },
+  {
+    "id": "da846488-dcf2-469a-ac65-8403ed2b6708",
+    "question": "Intuitive Navigation Structure",
+    "topic": "Education",
+    "answerLength": 1424,
+    "keptId": "0aca805c-7ed1-4c80-bb53-981ee82e21fa",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1432
+  },
+  {
+    "id": "75f4c980-d9f0-4935-85a5-5e3a8922b4ea",
+    "question": "Intuitive User Experience",
+    "topic": "Education",
+    "answerLength": 934,
+    "keptId": "bd5795da-3e47-406c-9444-14de82d20280",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 940
+  },
+  {
+    "id": "8b66fd42-abcf-4f29-9938-09e43866a0b1",
+    "question": "Inverted Pyramid Strategy: Storytelling Tips for PR & Content Marketing",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 549,
+    "keptId": "a73c25fa-17e5-4a88-a0ae-71de08624756",
+    "keptTopic": "Education",
+    "keptAnswerLength": 549
+  },
+  {
+    "id": "683887b9-4088-4868-9627-fc7e4f2d0f84",
+    "question": "Items Not Covered by Bid Price",
+    "topic": "Pricing Information",
+    "answerLength": 542,
+    "keptId": "cace7f7a-7e9d-428b-9e96-6c4415cf1870",
+    "keptTopic": "Education",
+    "keptAnswerLength": 542
+  },
+  {
+    "id": "81620d22-bcbd-4928-ad4b-a17754ab6a78",
+    "question": "Key Challenges and Opportunities for this Project",
+    "topic": "Education",
+    "answerLength": 2434,
+    "keptId": "aae52a5f-c721-4516-9f1a-68dc79cdc128",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 2444
+  },
+  {
+    "id": "b12dbc0b-7e31-4197-a70b-5558bd74f427",
+    "question": "Key Industry Relationships",
+    "topic": "Brand",
+    "answerLength": 1944,
+    "keptId": "0599856d-d920-4217-bd98-48edccc896aa",
+    "keptTopic": "General",
+    "keptAnswerLength": 1944
+  },
+  {
+    "id": "ac970ec7-895d-4851-9ea0-7949a93b03af",
+    "question": "Key Research Services Differentiators",
+    "topic": "Education",
+    "answerLength": 827,
+    "keptId": "7c1a9d35-e24a-4fc8-b92d-7139bf24e156",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 841
+  },
+  {
+    "id": "a121c733-c3de-4665-aa9b-777ec4ae009a",
+    "question": "Keyword Research to Develop a Prioritized List of Search Terms",
+    "topic": "SEM/SEO",
+    "answerLength": 828,
+    "keptId": "341b9dd1-82a8-4bc9-b15e-6ec0d7c95497",
+    "keptTopic": "Education",
+    "keptAnswerLength": 828
+  },
+  {
+    "id": "2ae76479-346c-43ec-9e01-7bebcb663369",
+    "question": "Keyword Review",
+    "topic": "SEM/SEO",
+    "answerLength": 526,
+    "keptId": "9a89b631-e277-463b-bced-a2530e534fd8",
+    "keptTopic": "Education",
+    "keptAnswerLength": 526
+  },
+  {
+    "id": "3646a895-6032-4091-8633-f533860da183",
+    "question": "Labor Market Analytics - Lightcast",
+    "topic": "Data & Analytics",
+    "answerLength": 1039,
+    "keptId": "641c9f63-527f-451a-9e94-5afa3c3ad356",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1039
+  },
+  {
+    "id": "f8ff37fe-1ce5-4f6f-bcf7-f2cd5500dd29",
+    "question": "Leaders in Higher Education Website Strategy and Execution",
+    "topic": "Education",
+    "answerLength": 2153,
+    "keptId": "813612fd-fbba-496e-ac14-df5db38174f2",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 2173
+  },
+  {
+    "id": "53804074-2ccb-42da-beec-16e1dc9b94e1",
+    "question": "Live Sites that Show Landing and Interior Pages",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 169,
+    "keptId": "ab7aa669-48dd-4e25-b665-a693d7b21eb7",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 169
+  },
+  {
+    "id": "8bc6194d-872e-4d77-b756-b07daa90dddf",
+    "question": "Magazine Intro Language",
+    "topic": "Online Magazine",
+    "answerLength": 997,
+    "keptId": "e85dde12-16d3-4ccc-8f80-8f153f5a9c65",
+    "keptTopic": "Education",
+    "keptAnswerLength": 997
+  },
+  {
+    "id": "d94ac5d6-e6dc-4c56-983f-8a6747fcf815",
+    "question": "Magazines/Newsletters",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 600,
+    "keptId": "cd2c0efc-e96f-4f99-9469-734750248a57",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 600
+  },
+  {
+    "id": "79e0f949-9842-4c5c-910b-f87f3540bc65",
+    "question": "Market Research Associations and Commitments",
+    "topic": "",
+    "answerLength": 705,
+    "keptId": "e4e9aaea-2681-4547-8dec-c08fcf27c396",
+    "keptTopic": "Research",
+    "keptAnswerLength": 719
+  },
+  {
+    "id": "cc58d339-1273-41a1-bd53-f96c34768b05",
+    "question": "Marketing Automation and Lead Generation",
+    "topic": "Education",
+    "answerLength": 386,
+    "keptId": "c25e30a9-882b-485d-a7a8-d794c4e74e8a",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 394
+  },
+  {
+    "id": "7cf54ebf-bf32-46de-9ef2-c5fea3ba5f7b",
+    "question": "Mary Bird Perkins - Our Lady of the Lake Cancer Center",
+    "topic": "Blog Content",
+    "answerLength": 1245,
+    "keptId": "e8ef5969-acf9-4c1d-9392-4dc3ad21d164",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1259
+  },
+  {
+    "id": "fe64ff85-e568-47b1-9a7c-c1d337a60643",
+    "question": "Med Star Blog Example",
+    "topic": "Blog Content",
+    "answerLength": 116,
+    "keptId": "8f1c3780-9d93-4d9b-8b6b-155b960bb5d6",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 122
+  },
+  {
+    "id": "50ee518a-cf7c-44bd-9f21-ae38930aeeff",
+    "question": "Media Buying Scope of Work Approach (SOW and Implementation Plan)",
+    "topic": "Education",
+    "answerLength": 953,
+    "keptId": "caf08afc-39b6-4d4d-ba22-dd868da7029f",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 959
+  },
+  {
+    "id": "67475ebe-606b-43d7-8ae1-5d16e879d85f",
+    "question": "Media Development & Production Services",
+    "topic": "Creative",
+    "answerLength": 1176,
+    "keptId": "a197e20d-688f-43e8-bce7-22485b0f3612",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1176
+  },
+  {
+    "id": "061a85b0-485c-4eae-9ee3-e3f2b42db007",
+    "question": "Media Plan Development",
+    "topic": "Education",
+    "answerLength": 941,
+    "keptId": "8821682b-8cca-48f0-b950-7949a7ac6abb",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 959
+  },
+  {
+    "id": "f5356c71-a468-4407-ab76-3bf22bb59b3d",
+    "question": "Meeting General Objectives and Goals: Generating Awareness, Communication, Engagement, and Enrollment.",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1034,
+    "keptId": "26030d23-071c-440d-8fd0-17b89d779e51",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1034
+  },
+  {
+    "id": "bda2fa70-4b81-472c-9b79-0e3a1ff16fc4",
+    "question": "Message Development",
+    "topic": "Content",
+    "answerLength": 468,
+    "keptId": "42686ddb-3623-4a0b-aa99-ad50a239c6f8",
+    "keptTopic": "Education",
+    "keptAnswerLength": 468
+  },
+  {
+    "id": "7ddda3ac-6c3e-446c-8b43-c18f4322f422",
+    "question": "Meta Business Partner Marketing Partner",
+    "topic": "Digital Advertising",
+    "answerLength": 537,
+    "keptId": "60a6305a-33b7-438c-8505-ca1404cdb6ac",
+    "keptTopic": "General",
+    "keptAnswerLength": 537
+  },
+  {
+    "id": "20fd6ca6-a1a3-444d-b808-22ea51a4f0f9",
+    "question": "Migration Introduction Language",
+    "topic": "Education",
+    "answerLength": 1178,
+    "keptId": "4ab0d5a4-d5ad-401f-8994-e3a663ad3ed4",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 1186
+  },
+  {
+    "id": "4430aa3d-8cd4-40fc-a8f2-44f7952dd7be",
+    "question": "Migration Project Timeline and Milestones",
+    "topic": "Education",
+    "answerLength": 724,
+    "keptId": "8b88e4fb-35e3-4346-9b20-0f8299c44e80",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 738
+  },
+  {
+    "id": "092dacc0-d761-4e56-be55-ff0bfe6e678d",
+    "question": "Migration Support Services",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 1609,
+    "keptId": "19fe0064-788f-4aab-866d-dbaf35ec6ea2",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1609
+  },
+  {
+    "id": "4d2b5172-c7dc-4471-b7dd-fb5b64842ff8",
+    "question": "Migration Timelines",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 2835,
+    "keptId": "f6baebec-6382-466f-adef-a941a7c14acd",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2835
+  },
+  {
+    "id": "2253f113-d153-473a-b518-05e4f2535600",
+    "question": "Migration Workflow Diagram",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 94,
+    "keptId": "4654990a-0325-4c3b-ab0b-830a955e6a1e",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 94
+  },
+  {
+    "id": "4acb98ab-b964-4160-a3ba-e0a7fcefcbf8",
+    "question": "Milestones needed to launch the new website",
+    "topic": "Education",
+    "answerLength": 133,
+    "keptId": "f54ce395-d910-4caf-a929-ac6b273a13b2",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 147
+  },
+  {
+    "id": "47d24356-ce42-4eb5-970a-3a2df6118694",
+    "question": "Minority-Majority Institutions",
+    "topic": "General",
+    "answerLength": 456,
+    "keptId": "18e84361-ece9-40a1-9185-a48cf1746d19",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 478
+  },
+  {
+    "id": "b4314cc4-339c-41ba-b19d-18de945ff8ad",
+    "question": "Mission Statement",
+    "topic": "Company Information",
+    "answerLength": 492,
+    "keptId": "72399060-976e-48a8-9737-2f18841f6541",
+    "keptTopic": "General",
+    "keptAnswerLength": 492
+  },
+  {
+    "id": "14049eba-05ee-4e5f-bbc3-fd7b9c39c934",
+    "question": "Modern Campus CMS Experience",
+    "topic": "Education",
+    "answerLength": 1266,
+    "keptId": "4e90fe5f-8e19-4878-ab59-5bc3311364f8",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1284
+  },
+  {
+    "id": "67c29528-68f8-4505-87a2-b531d825d847",
+    "question": "Modern Campus CMS Related Costs",
+    "topic": "Education",
+    "answerLength": 927,
+    "keptId": "616f0f6e-ba74-44e5-b1f7-f43114ff92b2",
+    "keptTopic": "Pricing Information",
+    "keptAnswerLength": 938
+  },
+  {
+    "id": "ffd724c3-2df8-42e9-ba12-f7490a7400cd",
+    "question": "More Reasons to Embrace Cascade: Streamlined Content Management and Workflows",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1975,
+    "keptId": "95dbcfb8-65ad-4316-b4b9-5c0c38c97c4e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1975
+  },
+  {
+    "id": "53cdcc02-3d11-483c-a4c8-0e8e56abbb48",
+    "question": "New Academic Program Demand Assessment",
+    "topic": "Education",
+    "answerLength": 4162,
+    "keptId": "cb7576e2-5bd4-4e1a-93a1-1deb89394f48",
+    "keptTopic": "Research & Insights",
+    "keptAnswerLength": 4213
+  },
+  {
+    "id": "8beb4d69-17ef-4d8f-8360-4edcc5cf5572",
+    "question": "News/Press Releases",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 820,
+    "keptId": "13c53b38-bee2-4824-97fe-a18e3858fa10",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 820
+  },
+  {
+    "id": "a1d05490-d08e-4adf-a147-3f4c81c1c945",
+    "question": "Office Location - Headquarters",
+    "topic": "History",
+    "answerLength": 911,
+    "keptId": "661a1af4-e9fe-433f-9b4c-05526fb65fcd",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 921
+  },
+  {
+    "id": "b0f1c2e7-627b-4929-b8ab-4f8095e85c97",
+    "question": "Ongoing Management and Strategic Support/Guidance",
+    "topic": "Education",
+    "answerLength": 1967,
+    "keptId": "a96a71d6-828c-49a6-98f6-442e9cc380f9",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1987
+  },
+  {
+    "id": "30f45992-b0fc-4619-87b8-0de27744712a",
+    "question": "Ongoing Support",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1159,
+    "keptId": "75dd39e5-7b56-4d54-ae08-ac20f467c4d0",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1159
+  },
+  {
+    "id": "e7c668b7-a441-453b-8fc0-cc151a53ec33",
+    "question": "Ongoing Tracking - SEO",
+    "topic": "Education",
+    "answerLength": 399,
+    "keptId": "6d047501-aa03-4f7e-aa3d-ebfbcb8be416",
+    "keptTopic": "SEM/SEO",
+    "keptAnswerLength": 405
+  },
+  {
+    "id": "3b0b3ed6-e349-4e36-940a-9f8d8ffe396e",
+    "question": "Online Bulletin Board Discussion Group",
+    "topic": "Education",
+    "answerLength": 4388,
+    "keptId": "1cd68d17-5f53-4d25-9a28-d6c37bed9ed0",
+    "keptTopic": "Research",
+    "keptAnswerLength": 4429
+  },
+  {
+    "id": "8954ed92-982d-447c-8367-b5938f287361",
+    "question": "Online Focus Groups",
+    "topic": "Education",
+    "answerLength": 4048,
+    "keptId": "ad434830-b9df-4939-8900-ce218d275de6",
+    "keptTopic": "Research",
+    "keptAnswerLength": 4093
+  },
+  {
+    "id": "6e5fd0f0-0ca5-4dd3-bdbc-94468b3afe81",
+    "question": "Online Qualitative Research - External Audiences Table",
+    "topic": "Education",
+    "answerLength": 994,
+    "keptId": "41902947-3bb5-40a8-b509-8ad30e3d511c",
+    "keptTopic": "Research",
+    "keptAnswerLength": 1022
+  },
+  {
+    "id": "f866a6cb-9da2-4bcc-98ad-626de4f387f6",
+    "question": "Optimized Campaigns = Reduced Ad Cost",
+    "topic": "Digital Advertising",
+    "answerLength": 919,
+    "keptId": "8d5ed324-f7ae-46b8-8c9a-70e5d27661c4",
+    "keptTopic": "Education",
+    "keptAnswerLength": 919
+  },
+  {
+    "id": "46785b45-70b5-45b5-b767-337fe79e4599",
+    "question": "ORG or EDU Pages",
+    "topic": "Healthcare",
+    "answerLength": 670,
+    "keptId": "28dd883f-0139-4838-a0a4-733b5ca22f70",
+    "keptTopic": "Content",
+    "keptAnswerLength": 682
+  },
+  {
+    "id": "f205bdfc-1ca4-4890-805d-e35ad3259839",
+    "question": "Organic Social Media Posts",
+    "topic": "Education",
+    "answerLength": 1098,
+    "keptId": "9b202141-67d4-4884-8c57-2c3d16d010cf",
+    "keptTopic": "Social Media",
+    "keptAnswerLength": 1118
+  },
+  {
+    "id": "b4b857be-eb3a-4110-88c4-d2639ca68f2f",
+    "question": "Other CMS Considerations & Specifications",
+    "topic": "Education",
+    "answerLength": 1135,
+    "keptId": "abf5fc47-37e8-4ff6-acf1-47137fcac641",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1147
+  },
+  {
+    "id": "3ea1ef38-db94-4cd9-84d7-8811089d853a",
+    "question": "Our Content Migration Expertise is Unmatched",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 1740,
+    "keptId": "f13beda7-bf9d-415a-bfbb-d860d087dd39",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1740
+  },
+  {
+    "id": "6adc128a-19e4-46ba-aed7-4749aa783cfe",
+    "question": "Our Core Values",
+    "topic": "General",
+    "answerLength": 1613,
+    "keptId": "a48dca82-32d2-4e2c-bf70-5e5efe6a54ba",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1625
+  },
+  {
+    "id": "5cc08e59-463d-4cad-9fd6-0ef2cf048f73",
+    "question": "Our Migration Approach and Project Plan",
+    "topic": "Education",
+    "answerLength": 5259,
+    "keptId": "5c987a37-29f6-46f6-9664-33d5eea4d43e",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 5265
+  },
+  {
+    "id": "cb077126-e9b0-4e92-9f07-a2568cf0f088",
+    "question": "Our Partnership Approach",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1945,
+    "keptId": "c350b1a8-2426-415e-a33a-cc9bc0083755",
+    "keptTopic": "General",
+    "keptAnswerLength": 1945
+  },
+  {
+    "id": "37521312-e003-468f-a122-1b50da4d58b2",
+    "question": "Overview of Post-Launch Support",
+    "topic": "Education",
+    "answerLength": 1624,
+    "keptId": "8ed7a1ba-94b0-4f7e-8e88-3312dcbffd67",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1640
+  },
+  {
+    "id": "12950e57-60f3-47a4-80ce-156fb9946fd3",
+    "question": "Ownership Rights",
+    "topic": "Company Information",
+    "answerLength": 491,
+    "keptId": "fdc69651-c246-4342-b29c-6ae2aabea76d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 491
+  },
+  {
+    "id": "a4d63476-e82b-42a1-9670-cf960b108fdc",
+    "question": "Paid Search (PPC)",
+    "topic": "Digital Marketing",
+    "answerLength": 785,
+    "keptId": "54d4c949-9556-4ab3-96b3-5cdf339367ce",
+    "keptTopic": "Education",
+    "keptAnswerLength": 785
+  },
+  {
+    "id": "bf24e224-b313-4358-a5bf-6c8b15e03f31",
+    "question": "Patient-Targeted Videos",
+    "topic": "Creative",
+    "answerLength": 921,
+    "keptId": "2ad019c4-b6bb-4a8c-9e76-7ccc325e0dee",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 921
+  },
+  {
+    "id": "2a6f2293-02de-4526-a95d-9c740b0970a2",
+    "question": "Per Project/Campaign Cost - EXAMPLE PLACE TO START",
+    "topic": "Education",
+    "answerLength": 3248,
+    "keptId": "939cae04-1b26-483d-84a7-de4b934a4a1d",
+    "keptTopic": "Pricing Information",
+    "keptAnswerLength": 3296
+  },
+  {
+    "id": "6276454c-e133-4978-b672-0d9ea4df920f",
+    "question": "Persona Review Adapted for Journey Map",
+    "topic": "Healthcare",
+    "answerLength": 661,
+    "keptId": "c8a6cc2d-1a15-4eff-9e7f-b43e786b37a1",
+    "keptTopic": "Research",
+    "keptAnswerLength": 665
+  },
+  {
+    "id": "a92ae080-86cc-4f3e-898f-05fed06bda66",
+    "question": "Personalization - Generic",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 996,
+    "keptId": "ab5497a3-d401-4431-8dcb-bcaa5650c73a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 996
+  },
+  {
+    "id": "a9c6dfa3-8a78-4b83-98da-9b723f51932d",
+    "question": "Personalization Strategy",
+    "topic": "Education",
+    "answerLength": 778,
+    "keptId": "771d0e58-607f-4c03-9fb5-82174822be2b",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 789
+  },
+  {
+    "id": "aef4a5ae-7054-4f8d-be84-c48e8033204e",
+    "question": "Personas and User Journeys",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 2125,
+    "keptId": "3724fc64-afe2-48c7-aed8-d85174f1239e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2125
+  },
+  {
+    "id": "3a96c99b-ef0d-4a8a-b278-edb770a49788",
+    "question": "Philosophy of Integrated Communications",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 731,
+    "keptId": "2efd6e55-93b1-4166-ab9a-3884825c06b1",
+    "keptTopic": "General",
+    "keptAnswerLength": 731
+  },
+  {
+    "id": "c550c8fe-0feb-4a5c-ae40-4375df5396f4",
+    "question": "Photography/Videography",
+    "topic": "Education",
+    "answerLength": 1981,
+    "keptId": "6eacd6fb-292c-4970-bd13-d0f27d8cea04",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 1993
+  },
+  {
+    "id": "1ebb805f-6751-4cb2-a5b0-1b509fe5b58e",
+    "question": "Plan for Usability Testing - Content Specific",
+    "topic": "Education",
+    "answerLength": 659,
+    "keptId": "722ea578-4e54-4882-aa54-4c7d6d943220",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 667
+  },
+  {
+    "id": "1ea2ec23-df8b-43d1-b98d-b7de3ae3f69a",
+    "question": "Platform Expertise",
+    "topic": "Education",
+    "answerLength": 6131,
+    "keptId": "b0f9373b-fc28-4423-b6c0-33217eb76a3b",
+    "keptTopic": "Digital Advertising",
+    "keptAnswerLength": 6135
+  },
+  {
+    "id": "f41309d3-3c72-419d-b2bb-d20e26e0c982",
+    "question": "Platforms Used for Conversion Tracking",
+    "topic": "Data & Analytics",
+    "answerLength": 893,
+    "keptId": "d44f2b7e-44bf-4dd3-ab95-73e6a790dbfc",
+    "keptTopic": "Education",
+    "keptAnswerLength": 893
+  },
+  {
+    "id": "a9c8364a-b539-44fc-88fd-023bae5dcd58",
+    "question": "Please share examples in an appendix that you feel would help us understand the quality of your work. - If you offer access to proprietary research or analysis.",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 742,
+    "keptId": "2ea0981a-daa5-40fb-8393-fe6be0be477e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 742
+  },
+  {
+    "id": "af49b523-4d04-4bf5-81e2-10bdf89416e1",
+    "question": "Podcast Storytelling",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 759,
+    "keptId": "240081f8-5451-404e-849e-b3a22935cfd7",
+    "keptTopic": "Education",
+    "keptAnswerLength": 759
+  },
+  {
+    "id": "b983c6dd-2dd4-48e4-b8d9-362b009e4343",
+    "question": "Policies and Procedures in Place to Maintain Compliance with HIPPA",
+    "topic": "Education",
+    "answerLength": 4725,
+    "keptId": "58c906f4-b76c-413c-a5b4-a3970c255dd9",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 4733
+  },
+  {
+    "id": "4c4149d1-5094-4590-8407-d17a136767d4",
+    "question": "Policies/procedures that limit access to employees/approved contractors",
+    "topic": "IT & Security",
+    "answerLength": 722,
+    "keptId": "f227edba-4ab0-4e1d-9020-c1c4a6e3f0b2",
+    "keptTopic": "General",
+    "keptAnswerLength": 722
+  },
+  {
+    "id": "36560e83-5421-44b0-80aa-4f27f2b35449",
+    "question": "Policy/process to respond to accessibility errors for applications in development and production environments?",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 372,
+    "keptId": "0ae60785-48d4-4591-b632-ced9a8b37d2e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 372
+  },
+  {
+    "id": "d4a4342d-0c30-46b3-bfe5-498aff71fb2b",
+    "question": "Portal Chat Guidelines",
+    "topic": "Education",
+    "answerLength": 984,
+    "keptId": "5ddac314-199d-4ba9-93b1-fddf950e31ba",
+    "keptTopic": "Social Media",
+    "keptAnswerLength": 996
+  },
+  {
+    "id": "81e5d9d8-d249-4a13-9052-d95260ea5a90",
+    "question": "Portal Criteria and Process for Removing Offending Members of the Online Community",
+    "topic": "Education",
+    "answerLength": 1117,
+    "keptId": "ccc1e045-7b6b-4bf5-9118-9b506c2ad4d7",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1125
+  },
+  {
+    "id": "0ba16954-b70d-4a97-b85a-690ff33cd76d",
+    "question": "Portal Platform",
+    "topic": "General",
+    "answerLength": 427,
+    "keptId": "6c4ec06a-8f08-49e3-ab87-b2226bed7920",
+    "keptTopic": "Education",
+    "keptAnswerLength": 427
+  },
+  {
+    "id": "d2f5cbb7-1d6c-4608-b660-ce85aabacc34",
+    "question": "Portal Process for Escalating Issues",
+    "topic": "Project Management & Operations",
+    "answerLength": 305,
+    "keptId": "a324c7e2-bf8e-48eb-b32d-4ff0b933bd77",
+    "keptTopic": "Education",
+    "keptAnswerLength": 305
+  },
+  {
+    "id": "d043d8e8-e761-4f83-ba00-731768ea398c",
+    "question": "Portal Process for Moderating Online Chats",
+    "topic": "Project Management & Operations",
+    "answerLength": 416,
+    "keptId": "2bf5ca1f-03c2-4e89-bf22-e2e7343fdfa6",
+    "keptTopic": "Education",
+    "keptAnswerLength": 416
+  },
+  {
+    "id": "e138d38b-faba-442e-9025-f7efb47bb9cd",
+    "question": "Portal Requirements for Client Team",
+    "topic": "Education",
+    "answerLength": 267,
+    "keptId": "6a460ae1-cc2b-4c42-8fa3-ac7cf1e65664",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 279
+  },
+  {
+    "id": "45ae6e57-8726-47e2-abc6-3ada2ae0d753",
+    "question": "Post-Launch Support & Warranty",
+    "topic": "Project Management & Operations",
+    "answerLength": 394,
+    "keptId": "0e072f88-30ac-45de-84f1-908f6ca20db4",
+    "keptTopic": "Education",
+    "keptAnswerLength": 394
+  },
+  {
+    "id": "86ad59ae-6ee5-40ab-9530-0efecaf35db3",
+    "question": "Preferred Customer Status",
+    "topic": "Client List",
+    "answerLength": 847,
+    "keptId": "4a5faf95-968b-45db-af30-fb53a4f95d69",
+    "keptTopic": "General",
+    "keptAnswerLength": 847
+  },
+  {
+    "id": "27a0a7e1-bf3e-44ce-91ce-147023659bc7",
+    "question": "Price Justification for Tuition Pricing Elasticity and Brand Value Study",
+    "topic": "Education",
+    "answerLength": 991,
+    "keptId": "8fa6099a-7132-4a8a-a145-9d79b58dc892",
+    "keptTopic": "Pricing Information",
+    "keptAnswerLength": 995
+  },
+  {
+    "id": "f4d7968f-2461-40be-9ef2-ecb4d192f3c1",
+    "question": "Primary Strengths",
+    "topic": "Company Information",
+    "answerLength": 486,
+    "keptId": "40a37f30-26ba-4a39-914c-1b909165c21d",
+    "keptTopic": "General",
+    "keptAnswerLength": 486
+  },
+  {
+    "id": "7d36f14d-984d-4913-9460-9e6443fe7826",
+    "question": "Print Was Where It All Began for Stamats",
+    "topic": "Education",
+    "answerLength": 1722,
+    "keptId": "7c8aaa72-5755-42c3-9e99-c9b5073aac35",
+    "keptTopic": "History",
+    "keptAnswerLength": 1730
+  },
+  {
+    "id": "8789a900-f01d-4587-8954-0f8a892675e3",
+    "question": "Privacy and Security Policies and Procedures",
+    "topic": "Data Stewardship",
+    "answerLength": 1442,
+    "keptId": "5d7d1cbd-0880-49c8-aa5b-f43adf49ae43",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 1458
+  },
+  {
+    "id": "12e7ba53-47c2-4800-b7c4-a8d39e333467",
+    "question": "Process(es) to ensure websites meet WCAG Guidelines 2.2 Level AA",
+    "topic": "Education",
+    "answerLength": 916,
+    "keptId": "058207e9-6593-41d6-b8b4-62dd424bd672",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 938
+  },
+  {
+    "id": "10a96212-3c97-4c21-a69f-5b8c22941217",
+    "question": "Production Schedule Example",
+    "topic": "Project Management & Operations",
+    "answerLength": 2386,
+    "keptId": "0fd95dba-5c2a-49c4-be4e-84dd0a308c0a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2539
+  },
+  {
+    "id": "363fe5e5-afd5-46e2-b127-e5e4b93b94bd",
+    "question": "Program Finder with Interactive Search or Program Workshop with Static Layout",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 978,
+    "keptId": "46569e49-e8cc-4fdb-817d-562684e431ff",
+    "keptTopic": "Education",
+    "keptAnswerLength": 978
+  },
+  {
+    "id": "8ae723e6-239f-4d93-b09d-8cf64325bcf8",
+    "question": "Program Specific Advertising",
+    "topic": "Digital Advertising",
+    "answerLength": 847,
+    "keptId": "1ec75c3c-36a8-4702-a2c9-14679ff42cdd",
+    "keptTopic": "Education",
+    "keptAnswerLength": 847
+  },
+  {
+    "id": "154c74e0-a96e-4f86-b96a-fb61a71f82cc",
+    "question": "Project Challenges",
+    "topic": "Project Management & Operations",
+    "answerLength": 1299,
+    "keptId": "c64a3be1-63a9-41c4-bfe9-fcc3e2a8134f",
+    "keptTopic": "General",
+    "keptAnswerLength": 1300
+  },
+  {
+    "id": "4fd539c5-75eb-41f4-8ba9-259d284383b2",
+    "question": "Project Management Approach - General",
+    "topic": "Project Management & Operations",
+    "answerLength": 2676,
+    "keptId": "00eb1573-b5df-41b8-8288-704406dd8831",
+    "keptTopic": "General",
+    "keptAnswerLength": 2676
+  },
+  {
+    "id": "f9b4de8e-e767-4cf6-ae44-12e4835714ae",
+    "question": "Project Management, Reporting, Client Service & Support",
+    "topic": "Project Management & Operations",
+    "answerLength": 1520,
+    "keptId": "9a75a006-da7b-4a5e-8166-a656bce25e0b",
+    "keptTopic": "General",
+    "keptAnswerLength": 1520
+  },
+  {
+    "id": "a3734f60-075a-4d48-ac81-e924ea3ef0f0",
+    "question": "Project Software or Technologies",
+    "topic": "General",
+    "answerLength": 688,
+    "keptId": "e58ae7d7-c3c6-4633-9a29-76ea1d8143ff",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 706
+  },
+  {
+    "id": "9e044435-6608-40cb-82f1-9b0300a83c76",
+    "question": "Proposed Project Team",
+    "topic": "Project Management & Operations",
+    "answerLength": 619,
+    "keptId": "755d01b6-2685-4748-b77b-564cd43b8dfd",
+    "keptTopic": "Education",
+    "keptAnswerLength": 619
+  },
+  {
+    "id": "b6b43e39-fb5f-47b7-9048-19128a3125b9",
+    "question": "Proven Abilities - Web Focused",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 651,
+    "keptId": "4fb7fa92-f0c7-43f9-90bc-a32384a2b0c7",
+    "keptTopic": "General",
+    "keptAnswerLength": 651
+  },
+  {
+    "id": "ae9a3be6-a37f-4977-be36-0b07fe2884a4",
+    "question": "Provide details about the reporting dashboard you will use, including how it integrates with existing systems and what specific metrics will be tracked.",
+    "topic": "Data & Analytics",
+    "answerLength": 641,
+    "keptId": "be3bc1fc-b83a-4e55-876c-8612248ff148",
+    "keptTopic": "Education",
+    "keptAnswerLength": 641
+  },
+  {
+    "id": "db52ee50-344c-4976-9bae-d42bf0b99ca4",
+    "question": "Provide insights on how you plan to adapt and scale the strategy over time as market conditions and Client Name's needs evolve.",
+    "topic": "Education",
+    "answerLength": 853,
+    "keptId": "e0fe3e47-a3b1-4ea5-8ecb-b0e94663d209",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 863
+  },
+  {
+    "id": "658728dc-e70a-466c-aa7f-816abe5295d3",
+    "question": "Quality Assurance as a KPI",
+    "topic": "Healthcare",
+    "answerLength": 643,
+    "keptId": "32599a51-1f97-4ff6-be7c-c6bf58239c0e",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 653
+  },
+  {
+    "id": "ab3a4153-aa84-4e16-9c05-3e0ca9f18f38",
+    "question": "Quantitative Research Steps - Detailed",
+    "topic": "Education",
+    "answerLength": 2185,
+    "keptId": "463ac970-74e5-4555-825d-f21e3ed1b9a4",
+    "keptTopic": "Research",
+    "keptAnswerLength": 2193
+  },
+  {
+    "id": "70ef50ff-9453-497f-8623-01fd88d38550",
+    "question": "Quantitative Research Table",
+    "topic": "Education",
+    "answerLength": 1270,
+    "keptId": "46769307-0906-495c-a51a-9ba5ae2320c7",
+    "keptTopic": "Research",
+    "keptAnswerLength": 1308
+  },
+  {
+    "id": "e19bbf74-69d8-4528-afca-950a446421fd",
+    "question": "QuickStart Project Approach & Timeline",
+    "topic": "Project Management & Operations",
+    "answerLength": 7177,
+    "keptId": "9486449c-6dce-438e-b9a2-ae64e3c6f860",
+    "keptTopic": "Education",
+    "keptAnswerLength": 7194
+  },
+  {
+    "id": "b9fbc756-a99a-4864-a28b-699489c01544",
+    "question": "Radio & TV Ads",
+    "topic": "Creative",
+    "answerLength": 1610,
+    "keptId": "39d76378-412d-404f-8233-0eb1340d16cf",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1610
+  },
+  {
+    "id": "488aacdf-8ffb-4c2f-92bf-1243e1d0caa0",
+    "question": "Recent Similar Web Accessibility Services Clients/Projects",
+    "topic": "Education",
+    "answerLength": 1973,
+    "keptId": "f86fb833-109a-4aa9-a1d9-6ff55cf851f5",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1991
+  },
+  {
+    "id": "8dff099c-2d86-4b19-a604-2226a5544f27",
+    "question": "Recruitment/Enrollment Focused Project Introduction",
+    "topic": "Enrollment Strategies",
+    "answerLength": 1101,
+    "keptId": "c9e921df-6cf5-454d-8d35-cb4b304c09eb",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1101
+  },
+  {
+    "id": "77c9a3e3-45c6-417e-a036-ee863b3ba6ce",
+    "question": "Reduce Click Costs and Increase Conversions",
+    "topic": "Digital Advertising",
+    "answerLength": 1022,
+    "keptId": "2d61ba38-56ed-4ec3-834c-cad0c41d35c1",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1022
+  },
+  {
+    "id": "8c7c626e-aa4b-435c-8589-6c14098c9c8d",
+    "question": "Regular Internal Security Tests and/or Audits",
+    "topic": "General",
+    "answerLength": 1530,
+    "keptId": "92333d05-77cc-429a-af28-c92121a3cd05",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 1542
+  },
+  {
+    "id": "f7bbede3-b242-46e7-877b-4a5a8e5122a1",
+    "question": "Reporting Cadence and Performance Metrics",
+    "topic": "Education",
+    "answerLength": 2497,
+    "keptId": "f4136eec-a735-4965-ad7d-b8a2c6379c0b",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 2513
+  },
+  {
+    "id": "7b08e1f0-0d10-41da-82f6-fb909ecd67b6",
+    "question": "Reports and Written Documents Provided - Content Projects",
+    "topic": "Education",
+    "answerLength": 668,
+    "keptId": "76889358-917b-44e0-b842-16f8e8679d72",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 676
+  },
+  {
+    "id": "886de5fc-1057-4847-981c-dab4f522a3a8",
+    "question": "Reports/certifications from accredited 3rd parties that demonstrate security controls and assurance requirements to provide for confidentiality, integrity, and availability of the information systems used to process, store, transmit, and access all government information.",
+    "topic": "IT & Security",
+    "answerLength": 873,
+    "keptId": "9a9614ac-6f42-4a70-92e1-c65c07ddf84e",
+    "keptTopic": "General",
+    "keptAnswerLength": 899
+  },
+  {
+    "id": "5103b22c-c829-4604-8ff5-a96c42195f29",
+    "question": "Reputational Results: Monthly Reporting",
+    "topic": "Data & Analytics",
+    "answerLength": 294,
+    "keptId": "79426bba-bcb7-4bb3-b9ef-f9a01f3d91b6",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 294
+  },
+  {
+    "id": "13b0e87e-9d92-4cfe-9c1e-811f5faca78a",
+    "question": "Research & Strategy Summit",
+    "topic": "Research",
+    "answerLength": 432,
+    "keptId": "e3d77a8f-0bde-42ab-8c03-fa1df7fb584b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 432
+  },
+  {
+    "id": "8ef1ed95-c6fc-4fd3-862e-66bdf3f8dae2",
+    "question": "Research Audiences and Methods",
+    "topic": "Education",
+    "answerLength": 2316,
+    "keptId": "25c47ae5-b7de-415a-a1f2-1366054f8f5c",
+    "keptTopic": "Research",
+    "keptAnswerLength": 2386
+  },
+  {
+    "id": "fc359a8d-0d16-457b-be1d-c2ef26dcd0f9",
+    "question": "Research Cost Proposal Narrative",
+    "topic": "Pricing Information",
+    "answerLength": 1110,
+    "keptId": "688e1e4a-f8d7-4f87-bfec-4ab8a74de9f5",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1146
+  },
+  {
+    "id": "15d6582f-ac4a-4c1b-8592-d9d677908163",
+    "question": "Research Deliverables",
+    "topic": "Education",
+    "answerLength": 1417,
+    "keptId": "a7df2114-ef59-4996-8e81-4091cb9453f1",
+    "keptTopic": "Content",
+    "keptAnswerLength": 1419
+  },
+  {
+    "id": "71e4941d-9380-4be3-b4e0-5948c16a61e8",
+    "question": "Research Experience",
+    "topic": "Research",
+    "answerLength": 557,
+    "keptId": "76c78efa-3290-462c-b69d-dbd3747b896b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 557
+  },
+  {
+    "id": "7b5fbaf9-ea41-4795-992a-8d2c5a693235",
+    "question": "Research Experience to Help Create an Effective Media Strategy",
+    "topic": "Education",
+    "answerLength": 1921,
+    "keptId": "1913badf-2061-447a-8072-2ef1a4b71cf8",
+    "keptTopic": "Research",
+    "keptAnswerLength": 1929
+  },
+  {
+    "id": "885c3c56-731f-48c7-9877-119bbd9b4f79",
+    "question": "Research methodology and encompassing the full range of site users",
+    "topic": "Education",
+    "answerLength": 1931,
+    "keptId": "9a0c128d-af5d-45c6-ac80-e3b955f48e8a",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1957
+  },
+  {
+    "id": "3c8bb953-8476-41eb-a7b9-89ae5f3234c2",
+    "question": "Responsible financial stewardship",
+    "topic": "Education",
+    "answerLength": 1574,
+    "keptId": "0189f21f-ed2d-40bc-a11d-091edf843e72",
+    "keptTopic": "Invoicing",
+    "keptAnswerLength": 1584
+  },
+  {
+    "id": "0ea364d1-0a2c-4234-946a-8c8b0ce9ebb1",
+    "question": "Responsive Design Optimization",
+    "topic": "Education",
+    "answerLength": 1147,
+    "keptId": "f0d16876-7d6c-49ca-9aff-5bee547c2a91",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1161
+  },
+  {
+    "id": "a1060094-efba-4dab-8ed2-a8170427b141",
+    "question": "Robust Dashboard for Google Analytics",
+    "topic": "Data & Analytics",
+    "answerLength": 327,
+    "keptId": "3c7dabda-61df-4568-a777-61013eb52eb7",
+    "keptTopic": "Education",
+    "keptAnswerLength": 327
+  },
+  {
+    "id": "dc62bc7b-e0fc-416d-9d93-e5df1ec94eb7",
+    "question": "ROI and KPIs",
+    "topic": "Data & Analytics",
+    "answerLength": 629,
+    "keptId": "6920d2ab-5cb9-41a0-bdf9-8b33963a8008",
+    "keptTopic": "Education",
+    "keptAnswerLength": 629
+  },
+  {
+    "id": "c529f4ef-5180-4e29-b7db-4a3479035ada",
+    "question": "Sales Voume/Revenue",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 398,
+    "keptId": "03a7f163-3f61-45c0-9bd7-24ca7c93c920",
+    "keptTopic": "General",
+    "keptAnswerLength": 398
+  },
+  {
+    "id": "6ed48a95-d09c-419c-b6d5-0fb72dec763b",
+    "question": "Sample Digital Campaign Pricing",
+    "topic": "Education",
+    "answerLength": 3109,
+    "keptId": "9a959cca-b4a8-45e1-8cf7-ea7a37b04c92",
+    "keptTopic": "Digital Advertising",
+    "keptAnswerLength": 3165
+  },
+  {
+    "id": "05cff019-8b58-473d-8d71-22ddc00a45b8",
+    "question": "Sample Intro for Content Project",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 1045,
+    "keptId": "c76a3d28-a400-41fd-b31b-a2daa39babde",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 1045
+  },
+  {
+    "id": "74d98fd0-12d1-4a4a-9b4b-befc515949be",
+    "question": "Sample of Reports",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 437,
+    "keptId": "d672661f-3ddd-49bd-ae0c-9905e7a038e3",
+    "keptTopic": "Education",
+    "keptAnswerLength": 437
+  },
+  {
+    "id": "0e47e34b-649a-4667-a082-d47b3ca7b67f",
+    "question": "Seamless connection to admissions CRM; ability to embed RFIs and admissions forms",
+    "topic": "Education",
+    "answerLength": 1076,
+    "keptId": "70c4df65-5fc4-49d4-ac7f-447b2b4daac4",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1084
+  },
+  {
+    "id": "7262dca3-3b8e-4f99-a2cf-2dda5c83dacb",
+    "question": "Search Engine Platforms",
+    "topic": "Education",
+    "answerLength": 1861,
+    "keptId": "bd1e42be-4a24-4435-a397-ed41d319d210",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1871
+  },
+  {
+    "id": "bf71e747-a2b5-4d5f-a60e-4ed56f6e96dc",
+    "question": "Secret Shopper",
+    "topic": "Education",
+    "answerLength": 911,
+    "keptId": "0b1222ad-ed9f-4598-b914-090beddba7d7",
+    "keptTopic": "Research",
+    "keptAnswerLength": 919
+  },
+  {
+    "id": "f101f9f1-5089-4c45-9180-49e9f31918c3",
+    "question": "Security of Records (Research Focus)",
+    "topic": "Research",
+    "answerLength": 515,
+    "keptId": "200919aa-d360-4753-9e15-b1c5a37fc4d6",
+    "keptTopic": "Data Stewardship",
+    "keptAnswerLength": 515
+  },
+  {
+    "id": "96aa6975-1f77-4e8a-82c1-416c99fef8e7",
+    "question": "SEM Approach and Methodology Language",
+    "topic": "SEM/SEO",
+    "answerLength": 165,
+    "keptId": "b6d8796f-4d5d-4b0e-aeea-1864982fa8fa",
+    "keptTopic": "Education",
+    "keptAnswerLength": 165
+  },
+  {
+    "id": "d7c7232d-03b0-4b24-a173-1210938c642d",
+    "question": "SEM Proposal for Existing/Long-Term Client",
+    "topic": "SEM/SEO",
+    "answerLength": 168,
+    "keptId": "2dd361f7-4322-4f43-864e-ab675c10ce39",
+    "keptTopic": "Education",
+    "keptAnswerLength": 168
+  },
+  {
+    "id": "be6c7d2a-ec86-4cbd-801d-517919544c68",
+    "question": "SEM Value Add",
+    "topic": "Education",
+    "answerLength": 943,
+    "keptId": "d328be26-7ae1-43cb-b831-c7ca3420c193",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 953
+  },
+  {
+    "id": "b261cd82-2d44-43b2-b276-893aae457423",
+    "question": "SEO Intro Language",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 902,
+    "keptId": "8bbd1431-07ea-4455-9bb6-014eb1b3c703",
+    "keptTopic": "Education",
+    "keptAnswerLength": 902
+  },
+  {
+    "id": "d5ab1a78-b69e-453b-b075-24447f66a37f",
+    "question": "SEO Strategy and Keyword Research",
+    "topic": "Education",
+    "answerLength": 1369,
+    "keptId": "24d2d898-ef1e-4076-82d8-6a69802a16df",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 1381
+  },
+  {
+    "id": "77a30a29-91a6-43f9-87bc-3f34147c9f4a",
+    "question": "Server Hosting/Recovery Provider",
+    "topic": "Hosting & Environment Management",
+    "answerLength": 563,
+    "keptId": "79bf1776-134d-483a-b3ca-d827ac384990",
+    "keptTopic": "Education",
+    "keptAnswerLength": 563
+  },
+  {
+    "id": "5d293210-4e2a-4044-83ca-4c545c0c3ac1",
+    "question": "Site Implementation Questions - WordPress",
+    "topic": "Education",
+    "answerLength": 2875,
+    "keptId": "2c987946-58e5-413c-85e6-5c01c2dea4ab",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 2885
+  },
+  {
+    "id": "6c55fd1b-272e-443c-9432-8aae30da7584",
+    "question": "Site Launch and Support: Assessment Plan",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 522,
+    "keptId": "0555bd2e-b21b-4682-9407-96c11443e03a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 522
+  },
+  {
+    "id": "ba6e2029-6c9c-4b57-90a2-07fb249d1e54",
+    "question": "Site Structure and Navigation",
+    "topic": "Education",
+    "answerLength": 1299,
+    "keptId": "c464e095-0436-4e3e-bb85-118843c95acb",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1319
+  },
+  {
+    "id": "5feb86c0-9ed6-4c81-9eb9-6549f6d54eee",
+    "question": "Sites launched for the University of New Mexico Health Sciences Center",
+    "topic": "Client List",
+    "answerLength": 1227,
+    "keptId": "1e0c4892-5b0d-49f1-9f63-d7b8a6a69d0f",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1257
+  },
+  {
+    "id": "b835bc3b-df4b-436c-8738-de036c43d646",
+    "question": "Smart Social Partnerships and Paid Placements",
+    "topic": "Digital Marketing",
+    "answerLength": 1182,
+    "keptId": "6fd75b30-8e11-4851-8ea6-b54a97923d02",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1182
+  },
+  {
+    "id": "3fac3a5f-e150-46de-aa13-fdaae4931cfb",
+    "question": "Social and On-Page Analysis",
+    "topic": "Education",
+    "answerLength": 578,
+    "keptId": "080e9e55-1489-423d-9884-53fe52b4af9e",
+    "keptTopic": "Social Media",
+    "keptAnswerLength": 586
+  },
+  {
+    "id": "89716540-ed81-4a0d-b3de-4bc9f0b6b9fd",
+    "question": "Social Media Advertising",
+    "topic": "Digital Advertising",
+    "answerLength": 1084,
+    "keptId": "bd68acdc-1897-46a1-a761-f5da94cd4412",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1084
+  },
+  {
+    "id": "36d439ad-dc8d-4873-bdb9-7cba0cd07e85",
+    "question": "Social Media Costs Lists",
+    "topic": "Pricing Information",
+    "answerLength": 1488,
+    "keptId": "3c285198-f271-467f-a141-23fe83b55e6e",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1557
+  },
+  {
+    "id": "163717f3-d666-4cee-9681-5bedb6d3b237",
+    "question": "Social Media Strategy",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 998,
+    "keptId": "74fc3f89-58fe-48f8-8511-984aee11a932",
+    "keptTopic": "Education",
+    "keptAnswerLength": 998
+  },
+  {
+    "id": "d9480211-02f2-49ba-9221-a2bfa182516e",
+    "question": "Social Media, Web Content, and Email Review",
+    "topic": "Education",
+    "answerLength": 2174,
+    "keptId": "675682c0-7ee9-4c47-ae47-70f6bab0d096",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 2196
+  },
+  {
+    "id": "77333789-4004-4863-ad75-1bf4831bddb3",
+    "question": "Stakeholder & Executive Reporting",
+    "topic": "Data & Analytics",
+    "answerLength": 580,
+    "keptId": "3bed4ca6-74f2-461a-9c92-03ae802cab43",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 580
+  },
+  {
+    "id": "044fe3b7-cc72-424f-a334-20807e422ea3",
+    "question": "Stamats Accessibility Philosophy, Capabilities & Strengths",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1942,
+    "keptId": "f009cbf3-3c07-41c8-b210-656aec82c66f",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1942
+  },
+  {
+    "id": "3ab51353-f5ba-44c6-abb4-98224378b8d1",
+    "question": "Stamats Capabilities - Communications, PR, and Brand Focused",
+    "topic": "General",
+    "answerLength": 1442,
+    "keptId": "cd9956bd-d3d5-46b4-8c28-ac39676c2007",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1514
+  },
+  {
+    "id": "8f2453b6-b7a0-492a-83e3-324d5220f3e9",
+    "question": "Stamats Description - Super Short",
+    "topic": "General",
+    "answerLength": 210,
+    "keptId": "ca26a484-6321-47c4-8ce2-62d615d00c2b",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 212
+  },
+  {
+    "id": "3a5d2eb3-1d6c-4fde-a908-c833d764c71b",
+    "question": "Stamats Enrollment Guidebook",
+    "topic": "Education",
+    "answerLength": 387,
+    "keptId": "aefbe0f0-b68a-48a6-b3ea-a55d5483ac0a",
+    "keptTopic": "Content",
+    "keptAnswerLength": 393
+  },
+  {
+    "id": "05438d83-f3d0-444b-a99e-8f7299e05d03",
+    "question": "Stamats FERPA Compliance Information Technology Policy",
+    "topic": "Education",
+    "answerLength": 1243,
+    "keptId": "1971ca66-ac0f-4f15-985e-9c50ad886e5f",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 1259
+  },
+  {
+    "id": "4864edcb-3949-4311-84e9-52088e1d14ab",
+    "question": "Stamats License and Maintenance Agreements",
+    "topic": "Client List",
+    "answerLength": 1064,
+    "keptId": "8e98a783-e30b-4837-8d7b-fcaa5724c8f6",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1064
+  },
+  {
+    "id": "1fa6708b-0f5f-40fd-a9b9-ad8f8c0e216e",
+    "question": "Stamats Online Portfolio and Social Media Accounts",
+    "topic": "General",
+    "answerLength": 144,
+    "keptId": "be9d9fa7-8c06-4b11-876d-5d972f456afc",
+    "keptTopic": "Social Media",
+    "keptAnswerLength": 156
+  },
+  {
+    "id": "4ee66768-0808-4ae4-abfd-3ea2c7c6fdaf",
+    "question": "Stamats Own Enrollment Guidebook",
+    "topic": "General",
+    "answerLength": 599,
+    "keptId": "032fa7ed-3acc-4841-993c-598bea5fb171",
+    "keptTopic": "Content Marketing & Optimization",
+    "keptAnswerLength": 609
+  },
+  {
+    "id": "6652a455-8f6f-4de4-975a-b4f625c019e7",
+    "question": "Stamats Principals/Leadership",
+    "topic": "Company Information",
+    "answerLength": 1833,
+    "keptId": "a7afb56f-ce8d-4b1a-8746-f34e0ec8e0c9",
+    "keptTopic": "General",
+    "keptAnswerLength": 1833
+  },
+  {
+    "id": "417abba0-01fd-49bb-a7c6-2f1efc7770d5",
+    "question": "Stamats Privacy Policy",
+    "topic": "General",
+    "answerLength": 4578,
+    "keptId": "128d4c0a-2b1d-4e35-856b-43f51300773f",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 4586
+  },
+  {
+    "id": "2421660d-6d6f-47da-96b9-02edbd67d9ef",
+    "question": "Stamats Proprietary SEO Dashboard",
+    "topic": "Data & Analytics",
+    "answerLength": 710,
+    "keptId": "71e563fe-de21-4c65-934d-7f6fa9907467",
+    "keptTopic": "Education",
+    "keptAnswerLength": 710
+  },
+  {
+    "id": "51bedb6e-2dd4-44d7-bbdd-2010ffe93914",
+    "question": "Stamats Resources and Experience - Website",
+    "topic": "Website Design & Creative",
+    "answerLength": 586,
+    "keptId": "43c8e2eb-e4d0-423d-9f59-a4ea68e823b2",
+    "keptTopic": "Education",
+    "keptAnswerLength": 586
+  },
+  {
+    "id": "99dcaf37-38bb-4748-8c20-fec2aeff298b",
+    "question": "Stamats Services and Capabilities",
+    "topic": "General",
+    "answerLength": 1781,
+    "keptId": "d734c770-f709-48ca-8b64-29354c9f6997",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1834
+  },
+  {
+    "id": "16bace2e-8862-4e33-a77b-a532831afccf",
+    "question": "Stamats Understanding of the Needs of the College",
+    "topic": "Education",
+    "answerLength": 2075,
+    "keptId": "dd8456c7-e0d7-4452-88eb-a6810d82d1ac",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 2087
+  },
+  {
+    "id": "9fec6fbe-c9b4-4c54-a5fc-96ab83d7cb5d",
+    "question": "Stamats Years in Business",
+    "topic": "Company Information",
+    "answerLength": 755,
+    "keptId": "189c8076-de0a-4ede-b6e5-99256f730d06",
+    "keptTopic": "History",
+    "keptAnswerLength": 755
+  },
+  {
+    "id": "d89fca04-d6b4-4e3e-818b-fc3a0448ab05",
+    "question": "State or National Organizations",
+    "topic": "General",
+    "answerLength": 470,
+    "keptId": "56869960-8642-4864-904e-0fb35406cd76",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 488
+  },
+  {
+    "id": "4bc71559-fc4f-4d7a-837c-1ef1f24995e8",
+    "question": "Statement of Authorization",
+    "topic": "Company Information",
+    "answerLength": 638,
+    "keptId": "9c84c65e-6e67-47ea-869f-142467b872b7",
+    "keptTopic": "General",
+    "keptAnswerLength": 639
+  },
+  {
+    "id": "6d47dd20-7a60-4775-9c7b-62a5b3764b08",
+    "question": "Storytelling and Content Creation",
+    "topic": "Education",
+    "answerLength": 7645,
+    "keptId": "10485ce6-15ec-4de0-8db2-68550a9115fe",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 7725
+  },
+  {
+    "id": "b580eacc-6c7f-4a5f-b628-03b36b1ba32d",
+    "question": "Storytelling and Content Creation Experience",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 603,
+    "keptId": "e8eec432-c384-4425-8397-babebe7ed13d",
+    "keptTopic": "Education",
+    "keptAnswerLength": 603
+  },
+  {
+    "id": "14a4916a-8be7-4549-9158-531d81bc28e0",
+    "question": "Strategic Website Milestones",
+    "topic": "Education",
+    "answerLength": 250,
+    "keptId": "2a2c2250-6326-46e8-8550-265de4aa29a8",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 274
+  },
+  {
+    "id": "6b9c7a7f-0450-4bfd-8f16-686d19494a1d",
+    "question": "Streamlining Creative Production",
+    "topic": "Education",
+    "answerLength": 1929,
+    "keptId": "2bb02b16-a79b-4408-bf37-81fd3d9e706a",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 1955
+  },
+  {
+    "id": "636b684f-9f3d-41c6-b75c-21ca8f71852a",
+    "question": "Structure Over Stress: Cascade Makes Content Easy",
+    "topic": "Education",
+    "answerLength": 2264,
+    "keptId": "ce411956-1a4c-4770-a791-3cd13a27badb",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 2284
+  },
+  {
+    "id": "a2711369-0fc7-485e-be76-85ef04d533fc",
+    "question": "Successful Agency Client Relationships",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1098,
+    "keptId": "b11608f4-84e0-4ac9-9ab7-a960a0275ade",
+    "keptTopic": "General",
+    "keptAnswerLength": 1098
+  },
+  {
+    "id": "a3384a8f-fd8a-4745-be8f-ec197abdbc07",
+    "question": "SuperTemplate Approach Examples",
+    "topic": "Education",
+    "answerLength": 1535,
+    "keptId": "302705b4-3cd6-4816-a828-47dca76d18f6",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1573
+  },
+  {
+    "id": "4a344fe0-678c-4fc9-9548-3f0edf0eda0f",
+    "question": "SuperTemplate Components",
+    "topic": "Education",
+    "answerLength": 453,
+    "keptId": "8b9e501e-8215-4f00-a5b4-c52a96635e04",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 481
+  },
+  {
+    "id": "4f169040-e096-4dc0-a30a-f4948f993383",
+    "question": "SuperTemplate Design and Use-Case Layouts",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1950,
+    "keptId": "2eae0323-8efb-45f7-9143-859d9134ec89",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1950
+  },
+  {
+    "id": "44322a39-11ad-4b75-aedd-2883fd965fe5",
+    "question": "Taglines",
+    "topic": "Education",
+    "answerLength": 606,
+    "keptId": "b577021f-0637-4473-a93a-19f6eb29fa55",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 626
+  },
+  {
+    "id": "0673fe82-091d-4dd6-802e-aa38a7345e41",
+    "question": "Team Qualifications - Organized for Innovation",
+    "topic": "Company Information",
+    "answerLength": 570,
+    "keptId": "6b597121-7b9a-473b-8dba-fe9ceba238c5",
+    "keptTopic": "Education",
+    "keptAnswerLength": 570
+  },
+  {
+    "id": "400ee4ab-945c-43c2-a84a-dd070061aa96",
+    "question": "Technical Support - WordPress",
+    "topic": "IT & Security",
+    "answerLength": 1108,
+    "keptId": "b8723b29-f713-4068-a7ce-a2245a10dc39",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1108
+  },
+  {
+    "id": "89f47f92-ede4-47ff-844f-563216ed98d4",
+    "question": "Terminated/Lost Contracts",
+    "topic": "Client List",
+    "answerLength": 624,
+    "keptId": "e2eccd54-3df1-496b-8674-bfe9d19eb9fd",
+    "keptTopic": "General",
+    "keptAnswerLength": 675
+  },
+  {
+    "id": "320e5516-b699-4b56-86c5-1169124546ab",
+    "question": "Testing; Including Technical Functionality and Content Validation",
+    "topic": "Education",
+    "answerLength": 1096,
+    "keptId": "15d1be2c-0e05-4a38-8069-c5ab991e904c",
+    "keptTopic": "Content Migration & Redirect Mapping",
+    "keptAnswerLength": 1108
+  },
+  {
+    "id": "aab3741f-4bd8-4d7f-9659-862c93bcb031",
+    "question": "Three-Part SEO Audit",
+    "topic": "Education",
+    "answerLength": 702,
+    "keptId": "37034906-2066-4cc4-a871-f52d134e7974",
+    "keptTopic": "SEM/SEO",
+    "keptAnswerLength": 740
+  },
+  {
+    "id": "94a0c56c-a4df-4a7a-a0e0-e1826c0360fc",
+    "question": "Tight timeline for website work",
+    "topic": "Education",
+    "answerLength": 2066,
+    "keptId": "d8642d84-ecc9-4141-8650-0b549a5eb9f3",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 2069
+  },
+  {
+    "id": "2047364f-8b13-4bea-8d56-26aa95291ea1",
+    "question": "Timeline - Agile",
+    "topic": "Project Management & Operations",
+    "answerLength": 1044,
+    "keptId": "3215050d-fe0d-4c4e-a259-805dba2f8cee",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1044
+  },
+  {
+    "id": "ad779a2a-77ed-48da-95b1-efe6a4bc1c6b",
+    "question": "Timeline Challenges",
+    "topic": "Project Management & Operations",
+    "answerLength": 954,
+    "keptId": "d1f6dacc-29e3-4133-8501-16cb5b59f85a",
+    "keptTopic": "General",
+    "keptAnswerLength": 954
+  },
+  {
+    "id": "ca095acb-a52f-4778-9456-5611ae3aafb6",
+    "question": "Timely and Dedicated Customer Service (Digital Project Focus)",
+    "topic": "Digital Marketing",
+    "answerLength": 851,
+    "keptId": "c7326ff2-c7b8-431f-b2fe-7e0492e0d124",
+    "keptTopic": "Education",
+    "keptAnswerLength": 851
+  },
+  {
+    "id": "983acf7e-f6ff-4051-8456-5fe3f53ec63e",
+    "question": "Toolkit Examples",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 144,
+    "keptId": "d688278b-bd34-4282-b09e-4d9d2b14650a",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 144
+  },
+  {
+    "id": "6030abfd-c131-4808-876c-4deb54e88e55",
+    "question": "Tools for Campaign Management",
+    "topic": "Education",
+    "answerLength": 2434,
+    "keptId": "7457a147-fd2d-4ef2-8a3a-e6431d1d13d2",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 2450
+  },
+  {
+    "id": "e35e3591-4b5b-4f9e-86d1-41c737be2ff8",
+    "question": "Tools We Use",
+    "topic": "Education",
+    "answerLength": 877,
+    "keptId": "9228db1a-70de-471e-8e65-4ba716d9314d",
+    "keptTopic": "Data & Analytics",
+    "keptAnswerLength": 913
+  },
+  {
+    "id": "f19b113c-17b1-4bb2-87ca-3a3a05511af9",
+    "question": "Traditional & Out of Home (OOH) Media",
+    "topic": "Education",
+    "answerLength": 1262,
+    "keptId": "0244934c-3792-4a8e-bac8-b6cf5c33388e",
+    "keptTopic": "Digital Marketing",
+    "keptAnswerLength": 1292
+  },
+  {
+    "id": "6301b8ca-8cb2-4554-8bb5-c4cd498589c8",
+    "question": "Training, Content Migration, and Communication Plan: Content Migration and Build",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 880,
+    "keptId": "31574af9-6da9-423a-9fd7-d9ee9ad51112",
+    "keptTopic": "Education",
+    "keptAnswerLength": 880
+  },
+  {
+    "id": "3e84fad9-48ce-4fd4-9eb8-0f9319863c69",
+    "question": "Training, Content Migration, and Communication Plan: Migration Support Services",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 1044,
+    "keptId": "e34e3a5a-e27d-4eb2-b83c-5a464f959f72",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1044
+  },
+  {
+    "id": "baf01a3c-1b78-4b4a-a008-575bb06d1b1c",
+    "question": "Training, Content Migration, Communication Planning, and Site Launch",
+    "topic": "Content Migration & Redirect Mapping",
+    "answerLength": 2505,
+    "keptId": "0d40d762-774d-4150-9716-715e4fc47739",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2559
+  },
+  {
+    "id": "b4dedc1e-d58e-433c-8785-1e7e6c97fe1a",
+    "question": "Truly Data In Action",
+    "topic": "Data & Analytics",
+    "answerLength": 573,
+    "keptId": "d69e2013-4499-4368-8e6e-107d2c32d18a",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 573
+  },
+  {
+    "id": "bdd58986-d531-487a-9bc4-4711da939417",
+    "question": "Typical Timeline for Digital Advertising Initiatives",
+    "topic": "Education",
+    "answerLength": 2917,
+    "keptId": "836af2e8-452f-4297-9bdf-736cef15b356",
+    "keptTopic": "Digital Advertising",
+    "keptAnswerLength": 2981
+  },
+  {
+    "id": "78749886-b6d0-4388-af08-e7a06b39c12a",
+    "question": "Typical Turnaround Times for Research Projects",
+    "topic": "Research",
+    "answerLength": 542,
+    "keptId": "bd54dee5-e4d9-4acd-ac50-e133f75c1c11",
+    "keptTopic": "Education",
+    "keptAnswerLength": 586
+  },
+  {
+    "id": "19726bc4-92b2-430c-99a2-3156e4154cc3",
+    "question": "UI/UX Recommendations.",
+    "topic": "User Experience Audit",
+    "answerLength": 964,
+    "keptId": "0631ef6e-9889-4ca8-8b29-110de49947d5",
+    "keptTopic": "Education",
+    "keptAnswerLength": 964
+  },
+  {
+    "id": "e9453ea3-dd9a-4d12-8803-cec092f1595f",
+    "question": "Understanding of And Experience in Conducting Media Buying Activities",
+    "topic": "Digital Advertising",
+    "answerLength": 2240,
+    "keptId": "937ba1e1-86cb-4608-bbe7-1d20500970c0",
+    "keptTopic": "Education",
+    "keptAnswerLength": 2240
+  },
+  {
+    "id": "6d0f829c-f936-4379-a8d1-77e46509a5e9",
+    "question": "Unique Value Proposition (Higher Ed Focus)",
+    "topic": "Brand",
+    "answerLength": 771,
+    "keptId": "1d7a6eb9-c1ef-4a81-bc2b-f03f7b2aee7b",
+    "keptTopic": "General",
+    "keptAnswerLength": 771
+  },
+  {
+    "id": "56a3db9d-2dfb-4f12-8d8c-c9da83e07496",
+    "question": "Unique Value Proposition Specifically for Academic Medical Centers",
+    "topic": "Healthcare",
+    "answerLength": 1527,
+    "keptId": "a05d5428-d8a5-480b-ae4f-95ed02ca7900",
+    "keptTopic": "Brand",
+    "keptAnswerLength": 1539
+  },
+  {
+    "id": "769e7cb6-69b1-4815-bdca-14789d859e73",
+    "question": "University of North Carolina Wilmington - Transfer Admissions Before & After Example",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 13,
+    "keptId": "50b211b9-0c60-40e0-ad9e-ac711fcf0f8a",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 13
+  },
+  {
+    "id": "f78859dd-7590-4a59-92eb-8399127bee79",
+    "question": "UNM Health Sciences Center - Department of Neurology Blog Example",
+    "topic": "Blog Content",
+    "answerLength": 105,
+    "keptId": "e6009fd8-b4cd-45b9-86a3-a6f7627bf3f4",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 109
+  },
+  {
+    "id": "0b527d9f-6621-4bf3-9b10-8f94bcf11e4e",
+    "question": "Update in Place Redesign Pricing",
+    "topic": "Pricing Information",
+    "answerLength": 76,
+    "keptId": "1ef5dfe0-006f-4c54-ba17-dec18a1b530a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 76
+  },
+  {
+    "id": "c3802f7c-c12e-4e2a-95d6-84aa0832e54f",
+    "question": "Upgrade Process",
+    "topic": "CMS Strategy & Implementation",
+    "answerLength": 650,
+    "keptId": "3ffebf5f-429e-4db5-a302-8ad30a8dfea4",
+    "keptTopic": "Education",
+    "keptAnswerLength": 650
+  },
+  {
+    "id": "c6679ec8-6217-457b-9da6-3fd81240c5eb",
+    "question": "Usability Testing (Optional)",
+    "topic": "Education",
+    "answerLength": 2332,
+    "keptId": "e78eb157-5b80-44bd-a463-0958ba9c39b3",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 2348
+  },
+  {
+    "id": "7a677b6d-885a-4676-8812-088527cb988d",
+    "question": "User Experience and Design",
+    "topic": "Website Design & Creative",
+    "answerLength": 1011,
+    "keptId": "95b01317-cfef-4ad1-9a01-e6faa0a10638",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1011
+  },
+  {
+    "id": "735b7c7c-ec97-49ff-91d0-36971b1c5f8f",
+    "question": "User Experience Assessment/Journey Mapping",
+    "topic": "Education",
+    "answerLength": 1243,
+    "keptId": "eac956ed-2c82-4603-b153-d31ed5daaca6",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1257
+  },
+  {
+    "id": "584a42cc-74df-475f-928e-737856bc0b7e",
+    "question": "User Experience Audit: Component 1 - UX Assessment & Journey Mapping",
+    "topic": "Education",
+    "answerLength": 1461,
+    "keptId": "d432c5db-4ed7-4e35-aacb-3c4db09f28eb",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1483
+  },
+  {
+    "id": "1c3a79a6-5c44-41f7-b067-fef9ada3292f",
+    "question": "User Experience Audit: Content Strategy, Navigation Structure, and Governance Component",
+    "topic": "Education",
+    "answerLength": 1798,
+    "keptId": "7fd601f2-c93c-4475-99fe-e35d8b951def",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 1826
+  },
+  {
+    "id": "39f81a64-7e01-4cda-9d6e-8dda47f42ebc",
+    "question": "User Experience Audit: Executive Reporting",
+    "topic": "User Experience Audit",
+    "answerLength": 385,
+    "keptId": "920cd90f-ef4b-42f4-86e8-9821d6a1470c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 385
+  },
+  {
+    "id": "3977aa14-ef29-4dae-a24b-da5c162df635",
+    "question": "User Experience Audit: Performance and Compliance Assessment",
+    "topic": "Education",
+    "answerLength": 482,
+    "keptId": "94255a35-6752-4ba0-b9a3-dafc98ff0d03",
+    "keptTopic": "User Experience Audit",
+    "keptAnswerLength": 494
+  },
+  {
+    "id": "b03664c5-de4f-4bf4-8554-28dea1f4c2fc",
+    "question": "UX Design Perspective - Online Magazine",
+    "topic": "Online Magazine",
+    "answerLength": 435,
+    "keptId": "4b0aaec8-5760-4a93-9e5f-dc067a3e38e1",
+    "keptTopic": "",
+    "keptAnswerLength": 435
+  },
+  {
+    "id": "5af67808-3044-49ed-a22f-975b4d69bcdb",
+    "question": "Value-Add Offerings Language",
+    "topic": "Education",
+    "answerLength": 3051,
+    "keptId": "af1770e7-108a-45fc-b087-621abfe9b0c8",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 3061
+  },
+  {
+    "id": "cda2fa2b-8407-40d2-aa38-4e8dfc0008df",
+    "question": "Value-Add Services (Specific Services)",
+    "topic": "Education",
+    "answerLength": 481,
+    "keptId": "420c378b-d967-4e68-910c-13e3e2c71df9",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 491
+  },
+  {
+    "id": "0cea7001-4e43-482e-be30-208436f0fcbe",
+    "question": "Vendor Assist Client on Launch Day",
+    "topic": "Project Management & Operations",
+    "answerLength": 791,
+    "keptId": "85668ae3-550f-4e5a-bee5-1e75b9c0d50a",
+    "keptTopic": "Education",
+    "keptAnswerLength": 791
+  },
+  {
+    "id": "6dea34f0-c1be-4596-933f-2d1b8434e610",
+    "question": "Vendor will assist Client Name in preparing for the new site launch and assist the day of launch.",
+    "topic": "Project Management & Operations",
+    "answerLength": 555,
+    "keptId": "b8a4ae08-78d6-4938-8ce5-b0b843a0c938",
+    "keptTopic": "Education",
+    "keptAnswerLength": 555
+  },
+  {
+    "id": "5fd1767c-5270-4e79-8b18-e9b39d206429",
+    "question": "Video and Image (Photography) Strategy Package",
+    "topic": "Education",
+    "answerLength": 2637,
+    "keptId": "23e7e3c9-6fdc-4f7e-b5c6-fa77d496d20d",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 2647
+  },
+  {
+    "id": "42a182a1-25d3-4719-b597-25b2b5323e9b",
+    "question": "Video Development",
+    "topic": "Healthcare",
+    "answerLength": 807,
+    "keptId": "cf9a6b9b-ac1d-4c86-8651-2c2b922302f8",
+    "keptTopic": "Videos",
+    "keptAnswerLength": 825
+  },
+  {
+    "id": "540bfd5b-b72a-49d4-af41-b3d71f7e430e",
+    "question": "Video Storytelling",
+    "topic": "General",
+    "answerLength": 1170,
+    "keptId": "1797b779-c87c-44e2-a061-fd9a432f1978",
+    "keptTopic": "Client Examples & Success Metrics",
+    "keptAnswerLength": 1178
+  },
+  {
+    "id": "c058e2a8-0e25-42e8-b358-d6ae3137e892",
+    "question": "Video, Audio & Photography",
+    "topic": "Education",
+    "answerLength": 624,
+    "keptId": "17760766-1399-42f2-9615-00bdb108a8b5",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 638
+  },
+  {
+    "id": "17c58ce2-7664-4853-93d3-3ea3206cf76f",
+    "question": "Videography",
+    "topic": "Creative",
+    "answerLength": 1085,
+    "keptId": "857b1d4c-d834-4fc3-b806-0d2d3b43e297",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1085
+  },
+  {
+    "id": "a4764065-3a3f-45c7-a3da-d1f1330f7723",
+    "question": "Virtual Tour: Video Creation Introduction",
+    "topic": "Creative",
+    "answerLength": 737,
+    "keptId": "8d252da4-f9b1-474e-b42d-7d3d02b6e3a7",
+    "keptTopic": "Virtual Tour",
+    "keptAnswerLength": 737
+  },
+  {
+    "id": "a3adc5a4-2d21-4513-bbb6-79b48864e4d8",
+    "question": "Visual Sitemap and Homepage Priorities",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 439,
+    "keptId": "c55339e6-8227-4290-9c46-ccf7effe679c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 439
+  },
+  {
+    "id": "2fe56d91-1289-48ca-85dd-bda057f55575",
+    "question": "We Respect Your Resources: How We Ensure Cost Effectiveness and ROI",
+    "topic": "Client Examples & Success Metrics",
+    "answerLength": 1271,
+    "keptId": "61775632-c2f9-4e1c-83a4-909ced241eea",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1271
+  },
+  {
+    "id": "a9e0a965-bebb-44c1-a60c-ea87b285b731",
+    "question": "Web Accessibility Services Approach Language",
+    "topic": "Content",
+    "answerLength": 83,
+    "keptId": "3bc9918c-b0f3-4dd7-9f7f-1a936cb561b7",
+    "keptTopic": "Education",
+    "keptAnswerLength": 83
+  },
+  {
+    "id": "c96a4564-d8c0-4d8b-a280-7bab65842a4b",
+    "question": "Website Change Management",
+    "topic": "Project Management & Operations",
+    "answerLength": 632,
+    "keptId": "56b5c0b2-f395-4579-a766-33c7590c4767",
+    "keptTopic": "Education",
+    "keptAnswerLength": 632
+  },
+  {
+    "id": "c2bbced3-36ed-41d2-9e8e-2d5c241b0331",
+    "question": "Website Deliverables",
+    "topic": "Education",
+    "answerLength": 1759,
+    "keptId": "8f1d41a0-8926-42cf-b204-5d767366ecb1",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 1809
+  },
+  {
+    "id": "d64f0fde-0e1e-479c-8a1b-0613b103baf4",
+    "question": "Website Design & Development Milestones",
+    "topic": "Education",
+    "answerLength": 1510,
+    "keptId": "21995508-1f67-4535-8fb6-81ec49c59a96",
+    "keptTopic": "Website Design & Creative",
+    "keptAnswerLength": 1552
+  },
+  {
+    "id": "7be14188-de13-4553-8a26-fa448a5e2349",
+    "question": "Website Governance Workshop",
+    "topic": "Education",
+    "answerLength": 1146,
+    "keptId": "f7b294a7-c51a-4d15-83c6-1ddc285f58ef",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 1162
+  },
+  {
+    "id": "d189a2a7-8d67-46d8-8f7a-9fd026116e0a",
+    "question": "Website Inspiration",
+    "topic": "Education",
+    "answerLength": 2771,
+    "keptId": "ce05b09f-b11d-459d-ae54-abd1d77c8a30",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 2779
+  },
+  {
+    "id": "6ae6eefe-8fe6-4813-bbe9-383d9b32a5a1",
+    "question": "Website Introduction",
+    "topic": "Education",
+    "answerLength": 1788,
+    "keptId": "48c4baeb-b1e7-40e3-925a-9009f1912cbb",
+    "keptTopic": "Company Information",
+    "keptAnswerLength": 1802
+  },
+  {
+    "id": "0b97d380-2205-44f7-ba06-d53033bdadcd",
+    "question": "Website Performance Assessment - SEO",
+    "topic": "Education",
+    "answerLength": 668,
+    "keptId": "7feb73ae-a16b-4d3e-86ed-2b9159e76c25",
+    "keptTopic": "SEM/SEO",
+    "keptAnswerLength": 680
+  },
+  {
+    "id": "496eadd8-c4c1-4db3-bbe4-eef69bab4bc2",
+    "question": "Website Project Team",
+    "topic": "Project Management & Operations",
+    "answerLength": 3050,
+    "keptId": "be0f6012-5bf9-41db-946e-f44a7ebf6a9b",
+    "keptTopic": "Education",
+    "keptAnswerLength": 3050
+  },
+  {
+    "id": "a486a9bf-37a7-4414-9eb7-ea5de4820e69",
+    "question": "Website Project Timeline (Client Does Implementation)",
+    "topic": "Education",
+    "answerLength": 557,
+    "keptId": "47ca84e3-583d-46d3-8b74-94e1f158b4a1",
+    "keptTopic": "Project Management & Operations",
+    "keptAnswerLength": 567
+  },
+  {
+    "id": "c9df7775-b441-40cb-bcdf-9e866a26157b",
+    "question": "Website Redesign Risks for Clinical Trial",
+    "topic": "Data Stewardship",
+    "answerLength": 644,
+    "keptId": "d6be263e-2282-4d0e-84be-3f3173d7e50c",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 644
+  },
+  {
+    "id": "d1baa6d0-1f81-4973-86aa-20ac9d37bb60",
+    "question": "Website Redesign Timeline (6 Months) when Client is Doing Implementation.",
+    "topic": "Project Management & Operations",
+    "answerLength": 1851,
+    "keptId": "06cc1e8d-0cee-4b31-925c-5952ff150ba9",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1851
+  },
+  {
+    "id": "9a5121a9-cb66-46cc-b44f-d3d7bc08d705",
+    "question": "Website Redesign/Microsites",
+    "topic": "Healthcare",
+    "answerLength": 1312,
+    "keptId": "bf430ab6-9097-4914-82e0-68c57aba9bb1",
+    "keptTopic": "Website Redesign",
+    "keptAnswerLength": 1326
+  },
+  {
+    "id": "5d53b7fd-9011-4b70-8aa4-b827cca8672f",
+    "question": "Website Translation Options",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 813,
+    "keptId": "980ea393-44a7-4d36-a6ad-b7ef7082c3ce",
+    "keptTopic": "Education",
+    "keptAnswerLength": 813
+  },
+  {
+    "id": "831f8cbf-588f-49bd-95fa-69f2e9b72ebc",
+    "question": "What are the typical phases of work involved in this Project? What tasks and milestones are accomplished in each phase of work?",
+    "topic": "Education",
+    "answerLength": 731,
+    "keptId": "cd302c24-1c42-47ac-aabe-795e2867795a",
+    "keptTopic": "Content Strategy & Operations",
+    "keptAnswerLength": 755
+  },
+  {
+    "id": "2e5184dd-0bbf-4a70-a92b-ff276de33397",
+    "question": "What automated or manual testing do you perform regarding accessibility for people with impairments? Please describe your testing process in detail.",
+    "topic": "User Experience Audit",
+    "answerLength": 375,
+    "keptId": "24f67b96-c1fd-4e3b-8d9a-fab917c487a0",
+    "keptTopic": "Education",
+    "keptAnswerLength": 375
+  },
+  {
+    "id": "fbce4ca0-14e6-4b51-b82a-3e32fce26c0a",
+    "question": "What communication tools do you use to collaborate with your customers (Basecamp, email, etc.)?",
+    "topic": "General",
+    "answerLength": 1521,
+    "keptId": "724badd8-e61f-4b1a-948a-7179525f59e2",
+    "keptTopic": "Client List",
+    "keptAnswerLength": 1529
+  },
+  {
+    "id": "11ff769d-cab8-4938-b0b2-8fce51d7f65d",
+    "question": "What information would you need or expect in a website redesign RFP?",
+    "topic": "Education",
+    "answerLength": 539,
+    "keptId": "8636d5e6-7a57-4313-ba68-c330aa0887be",
+    "keptTopic": "General",
+    "keptAnswerLength": 549
+  },
+  {
+    "id": "d6425960-e537-4ece-8ac0-a891a576b7cc",
+    "question": "What infrastructure/knowledge must a client firm possess for you to accurately measure success in the automated email and digital marketing realms?",
+    "topic": "Digital Marketing",
+    "answerLength": 447,
+    "keptId": "ef391453-0791-444a-a941-5cb68cb28d08",
+    "keptTopic": "Education",
+    "keptAnswerLength": 447
+  },
+  {
+    "id": "ba510280-b635-43f9-911c-14e56dec34ae",
+    "question": "What is the worst disconnect you had with a client firm, and how did you resolve it?",
+    "topic": "General",
+    "answerLength": 3055,
+    "keptId": "cfe9faa0-6f65-4046-af4b-461c7c312735",
+    "keptTopic": "Education",
+    "keptAnswerLength": 3055
+  },
+  {
+    "id": "408ebe22-f3d0-4075-866d-69cdb74a1321",
+    "question": "What is your experience with phased website redesigns with a high volume of content and high level of complexity?",
+    "topic": "Website Redesign",
+    "answerLength": 698,
+    "keptId": "f9fb8f24-8b0d-4c83-90e2-0861b3106202",
+    "keptTopic": "Education",
+    "keptAnswerLength": 698
+  },
+  {
+    "id": "8de8a383-9f4e-48d8-a159-408fa39c7986",
+    "question": "What is your perspective on the demise of third-party cookies in digital marketing?",
+    "topic": "Digital Marketing",
+    "answerLength": 650,
+    "keptId": "94212c21-d468-437c-b895-33f2d8714f0c",
+    "keptTopic": "Education",
+    "keptAnswerLength": 650
+  },
+  {
+    "id": "d838c7db-8707-4684-b989-68eb5a45ba33",
+    "question": "What technologies do you think will emerge within the next 2-3 years?",
+    "topic": "Education",
+    "answerLength": 1570,
+    "keptId": "52474aec-916f-44a2-8598-f781e0f4e1ba",
+    "keptTopic": "Emerging Technologies",
+    "keptAnswerLength": 1584
+  },
+  {
+    "id": "3ef76e77-6e78-4cef-a1d8-57be3ffe3e0a",
+    "question": "Why Choose Stamats for Digital Analytics?",
+    "topic": "Data & Analytics",
+    "answerLength": 1212,
+    "keptId": "63372309-7be0-4abc-a395-fc2a753b4684",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1212
+  },
+  {
+    "id": "c6791055-74fd-44ea-abc7-0f1983c93b85",
+    "question": "Wireframes/Priority Guides",
+    "topic": "Content Strategy & Operations",
+    "answerLength": 1213,
+    "keptId": "00dbae57-407d-4a9d-b552-094b6583e2a2",
+    "keptTopic": "Education",
+    "keptAnswerLength": 1213
+  },
+  {
+    "id": "41aaa0ac-bd33-4088-8c0c-a2e4bb9c36e6",
+    "question": "WordPress as the chosen CMS",
+    "topic": "Education",
+    "answerLength": 1257,
+    "keptId": "94252024-4a42-4925-86ad-4fbaa24c9048",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 1277
+  },
+  {
+    "id": "800ab1c7-e2ee-445b-a47b-e915c5b228cf",
+    "question": "WordPress Content Management",
+    "topic": "Education",
+    "answerLength": 2230,
+    "keptId": "54b16e65-4582-4cc1-b687-612ddad07a05",
+    "keptTopic": "CMS Strategy & Implementation",
+    "keptAnswerLength": 2238
+  },
+  {
+    "id": "0768c3f7-6d56-4866-b08e-d6ae1c00e211",
+    "question": "Working with Different Programs/Units at the Institution",
+    "topic": "Brand Campaign",
+    "answerLength": 809,
+    "keptId": "44d97dcd-48eb-4071-b7a2-c5c13febeb95",
+    "keptTopic": "Education",
+    "keptAnswerLength": 809
+  },
+  {
+    "id": "8914dabb-80ec-4f82-a89a-e4d8868c03c2",
+    "question": "Working with Other Agencies",
+    "topic": "General",
+    "answerLength": 948,
+    "keptId": "b3e9899e-e127-4a8d-a7bb-2e3c8cc4568d",
+    "keptTopic": "Creative",
+    "keptAnswerLength": 960
+  },
+  {
+    "id": "c1a52a71-2e44-406d-8e43-6f2c8fa030bc",
+    "question": "Workshops & Trainings: Email and eNewsletter Writing Best Practices",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 635,
+    "keptId": "f340d479-94e1-4654-a62f-151832dbd6c7",
+    "keptTopic": "Education",
+    "keptAnswerLength": 635
+  },
+  {
+    "id": "e595906c-01f3-49ab-bac8-f77b9df799d2",
+    "question": "Would you consider yourselves Drupal experts?",
+    "topic": "Company Information",
+    "answerLength": 551,
+    "keptId": "ecc7aafa-715b-42c5-9f4e-fe151c1676b5",
+    "keptTopic": "Healthcare",
+    "keptAnswerLength": 551
+  },
+  {
+    "id": "b7355e1a-820b-45b4-be5b-cce9074afec0",
+    "question": "WP Engine Security Features",
+    "topic": "Education",
+    "answerLength": 1462,
+    "keptId": "4719aa92-99ee-4ee7-b7fe-3516c63ce76f",
+    "keptTopic": "IT & Security",
+    "keptAnswerLength": 1486
+  },
+  {
+    "id": "bed90071-ca27-4eca-bac7-4dca1f56a6ad",
+    "question": "Writing Press Releases as Engaging News Stories",
+    "topic": "Content Marketing & Optimization",
+    "answerLength": 531,
+    "keptId": "78e3c0c1-79bb-4b2e-99eb-257f8a954b47",
+    "keptTopic": "Education",
+    "keptAnswerLength": 531
+  },
+  {
+    "id": "6280bc58-0107-48cf-99c1-9296f3a76f52",
+    "question": "Your Partner in Every Way",
+    "topic": "Education",
+    "answerLength": 614,
+    "keptId": "d81a6337-4af5-4682-b400-8653133ecefc",
+    "keptTopic": "General",
+    "keptAnswerLength": 622
+  }
+]

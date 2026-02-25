@@ -1,0 +1,36 @@
+Service / Platform,What It Does,Plan Needed,Monthly Cost,Annual Cost,Notes
+,,,,,"STAMATS DATA APP — Infrastructure & Tooling Cost Summary for 30 Users"
+,,,,,"Prepared: February 24 2026"
+,,,,,
+— HOSTING & DEPLOYMENT —,,,,,
+Vercel (Pro Plan),"Hosts the web application and runs the backend API as serverless functions. All user traffic flows through Vercel. Handles SSL certificates, CDN, and deploy previews automatically.",Pro,$20/mo (1 developer seat),$240/yr,"Only developer seats cost money. The 30 end-users access the app via a URL — they are NOT Vercel seats. We only need 1–3 developer seats for the people who deploy code. Includes 1TB bandwidth, 1000 serverless function hours."
+,,,,,
+— DATABASE & FILE STORAGE —,,,,,
+Supabase (Pro Plan),"Managed PostgreSQL database that stores ALL application data: user accounts, Q&A library, proposals, pipeline data, documents, conversations, audit logs. Also provides cloud file storage for uploaded photos.",Pro,$25/mo,$300/yr,"Includes 8 GB database storage, 250 GB bandwidth, 100 GB file storage, 100K monthly active users. More than sufficient for 30 users. Spend cap enabled by default to prevent surprise charges. Overages: $0.125/GB database, $0.021/GB file storage."
+,,,,,
+— AI / LANGUAGE MODEL —,,,,,
+OpenAI API (GPT-4o),"Powers ALL AI features in the app: answering questions from the library, adapting content (shorten/expand/rewrite), analyzing RFPs, generating document drafts, summarizing proposals, and providing case study insights. This is the intelligence behind the tool.",Pay-as-you-go (usage-based),"~$50–$150/mo (estimated for 30 users)","~$600–$1,800/yr","No fixed monthly fee — billed per API call. GPT-4o costs $2.50 per 1M input tokens and $10.00 per 1M output tokens. GPT-4o-mini (used for bulk categorization) costs $0.15/$0.60 per 1M tokens. Estimate assumes moderate daily use by 30 people. Light usage could be as low as $30/mo; heavy usage could reach $200/mo."
+,,,,,
+— SOURCE CODE REPOSITORY —,,,,,
+GitHub (Team Plan),"Stores the application source code, tracks all changes, and enables collaboration between developers. Required for Vercel's automatic deployment pipeline (push code → app updates automatically).",Team,$4/user/mo (developers only),$48/user/yr,"Only developers need paid seats — NOT end-users. For 1–3 developers: $4–$12/mo. Includes 3000 CI/CD minutes, 2 GB package storage, branch protection rules."
+,,,,,
+— DEVELOPMENT TOOLING —,,,,,
+Claude Code (Anthropic),"AI coding assistant used to build and maintain this application. Writes code, debugs issues, deploys updates, and implements new features. Dramatically accelerates development speed.",Max 5x (or Team Standard),$100/mo (1 developer),"$1,200/yr","This is a developer tool — only the person building/maintaining the app needs it. NOT needed by end-users. Alternative: Team Standard plan at $25/seat/mo if multiple developers need access."
+,,,,,
+— COST SUMMARY —,,,,,
+,,,,,
+Category,Service,Monthly Estimate,Annual Estimate,,
+Hosting,Vercel Pro (1 seat),$20,$240,,
+Database + Storage,Supabase Pro,$25,$300,,
+AI Features,OpenAI API (usage-based),$100 (est.),"$1,200 (est.)",,
+Source Code,GitHub Team (1 seat),$4,$48,,
+Dev Tooling,Claude Code Max,$100,"$1,200",,
+,,,,,
+TOTAL (estimated),,"~$249/mo","~$2,988/yr",,"Conservative estimate. OpenAI usage is the main variable cost — will scale with how actively the 30 users interact with AI features."
+,,,,,
+— IMPORTANT NOTES —,,,,,
+,"1. END-USERS COST NOTHING EXTRA — The 30 users simply log into the web app with their @stamats.com email. They do not need accounts on Vercel, GitHub, Supabase, or Claude. Those are infrastructure/dev tools.",,,,
+,"2. OPENAI IS THE ONLY VARIABLE COST — All other services are fixed monthly fees. OpenAI charges per-use, so cost scales with how much the team uses AI features.",,,,
+,"3. NO PER-SEAT FEES FOR USERS — Unlike most SaaS products, this app has zero per-user licensing. Adding user #31 or #100 costs nothing beyond marginal OpenAI API usage.",,,,
+,"4. ALL SERVICES INCLUDE FREE TIERS — If cost is a concern, the app can run on free tiers of Vercel (Hobby), Supabase (Free), and GitHub (Free) for testing/evaluation. AI features require OpenAI spend regardless.",,,,
+,"5. DATA SECURITY — All data is stored in Supabase (SOC 2 Type II compliant). Authentication uses bcrypt password hashing. Sessions are signed with HMAC. All traffic is HTTPS encrypted.",,,,

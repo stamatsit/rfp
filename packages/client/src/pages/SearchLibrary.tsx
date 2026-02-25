@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from "react"
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useIsAdmin } from "@/contexts/AuthContext"
 import {
@@ -178,6 +178,199 @@ type ResultsSort = "most-used" | "value-high" | "value-low" | "client-az" | "cli
 type TestimonialsSort = "most-used" | "org-az" | "org-za" | "name-az" | "shortest" | "longest"
 type AwardsSort = "most-used" | "newest" | "oldest" | "client-az" | "name-az"
 
+// ─── Module-level helpers (stable references, no closures over component state) ───
+function formatSuccessItem(cs: { client: string; focus: string; challenge: string; solution: string; metrics: { label: string; value: string }[]; testimonial?: { quote: string; attribution: string } }) {
+  let text = `## ${cs.client} — ${cs.focus}\n\n`
+  text += `**Challenge:** ${cs.challenge}\n\n`
+  text += `**Solution:** ${cs.solution}\n\n`
+  text += `**Results:**\n`
+  for (const m of cs.metrics) {
+    text += `- ${m.label}: ${m.value}\n`
+  }
+  if (cs.testimonial) {
+    text += `\n**Testimonial:**\n"${cs.testimonial.quote}"\n— ${cs.testimonial.attribution}\n`
+  }
+  return text
+}
+
+type SuccessCardProps = {
+  cs: {
+    id: number
+    client: string
+    category: string
+    focus: string
+    challenge: string
+    solution: string
+    metrics: { label: string; value: string }[]
+    testimonial?: { quote: string; attribution: string }
+    awards?: string[]
+    source: "static" | "user"
+    dbId: string | null
+    usageCount: number
+  }
+  isExpanded: boolean
+  copiedId: string | null
+  onToggle: (id: number | null) => void
+  onCopy: (text: string, id: string, usageType?: "entry" | "result" | "testimonial" | "award", dbId?: string | null) => void
+  onDelete: (type: "entry" | "result" | "testimonial" | "award", id: string) => void
+}
+
+const SuccessCard = React.memo(function SuccessCard({ cs, isExpanded, copiedId, onToggle, onCopy, onDelete }: SuccessCardProps) {
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 overflow-hidden">
+      <button
+        onClick={() => onToggle(isExpanded ? null : cs.id)}
+        className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-medium text-sm text-slate-900 dark:text-white">{cs.client}</span>
+            <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
+              cs.category === "higher-ed" ? "text-blue-600 border-blue-200 dark:border-blue-800" :
+              cs.category === "healthcare" ? "text-teal-600 border-teal-200 dark:border-teal-800" :
+              "text-slate-500 border-slate-200 dark:border-slate-700"
+            }`}>
+              {cs.category === "higher-ed" ? "Higher Ed" : cs.category === "healthcare" ? "Healthcare" : "Other"}
+            </Badge>
+          </div>
+          <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{cs.focus}</p>
+        </div>
+        <span className="text-[11px] text-slate-400 shrink-0">{cs.metrics.length} metrics</span>
+        <ChevronDown size={14} className={`text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {isExpanded && (
+        <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-700 space-y-3 pt-3">
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Challenge</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{cs.challenge}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Solution</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">{cs.solution}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Results</p>
+            <div className="grid grid-cols-2 gap-2">
+              {cs.metrics.map((m, i) => (
+                <div key={i} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{m.label}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          {cs.testimonial && (
+            <div className="bg-slate-50 dark:bg-slate-700/30 rounded-lg p-3 border-l-2 border-slate-300 dark:border-slate-600">
+              <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{cs.testimonial.quote}"</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">— {cs.testimonial.attribution}</p>
+            </div>
+          )}
+          {cs.awards && cs.awards.length > 0 && (
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Awards</p>
+              <div className="flex flex-wrap gap-1.5">
+                {cs.awards.map((award, i) => (
+                  <Badge key={i} variant="outline" className="text-[11px] text-amber-600 border-amber-200 dark:border-amber-800">
+                    <Award size={10} className="mr-1" />{award}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center gap-3 mt-2">
+            <button
+              onClick={() => onCopy(formatSuccessItem(cs), `cs-${cs.id}`, "entry", cs.dbId)}
+              className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            >
+              {copiedId === `cs-${cs.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
+              {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
+            </button>
+            {cs.usageCount > 0 && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">Used {cs.usageCount}x</span>
+            )}
+            {cs.source === "user" && cs.dbId && (
+              <button
+                onClick={() => onDelete("entry", cs.dbId!)}
+                className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors"
+              >
+                <Trash2 size={12} /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+})
+
+type TestimonialCardProps = {
+  t: {
+    quote: string
+    name: string
+    title: string
+    organization: string
+    source: "static" | "user"
+    dbId: string | null
+    usageCount: number
+  }
+  index: number
+  isExpanded: boolean
+  copiedId: string | null
+  onToggle: (id: number | null) => void
+  onCopy: (text: string, id: string, usageType?: "entry" | "result" | "testimonial" | "award", dbId?: string | null) => void
+  onDelete: (type: "entry" | "result" | "testimonial" | "award", id: string) => void
+}
+
+const TestimonialCard = React.memo(function TestimonialCard({ t, index, isExpanded, copiedId, onToggle, onCopy, onDelete }: TestimonialCardProps) {
+  return (
+    <div className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 px-4 py-3 group">
+      <div className="flex gap-3">
+        <Quote size={16} className="text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <p
+            className={`text-sm text-slate-700 dark:text-slate-300 ${!isExpanded ? "line-clamp-2" : ""} cursor-pointer`}
+            onClick={() => onToggle(isExpanded ? null : -(index + 1))}
+          >
+            {t.quote}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            {t.name && <span className="font-medium">{t.name}</span>}
+            {t.name && t.title && ", "}
+            {t.title}
+            {(t.name || t.title) && t.organization && " — "}
+            {t.organization}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {t.usageCount > 0 && (
+            <span className="text-[10px] text-slate-400 dark:text-slate-500">{t.usageCount}x</span>
+          )}
+          <button
+            onClick={() => onCopy(
+              `"${t.quote}"\n— ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`,
+              `t-${index}`,
+              "testimonial",
+              t.dbId
+            )}
+            className="opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            {copiedId === `t-${index}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+          </button>
+          {t.source === "user" && t.dbId && (
+            <button
+              onClick={() => onDelete("testimonial", t.dbId!)}
+              className="opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <Trash2 size={13} className="text-red-400 hover:text-red-600" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+})
+
 // ─── Client Success Section ───
 function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   const [tab, setTab] = useState<ClientSuccessTab>("success")
@@ -191,6 +384,13 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   const [resultsSort, setResultsSort] = useState<ResultsSort>("value-high")
   const [testimonialSort, setTestimonialSort] = useState<TestimonialsSort>("org-az")
   const [awardSort, setAwardSort] = useState<AwardsSort>("newest")
+
+  // ─── Pagination (Show More) ───
+  const PAGE_SIZE_CS = 20
+  const [visibleSuccessCount, setVisibleSuccessCount] = useState(PAGE_SIZE_CS)
+  const [visibleResultsCount, setVisibleResultsCount] = useState(PAGE_SIZE_CS)
+  const [visibleTestimonialsCount, setVisibleTestimonialsCount] = useState(PAGE_SIZE_CS)
+  const [visibleAwardsCount, setVisibleAwardsCount] = useState(PAGE_SIZE_CS)
 
   // DB-sourced entries (merged with static data)
   const [dbEntries, setDbEntries] = useState<{ id: string; client: string; category: "higher-ed" | "healthcare" | "other"; focus: string; challenge: string | null; solution: string | null; metrics: { label: string; value: string }[]; testimonialQuote: string | null; testimonialAttribution: string | null; usageCount: number }[]>([])
@@ -235,7 +435,17 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
     setCategoryFilter("all")
     setDirectionFilter("all")
     setExpandedId(null)
+    setVisibleSuccessCount(PAGE_SIZE_CS)
+    setVisibleResultsCount(PAGE_SIZE_CS)
+    setVisibleTestimonialsCount(PAGE_SIZE_CS)
+    setVisibleAwardsCount(PAGE_SIZE_CS)
   }, [tab])
+
+  // Reset visible counts when filter/search/sort changes per tab
+  useEffect(() => { setVisibleSuccessCount(PAGE_SIZE_CS); setExpandedId(null) }, [debouncedQuery, categoryFilter, successSort])
+  useEffect(() => { setVisibleResultsCount(PAGE_SIZE_CS) }, [debouncedQuery, directionFilter, resultsSort])
+  useEffect(() => { setVisibleTestimonialsCount(PAGE_SIZE_CS) }, [debouncedQuery, testimonialSort])
+  useEffect(() => { setVisibleAwardsCount(PAGE_SIZE_CS) }, [debouncedQuery, awardSort])
 
   const handleCopy = useCallback(async (text: string, id: string, usageType?: "entry" | "result" | "testimonial" | "award", dbId?: string | null) => {
     await navigator.clipboard.writeText(text)
@@ -377,26 +587,18 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
   const totalTestimonials = clientSuccessData.testimonials.length + dbTestimonials.length
   const totalAwards = clientSuccessData.awards.length + dbAwards.length
 
+  // Pagination slices — render only the visible window
+  const visibleSuccessItems = filteredSuccessItems.slice(0, visibleSuccessCount)
+  const visibleResultsItems = filteredResults.slice(0, visibleResultsCount)
+  const visibleTestimonialsItems = filteredTestimonials.slice(0, visibleTestimonialsCount)
+  const visibleAwardsItems = filteredAwards.slice(0, visibleAwardsCount)
+
   const tabs: { id: ClientSuccessTab; label: string; count: number }[] = [
     { id: "success", label: "Client Success", count: totalSuccess },
     { id: "results", label: "Results", count: totalResults },
     { id: "testimonials", label: "Testimonials", count: totalTestimonials },
     { id: "awards", label: "Awards", count: totalAwards },
   ]
-
-  const formatSuccessItem = (cs: typeof clientSuccessData.caseStudies[0]) => {
-    let text = `## ${cs.client} — ${cs.focus}\n\n`
-    text += `**Challenge:** ${cs.challenge}\n\n`
-    text += `**Solution:** ${cs.solution}\n\n`
-    text += `**Results:**\n`
-    for (const m of cs.metrics) {
-      text += `- ${m.label}: ${m.value}\n`
-    }
-    if (cs.testimonial) {
-      text += `\n**Testimonial:**\n"${cs.testimonial.quote}"\n— ${cs.testimonial.attribution}\n`
-    }
-    return text
-  }
 
   return (
     <div className="flex-1 overflow-y-auto">
@@ -530,101 +732,41 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
 
         {/* Results count */}
         <p className="text-[13px] text-slate-400 dark:text-slate-500">
-          {tab === "success" && `Showing ${filteredSuccessItems.length} of ${totalSuccess}`}
-          {tab === "results" && `Showing ${filteredResults.length} of ${totalResults}`}
-          {tab === "testimonials" && `Showing ${filteredTestimonials.length} of ${totalTestimonials}`}
-          {tab === "awards" && `Showing ${filteredAwards.length} of ${totalAwards}`}
+          {tab === "success" && `Showing ${visibleSuccessItems.length} of ${filteredSuccessItems.length}${filteredSuccessItems.length < totalSuccess ? ` (${totalSuccess} total)` : ""}`}
+          {tab === "results" && `Showing ${visibleResultsItems.length} of ${filteredResults.length}${filteredResults.length < totalResults ? ` (${totalResults} total)` : ""}`}
+          {tab === "testimonials" && `Showing ${visibleTestimonialsItems.length} of ${filteredTestimonials.length}${filteredTestimonials.length < totalTestimonials ? ` (${totalTestimonials} total)` : ""}`}
+          {tab === "awards" && `Showing ${visibleAwardsItems.length} of ${filteredAwards.length}${filteredAwards.length < totalAwards ? ` (${totalAwards} total)` : ""}`}
         </p>
 
         {/* ─── Client Success ─── */}
         {tab === "success" && (
           <div className="space-y-2">
-            {filteredSuccessItems.map((cs) => (
-              <div key={cs.id} className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 overflow-hidden">
-                <button
-                  onClick={() => setExpandedId(expandedId === cs.id ? null : cs.id)}
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left hover:bg-slate-50 dark:hover:bg-slate-700/40 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm text-slate-900 dark:text-white">{cs.client}</span>
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${
-                        cs.category === "higher-ed" ? "text-blue-600 border-blue-200 dark:border-blue-800" :
-                        cs.category === "healthcare" ? "text-teal-600 border-teal-200 dark:border-teal-800" :
-                        "text-slate-500 border-slate-200 dark:border-slate-700"
-                      }`}>
-                        {cs.category === "higher-ed" ? "Higher Ed" : cs.category === "healthcare" ? "Healthcare" : "Other"}
-                      </Badge>
-                    </div>
-                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{cs.focus}</p>
-                  </div>
-                  <span className="text-[11px] text-slate-400 shrink-0">{cs.metrics.length} metrics</span>
-                  <ChevronDown size={14} className={`text-slate-400 transition-transform ${expandedId === cs.id ? "rotate-180" : ""}`} />
-                </button>
-
-                {expandedId === cs.id && (
-                  <div className="px-4 pb-4 border-t border-slate-100 dark:border-slate-700 space-y-3 pt-3">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Challenge</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">{cs.challenge}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Solution</p>
-                      <p className="text-sm text-slate-700 dark:text-slate-300">{cs.solution}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Results</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {cs.metrics.map((m, i) => (
-                          <div key={i} className="bg-slate-50 dark:bg-slate-700/50 rounded-lg px-3 py-2">
-                            <p className="text-xs text-slate-500 dark:text-slate-400">{m.label}</p>
-                            <p className="text-sm font-semibold text-slate-900 dark:text-white">{m.value}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {cs.testimonial && (
-                      <div className="bg-slate-50 dark:bg-slate-700/30 rounded-lg p-3 border-l-2 border-slate-300 dark:border-slate-600">
-                        <p className="text-sm text-slate-600 dark:text-slate-300 italic">"{cs.testimonial.quote}"</p>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">— {cs.testimonial.attribution}</p>
-                      </div>
-                    )}
-                    {cs.awards && cs.awards.length > 0 && (
-                      <div>
-                        <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1">Awards</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {cs.awards.map((award, i) => (
-                            <Badge key={i} variant="outline" className="text-[11px] text-amber-600 border-amber-200 dark:border-amber-800">
-                              <Award size={10} className="mr-1" />{award}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 mt-2">
-                      <button
-                        onClick={() => handleCopy(formatSuccessItem(cs), `cs-${cs.id}`, "entry", cs.dbId)}
-                        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
-                      >
-                        {copiedId === `cs-${cs.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
-                        {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
-                      </button>
-                      {cs.usageCount > 0 && (
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Used {cs.usageCount}x</span>
-                      )}
-                      {cs.source === "user" && cs.dbId && (
-                        <button
-                          onClick={() => handleDelete("entry", cs.dbId!)}
-                          className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors"
-                        >
-                          <Trash2 size={12} /> Delete
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {visibleSuccessItems.map((cs) => (
+              <SuccessCard
+                key={cs.id}
+                cs={cs}
+                isExpanded={expandedId === cs.id}
+                copiedId={copiedId}
+                onToggle={setExpandedId}
+                onCopy={handleCopy}
+                onDelete={handleDelete}
+              />
             ))}
+            {filteredSuccessItems.length > visibleSuccessCount && (
+              <div className="flex justify-center pt-2 pb-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleSuccessCount(c => c + PAGE_SIZE_CS)}
+                  className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Show more
+                  <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                    ({visibleSuccessCount} of {filteredSuccessItems.length})
+                  </span>
+                </Button>
+              </div>
+            )}
             {filteredSuccessItems.length === 0 && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -640,8 +782,8 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         {/* ─── Results ─── */}
         {tab === "results" && (
           <div className="space-y-1">
-            {filteredResults.map((r, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
+            {visibleResultsItems.map((r, i) => (
+              <div key={r.dbId ?? `static-${r.metric}-${r.client}`} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
                 <span className={`text-sm font-bold w-20 shrink-0 text-right ${
                   r.direction === "increase" ? "text-emerald-600" : "text-amber-600"
                 }`}>
@@ -672,6 +814,21 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 )}
               </div>
             ))}
+            {filteredResults.length > visibleResultsCount && (
+              <div className="flex justify-center pt-2 pb-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleResultsCount(c => c + PAGE_SIZE_CS)}
+                  className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Show more
+                  <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                    ({visibleResultsCount} of {filteredResults.length})
+                  </span>
+                </Button>
+              </div>
+            )}
             {filteredResults.length === 0 && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -687,52 +844,33 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         {/* ─── Testimonials ─── */}
         {tab === "testimonials" && (
           <div className="space-y-2">
-            {filteredTestimonials.map((t, i) => (
-              <div key={i} className="border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/60 px-4 py-3 group">
-                <div className="flex gap-3">
-                  <Quote size={16} className="text-slate-300 dark:text-slate-600 shrink-0 mt-0.5" />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={`text-sm text-slate-700 dark:text-slate-300 ${expandedId !== -(i + 1) ? "line-clamp-2" : ""} cursor-pointer`}
-                      onClick={() => setExpandedId(expandedId === -(i + 1) ? null : -(i + 1))}
-                    >
-                      {t.quote}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      {t.name && <span className="font-medium">{t.name}</span>}
-                      {t.name && t.title && ", "}
-                      {t.title}
-                      {(t.name || t.title) && t.organization && " — "}
-                      {t.organization}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {t.usageCount > 0 && (
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{t.usageCount}x</span>
-                    )}
-                    <button
-                      onClick={() => handleCopy(
-                        `"${t.quote}"\n— ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`,
-                        `t-${i}`,
-                        "testimonial",
-                        t.dbId
-                      )}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity"
-                    >
-                      {copiedId === `t-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
-                    </button>
-                    {t.source === "user" && t.dbId && (
-                      <button
-                        onClick={() => handleDelete("testimonial", t.dbId!)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 size={13} className="text-red-400 hover:text-red-600" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
+            {visibleTestimonialsItems.map((t, i) => (
+              <TestimonialCard
+                key={t.dbId ?? `static-${t.organization}-${i}`}
+                t={t}
+                index={i}
+                isExpanded={expandedId === -(i + 1)}
+                copiedId={copiedId}
+                onToggle={setExpandedId}
+                onCopy={handleCopy}
+                onDelete={handleDelete}
+              />
             ))}
+            {filteredTestimonials.length > visibleTestimonialsCount && (
+              <div className="flex justify-center pt-2 pb-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleTestimonialsCount(c => c + PAGE_SIZE_CS)}
+                  className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Show more
+                  <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                    ({visibleTestimonialsCount} of {filteredTestimonials.length})
+                  </span>
+                </Button>
+              </div>
+            )}
             {filteredTestimonials.length === 0 && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
@@ -748,8 +886,8 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         {/* ─── Awards ─── */}
         {tab === "awards" && (
           <div className="space-y-1">
-            {filteredAwards.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
+            {visibleAwardsItems.map((a, i) => (
+              <div key={a.dbId ?? `static-${a.name}-${a.year}`} className="flex items-center gap-3 px-4 py-2.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/60 group transition-colors">
                 <Award size={14} className="text-amber-500 shrink-0" />
                 <span className="text-sm font-medium text-slate-900 dark:text-white flex-1">{a.name}</span>
                 <Badge variant="outline" className="text-[11px] text-slate-500 border-slate-200 dark:border-slate-700">{a.year}</Badge>
@@ -773,6 +911,21 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 )}
               </div>
             ))}
+            {filteredAwards.length > visibleAwardsCount && (
+              <div className="flex justify-center pt-2 pb-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setVisibleAwardsCount(c => c + PAGE_SIZE_CS)}
+                  className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
+                >
+                  Show more
+                  <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
+                    ({visibleAwardsCount} of {filteredAwards.length})
+                  </span>
+                </Button>
+              </div>
+            )}
             {filteredAwards.length === 0 && (
               <div className="text-center py-16">
                 <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">

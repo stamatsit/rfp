@@ -14,6 +14,7 @@ import clientSuccessRouter from "./clientSuccess.js"
 import conversationsRouter from "./conversations.js"
 import studioRouter from "./studio.js"
 import companionRouter from "./companion.js"
+import humanizerRouter from "./humanizer.js"
 
 const router = Router()
 
@@ -32,5 +33,6 @@ router.use("/client-success", clientSuccessRouter)
 router.use("/conversations", conversationsRouter)
 router.use("/studio", studioRouter)
 router.use("/companion", companionRouter)
+router.use("/humanizer", humanizerRouter)
 
 export default router

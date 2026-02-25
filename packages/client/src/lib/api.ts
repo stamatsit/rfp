@@ -1369,7 +1369,7 @@ export const unifiedAIApi = {
 
 // ─── Conversations (Chat History) ─────────────────────────────────
 
-export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general" | "companion"
+export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general" | "companion" | "humanizer"
 
 export interface ConversationSummary {
   id: string
@@ -1575,7 +1575,7 @@ export const studioApi = {
 export interface FetchSSECallbacks {
   onMetadata?: (data: Record<string, unknown>) => void
   onToken?: (token: string) => void
-  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> }) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; metadata?: Record<string, unknown> }) => void
   onError?: (error: string) => void
 }
 

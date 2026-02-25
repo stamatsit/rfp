@@ -27,6 +27,7 @@ const CaseStudies = lazy(() => import("./pages/CaseStudies").then(m => ({ defaul
 const UnifiedAI = lazy(() => import("./pages/UnifiedAI").then(m => ({ default: m.UnifiedAI })))
 const DocumentStudio = lazy(() => import("./pages/DocumentStudio").then(m => ({ default: m.DocumentStudio })))
 const TestimonialManager = lazy(() => import("./pages/TestimonialManager").then(m => ({ default: m.TestimonialManager })))
+const AIHumanizer = lazy(() => import("./pages/AIHumanizer").then(m => ({ default: m.AIHumanizer })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -84,6 +85,7 @@ function AppRoutes() {
           <Route path="/unified-ai" element={<ProtectedRoute><UnifiedAI /></ProtectedRoute>} />
           <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
           <Route path="/testimonials" element={<ProtectedRoute><TestimonialManager /></ProtectedRoute>} />
+          <Route path="/humanize" element={<ProtectedRoute><AIHumanizer /></ProtectedRoute>} />
         </Routes>
         </Suspense>
       </PageTransition>

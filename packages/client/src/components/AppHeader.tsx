@@ -34,6 +34,7 @@ const pageConfig: Record<string, { title: string }> = {
   "/unified-ai": { title: "Unified AI" },
   "/testimonials": { title: "Testimonials" },
   "/studio": { title: "Document Studio" },
+  "/humanize": { title: "AI Humanizer" },
 }
 
 function ThemeToggle() {

@@ -66,7 +66,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
         ) : (
           <Card className="group border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 rounded-2xl rounded-tl-md overflow-hidden shadow-[0_2px_12px_rgba(0,0,0,0.04)]">
             <CardContent className="p-5 space-y-4">
-              {renderContent ? renderContent(message) : <MarkdownRenderer content={message.content} />}
+              {renderContent?.(message) ?? <MarkdownRenderer content={message.content} />}
 
               {message.chartData && <InlineChart config={message.chartData} theme={theme} />}
 

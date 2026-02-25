@@ -899,6 +899,7 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   // AI tools — always allowed
   if (path.startsWith("/ai/")) return true
   if (path.startsWith("/companion/")) return true
+  if (path.startsWith("/humanizer/")) return true
   if (path.startsWith("/unified-ai/")) return true
   if (path.startsWith("/proposals/query") || path.startsWith("/proposals/stream")) return true
   if (path.startsWith("/studio/chat/") || path.startsWith("/studio/briefing/") ||
@@ -2903,6 +2904,272 @@ ${contextLines.join("\n")}`
         return res.json({ success: true })
       } catch (err: any) {
         return res.status(500).json({ error: "Failed to delete award" })
+      }
+    }
+
+    // ─── AI Humanizer ──────────────────────────────────────────────
+
+    // POST /humanizer/upload — Extract text from uploaded file
+    if (path === "/humanizer/upload" && method === "POST") {
+      try {
+        const { buffer, mimetype, filename } = await parseMultipartForm(req)
+        const result = await extractDocumentText(buffer, mimetype, filename)
+        const wordCount = result.text.split(/\s+/).filter(Boolean).length
+        return res.json({ text: result.text, wordCount, filename: result.filename || filename })
+      } catch (err: any) {
+        console.error("Humanizer file extraction failed:", err?.message || err)
+        return res.status(500).json({ error: err?.message || "Failed to extract document text" })
+      }
+    }
+
+    // POST /humanizer/stream — Humanize or scan text via SSE
+    if (path === "/humanizer/stream" && method === "POST") {
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured." })}\n\n`)
+        return res.end()
+      }
+
+      const { text, tone, strength, twoPass, scanOnly, conversationHistory } = req.body || {}
+      if (!text || typeof text !== "string" || text.trim().length < 10) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "Text must be at least 10 characters" })}\n\n`)
+        return res.end()
+      }
+
+      const hmTone = ["professional", "conversational", "academic"].includes(tone) ? tone : "professional"
+      const hmStrength = ["light", "balanced", "heavy"].includes(strength) ? strength : "balanced"
+      const hmScanOnly = scanOnly === true
+      const hmTwoPass = twoPass === true
+
+      // ─── Tone personas
+      const tonePersonas: Record<string, string> = {
+        professional: "Write as a senior professional with domain expertise. Confident but not stuffy. Clear, direct sentences. Occasional industry-specific phrasing. You have been writing professionally for 15+ years.",
+        conversational: "Write as a knowledgeable colleague explaining over coffee. Relaxed but informed. Use 'you' and 'we'. Allow personality to show. Okay to start a sentence with 'Look,' or 'Honestly,'.",
+        academic: "Write as a published researcher. Precise terminology, careful qualifications, but still readable. Avoid jargon for jargon's sake. Nuance over simplification.",
+      }
+
+      // ─── Strength levels
+      const strengthLevels: Record<string, string> = {
+        light: "Make minimal changes. Fix obvious AI tells (banned words, em dashes, parallel structure) but preserve the original voice and structure. Change roughly 20-30% of sentences.",
+        balanced: "Rewrite substantially while keeping the same meaning and flow. Restructure sentences, vary rhythm, inject voice. Change roughly 50-60% of the text.",
+        heavy: "Completely rewrite from scratch using the same information and key points. New sentence structures, new transitions, new flow. The output should share zero phrasing with the input.",
+      }
+
+      // ─── System prompts
+      const hmHumanizePrompt = `You are a text humanizer. Your job is to rewrite AI-generated text so it reads as naturally human-written prose that is undetectable by AI content detectors like GPTZero, Turnitin, and Originality.ai.
+
+You must preserve the original meaning, facts, and key points exactly.
+
+=== BANNED VOCABULARY (never use these words) ===
+delve, tapestry, landscape, multifaceted, comprehensive, leverage, utilize, facilitate, endeavor, paramount, pivotal, robust, seamless, synergy, holistic, nuanced, realm, foster, navigate (metaphorical), cutting-edge, spearhead, underscores, moreover, furthermore, in conclusion, it is worth noting, it's important to note, in today's, game-changer, revolutionize, embark, unlock, unleash, beacon, testament, commendable, meticulous, intricate, underpinning, arguably
+
+=== STRUCTURAL RULES ===
+1. Vary sentence length dramatically. Mix 5-word punches with 25-word flowing sentences. NEVER let 3 consecutive sentences be similar length.
+2. Use contractions naturally (it's, don't, we're, that's, can't). Even formal text uses some.
+3. ABSOLUTELY NEVER use em dashes (the long dash). Replace every single one with a period, comma, or parentheses. This is the most important rule. If you use even one em dash, the entire output fails.
+4. Avoid semicolons. Restructure as two sentences.
+5. Break parallel structure. If listing 3 things, make the third structurally different from the first two.
+6. Start some sentences with "And," "But," "So," or "Or."
+7. Use occasional sentence fragments. For emphasis.
+8. Vary paragraph length. Some paragraphs can be one sentence. Others four or five.
+9. Add voice markers sparingly: rhetorical questions, mild hedging ("probably," "tends to"), specificity over abstraction.
+10. Avoid starting consecutive paragraphs the same way.
+11. Prefer concrete nouns and active verbs over abstract nominalizations.
+12. Do NOT end paragraphs with neat summary sentences. Let ideas trail naturally.
+13. Avoid perfectly balanced intro-body-conclusion format for shorter pieces.
+
+=== TONE ===
+${tonePersonas[hmTone] || tonePersonas.professional}
+
+=== REWRITE STRENGTH ===
+${strengthLevels[hmStrength] || strengthLevels.balanced}
+
+=== OUTPUT FORMAT ===
+Return ONLY the rewritten text. No meta-commentary, no "here's the rewritten version," no explanations before the text. Just the clean rewritten text.
+
+After the rewritten text, on new lines, provide your self-analysis:
+
+HUMAN_SCORE: [number 0-100 representing how likely this text would pass as human-written, where 100 = completely undetectable]
+AI_FLAGS: ["specific pattern 1", "specific pattern 2"]
+
+Score criteria: vocabulary naturalness (20%), sentence length variation (20%), structural unpredictability (20%), voice/personality markers (20%), overall flow and rhythm (20%).
+
+For AI_FLAGS, list SPECIFIC remaining issues you notice in your own output. Be honest and critical. If the text is clean, use an empty array [].
+
+Then provide follow-up suggestions:
+FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+
+      const hmScanPrompt = `You are an AI text detection analyst. Your job is to analyze text and score it for how likely it would be detected as AI-generated by tools like GPTZero, Turnitin, and Originality.ai.
+
+You do NOT rewrite the text. You only analyze and score it.
+
+=== ANALYSIS CRITERIA (each worth 20 points) ===
+1. **Vocabulary naturalness** (0-20): AI-telltale words? Natural contractions? Predictable or surprising word choices?
+2. **Sentence length variation** (0-20): Varied dramatically or uniform? Humans mix short and long. AI tends toward medium-length uniformity.
+3. **Structural unpredictability** (0-20): Varied paragraph lengths? Mechanical parallel structure? Neat summary sentences at paragraph ends (an AI tell)?
+4. **Voice and personality** (0-20): Human voice markers? Rhetorical questions, hedging, asides? Or neutrally informative in a way that screams AI?
+5. **Flow and rhythm** (0-20): Written by someone or assembled? Natural transitions or formulaic ("Furthermore," "Moreover," "Additionally")?
+
+=== OUTPUT FORMAT ===
+Write a brief analysis (2-4 paragraphs) explaining what you found. Be specific, referencing particular sentences or paragraphs by number. Tell the user exactly what an AI detector would flag and why.
+
+Then:
+HUMAN_SCORE: [number 0-100, sum of the 5 criteria above]
+AI_FLAGS: ["specific issue 1 with location", "specific issue 2 with location", ...]
+FOLLOW_UP_PROMPTS: ["Humanize this text", "Which paragraph is most detectable?", "Show me what to fix manually"]`
+
+      const hmTwoPassReview = `Review the following text for any remaining AI writing patterns. Look for:
+1. Any banned vocabulary (delve, tapestry, leverage, utilize, etc.)
+2. Em dashes or semicolons
+3. Three or more consecutive sentences of similar length
+4. Paragraphs that all start the same way
+5. Missing contractions where natural speech would use them
+6. Overly neat summary sentences at paragraph ends
+Fix ONLY the flagged portions. Keep everything else exactly as is. Return the full corrected text.
+After the corrected text:
+HUMAN_SCORE: [0-100]
+AI_FLAGS: ["any remaining issues"]
+FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+
+      // ─── Parse human score and AI flags
+      function parseHumanScore(response: string): { cleanResponse: string; humanScore: number; aiFlags: string[] } {
+        let humanScore = 0
+        let aiFlags: string[] = []
+        let clean = response
+        const scoreMatch = clean.match(/HUMAN_SCORE:\s*(\d+)/s)
+        if (scoreMatch?.[1]) {
+          humanScore = Math.min(100, Math.max(0, parseInt(scoreMatch[1], 10)))
+          clean = clean.replace(/HUMAN_SCORE:\s*\d+/s, "").trim()
+        }
+        const flagsMatch = clean.match(/AI_FLAGS:\s*\[([\s\S]*?)\]/s)
+        if (flagsMatch?.[1]) {
+          try { aiFlags = JSON.parse(`[${flagsMatch[1]}]`) } catch {
+            aiFlags = flagsMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+          }
+          clean = clean.replace(/AI_FLAGS:\s*\[[\s\S]*?\]/s, "").trim()
+        }
+        // Post-process: strip any em dashes that slipped through
+        clean = clean.replace(/\u2014/g, ",").replace(/\u2013/g, ",")
+        return { cleanResponse: clean, humanScore, aiFlags }
+      }
+
+      const inputWordCount = text.trim().split(/\s+/).filter(Boolean).length
+      const systemPrompt = hmScanOnly ? hmScanPrompt : hmHumanizePrompt
+      const hmTemperature = hmScanOnly ? 0.3 : 0.9
+      const hmMaxTokens = hmScanOnly ? 2000 : 4000
+
+      // Set SSE headers
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      // Send metadata
+      res.write(`event: metadata\ndata: ${JSON.stringify({ inputWordCount, mode: hmScanOnly ? "scan" : "humanize", tone: hmTone, strength: hmStrength, twoPass: hmTwoPass })}\n\n`)
+
+      // Build messages
+      const hmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: systemPrompt }
+      ]
+      if (conversationHistory && Array.isArray(conversationHistory) && conversationHistory.length > 0) {
+        const truncated = truncateHistory(conversationHistory)
+        for (const msg of truncated) {
+          hmMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
+        }
+      }
+      hmMessages.push({ role: "user", content: text.trim() })
+
+      try {
+        // Pass 1
+        const stream1 = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: hmMessages,
+          temperature: hmTemperature,
+          max_tokens: hmMaxTokens,
+          frequency_penalty: hmScanOnly ? 0 : 0.4,
+          presence_penalty: hmScanOnly ? 0 : 0.3,
+          stream: true,
+        })
+
+        let fullResponse = ""
+        for await (const chunk of stream1) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            fullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        if (hmTwoPass && !hmScanOnly) {
+          // Parse pass 1
+          const { cleanResponse: p1Clean, followUpPrompts: p1FU } = parseFollowUpPrompts(fullResponse, ["Make it more conversational", "Shorten it", "Scan this version"])
+          const { cleanResponse: p1Text, humanScore: p1Score, aiFlags: p1Flags } = parseHumanScore(p1Clean)
+
+          res.write(`event: pass\ndata: ${JSON.stringify({ pass: 2, pass1Score: p1Score })}\n\n`)
+
+          // Pass 2
+          const pass2Messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: text.trim() },
+            { role: "assistant", content: p1Text },
+            { role: "user", content: hmTwoPassReview },
+          ]
+
+          const stream2 = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: pass2Messages,
+            temperature: 0.85,
+            max_tokens: hmMaxTokens,
+            frequency_penalty: 0.5,
+            presence_penalty: 0.4,
+            stream: true,
+          })
+
+          let pass2Response = ""
+          for await (const chunk of stream2) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) {
+              pass2Response += token
+              res.write(`data: ${JSON.stringify({ token, pass: 2 })}\n\n`)
+            }
+          }
+
+          const { cleanResponse: p2Clean, followUpPrompts: p2FU } = parseFollowUpPrompts(pass2Response, ["Make it more conversational", "Shorten it", "Scan this version"])
+          const { cleanResponse: p2Text, humanScore: p2Score, aiFlags: p2Flags } = parseHumanScore(p2Clean)
+
+          res.write(`event: done\ndata: ${JSON.stringify({
+            cleanResponse: p2Text,
+            followUpPrompts: p2FU,
+            metadata: { humanScore: p2Score, aiFlags: p2Flags, twoPass: true, pass1Score: p1Score },
+          })}\n\n`)
+        } else {
+          // Single pass
+          const { cleanResponse: fClean, followUpPrompts: fFU } = parseFollowUpPrompts(fullResponse, [
+            hmScanOnly ? "Humanize this text" : "Make it more conversational",
+            hmScanOnly ? "Which paragraph is most detectable?" : "Shorten while keeping key points",
+            "Scan this version",
+          ])
+          const { cleanResponse: fText, humanScore: fScore, aiFlags: fFlags } = parseHumanScore(fClean)
+
+          res.write(`event: done\ndata: ${JSON.stringify({
+            cleanResponse: fText,
+            followUpPrompts: fFU,
+            metadata: { humanScore: fScore, aiFlags: fFlags },
+          })}\n\n`)
+        }
+
+        return res.end()
+      } catch (streamErr: any) {
+        console.error("Humanizer stream error:", streamErr?.message || streamErr)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: streamErr?.message || "AI streaming failed" })}\n\n`)
+        return res.end()
       }
     }
 

@@ -30,6 +30,9 @@ interface ChatContainerProps {
   renderActions?: (message: ChatMessage) => ReactNode
   footerExtra?: ReactNode
   sidebar?: ReactNode
+  onFileSelect?: (file: File) => void
+  attachedFile?: { name: string; isExtracting?: boolean; isRFP?: boolean } | null
+  onFileRemove?: () => void
 }
 
 export function ChatContainer({
@@ -55,6 +58,9 @@ export function ChatContainer({
   renderActions,
   footerExtra,
   sidebar,
+  onFileSelect,
+  attachedFile,
+  onFileRemove,
 }: ChatContainerProps) {
   const mainRef = useRef<HTMLElement>(null)
   const [sidebarOpen, setSidebarOpen] = useState(!!sidebar)
@@ -140,6 +146,9 @@ export function ChatContainer({
               quickActions={quickActions}
               showQuickActions={messages.length > 0}
               inputRef={inputRef}
+              onFileSelect={onFileSelect}
+              attachedFile={attachedFile}
+              onFileRemove={onFileRemove}
             />
           )}
         </div>
