@@ -9,6 +9,7 @@ interface Photo {
   storageKey: string
   topicId: string
   mimeType: string | null
+  fileUrl?: string | null
 }
 
 interface PhotoPickerProps {
@@ -52,7 +53,8 @@ export function PhotoPicker({ onInsert, onClose }: PhotoPickerProps) {
   }, [search, fetchPhotos])
 
   const handleSelect = (photo: Photo) => {
-    const html = `<img src="${API_BASE}/photos/file/${photo.storageKey}" alt="${photo.displayTitle.replace(/"/g, "&quot;")}" />`
+    const src = photo.fileUrl || `${API_BASE}/photos/file/${photo.storageKey}`
+    const html = `<img src="${src}" alt="${photo.displayTitle.replace(/"/g, "&quot;")}" />`
     onInsert(html)
     onClose()
   }
@@ -119,7 +121,7 @@ export function PhotoPicker({ onInsert, onClose }: PhotoPickerProps) {
                   className="group relative aspect-square rounded-xl overflow-hidden border-2 border-transparent hover:border-violet-400 dark:hover:border-violet-500 transition-all hover:shadow-[0_4px_12px_rgba(139,92,246,0.25)] hover:scale-[1.02]"
                 >
                   <img
-                    src={`${API_BASE}/photos/file/${photo.storageKey}`}
+                    src={photo.fileUrl || `${API_BASE}/photos/file/${photo.storageKey}`}
                     alt={photo.displayTitle}
                     className="w-full h-full object-cover"
                     loading="lazy"

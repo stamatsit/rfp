@@ -1411,6 +1411,15 @@ export function SearchLibrary() {
     return Object.keys(answersByTopic).sort((a, b) => (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0))
   }, [answersByTopic])
 
+  // Auto-expand all topic groups on initial data load
+  const didInitExpand = useRef(false)
+  useEffect(() => {
+    if (!didInitExpand.current && sortedAnswerTopicIds.length > 0) {
+      didInitExpand.current = true
+      setExpandedAnswerTopics(new Set(sortedAnswerTopicIds))
+    }
+  }, [sortedAnswerTopicIds])
+
   // Toggle accordion expansion
   const toggleAnswerTopic = (topicId: string) => {
     setExpandedAnswerTopics(prev => {
@@ -2261,7 +2270,7 @@ export function SearchLibrary() {
                       >
                         <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
                           <img
-                            src={photosApi.getFileUrl(photo.storageKey)}
+                            src={photo.fileUrl || photosApi.getFileUrl(photo.storageKey)}
                             alt={photo.displayTitle}
                             className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
                             onError={(e) => {
@@ -2957,7 +2966,7 @@ export function SearchLibrary() {
                         className="aspect-square bg-slate-100 dark:bg-slate-700 rounded-xl relative group overflow-hidden"
                       >
                         <img
-                          src={photosApi.getFileUrl(photo.storageKey)}
+                          src={photo.fileUrl || photosApi.getFileUrl(photo.storageKey)}
                           alt={photo.displayTitle}
                           className="w-full h-full object-cover"
                         />
@@ -3019,7 +3028,7 @@ export function SearchLibrary() {
             <div className="space-y-5">
               <div className="aspect-video bg-slate-100 dark:bg-slate-700 rounded-xl overflow-hidden">
                 <img
-                  src={photosApi.getFileUrl(selectedPhoto.storageKey)}
+                  src={selectedPhoto.fileUrl || photosApi.getFileUrl(selectedPhoto.storageKey)}
                   alt={selectedPhoto.displayTitle}
                   className="w-full h-full object-contain"
                 />
@@ -3302,7 +3311,7 @@ export function SearchLibrary() {
                         <>
                           <div className="w-14 h-14 rounded-lg bg-slate-200 dark:bg-slate-700 flex items-center justify-center overflow-hidden flex-shrink-0">
                             <img
-                              src={photosApi.getFileUrl((item as PhotoResponse).storageKey)}
+                              src={(item as PhotoResponse).fileUrl || photosApi.getFileUrl((item as PhotoResponse).storageKey)}
                               alt={(item as PhotoResponse).displayTitle}
                               className="w-full h-full object-cover"
                             />

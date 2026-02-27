@@ -1683,7 +1683,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .from(linksAnswerPhoto)
           .innerJoin(answerItems, eq(linksAnswerPhoto.answerItemId, answerItems.id))
           .where(eq(linksAnswerPhoto.photoAssetId, photoMatch[1]))
-        return res.json({ ...photo, linkedAnswers: linkedAnswers.map(r => r.answer) })
+        let fileUrl: string | null = null
+        if (supabase) {
+          const ext = (photo as any).originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+          const { data } = await supabase.storage.from("photo-assets").createSignedUrls([`${(photo as any).storageKey}.${ext}`], 3600)
+          fileUrl = data?.[0]?.signedUrl || null
+        }
+        return res.json({ ...photo, fileUrl, linkedAnswers: linkedAnswers.map(r => r.answer) })
       }
 
       // POST /search/answers/:id/copy - log copy event + increment usage count
@@ -1725,7 +1731,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           .from(linksAnswerPhoto)
           .innerJoin(photoAssets, eq(linksAnswerPhoto.photoAssetId, photoAssets.id))
           .where(eq(linksAnswerPhoto.answerItemId, linkedPhotosMatch[1]))
-        return res.json(photos.map(r => r.photo))
+        const photoList = photos.map(r => r.photo)
+        if (supabase && photoList.length > 0) {
+          const paths = photoList.map((p: any) => {
+            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+            return `${p.storageKey}.${ext}`
+          })
+          const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
+          if (signedData) {
+            return res.json(photoList.map((p: any, i: number) => ({ ...p, fileUrl: signedData[i]?.signedUrl || null })))
+          }
+        }
+        return res.json(photoList)
       }
 
       // GET /search/photos/:id/answers - get linked answers (single JOIN query)
@@ -3780,18 +3797,23 @@ ${compDataContext}`
     // Photos routes
     if (path === "/photos" || path === "/photos/") {
       if (method === "GET") {
-        const allPhotos = await db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt))
+        const statusFilter = req.query?.status as string | undefined
+        const limitVal = parseInt(req.query?.limit as string) || 0
 
-        if (SUPABASE_URL && allPhotos.length > 0) {
-          const photosWithUrls = allPhotos.map((p: any) => {
-            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
-              ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[p.mimeType || ""] || "png"
-            return {
-              ...p,
-              fileUrl: `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${p.storageKey}.${ext}`,
-            }
+        let query = db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt)) as any
+        if (statusFilter) query = query.where(eq(photoAssets.status, statusFilter))
+        if (limitVal) query = query.limit(limitVal)
+        const allPhotos = await query
+
+        if (supabase && allPhotos.length > 0) {
+          const paths = allPhotos.map((p: any) => {
+            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+            return `${p.storageKey}.${ext}`
           })
-          return res.json(photosWithUrls)
+          const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
+          if (signedData) {
+            return res.json(allPhotos.map((p: any, i: number) => ({ ...p, fileUrl: signedData[i]?.signedUrl || null })))
+          }
         }
 
         return res.json(allPhotos)
