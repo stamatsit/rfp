@@ -16,6 +16,7 @@ interface ChatInputProps {
   onFileSelect?: (file: File) => void
   attachedFile?: { name: string; isExtracting?: boolean; isRFP?: boolean } | null
   onFileRemove?: () => void
+  lastUserMessage?: string
 }
 
 export function ChatInput({
@@ -31,6 +32,7 @@ export function ChatInput({
   onFileSelect,
   attachedFile,
   onFileRemove,
+  lastUserMessage,
 }: ChatInputProps) {
   const internalRef = useRef<HTMLTextAreaElement>(null)
   const ref = inputRef || internalRef
@@ -51,6 +53,20 @@ export function ChatInput({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
       onSubmit()
+      return
+    }
+    if (e.key === "Escape") {
+      e.preventDefault()
+      if (inputValue.trim()) {
+        setInputValue("")
+      } else {
+        ;(e.target as HTMLTextAreaElement).blur()
+      }
+      return
+    }
+    if (e.key === "ArrowUp" && !inputValue.trim() && lastUserMessage) {
+      e.preventDefault()
+      setInputValue(lastUserMessage)
     }
   }
 

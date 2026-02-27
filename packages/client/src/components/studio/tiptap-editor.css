@@ -142,15 +142,24 @@
 }
 
 /* Links */
-.tiptap-editor .ProseMirror a {
+.tiptap-editor .ProseMirror a,
+.tiptap-editor .ProseMirror .tiptap-link {
   color: rgb(16 185 129);
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-thickness: 1px;
+  cursor: pointer;
 }
 
-.tiptap-editor .ProseMirror a:hover {
+.tiptap-editor .ProseMirror a:hover,
+.tiptap-editor .ProseMirror .tiptap-link:hover {
   color: rgb(5 150 105); /* emerald-600 */
+}
+
+/* Strikethrough */
+.tiptap-editor .ProseMirror s {
+  text-decoration: line-through;
+  color: rgb(148 163 184); /* slate-400 */
 }
 
 /* Placeholder */

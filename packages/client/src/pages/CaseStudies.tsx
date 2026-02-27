@@ -5,7 +5,8 @@
  * Uses shared chat infrastructure with violet theme.
  */
 
-import { useCallback, useMemo } from "react"
+import { useEffect, useCallback, useMemo } from "react"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import {
   BookOpen,
   Database,
@@ -72,6 +73,8 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function CaseStudies() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
   const chat = useChat({
@@ -85,6 +88,19 @@ export function CaseStudies() {
     , []),
     errorMessage: "Failed to connect to case study service. Please try again.",
   })
+
+  const latestFollowUps = useMemo(
+    () => [...chat.messages].reverse().find(m => m.role === "assistant" && !m.refused)?.followUpPrompts ?? [],
+    [chat.messages]
+  )
+
+  useEffect(() => {
+    const convId = searchParams.get("conv")
+    if (convId) {
+      chat.loadConversation(convId)
+      navigate("/ai", { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderDataContext = useCallback((message: ChatMessage) => {
     const dataUsed = message.metadata as {
@@ -144,6 +160,7 @@ export function CaseStudies() {
       messagesEndRef={chat.messagesEndRef}
       inputRef={chat.inputRef}
       placeholder="Search client highlights, stats, or testimonials..."
+      stickyFollowUps={latestFollowUps}
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
       sidebar={

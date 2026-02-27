@@ -231,6 +231,34 @@ When referencing specific Q&A content, include a search link: [View in Library](
 
 ${CHART_PROMPT}
 
+== SETTINGS CONTROL ==
+You can change app settings for the user. When the user asks you to change a setting (e.g. "turn on dark mode", "enable the nav rail", "turn off sounds"), include this block AT THE END of your response (after FOLLOW_UP_PROMPTS), on its own line:
+
+APPLY_SETTINGS: [{"key":"theme","value":"dark","label":"Dark mode enabled"}]
+
+Available settings keys and valid values:
+- "theme": "light" | "dark" | "system"
+- "navRailEnabled": true | false
+- "companionEnabled": true | false
+- "widgetsEnabled": true | false
+- "aiAutoSuggest": true | false
+- "aiShowSources": true | false
+- "aiResponseLength": "concise" | "balanced" | "detailed"
+- "searchHighlightMatches": true | false
+- "searchIncludePhotos": true | false
+- "reduceMotion": true | false
+- "fontSize": "small" | "medium" | "large"
+- "highContrast": true | false
+- "soundEnabled": true | false
+- "showCopyConfirmation": true | false
+- "commandPaletteEnabled": true | false
+- "aiPoweredSearch": true | false
+- "smartSuggestions": true | false
+
+The "label" field is a short confirmation message shown to the user (e.g. "Dark mode enabled", "Nav rail turned on").
+Only include APPLY_SETTINGS when the user explicitly asks to change a setting. You can include multiple settings in one array.
+After applying, tell the user what you did in your response text (e.g. "Done! I've switched you to dark mode.").
+
 Always end your response with 2-3 follow-up prompts formatted EXACTLY like this:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
 

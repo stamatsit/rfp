@@ -110,10 +110,10 @@
     scroll-behavior: smooth;
   }
 
-  /* Refined scrollbar - barely visible until hover */
+  /* Refined scrollbar - invisible until hover */
   ::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 5px;
+    height: 5px;
   }
 
   ::-webkit-scrollbar-track {
@@ -121,13 +121,13 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--muted-foreground) / 0.15);
-    border-radius: 3px;
+    background: hsl(var(--muted-foreground) / 0.1);
+    border-radius: 10px;
     transition: background 0.2s ease;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--muted-foreground) / 0.3);
+    background: hsl(var(--muted-foreground) / 0.25);
   }
 
   /* Premium selection */
@@ -487,9 +487,20 @@
     51%, 100% { opacity: 0; }
   }
 
+  @keyframes progress-indeterminate {
+    0% { transform: translateX(-100%) scaleX(0.5); }
+    50% { transform: translateX(0%) scaleX(0.8); }
+    100% { transform: translateX(100%) scaleX(0.5); }
+  }
+
   /* Animation classes */
   .animate-fade-in {
     animation: fade-in 0.25s ease-out;
+  }
+
+  .animate-progress-indeterminate {
+    animation: progress-indeterminate 1.4s ease-in-out infinite;
+    width: 60%;
   }
 
   .animate-fade-in-up {
@@ -589,7 +600,8 @@
 
   /* Backdrop blur utilities */
   .backdrop-blur-premium {
-    backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(200%);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
   }
 }
 

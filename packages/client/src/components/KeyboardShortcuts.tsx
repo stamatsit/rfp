@@ -7,6 +7,13 @@ export function KeyboardShortcuts() {
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
+      // Cmd+K / Ctrl+K — open command palette (fires even from inputs)
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent("open-command-palette"))
+        return
+      }
+
       // Don't trigger if user is typing in an input, textarea, or contenteditable
       const target = e.target as HTMLElement
       if (

@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { BubbleMenu } from "@tiptap/react/menus"
 import type { Editor } from "@tiptap/react"
 import {
-  Bold, Italic, Underline as UnderlineIcon,
+  Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight,
-  ChevronDown, Sparkles, Type,
+  ChevronDown, Sparkles, Type, Link2, Link2Off,
 } from "lucide-react"
 import { FONTS, FONT_SIZES, loadGoogleFont, type FontDef } from "./fonts"
 
@@ -20,6 +20,30 @@ const BLOCK_TYPES: { id: BlockType; label: string; shortLabel: string }[] = [
   { id: "h1", label: "Heading 1", shortLabel: "H1" },
   { id: "h2", label: "Heading 2", shortLabel: "H2" },
   { id: "h3", label: "Heading 3", shortLabel: "H3" },
+]
+
+// Color palette for text/highlight
+const TEXT_COLORS = [
+  { label: "Default", value: "" },
+  { label: "Slate", value: "#475569" },
+  { label: "Gray", value: "#6b7280" },
+  { label: "Red", value: "#dc2626" },
+  { label: "Orange", value: "#ea580c" },
+  { label: "Amber", value: "#d97706" },
+  { label: "Emerald", value: "#059669" },
+  { label: "Teal", value: "#0d9488" },
+  { label: "Blue", value: "#2563eb" },
+  { label: "Violet", value: "#7c3aed" },
+]
+
+const HIGHLIGHT_COLORS = [
+  { label: "None", value: "" },
+  { label: "Yellow", value: "#fef08a" },
+  { label: "Green", value: "#bbf7d0" },
+  { label: "Blue", value: "#bfdbfe" },
+  { label: "Violet", value: "#ddd6fe" },
+  { label: "Red", value: "#fecaca" },
+  { label: "Orange", value: "#fed7aa" },
 ]
 
 function Separator() {
@@ -79,13 +103,24 @@ function Dropdown({ open, onClose, children, anchor }: {
 }
 
 export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps) {
-  const [openMenu, setOpenMenu] = useState<"block" | "font" | "size" | null>(null)
+  const [openMenu, setOpenMenu] = useState<"block" | "font" | "size" | "color" | "link" | null>(null)
+  const [linkUrl, setLinkUrl] = useState("")
+  const linkInputRef = useRef<HTMLInputElement>(null)
 
-  const toggleMenu = (menu: "block" | "font" | "size") => {
+  const toggleMenu = (menu: "block" | "font" | "size" | "color" | "link") => {
     setOpenMenu((prev) => (prev === menu ? null : menu))
   }
 
   const closeMenu = () => setOpenMenu(null)
+
+  // Pre-fill link URL when opening link popover
+  useEffect(() => {
+    if (openMenu === "link") {
+      const existingHref = editor.getAttributes("link").href || ""
+      setLinkUrl(existingHref)
+      setTimeout(() => linkInputRef.current?.focus(), 50)
+    }
+  }, [openMenu, editor])
 
   // ── Block type ──
   const getCurrentBlockType = (): BlockType => {
@@ -132,11 +167,54 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
     closeMenu()
   }
 
+  // ── Text color ──
+  const currentColor = (editor.getAttributes("textStyle")?.color as string) || ""
+
+  const setTextColor = useCallback((color: string) => {
+    if (color) {
+      editor.chain().focus().setColor(color).run()
+    } else {
+      editor.chain().focus().unsetColor().run()
+    }
+    closeMenu()
+  }, [editor])
+
+  const setHighlight = useCallback((color: string) => {
+    if (color) {
+      editor.chain().focus().setHighlight({ color }).run()
+    } else {
+      editor.chain().focus().unsetHighlight().run()
+    }
+    closeMenu()
+  }, [editor])
+
+  // ── Link ──
+  const applyLink = useCallback(() => {
+    const url = linkUrl.trim()
+    if (url) {
+      const href = url.startsWith("http") ? url : `https://${url}`
+      editor.chain().focus().setLink({ href }).run()
+    } else {
+      editor.chain().focus().unsetLink().run()
+    }
+    closeMenu()
+  }, [editor, linkUrl])
+
+  const removeLink = useCallback(() => {
+    editor.chain().focus().unsetLink().run()
+    closeMenu()
+  }, [editor])
+
   const currentBlock = BLOCK_TYPES.find((b) => b.id === getCurrentBlockType()) || BLOCK_TYPES[0]!
+
+  // Detect if current selection has explicit left-align or is default (no alignment set)
+  const isLeftAlign = editor.isActive({ textAlign: "left" })
+  const isCenter = editor.isActive({ textAlign: "center" })
+  const isRight = editor.isActive({ textAlign: "right" })
 
   return (
     <BubbleMenu editor={editor} updateDelay={100}>
-      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-white dark:bg-slate-800 rounded-lg shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.06)] backdrop-blur-xl">
+      <div className="flex items-center gap-0.5 px-1 py-0.5 bg-white/97 dark:bg-slate-800/97 rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.10),0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_24px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.07)] backdrop-blur-xl animate-fade-in-up">
 
         {/* Font family dropdown */}
         <Dropdown
@@ -160,23 +238,27 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
               if (fontsInCat.length === 0) return null
               return (
                 <div key={cat}>
-                  <div className="px-3 pt-2 pb-1 text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     {cat}
                   </div>
-                  {fontsInCat.map((font) => (
-                    <button
-                      key={font.value}
-                      onClick={() => setFont(font)}
-                      className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors ${
-                        currentFontFamily && font.css.includes(currentFontFamily)
-                          ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                          : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
-                      }`}
-                      style={{ fontFamily: font.css }}
-                    >
-                      {font.name}
-                    </button>
-                  ))}
+                  {fontsInCat.map((font) => {
+                    const isActive = currentFontFamily && font.css.includes(currentFontFamily)
+                    return (
+                      <button
+                        key={font.value}
+                        onClick={() => setFont(font)}
+                        className={`w-full text-left px-3 py-1.5 text-[12px] transition-colors flex items-center justify-between ${
+                          isActive
+                            ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                            : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        }`}
+                        style={{ fontFamily: font.css }}
+                      >
+                        <span>{font.name}</span>
+                        {isActive && <span className="text-emerald-500 text-[10px]">✓</span>}
+                      </button>
+                    )
+                  })}
                 </div>
               )
             })}
@@ -217,7 +299,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
 
         <Separator />
 
-        {/* Bold / Italic / Underline */}
+        {/* Bold / Italic / Underline / Strikethrough */}
         <BubbleBtn active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title="Bold (⌘B)">
           <Bold className="w-3.5 h-3.5" />
         </BubbleBtn>
@@ -227,6 +309,118 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
         <BubbleBtn active={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} title="Underline (⌘U)">
           <UnderlineIcon className="w-3.5 h-3.5" />
         </BubbleBtn>
+        <BubbleBtn active={editor.isActive("strike")} onClick={() => editor.chain().focus().toggleStrike().run()} title="Strikethrough">
+          <Strikethrough className="w-3.5 h-3.5" />
+        </BubbleBtn>
+
+        <Separator />
+
+        {/* Text color / highlight picker */}
+        <Dropdown
+          open={openMenu === "color"}
+          onClose={closeMenu}
+          anchor={
+            <button
+              onClick={() => toggleMenu("color")}
+              className="flex items-center gap-0.5 px-1.5 h-7 text-[10px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+              title="Text color & highlight"
+            >
+              <span
+                className="w-3.5 h-3.5 rounded-sm border border-slate-300 dark:border-slate-600 flex-shrink-0"
+                style={{ background: currentColor || "#1e293b" }}
+              />
+              <ChevronDown className={`w-2 h-2 flex-shrink-0 transition-transform ${openMenu === "color" ? "rotate-180" : ""}`} />
+            </button>
+          }
+        >
+          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 px-3 z-50 w-48">
+            {/* Text color */}
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Text color</p>
+            <div className="flex flex-wrap gap-1 mb-3">
+              {TEXT_COLORS.map((c) => (
+                <button
+                  key={c.value || "default"}
+                  onClick={() => setTextColor(c.value)}
+                  title={c.label}
+                  className={`w-5 h-5 rounded-md border transition-all hover:scale-110 ${
+                    currentColor === c.value
+                      ? "ring-2 ring-emerald-500 ring-offset-1"
+                      : "border-slate-200 dark:border-slate-600"
+                  }`}
+                  style={{ background: c.value || "#1e293b" }}
+                />
+              ))}
+            </div>
+            {/* Highlight */}
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Highlight</p>
+            <div className="flex flex-wrap gap-1">
+              {HIGHLIGHT_COLORS.map((c) => (
+                <button
+                  key={c.value || "none"}
+                  onClick={() => setHighlight(c.value)}
+                  title={c.label}
+                  className={`w-5 h-5 rounded-md border transition-all hover:scale-110 ${
+                    c.value === ""
+                      ? "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700"
+                      : "border-slate-200 dark:border-slate-600"
+                  }`}
+                  style={{ background: c.value || undefined }}
+                >
+                  {c.value === "" && (
+                    <span className="text-slate-400 text-[9px] flex items-center justify-center h-full">✕</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Dropdown>
+
+        {/* Link button */}
+        <Dropdown
+          open={openMenu === "link"}
+          onClose={closeMenu}
+          anchor={
+            <BubbleBtn
+              active={editor.isActive("link")}
+              onClick={() => toggleMenu("link")}
+              title="Insert link"
+            >
+              <Link2 className="w-3.5 h-3.5" />
+            </BubbleBtn>
+          }
+        >
+          <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-2.5 z-50 w-64">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Link URL</p>
+            <div className="flex gap-1.5">
+              <input
+                ref={linkInputRef}
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); applyLink() }
+                  if (e.key === "Escape") closeMenu()
+                }}
+                placeholder="https://..."
+                className="flex-1 h-7 px-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md text-slate-700 dark:text-slate-300 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400"
+              />
+              <button
+                onClick={applyLink}
+                className="h-7 px-2 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 rounded-md transition-colors"
+              >
+                Apply
+              </button>
+            </div>
+            {editor.isActive("link") && (
+              <button
+                onClick={removeLink}
+                className="mt-1.5 flex items-center gap-1 text-[10px] text-red-400 hover:text-red-500 transition-colors"
+              >
+                <Link2Off className="w-3 h-3" />
+                Remove link
+              </button>
+            )}
+          </div>
+        </Dropdown>
 
         <Separator />
 
@@ -263,14 +457,14 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
 
         <Separator />
 
-        {/* Alignment */}
-        <BubbleBtn active={editor.isActive({ textAlign: "left" })} onClick={() => editor.chain().focus().setTextAlign("left").run()} title="Align left">
+        {/* Alignment — only show active if explicitly set */}
+        <BubbleBtn active={isLeftAlign} onClick={() => editor.chain().focus().setTextAlign("left").run()} title="Align left">
           <AlignLeft className="w-3.5 h-3.5" />
         </BubbleBtn>
-        <BubbleBtn active={editor.isActive({ textAlign: "center" })} onClick={() => editor.chain().focus().setTextAlign("center").run()} title="Align center">
+        <BubbleBtn active={isCenter} onClick={() => editor.chain().focus().setTextAlign("center").run()} title="Align center">
           <AlignCenter className="w-3.5 h-3.5" />
         </BubbleBtn>
-        <BubbleBtn active={editor.isActive({ textAlign: "right" })} onClick={() => editor.chain().focus().setTextAlign("right").run()} title="Align right">
+        <BubbleBtn active={isRight} onClick={() => editor.chain().focus().setTextAlign("right").run()} title="Align right">
           <AlignRight className="w-3.5 h-3.5" />
         </BubbleBtn>
 
@@ -280,11 +474,12 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
             <Separator />
             <button
               onClick={onTriggerAI}
-              className="flex items-center gap-1 px-2 h-7 text-[10px] font-semibold text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 rounded-md shadow-sm transition-all"
-              title="AI Edit"
+              className="relative flex items-center gap-1 px-2.5 h-7 text-[10px] font-bold text-white rounded-lg overflow-hidden transition-all hover:scale-[1.03] active:scale-95 shadow-sm shadow-emerald-500/20"
+              style={{ background: "linear-gradient(135deg, #10b981 0%, #0d9488 100%)" }}
+              title="AI Edit — rewrite, improve, expand selection"
             >
               <Sparkles className="w-3 h-3" />
-              AI
+              AI Edit
             </button>
           </>
         )}

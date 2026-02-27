@@ -4,10 +4,18 @@
  */
 
 import { Router, type Request, type Response } from "express"
+import OpenAI from "openai"
 import { db } from "../db/index.js"
 import { conversations } from "../db/schema.js"
 import { eq, desc, and, or, isNull } from "drizzle-orm"
 import { getCurrentUserId } from "../middleware/getCurrentUser.js"
+
+let openaiClient: OpenAI | null = null
+function getOpenAI(): OpenAI | null {
+  if (!process.env.OPENAI_API_KEY) return null
+  if (!openaiClient) openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+  return openaiClient
+}
 
 const router = Router()
 
@@ -118,6 +126,52 @@ router.delete("/:id", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Failed to delete conversation:", error)
     res.status(500).json({ error: "Failed to delete conversation" })
+  }
+})
+
+// Generate a short AI title for a conversation
+router.post("/:id/generate-title", async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const openai = getOpenAI()
+    if (!openai) return res.status(503).json({ error: "AI service not configured" })
+
+    const { messages } = req.body as { messages?: Array<{ role: string; content: string }> }
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: "messages required" })
+    }
+
+    const firstUser = messages.find(m => m.role === "user")?.content?.slice(0, 200) ?? ""
+    const firstAI = messages.find(m => m.role === "assistant")?.content?.slice(0, 200) ?? ""
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 20,
+      messages: [
+        {
+          role: "system",
+          content: "Generate a concise 4-6 word title for this conversation. Return ONLY the title, no quotes, no punctuation at the end.",
+        },
+        {
+          role: "user",
+          content: `User asked: ${firstUser}\nAI responded about: ${firstAI}`,
+        },
+      ],
+    })
+
+    const title = completion.choices[0]?.message.content?.trim() || firstUser.slice(0, 60)
+
+    const [updated] = await db
+      .update(conversations)
+      .set({ title, updatedAt: new Date() })
+      .where(eq(conversations.id, req.params.id!))
+      .returning({ id: conversations.id, title: conversations.title })
+
+    if (!updated) return res.status(404).json({ error: "Conversation not found" })
+    res.json({ title: updated.title })
+  } catch (error) {
+    console.error("Failed to generate conversation title:", error)
+    res.status(500).json({ error: "Failed to generate title" })
   }
 })
 

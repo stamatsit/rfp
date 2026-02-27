@@ -6,6 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import {
   TrendingUp,
   RefreshCw,
@@ -79,6 +80,8 @@ const parseResult = (data: Record<string, unknown>) => ({
 
 export function ProposalInsights() {
   const isAdmin = useIsAdmin()
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
   const chat = useChat({
@@ -92,6 +95,19 @@ export function ProposalInsights() {
     , []),
     errorMessage: "Failed to connect to insights service. Please try again.",
   })
+
+  const latestFollowUps = useMemo(
+    () => [...chat.messages].reverse().find(m => m.role === "assistant" && !m.refused)?.followUpPrompts ?? [],
+    [chat.messages]
+  )
+
+  useEffect(() => {
+    const convId = searchParams.get("conv")
+    if (convId) {
+      chat.loadConversation(convId)
+      navigate("/ai", { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const [syncStatus, setSyncStatus] = useState<ProposalSyncStatus | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -185,6 +201,7 @@ export function ProposalInsights() {
       messagesEndRef={chat.messagesEndRef}
       inputRef={chat.inputRef}
       placeholder="Ask about your proposal history..."
+      stickyFollowUps={latestFollowUps}
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
       sidebar={

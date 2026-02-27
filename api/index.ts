@@ -623,6 +623,8 @@ export const photoAssets = pgTable("photo_assets", {
   originalFilename: text("original_filename").notNull(),
   fileSize: integer("file_size"),
   mimeType: text("mime_type"),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
@@ -806,7 +808,7 @@ export const studioAssets = pgTable("studio_assets", {
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, photoAssets, proposals, proposalPipeline, users, conversations, savedDocuments, scanCriteria, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, answerItemVersions, photoAssets, linksAnswerPhoto, proposals, proposalPipeline, users, conversations, savedDocuments, scanCriteria, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
 
 // Supabase client - use service role key for server-side operations (bypasses RLS)
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -3060,7 +3062,7 @@ ${contextLines.join("\n")}`
         return res.end()
       }
 
-      const { text, tone, strength, twoPass, scanOnly, conversationHistory } = req.body || {}
+      const { text, tone, strength, twoPass, scanOnly, audience, voiceSample, conversationHistory } = req.body || {}
       if (!text || typeof text !== "string" || text.trim().length < 10) {
         res.setHeader("Content-Type", "text/event-stream")
         res.setHeader("Cache-Control", "no-cache")
@@ -3070,16 +3072,26 @@ ${contextLines.join("\n")}`
         return res.end()
       }
 
-      const hmTone = ["professional", "conversational", "academic"].includes(tone) ? tone : "professional"
+      const hmTone = ["professional", "conversational", "academic", "thompson", "wallace"].includes(tone) ? tone : "professional"
       const hmStrength = ["light", "balanced", "heavy"].includes(strength) ? strength : "balanced"
+      const hmAudience = ["general", "executive", "technical", "academic"].includes(audience) ? audience : "general"
+      const hmVoiceSample = typeof voiceSample === "string" && voiceSample.trim() ? voiceSample.trim().slice(0, 500) : ""
       const hmScanOnly = scanOnly === true
       const hmTwoPass = twoPass === true
+      const trimmedText = text.trim()
+
+      // ─── Special mode detection
+      const isParagraphRewrite = trimmedText.startsWith("[PARAGRAPH REWRITE]")
+      const isSentenceRewrite = trimmedText.startsWith("[SENTENCE REWRITE]")
+      const isRefine = trimmedText.startsWith("[REFINE]")
 
       // ─── Tone personas
       const tonePersonas: Record<string, string> = {
         professional: "Write as a senior professional with domain expertise. Confident but not stuffy. Clear, direct sentences. Occasional industry-specific phrasing. You have been writing professionally for 15+ years.",
         conversational: "Write as a knowledgeable colleague explaining over coffee. Relaxed but informed. Use 'you' and 'we'. Allow personality to show. Okay to start a sentence with 'Look,' or 'Honestly,'.",
         academic: "Write as a published researcher. Precise terminology, careful qualifications, but still readable. Avoid jargon for jargon's sake. Nuance over simplification.",
+        thompson: "Write in the style of Hunter S. Thompson's journalism — first-person, visceral, opinionated, with sudden tonal shifts between deadpan and manic. Short declarative punches followed by long spiraling sentences. The reader feels a real opinion, not a report.",
+        wallace: "Write in the style of David Foster Wallace's nonfiction — conversational but erudite, with honest hedging ('I think', 'it seems to me'), occasional parenthetical asides, and a tendency to loop back on a point from a new angle. Earnest but not naive.",
       }
 
       // ─── Strength levels
@@ -3089,18 +3101,28 @@ ${contextLines.join("\n")}`
         heavy: "Completely rewrite from scratch using the same information and key points. New sentence structures, new transitions, new flow. The output should share zero phrasing with the input.",
       }
 
+      // ─── Audience and voice sections
+      const audienceTargets: Record<string, string> = {
+        general: "",
+        executive: "\n=== AUDIENCE ===\nAUDIENCE: Executives and decision-makers. Front-load the outcome. Short paragraphs. No jargon. Every sentence must earn its keep.\n",
+        technical: "\n=== AUDIENCE ===\nAUDIENCE: Technical practitioners. Domain-specific precision is acceptable. Avoid AI verbosity but don't dumb down.\n",
+        academic: "\n=== AUDIENCE ===\nAUDIENCE: Academic or scholarly readers. Careful qualification. Acknowledge nuance and exceptions. Avoid overclaiming.\n",
+      }
+      const audienceSection = audienceTargets[hmAudience] || ""
+      const voiceSection = hmVoiceSample ? `\n=== VOICE MATCHING ===\nMatch the voice, cadence, and word-choice style demonstrated in this writing sample as closely as possible:\n\n"${hmVoiceSample}"\n` : ""
+
       // ─── System prompts
       const hmHumanizePrompt = `You are a text humanizer. Your job is to rewrite AI-generated text so it reads as naturally human-written prose that is undetectable by AI content detectors like GPTZero, Turnitin, and Originality.ai.
 
 You must preserve the original meaning, facts, and key points exactly.
 
-=== BANNED VOCABULARY (never use these words) ===
-delve, tapestry, landscape, multifaceted, comprehensive, leverage, utilize, facilitate, endeavor, paramount, pivotal, robust, seamless, synergy, holistic, nuanced, realm, foster, navigate (metaphorical), cutting-edge, spearhead, underscores, moreover, furthermore, in conclusion, it is worth noting, it's important to note, in today's, game-changer, revolutionize, embark, unlock, unleash, beacon, testament, commendable, meticulous, intricate, underpinning, arguably
+=== BANNED VOCABULARY (never use ANY of these words or phrases) ===
+delve, tapestry, landscape, multifaceted, comprehensive, leverage, utilize, facilitate, endeavor, paramount, pivotal, robust, seamless, synergy, holistic, nuanced, realm, foster, navigate (metaphorical), cutting-edge, spearhead, underscores, moreover, furthermore, in conclusion, it is worth noting, it's important to note, in today's, game-changer, revolutionize, embark, unlock, unleash, beacon, testament, commendable, meticulous, intricate, underpinning, arguably, transformative, impactful, actionable, proactive, innovative, visionary, groundbreaking, state-of-the-art, best-in-class, world-class, streamline, optimize, accelerate, elevate, empower, catalyze, scalable, sustainable, ecosystem, moving forward, going forward, circle back, touch base, deep dive, bandwidth, in order to, it is important to, needless to say, as we can see, as mentioned above, plays a crucial role, plays a vital role, a wide range of, a plethora of, not only...but also, in light of, with respect to, in terms of, best practices, at the end of the day, synergize, overarching, undeniable, integral, vital, key takeaway, substantial, significant impact, powerful, remarkable, exceptional, thorough, extensive, profound, meaningful, strategic, aligned, dedicated, positioned, designed to, focused on, aimed at, ensuring, enabling, allowing, supporting, driving, delivering, creating value, building, developing, implementing, executing, achieving, maximizing, capitalizing, harnessing, fostering growth, essential, necessary, critical, imperative, ultimate, optimal, primary, core, fundamental, baseline, framework, methodology, initiative, solution, opportunity, challenge, journey, pathway, roadmap, vision, mission, engagement, alignment, collaboration, partnership, stakeholder, deliverable, outcome, impact, growth, scale
 
 === STRUCTURAL RULES ===
 1. Vary sentence length dramatically. Mix 5-word punches with 25-word flowing sentences. NEVER let 3 consecutive sentences be similar length.
 2. Use contractions naturally (it's, don't, we're, that's, can't). Even formal text uses some.
-3. ABSOLUTELY NEVER use em dashes (the long dash). Replace every single one with a period, comma, or parentheses. This is the most important rule. If you use even one em dash, the entire output fails.
+3. EM DASH ZERO TOLERANCE: The character — (U+2014) is COMPLETELY FORBIDDEN. So is – (U+2013). So is &mdash;. So is --. Before outputting, hunt for every — and replace it: " — " (spaced) → period and new sentence. "word—word" (unspaced) → comma. NO EXCEPTIONS.
 4. Avoid semicolons. Restructure as two sentences.
 5. Break parallel structure. If listing 3 things, make the third structurally different from the first two.
 6. Start some sentences with "And," "But," "So," or "Or."
@@ -3111,26 +3133,38 @@ delve, tapestry, landscape, multifaceted, comprehensive, leverage, utilize, faci
 11. Prefer concrete nouns and active verbs over abstract nominalizations.
 12. Do NOT end paragraphs with neat summary sentences. Let ideas trail naturally.
 13. Avoid perfectly balanced intro-body-conclusion format for shorter pieces.
+14. PARAGRAPH LENGTH LAW: If a paragraph has exactly 3 sentences, make at least one ≤1 sentence or expand to 4+. Three-sentence paragraphs are the #1 AI structural tell.
+15. SENTENCE RHYTHM: After two long sentences (15+ words each), the next must be short (under 8 words).
+16. TRANSITION BAN: Never start a paragraph with: "In addition", "Furthermore", "Moreover", "Additionally", "As a result", "Therefore", "Thus", "Consequently".
+17. NO PASSIVE CHAINS: Never use passive voice in two consecutive sentences.
+18. SPECIFICITY: Replace abstract descriptors ("significant improvement") with concrete ones ("a 40% drop", "three weeks behind").
+19. WORD REPETITION: Never use the same non-trivial word (4+ letters) more than twice per paragraph.
+20. OPENING WORD VARIETY: No two consecutive sentences can start with the same word.
+21. HEDGING BALANCE: Insert exactly 1–2 genuine hedges per 200 words ("tends to", "in most cases", "probably", "from what I can tell").
+
+=== BURSTINESS ===
+Deliberately vary your own "surprisingness." Mix completely plain expected phrases with unexpected word choices a human writer might reach for. Human writing has perplexity peaks and valleys; AI writing is uniformly medium. Aim for non-uniform perplexity.
 
 === TONE ===
 ${tonePersonas[hmTone] || tonePersonas.professional}
-
+${audienceSection}${voiceSection}
 === REWRITE STRENGTH ===
 ${strengthLevels[hmStrength] || strengthLevels.balanced}
 
+=== MANDATORY SELF-CHECK BEFORE OUTPUTTING ===
+STEP 1 — EM DASH HUNT: Find every — or – character. Replace each one:
+  " — " (spaced) → end sentence with period, start new sentence
+  "word—word" (unspaced) → replace with ", "
+  Do not output until zero em dashes remain.
+STEP 2 — BANNED WORDS: Scan for leverage, utilize, delve, transformative, impactful, seamless, robust, comprehensive, furthermore, moreover, in conclusion, paramount, pivotal. Replace any found.
+STEP 3 — PARAGRAPH CHECK: Find any paragraph with exactly 3 sentences of similar length. Restructure one.
+
 === OUTPUT FORMAT ===
-Return ONLY the rewritten text. No meta-commentary, no "here's the rewritten version," no explanations before the text. Just the clean rewritten text.
+Return ONLY the rewritten text. No meta-commentary, no "here's the rewritten version," no explanations. Just the clean rewritten text.
 
-After the rewritten text, on new lines, provide your self-analysis:
-
-HUMAN_SCORE: [number 0-100 representing how likely this text would pass as human-written, where 100 = completely undetectable]
+After the rewritten text, on new lines:
+HUMAN_SCORE: [number 0-100]
 AI_FLAGS: ["specific pattern 1", "specific pattern 2"]
-
-Score criteria: vocabulary naturalness (20%), sentence length variation (20%), structural unpredictability (20%), voice/personality markers (20%), overall flow and rhythm (20%).
-
-For AI_FLAGS, list SPECIFIC remaining issues you notice in your own output. Be honest and critical. If the text is clean, use an empty array [].
-
-Then provide follow-up suggestions:
 FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
 
       const hmScanPrompt = `You are an AI text detection analyst. Your job is to analyze text and score it for how likely it would be detected as AI-generated by tools like GPTZero, Turnitin, and Originality.ai.
@@ -3138,32 +3172,44 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
 You do NOT rewrite the text. You only analyze and score it.
 
 === ANALYSIS CRITERIA (each worth 20 points) ===
-1. **Vocabulary naturalness** (0-20): AI-telltale words? Natural contractions? Predictable or surprising word choices?
+1. **Vocabulary naturalness** (0-20): AI-telltale words (delve, leverage, transformative, impactful, etc.)? Natural contractions? Predictable or surprising word choices?
 2. **Sentence length variation** (0-20): Varied dramatically or uniform? Humans mix short and long. AI tends toward medium-length uniformity.
-3. **Structural unpredictability** (0-20): Varied paragraph lengths? Mechanical parallel structure? Neat summary sentences at paragraph ends (an AI tell)?
-4. **Voice and personality** (0-20): Human voice markers? Rhetorical questions, hedging, asides? Or neutrally informative in a way that screams AI?
-5. **Flow and rhythm** (0-20): Written by someone or assembled? Natural transitions or formulaic ("Furthermore," "Moreover," "Additionally")?
+3. **Structural unpredictability** (0-20): Varied paragraph lengths? Does every paragraph have exactly 3 sentences (AI tell)? Mechanical parallel structure?
+4. **Voice and personality** (0-20): Human voice markers? Rhetorical questions, hedging, asides? Or neutrally informative?
+5. **Flow and rhythm** (0-20): Natural transitions or formulaic ("Furthermore," "Moreover," "Additionally," "In addition")?
 
 === OUTPUT FORMAT ===
-Write a brief analysis (2-4 paragraphs) explaining what you found. Be specific, referencing particular sentences or paragraphs by number. Tell the user exactly what an AI detector would flag and why.
+Write a brief analysis (2-4 paragraphs) explaining what you found. Be specific, referencing particular sentences or paragraphs by number.
 
 Then:
 HUMAN_SCORE: [number 0-100, sum of the 5 criteria above]
 AI_FLAGS: ["specific issue 1 with location", "specific issue 2 with location", ...]
 FOLLOW_UP_PROMPTS: ["Humanize this text", "Which paragraph is most detectable?", "Show me what to fix manually"]`
 
-      const hmTwoPassReview = `Review the following text for any remaining AI writing patterns. Look for:
-1. Any banned vocabulary (delve, tapestry, leverage, utilize, etc.)
-2. Em dashes or semicolons
-3. Three or more consecutive sentences of similar length
-4. Paragraphs that all start the same way
-5. Missing contractions where natural speech would use them
-6. Overly neat summary sentences at paragraph ends
-Fix ONLY the flagged portions. Keep everything else exactly as is. Return the full corrected text.
+      const hmTwoPassReview = `You are acting as a GPTZero / Turnitin AI detector. Read the text below and catch every sentence or phrase that still sounds AI-generated. Then rewrite ONLY those flagged portions.
+
+=== WHAT DETECTORS LOOK FOR ===
+1. Burstiness failure: three or more consecutive sentences of similar length
+2. Banned vocabulary: delve, tapestry, leverage, utilize, multifaceted, transformative, impactful, actionable, proactive, seamless, robust, holistic, comprehensive, streamline, optimize, elevate, empower, synergy, paramount, pivotal, foster, furthermore, moreover, in conclusion, underpinning, overarching, integral, essential, critical, fundamental, vital
+3. Em dashes (—) or semicolons
+4. Transition openers: "In addition", "Furthermore", "Moreover", "Additionally", "As a result", "Therefore", "Thus"
+5. Perfectly parallel lists: three items that all follow the exact same grammatical structure
+6. Zero hedging: no "probably", "tends to", "in most cases", "from what I can tell"
+7. Neat summary sentences at paragraph ends
+8. Passive chains: two consecutive passive-voice sentences
+9. Opening repetition: consecutive sentences starting with the same word
+10. Abstract where concrete works
+
+Step 1: List every flagged sentence/phrase (be specific — quote it).
+Step 2: For each flagged item, write a replacement that fixes the AI tell.
+Step 3: Output the full corrected text with all replacements applied. Keep non-flagged sentences exactly as-is.
+
 After the corrected text:
 HUMAN_SCORE: [0-100]
 AI_FLAGS: ["any remaining issues"]
-FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]
+
+Text to review:`
 
       // ─── Parse human score and AI flags
       function parseHumanScore(response: string): { cleanResponse: string; humanScore: number; aiFlags: string[] } {
@@ -3178,25 +3224,159 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
         const flagsMatch = clean.match(/AI_FLAGS:\s*\[([\s\S]*?)\]/s)
         if (flagsMatch?.[1]) {
           try { aiFlags = JSON.parse(`[${flagsMatch[1]}]`) } catch {
-            aiFlags = flagsMatch[1].split(",").map(s => s.trim().replace(/^["']|["']$/g, "")).filter(s => s.length > 0)
+            aiFlags = flagsMatch[1].split(",").map((s: string) => s.trim().replace(/^["']|["']$/g, "")).filter((s: string) => s.length > 0)
           }
           clean = clean.replace(/AI_FLAGS:\s*\[[\s\S]*?\]/s, "").trim()
         }
-        // Post-process: strip any em dashes that slipped through
-        clean = clean.replace(/\u2014/g, ",").replace(/\u2013/g, ",")
+        // Zero-tolerance em-dash strip
+        clean = clean
+          .replace(/\s\u2014\s([a-z])/g, (_: string, c: string) => `. ${c.toUpperCase()}`)
+          .replace(/\s\u2014\s/g, ". ")
+          .replace(/(\w)\u2014(\w)/g, "$1, $2")
+          .replace(/\u2014/g, ", ")
+          .replace(/\s\u2013\s/g, " to ")
+          .replace(/(\w)\u2013(\w)/g, "$1 to $2")
+          .replace(/\u2013/g, ", ")
+          .replace(/&mdash;/g, ", ")
+          .replace(/&ndash;/g, " to ")
+          .replace(/&#8212;/g, ", ")
+          .replace(/&#8211;/g, ", ")
+          .replace(/\s--\s/g, ". ")
+          .replace(/--/g, ", ")
         return { cleanResponse: clean, humanScore, aiFlags }
       }
 
-      const inputWordCount = text.trim().split(/\s+/).filter(Boolean).length
-      const systemPrompt = hmScanOnly ? hmScanPrompt : hmHumanizePrompt
-      const hmTemperature = hmScanOnly ? 0.3 : 0.9
-      const hmMaxTokens = hmScanOnly ? 2000 : 4000
-
-      // Set SSE headers
+      // Set SSE headers upfront
       res.setHeader("Content-Type", "text/event-stream")
       res.setHeader("Cache-Control", "no-cache")
       res.setHeader("Connection", "keep-alive")
       res.setHeader("X-Accel-Buffering", "no")
+
+      // ─── Paragraph rewrite mode
+      if (isParagraphRewrite) {
+        res.write(`event: metadata\ndata: ${JSON.stringify({ mode: "paragraph-rewrite" })}\n\n`)
+        const paragraphSystemPrompt = `You are rewriting a single paragraph to sound more human. The surrounding context is provided for tonal consistency only — do NOT rewrite it.
+
+${trimmedText}
+
+Rules: No banned words (delve, leverage, utilize, transformative, moreover, furthermore, etc.). NEVER use em dashes. Vary sentence length. Use contractions where natural. No passive chains. Return ONLY the rewritten paragraph — nothing else.
+
+${tonePersonas[hmTone] || tonePersonas.professional}`
+
+        try {
+          const paraStream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: paragraphSystemPrompt }],
+            temperature: 0.92,
+            max_tokens: 1000,
+            frequency_penalty: 0.4,
+            presence_penalty: 0.3,
+            stream: true,
+          })
+          let paraFull = ""
+          for await (const chunk of paraStream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) { paraFull += token; res.write(`data: ${JSON.stringify({ token })}\n\n`) }
+          }
+          const paraClean = paraFull
+            .replace(/HUMAN_SCORE:.*$/m, "").replace(/AI_FLAGS:.*$/m, "").replace(/FOLLOW_UP_PROMPTS:.*$/m, "")
+            .replace(/\s\u2014\s([a-z])/g, (_: string, c: string) => `. ${c.toUpperCase()}`)
+            .replace(/\s\u2014\s/g, ". ").replace(/(\w)\u2014(\w)/g, "$1, $2").replace(/\u2014/g, ", ")
+            .replace(/\s\u2013\s/g, " to ").replace(/\u2013/g, ", ")
+            .replace(/&mdash;/g, ", ").replace(/&#8212;/g, ", ").replace(/\s--\s/g, ". ").replace(/--/g, ", ").trim()
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: paraClean, followUpPrompts: [], metadata: { mode: "paragraph-rewrite" } })}\n\n`)
+          return res.end()
+        } catch (err: any) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: err?.message || "Paragraph rewrite failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
+      // ─── Sentence rewrite mode
+      if (isSentenceRewrite) {
+        res.write(`event: metadata\ndata: ${JSON.stringify({ mode: "sentence-rewrite" })}\n\n`)
+        const sentSystemPrompt = `You are rewriting a single sentence to sound more human. Context is provided for tonal consistency only — do NOT rewrite it.
+
+${trimmedText}
+
+Rules: No banned AI vocabulary (delve, leverage, utilize, transformative, impactful, seamless, robust, etc.). NEVER use em dashes. Keep the same meaning. Make it feel like a real person wrote it. Use contractions if natural. Return ONLY the rewritten sentence.
+
+${tonePersonas[hmTone] || tonePersonas.professional}`
+
+        try {
+          const sentStream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [{ role: "user", content: sentSystemPrompt }],
+            temperature: 0.93,
+            max_tokens: 300,
+            frequency_penalty: 0.5,
+            presence_penalty: 0.4,
+            stream: true,
+          })
+          let sentFull = ""
+          for await (const chunk of sentStream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) { sentFull += token; res.write(`data: ${JSON.stringify({ token })}\n\n`) }
+          }
+          const sentClean = sentFull
+            .replace(/\s\u2014\s([a-z])/g, (_: string, c: string) => `. ${c.toUpperCase()}`)
+            .replace(/\s\u2014\s/g, ". ").replace(/(\w)\u2014(\w)/g, "$1, $2").replace(/\u2014/g, ", ")
+            .replace(/\s\u2013\s/g, " to ").replace(/\u2013/g, ", ")
+            .replace(/&mdash;/g, ", ").replace(/&#8212;/g, ", ").replace(/\s--\s/g, ". ").replace(/--/g, ", ").trim()
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: sentClean, followUpPrompts: [], metadata: { mode: "sentence-rewrite" } })}\n\n`)
+          return res.end()
+        } catch (err: any) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: err?.message || "Sentence rewrite failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
+      // ─── Refine mode
+      if (isRefine) {
+        const docMatch = trimmedText.match(/CURRENT DOCUMENT:\n([\s\S]*?)\n\nINSTRUCTION:\s*([\s\S]*)$/)
+        const currentDocText = docMatch?.[1]?.trim() ?? ""
+        const instruction = docMatch?.[2]?.trim() ?? trimmedText.replace("[REFINE]", "").trim()
+
+        res.write(`event: metadata\ndata: ${JSON.stringify({ mode: "humanize", isRefine: true })}\n\n`)
+
+        const refineMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+          { role: "system", content: hmHumanizePrompt },
+          { role: "user", content: `Here is the current document:\n\n${currentDocText}\n\nInstruction: ${instruction}` },
+        ]
+
+        try {
+          const refineStream = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: refineMessages,
+            temperature: 0.88,
+            max_tokens: 4000,
+            frequency_penalty: 0.4,
+            presence_penalty: 0.3,
+            stream: true,
+          })
+          let refineFull = ""
+          for await (const chunk of refineStream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) { refineFull += token; res.write(`data: ${JSON.stringify({ token })}\n\n`) }
+          }
+          const { cleanResponse: rClean, followUpPrompts: rFU } = parseFollowUpPrompts(refineFull, ["Make it more conversational", "Shorten it", "Scan this version"])
+          const { cleanResponse: rText, humanScore: rScore, aiFlags: rFlags } = parseHumanScore(rClean)
+          const rFUFinal = rFU.length > 0 ? rFU : rScore < 60
+            ? ["Rewrite again with heavy strength", "Which phrases still sound like AI? Fix only those.", "Try completely different sentence structure"]
+            : ["Make it more conversational", "Shorten while keeping key points", "Scan this version"]
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: rText, followUpPrompts: rFUFinal, originalText: currentDocText, metadata: { humanScore: rScore, aiFlags: rFlags, mode: "humanize", isRefine: true } })}\n\n`)
+          return res.end()
+        } catch (err: any) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: err?.message || "Refine failed" })}\n\n`)
+          return res.end()
+        }
+      }
+
+      // ─── Standard humanize / scan
+      const inputWordCount = trimmedText.split(/\s+/).filter(Boolean).length
+      const systemPrompt = hmScanOnly ? hmScanPrompt : hmHumanizePrompt
+      const hmTemperature = hmScanOnly ? 0.3 : 0.9
+      const hmMaxTokens = hmScanOnly ? 2000 : 4000
 
       // Send metadata
       res.write(`event: metadata\ndata: ${JSON.stringify({ inputWordCount, mode: hmScanOnly ? "scan" : "humanize", tone: hmTone, strength: hmStrength, twoPass: hmTwoPass })}\n\n`)
@@ -3211,7 +3391,7 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
           hmMessages.push({ role: msg.role as "user" | "assistant", content: msg.content })
         }
       }
-      hmMessages.push({ role: "user", content: text.trim() })
+      hmMessages.push({ role: "user", content: trimmedText })
 
       try {
         // Pass 1
@@ -3237,25 +3417,25 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
         if (hmTwoPass && !hmScanOnly) {
           // Parse pass 1
           const { cleanResponse: p1Clean, followUpPrompts: p1FU } = parseFollowUpPrompts(fullResponse, ["Make it more conversational", "Shorten it", "Scan this version"])
-          const { cleanResponse: p1Text, humanScore: p1Score, aiFlags: p1Flags } = parseHumanScore(p1Clean)
+          const { cleanResponse: p1Text, humanScore: p1Score } = parseHumanScore(p1Clean)
 
           res.write(`event: pass\ndata: ${JSON.stringify({ pass: 2, pass1Score: p1Score })}\n\n`)
 
-          // Pass 2
+          // Pass 2: adversarial reviewer
           const pass2Messages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
             { role: "system", content: systemPrompt },
-            { role: "user", content: text.trim() },
+            { role: "user", content: trimmedText },
             { role: "assistant", content: p1Text },
-            { role: "user", content: hmTwoPassReview },
+            { role: "user", content: hmTwoPassReview + "\n\n" + p1Text },
           ]
 
           const stream2 = await openai.chat.completions.create({
             model: "gpt-4o",
             messages: pass2Messages,
-            temperature: 0.85,
+            temperature: 0.95,
             max_tokens: hmMaxTokens,
             frequency_penalty: 0.5,
-            presence_penalty: 0.4,
+            presence_penalty: 0.45,
             stream: true,
           })
 
@@ -3270,11 +3450,15 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
 
           const { cleanResponse: p2Clean, followUpPrompts: p2FU } = parseFollowUpPrompts(pass2Response, ["Make it more conversational", "Shorten it", "Scan this version"])
           const { cleanResponse: p2Text, humanScore: p2Score, aiFlags: p2Flags } = parseHumanScore(p2Clean)
+          const p2FUFinal = p2FU.length > 0 ? p2FU : p2Score < 60
+            ? ["Rewrite again with heavy strength", "Which phrases still sound like AI?", "Try completely different structure"]
+            : ["Make it more conversational", "Shorten while keeping key points", "Scan this version"]
 
           res.write(`event: done\ndata: ${JSON.stringify({
             cleanResponse: p2Text,
-            followUpPrompts: p2FU,
-            metadata: { humanScore: p2Score, aiFlags: p2Flags, twoPass: true, pass1Score: p1Score },
+            followUpPrompts: p2FUFinal,
+            originalText: trimmedText,
+            metadata: { humanScore: p2Score, aiFlags: p2Flags, twoPass: true, pass1Score: p1Score, mode: "humanize" },
           })}\n\n`)
         } else {
           // Single pass
@@ -3284,11 +3468,15 @@ FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
             "Scan this version",
           ])
           const { cleanResponse: fText, humanScore: fScore, aiFlags: fFlags } = parseHumanScore(fClean)
+          const fFUFinal = fFU.length > 0 ? fFU : fScore < 60
+            ? ["Rewrite again with heavy strength", "Which phrases still sound like AI?", "Try completely different structure"]
+            : ["Make it more conversational", "Shorten while keeping key points", "Scan this version"]
 
           res.write(`event: done\ndata: ${JSON.stringify({
             cleanResponse: fText,
-            followUpPrompts: fFU,
-            metadata: { humanScore: fScore, aiFlags: fFlags },
+            followUpPrompts: fFUFinal,
+            originalText: hmScanOnly ? undefined : trimmedText,
+            metadata: { humanScore: fScore, aiFlags: fFlags, mode: hmScanOnly ? "scan" : "humanize" },
           })}\n\n`)
         }
 
@@ -3474,6 +3662,34 @@ When referencing Q&A content: [View in Library](/search?q=SEARCH_TERM)
 
 ${CHART_PROMPT}
 
+== SETTINGS CONTROL ==
+You can change app settings for the user. When the user asks you to change a setting (e.g. "turn on dark mode", "enable the nav rail", "turn off sounds"), include this block AT THE END of your response (after FOLLOW_UP_PROMPTS), on its own line:
+
+APPLY_SETTINGS: [{"key":"theme","value":"dark","label":"Dark mode enabled"}]
+
+Available settings keys and valid values:
+- "theme": "light" | "dark" | "system"
+- "navRailEnabled": true | false
+- "companionEnabled": true | false
+- "widgetsEnabled": true | false
+- "aiAutoSuggest": true | false
+- "aiShowSources": true | false
+- "aiResponseLength": "concise" | "balanced" | "detailed"
+- "searchHighlightMatches": true | false
+- "searchIncludePhotos": true | false
+- "reduceMotion": true | false
+- "fontSize": "small" | "medium" | "large"
+- "highContrast": true | false
+- "soundEnabled": true | false
+- "showCopyConfirmation": true | false
+- "commandPaletteEnabled": true | false
+- "aiPoweredSearch": true | false
+- "smartSuggestions": true | false
+
+The "label" field is a short confirmation message shown to the user (e.g. "Dark mode enabled", "Nav rail turned on").
+Only include APPLY_SETTINGS when the user explicitly asks to change a setting. You can include multiple settings in one array.
+After applying, tell the user what you did in your response text (e.g. "Done! I've switched you to dark mode.").
+
 ${behaviorContext ? `== USER BEHAVIOR CONTEXT ==\n${behaviorContext}\n` : ""}
 Always end with 2-3 follow-up prompts:
 FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
@@ -3531,7 +3747,23 @@ ${compDataContext}`
           "Want to dive deeper into any of this data?",
           "What are you working on right now?"
         ])
-        const { cleanText: compFinalText, chartData: compChartData } = parseChartData(companionClean)
+        const { cleanText: compChartText, chartData: compChartData } = parseChartData(companionClean)
+
+        // Parse APPLY_SETTINGS actions
+        const compActionMatch = compChartText.match(/APPLY_SETTINGS:\s*(\[[\s\S]*?\])\s*$/m)
+        let compFinalText = compChartText
+        let compActions: Array<{ key: string; value: unknown; label: string }> = []
+        if (compActionMatch?.[1]) {
+          try {
+            compActions = JSON.parse(compActionMatch[1])
+            compFinalText = compChartText.replace(/APPLY_SETTINGS:\s*\[[\s\S]*?\]\s*$/m, "").trim()
+          } catch { /* malformed — ignore */ }
+        }
+
+        if (compActions.length > 0) {
+          res.write(`event: action\ndata: ${JSON.stringify({ actions: compActions })}\n\n`)
+        }
+
         res.write(`event: done\ndata: ${JSON.stringify({
           cleanResponse: compFinalText,
           followUpPrompts: companionFollows,
@@ -3550,23 +3782,16 @@ ${compDataContext}`
       if (method === "GET") {
         const allPhotos = await db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt))
 
-        // Batch-generate signed URLs for all photos
-        if (supabase && allPhotos.length > 0) {
-          const paths = allPhotos.map((p: any) => {
-            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
-            return `${p.storageKey}.${ext}`
-          })
-          const { data: signedData } = await supabase.storage
-            .from("photo-assets")
-            .createSignedUrls(paths, 3600)
-
-          if (signedData) {
-            const photosWithUrls = allPhotos.map((p: any, i: number) => ({
+        if (SUPABASE_URL && allPhotos.length > 0) {
+          const photosWithUrls = allPhotos.map((p: any) => {
+            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] ||
+              ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" } as Record<string, string>)[p.mimeType || ""] || "png"
+            return {
               ...p,
-              fileUrl: signedData[i]?.signedUrl || null,
-            }))
-            return res.json(photosWithUrls)
-          }
+              fileUrl: `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${p.storageKey}.${ext}`,
+            }
+          })
+          return res.json(photosWithUrls)
         }
 
         return res.json(allPhotos)
@@ -3609,7 +3834,7 @@ ${compDataContext}`
         return res.status(400).json({ error: "Storage key required" })
       }
 
-      if (!supabase) {
+      if (!SUPABASE_URL) {
         return res.status(500).json({ error: "Storage not configured" })
       }
 
@@ -3624,19 +3849,8 @@ ${compDataContext}`
                   (photo.mimeType?.includes("png") ? "png" :
                    photo.mimeType?.includes("jpeg") || photo.mimeType?.includes("jpg") ? "jpg" : "png")
 
-      const storagePath = `${storageKey}.${ext}`
-
-      // Create a signed URL (valid for 1 hour) - works with private or public buckets
-      const { data, error } = await supabase.storage
-        .from("photo-assets")
-        .createSignedUrl(storagePath, 3600) // 1 hour
-
-      if (error || !data) {
-        console.error("Failed to create signed URL:", error)
-        return res.status(404).json({ error: "Photo file not found in storage" })
-      }
-
-      return res.redirect(302, data.signedUrl)
+      const publicUrl = `${SUPABASE_URL}/storage/v1/object/public/photo-assets/${storageKey}.${ext}`
+      return res.redirect(302, publicUrl)
     }
 
     // POST /photos/upload - multipart file upload
@@ -3870,6 +4084,12 @@ ${compDataContext}`
 
       // Convert blob to buffer
       const buffer = Buffer.from(await data.arrayBuffer())
+
+      // Track usage — fire-and-forget, don't block the download
+      db.update(photoAssets)
+        .set({ usageCount: sql`${photoAssets.usageCount} + 1`, lastUsedAt: new Date() })
+        .where(eq(photoAssets.id, photoId))
+        .catch(() => { /* best-effort */ })
 
       // Set download headers with original filename
       const downloadName = `${photo.displayTitle}.${ext}`.replace(/[^a-zA-Z0-9.-]/g, "_")
@@ -4681,6 +4901,38 @@ ${uaiStreamContext}`
       if (idMatch && method === "DELETE") {
         await db.delete(conversations).where(eq(conversations.id, idMatch[1]))
         return res.json({ success: true })
+      }
+
+      // Generate AI title for a conversation
+      const titleMatch = path.match(/^\/conversations\/([^/]+)\/generate-title$/)
+      if (titleMatch && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "AI service not configured" })
+        const { messages } = req.body || {}
+        if (!Array.isArray(messages) || messages.length === 0) {
+          return res.status(400).json({ error: "messages required" })
+        }
+        const firstUser = (messages.find((m: { role: string; content: string }) => m.role === "user")?.content ?? "").slice(0, 200)
+        const firstAI = (messages.find((m: { role: string; content: string }) => m.role === "assistant")?.content ?? "").slice(0, 200)
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            max_tokens: 20,
+            messages: [
+              { role: "system", content: "Generate a concise 4-6 word title for this conversation. Return ONLY the title, no quotes, no punctuation at the end." },
+              { role: "user", content: `User asked: ${firstUser}\nAI responded about: ${firstAI}` },
+            ],
+          })
+          const title = completion.choices[0]?.message.content?.trim() || firstUser.slice(0, 60)
+          const [updated] = await db
+            .update(conversations)
+            .set({ title, updatedAt: new Date() })
+            .where(eq(conversations.id, titleMatch[1]))
+            .returning({ id: conversations.id, title: conversations.title })
+          if (!updated) return res.status(404).json({ error: "Conversation not found" })
+          return res.json({ title: updated.title })
+        } catch {
+          return res.status(500).json({ error: "Failed to generate title" })
+        }
       }
     }
 

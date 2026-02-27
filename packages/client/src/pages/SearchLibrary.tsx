@@ -1382,6 +1382,8 @@ export function SearchLibrary() {
     ? photos
     : [...photos].sort((a, b) => {
         switch (sortBy) {
+          case "most-used":
+            return (b.usageCount || 0) - (a.usageCount || 0)
           case "newest":
             return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           case "oldest":
@@ -2302,6 +2304,9 @@ export function SearchLibrary() {
                             ) : (
                               <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
                             )}
+                            {(photo.usageCount || 0) > 0 && (
+                              <span className="text-[9px] text-slate-400 dark:text-slate-500 ml-auto">Used {photo.usageCount}x</span>
+                            )}
                           </div>
                         </div>
                       </Card>
@@ -3156,6 +3161,12 @@ export function SearchLibrary() {
                     <Download size={16} className="mr-2" />
                     Download Photo
                   </Button>
+
+                  {(selectedPhoto.usageCount || 0) > 0 && (
+                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
+                      Downloaded {selectedPhoto.usageCount}x
+                    </p>
+                  )}
                 </>
               )}
 

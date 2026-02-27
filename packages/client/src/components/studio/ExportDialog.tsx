@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { X, FileText, FileDown, Loader2 } from "lucide-react"
+import { X, FileText, FileDown, Loader2, Copy, Check, AlertCircle } from "lucide-react"
 import type { FormatSettings, LetterheadConfig } from "@/types/studio"
 import { legacyFontToValue, legacySizeToValue } from "./fonts"
 
@@ -10,7 +10,7 @@ interface ExportDialogProps {
   onClose: () => void
 }
 
-type ExportFormat = "pdf" | "docx"
+type ExportFormat = "pdf" | "docx" | "clipboard"
 
 // ── Helpers for DOCX conversion ──────────────────────────
 
@@ -72,18 +72,47 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
   const [format, setFormat] = useState<ExportFormat>("pdf")
   const [filename, setFilename] = useState(title.replace(/[^a-zA-Z0-9\s-]/g, "").trim() || "document")
   const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+
+  // Word count estimate from HTML
+  const wordCount = content.replace(/<[^>]+>/g, " ").trim().split(/\s+/).filter(Boolean).length
 
   const handleExport = async () => {
     setIsExporting(true)
+    setExportError(null)
     try {
       if (format === "pdf") {
         await exportPDF()
-      } else {
+      } else if (format === "docx") {
         await exportWord()
+      } else if (format === "clipboard") {
+        await copyToClipboard()
+        return // copyToClipboard handles its own state
       }
       onClose()
     } catch (err) {
       console.error("Export failed:", err)
+      setExportError(err instanceof Error ? err.message : "Export failed. Please try again.")
+    } finally {
+      setIsExporting(false)
+    }
+  }
+
+  const copyToClipboard = async () => {
+    try {
+      // Strip HTML to plain text
+      const tmp = document.createElement("div")
+      tmp.innerHTML = content
+      const text = tmp.textContent || tmp.innerText || ""
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => {
+        setCopied(false)
+        onClose()
+      }, 1200)
+    } catch {
+      setExportError("Clipboard access denied. Try copying manually.")
     } finally {
       setIsExporting(false)
     }
@@ -599,13 +628,45 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
     saveAs(blob, `${filename}.docx`)
   }
 
+  const extSuffix = format === "pdf" ? ".pdf" : format === "docx" ? ".docx" : ""
+
+  const FormatBtn = ({
+    id, icon: Icon, label, sublabel, active,
+  }: {
+    id: ExportFormat
+    icon: typeof FileDown
+    label: string
+    sublabel: string
+    active: boolean
+  }) => (
+    <button
+      onClick={() => { setFormat(id); setExportError(null) }}
+      className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all text-left ${
+        active
+          ? "border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 shadow-sm"
+          : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50/60 dark:hover:bg-slate-700/30"
+      }`}
+    >
+      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
+      <div>
+        <div className={`text-xs font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>{label}</div>
+        <div className="text-[10px] text-slate-400">{sublabel}</div>
+      </div>
+    </button>
+  )
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-[400px] overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-[420px] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Export Document</h3>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Export Document</h3>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+              {wordCount.toLocaleString()} words · "{title.slice(0, 40)}{title.length > 40 ? "…" : ""}"
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -613,53 +674,47 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
         {/* Body */}
         <div className="px-5 py-4 space-y-4">
           {/* Filename */}
-          <div>
-            <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Filename</label>
-            <input
-              value={filename}
-              onChange={(e) => setFilename(e.target.value)}
-              className="w-full h-9 px-3 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-300 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-300"
-            />
-          </div>
+          {format !== "clipboard" && (
+            <div>
+              <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Filename</label>
+              <div className="flex items-center gap-0 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-emerald-500/20 focus-within:border-emerald-300">
+                <input
+                  value={filename}
+                  onChange={(e) => setFilename(e.target.value)}
+                  className="flex-1 h-9 px-3 text-sm bg-transparent text-slate-700 dark:text-slate-300 outline-none"
+                  placeholder="document"
+                />
+                <span className="px-2.5 text-[11px] text-slate-400 dark:text-slate-500 font-mono border-l border-slate-200 dark:border-slate-700 h-9 flex items-center bg-slate-100/60 dark:bg-slate-800/60">
+                  {extSuffix}
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Format selection */}
           <div>
             <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Format</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => setFormat("pdf")}
-                className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
-                  format === "pdf"
-                    ? "border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
-              >
-                <FileDown className={`w-5 h-5 ${format === "pdf" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
-                <div className="text-left">
-                  <div className={`text-sm font-medium ${format === "pdf" ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>PDF</div>
-                  <div className="text-[10px] text-slate-400">Print-ready</div>
-                </div>
-              </button>
-              <button
-                onClick={() => setFormat("docx")}
-                className={`flex items-center gap-2 p-3 rounded-lg border transition-colors ${
-                  format === "docx"
-                    ? "border-emerald-300 dark:border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30"
-                    : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
-                }`}
-              >
-                <FileText className={`w-5 h-5 ${format === "docx" ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
-                <div className="text-left">
-                  <div className={`text-sm font-medium ${format === "docx" ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>Word</div>
-                  <div className="text-[10px] text-slate-400">Editable .docx</div>
-                </div>
-              </button>
+            <div className="grid grid-cols-3 gap-2">
+              <FormatBtn id="pdf"       icon={FileDown} label="PDF"        sublabel="Print-ready"    active={format === "pdf"} />
+              <FormatBtn id="docx"      icon={FileText} label="Word"       sublabel="Editable .docx"  active={format === "docx"} />
+              <FormatBtn id="clipboard" icon={Copy}     label="Copy Text"  sublabel="Plain text"      active={format === "clipboard"} />
             </div>
           </div>
+
+          {/* Error state */}
+          {exportError && (
+            <div className="flex items-start gap-2.5 px-3 py-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800/40 rounded-xl">
+              <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-red-600 dark:text-red-400">Export failed</p>
+                <p className="text-[10px] text-red-500/80 dark:text-red-400/70 mt-0.5">{exportError}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
+        <div className="flex items-center justify-between gap-2 px-5 py-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50">
           <button
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
@@ -668,13 +723,23 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
           </button>
           <button
             onClick={handleExport}
-            disabled={isExporting || !filename.trim()}
-            className="px-4 py-2 text-sm font-medium text-white rounded-lg bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
+            disabled={isExporting || (format !== "clipboard" && !filename.trim())}
+            className="px-4 py-2 text-sm font-medium text-white rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md disabled:opacity-50 transition-all flex items-center gap-1.5"
           >
-            {isExporting ? (
+            {copied ? (
+              <>
+                <Check className="w-3.5 h-3.5" />
+                Copied!
+              </>
+            ) : isExporting ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Exporting...
+                {format === "clipboard" ? "Copying…" : "Exporting…"}
+              </>
+            ) : format === "clipboard" ? (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                Copy to Clipboard
               </>
             ) : (
               <>

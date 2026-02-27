@@ -1,4 +1,4 @@
-import { useState, useRef, type ReactNode } from "react"
+import { useState, useRef, useMemo, type ReactNode } from "react"
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { ChatMessageItem } from "./ChatMessage"
@@ -6,6 +6,7 @@ import { LoadingIndicator } from "./LoadingIndicator"
 import { ScrollToBottom } from "./ScrollToBottom"
 import { ChatInput } from "./ChatInput"
 import type { ChatMessage, ChatTheme, QuickAction } from "@/types/chat"
+import { useAIHubTabContext } from "@/pages/AIHub"
 
 interface ChatContainerProps {
   messages: ChatMessage[]
@@ -28,11 +29,13 @@ interface ChatContainerProps {
   renderExtraContent?: (message: ChatMessage) => ReactNode
   renderContent?: (message: ChatMessage) => ReactNode
   renderActions?: (message: ChatMessage) => ReactNode
+  headerExtra?: ReactNode
   footerExtra?: ReactNode
   sidebar?: ReactNode
   onFileSelect?: (file: File) => void
   attachedFile?: { name: string; isExtracting?: boolean; isRFP?: boolean } | null
   onFileRemove?: () => void
+  stickyFollowUps?: string[]
 }
 
 export function ChatContainer({
@@ -56,14 +59,23 @@ export function ChatContainer({
   renderExtraContent,
   renderContent,
   renderActions,
+  headerExtra,
   footerExtra,
   sidebar,
   onFileSelect,
   attachedFile,
   onFileRemove,
+  stickyFollowUps,
 }: ChatContainerProps) {
   const mainRef = useRef<HTMLElement>(null)
   const [sidebarOpen, setSidebarOpen] = useState(!!sidebar)
+  const hubCtx = useAIHubTabContext()
+  const resolvedHeaderExtra = headerExtra ?? hubCtx?.tabBar
+
+  const lastUserMessage = useMemo(
+    () => [...messages].reverse().find(m => m.role === "user")?.content ?? "",
+    [messages]
+  )
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
@@ -72,6 +84,7 @@ export function ChatContainer({
       {statusBar}
 
       <div className="flex-1 flex overflow-hidden relative">
+        {resolvedHeaderExtra}
         {/* Sidebar */}
         {sidebar && (
           <>
@@ -106,7 +119,7 @@ export function ChatContainer({
         <div className="flex-1 flex flex-col min-w-0">
           <main ref={mainRef} className="flex-1 overflow-y-auto relative">
             <ScrollToBottom containerRef={mainRef} messagesEndRef={messagesEndRef} />
-            <div className="max-w-4xl mx-auto px-6 py-6">
+            <div className={`max-w-4xl mx-auto px-6 py-6 ${resolvedHeaderExtra ? "pt-20" : ""}`}>
               {messages.length === 0 ? (
                 emptyState
               ) : (
@@ -136,20 +149,38 @@ export function ChatContainer({
           </main>
 
           {footerExtra || (
-            <ChatInput
-              inputValue={inputValue}
-              setInputValue={setInputValue}
-              onSubmit={onSubmit}
-              isLoading={isLoading}
-              theme={theme}
-              placeholder={placeholder}
-              quickActions={quickActions}
-              showQuickActions={messages.length > 0}
-              inputRef={inputRef}
-              onFileSelect={onFileSelect}
-              attachedFile={attachedFile}
-              onFileRemove={onFileRemove}
-            />
+            <>
+              {stickyFollowUps && stickyFollowUps.length > 0 && (
+                <div className="border-t border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl px-6 pt-3 pb-1 flex flex-wrap gap-2 items-center">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 mr-1">Follow up:</span>
+                  {stickyFollowUps.map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => onSubmit(prompt)}
+                      disabled={isLoading}
+                      className="px-3 py-1.5 text-xs rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-500 transition-colors disabled:opacity-50"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <ChatInput
+                inputValue={inputValue}
+                setInputValue={setInputValue}
+                onSubmit={onSubmit}
+                isLoading={isLoading}
+                theme={theme}
+                placeholder={placeholder}
+                quickActions={quickActions}
+                showQuickActions={messages.length > 0}
+                inputRef={inputRef}
+                onFileSelect={onFileSelect}
+                attachedFile={attachedFile}
+                onFileRemove={onFileRemove}
+                lastUserMessage={lastUserMessage}
+              />
+            </>
           )}
         </div>
       </div>

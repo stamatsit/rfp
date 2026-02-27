@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { fetchSSE, conversationsApi, type ConversationPage, type ConversationSummary } from "@/lib/api"
 import type { ChatMessage } from "@/types/chat"
+import { toast } from "@/hooks/useToast"
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
 
@@ -23,6 +24,8 @@ interface UseChatOptions {
   /** Transform raw SSE metadata before storing on message */
   parseMetadata?: (data: Record<string, unknown>) => Record<string, unknown>
   errorMessage?: string
+  /** Called when the AI emits an action event (e.g. settings changes) */
+  onAction?: (actions: Array<{ key: string; value: unknown; label: string }>) => void
 }
 
 interface UseChatReturn {
@@ -51,7 +54,7 @@ interface UseChatReturn {
   refreshConversationList: () => Promise<void>
 }
 
-export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody, parseMetadata, errorMessage }: UseChatOptions): UseChatReturn {
+export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody, parseMetadata, errorMessage, onAction }: UseChatOptions): UseChatReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -110,6 +113,12 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
         const created = await conversationsApi.create({ page, title, messages: saveable })
         setConversationId(created.id)
         conversationIdRef.current = created.id
+        // Fire-and-forget: generate a better AI title asynchronously
+        conversationsApi.generateTitle(created.id, saveable)
+          .then(({ title: generatedTitle }) => {
+            setConversationList(prev => prev.map(c => c.id === created.id ? { ...c, title: generatedTitle } : c))
+          })
+          .catch(() => {}) // non-critical
       }
       refreshConversationList()
     } catch (err) {
@@ -203,6 +212,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
               m.id === assistantId ? { ...m, metadata } : m
             ))
           },
+          onAction,
           onToken: (token) => {
             // Batch token updates with requestAnimationFrame
             pendingTokensRef.current += token
@@ -344,6 +354,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
     await navigator.clipboard.writeText(text)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
+    toast.success("Copied to clipboard")
   }, [])
 
   const handleFeedback = useCallback((messageId: string, score: "up" | "down") => {
@@ -365,6 +376,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
             query: userMsg?.content?.slice(0, 200),
           }),
         }).catch(() => { /* silent */ })
+        if (newScore === "up") toast.success("Thanks for your feedback")
       }
 
       return prev.map(m => m.id !== messageId ? m : { ...m, feedback: newScore })
@@ -422,6 +434,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
         conversationIdRef.current = null
       }
       refreshConversationList()
+      toast.success("Conversation deleted")
     } catch (err) {
       console.error("Failed to delete conversation:", err)
     }
@@ -431,6 +444,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
     try {
       await conversationsApi.update(id, { title })
       refreshConversationList()
+      toast.success("Conversation renamed")
     } catch (err) {
       console.error("Failed to rename conversation:", err)
     }

@@ -8,7 +8,7 @@ export interface SlashCommandItem {
   label: string
   description: string
   icon: string
-  category: "blocks" | "insert"
+  category: "blocks" | "insert" | "ai"
   action: (editor: Editor) => void
 }
 

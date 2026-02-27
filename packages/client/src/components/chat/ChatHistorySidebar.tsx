@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react"
 import { MessageSquarePlus, Trash2, MessageSquare, Clock, Pencil } from "lucide-react"
 import type { ConversationSummary } from "@/lib/api"
 import type { ChatTheme } from "@/types/chat"
+import { SkeletonConversationItem } from "@/components/ui/skeleton"
 
 interface ChatHistorySidebarProps {
   conversations: ConversationSummary[]
@@ -11,6 +12,7 @@ interface ChatHistorySidebarProps {
   onNew: () => void
   onDelete: (id: string) => void
   onRename: (id: string, title: string) => void
+  isLoading?: boolean
 }
 
 function timeAgo(dateStr: string): string {
@@ -35,6 +37,7 @@ export function ChatHistorySidebar({
   onNew,
   onDelete,
   onRename,
+  isLoading = false,
 }: ChatHistorySidebarProps) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -83,7 +86,13 @@ export function ChatHistorySidebar({
 
       {/* Conversation list */}
       <div className="flex-1 overflow-y-auto">
-        {conversations.length === 0 ? (
+        {isLoading ? (
+          <div className="p-2 space-y-1">
+            <SkeletonConversationItem />
+            <SkeletonConversationItem />
+            <SkeletonConversationItem />
+          </div>
+        ) : conversations.length === 0 ? (
           <div className="p-4 text-center">
             <MessageSquare size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
             <p className="text-xs text-slate-400 dark:text-slate-500">No conversations yet</p>

@@ -56,7 +56,7 @@ function PipelineWidget({ widget, metrics }: WidgetProps) {
 
   return (
     <Link
-      to="/insights"
+      to="/ai?tab=proposals"
       className={`${sizes.container} group block rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col`}
     >
       <div className="flex items-start justify-between mb-3">
@@ -238,7 +238,7 @@ function ProposalMomentumWidget({ widget, metrics }: WidgetProps) {
 
   return (
     <Link
-      to="/insights"
+      to="/ai?tab=proposals"
       className={`${sizes.container} group block rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col`}
     >
       <div className="flex items-center justify-between mb-2">

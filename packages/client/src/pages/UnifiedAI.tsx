@@ -9,7 +9,8 @@
  * The power: answering questions NO SINGLE SOURCE could answer.
  */
 
-import { useCallback, useMemo } from "react"
+import { useEffect, useCallback, useMemo } from "react"
+import { useSearchParams, useNavigate } from "react-router-dom"
 import {
   Layers,
   Database,
@@ -79,6 +80,8 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function UnifiedAI() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
   const chat = useChat({
@@ -93,6 +96,19 @@ export function UnifiedAI() {
     }), []),
     errorMessage: "Failed to connect to Unified AI. Please try again.",
   })
+
+  const latestFollowUps = useMemo(
+    () => [...chat.messages].reverse().find(m => m.role === "assistant" && !m.refused)?.followUpPrompts ?? [],
+    [chat.messages]
+  )
+
+  useEffect(() => {
+    const convId = searchParams.get("conv")
+    if (convId) {
+      chat.loadConversation(convId)
+      navigate("/ai", { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const formatWinRate = (rate: number) => `${(rate * 100).toFixed(0)}%`
 
@@ -176,6 +192,7 @@ export function UnifiedAI() {
       messagesEndRef={chat.messagesEndRef}
       inputRef={chat.inputRef}
       placeholder="Ask across all your data sources..."
+      stickyFollowUps={latestFollowUps}
       quickActions={QUICK_ACTIONS}
       renderDataContext={renderDataContext}
       renderExtraContent={renderExtraContent}

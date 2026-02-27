@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react"
-import { X, ChevronRight, CheckCircle2, AlertTriangle, XCircle, Loader2, ClipboardCheck, RefreshCw, Clock, Minus, Plus, Upload, Trash2, AlignLeft, AlignCenter, AlignRight, ImageIcon } from "lucide-react"
+import { X, CheckCircle2, AlertTriangle, XCircle, Loader2, ClipboardCheck, RefreshCw, Clock, Minus, Plus, Upload, Trash2, AlignLeft, AlignCenter, AlignRight, ImageIcon } from "lucide-react"
 import type { Editor } from "@tiptap/react"
 import type { FormatSettings, ColumnLayout, HeaderStyle, LetterheadConfig, LetterheadMode } from "@/types/studio"
 import { DEFAULT_LETTERHEAD_HEADER, DEFAULT_LETTERHEAD_FOOTER } from "@/types/studio"
@@ -46,10 +46,10 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   return (
     <button
       onClick={onClick}
-      className={`flex-1 px-2 py-1 text-[10px] font-medium rounded-md transition-all duration-150 ${
+      className={`flex-1 px-2 py-1.5 text-[11px] font-medium rounded-md transition-all duration-150 ${
         active
-          ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm ring-1 ring-black/[0.04] dark:ring-white/[0.06]"
-          : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+          ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 shadow-sm ring-1 ring-black/[0.05] dark:ring-white/[0.07]"
+          : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
       }`}
     >
       {label}
@@ -62,7 +62,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 const selectClass = "text-[11px] bg-transparent border border-slate-200 dark:border-slate-700 rounded-md px-2 py-1.5 text-slate-600 dark:text-slate-300 focus:ring-1 focus:ring-emerald-500/30 focus:border-emerald-400 outline-none"
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <div className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mt-2 mb-1">{children}</div>
+  return <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-3 mb-1.5">{children}</div>
 }
 
 function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
@@ -157,7 +157,7 @@ function LetterheadSection({ label, config, onUpdate }: {
                 src={config.fullImageData}
                 alt="Letterhead preview"
                 className="w-full object-contain"
-                style={{ maxHeight: 60 }}
+                style={{ maxHeight: 120 }}
               />
               <button
                 onClick={() => onUpdate({ fullImageData: null })}
@@ -546,29 +546,48 @@ function OutlineTab({ editor }: { editor: Editor | null }) {
   }
 
   return (
-    <div className="py-1">
+    <div className="py-1.5">
       {headings.length === 0 ? (
-        <p className="px-4 py-8 text-[11px] text-slate-400 dark:text-slate-500 text-center leading-relaxed">
-          No headings yet.<br />Add headings to see your document outline.
-        </p>
+        <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-50">
+            <AlignLeft className="w-4 h-4 text-slate-400" />
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+            Add headings to see the outline
+          </p>
+        </div>
       ) : (
-        headings.map((h, i) => (
-          <button
-            key={`${h.pos}-${i}`}
-            onClick={() => handleClick(h.pos)}
-            className={`w-full text-left px-3 py-1.5 text-[11px] transition-colors flex items-center gap-1.5 ${
-              activePos === h.pos
-                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-            }`}
-            style={{ paddingLeft: `${(h.level - 1) * 12 + 12}px` }}
-          >
-            <ChevronRight className="w-2.5 h-2.5 flex-shrink-0 opacity-40" />
-            <span className={`truncate ${h.level === 1 ? "font-semibold" : h.level === 2 ? "font-medium" : ""}`}>
-              {h.text || "(empty heading)"}
-            </span>
-          </button>
-        ))
+        headings.map((h, i) => {
+          const isActive = activePos === h.pos
+          return (
+            <button
+              key={`${h.pos}-${i}`}
+              onClick={() => handleClick(h.pos)}
+              className={`group relative w-full text-left py-1 text-[11px] transition-all flex items-center gap-2 ${
+                isActive
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+              }`}
+              style={{ paddingLeft: `${(h.level - 1) * 10 + 12}px`, paddingRight: "12px" }}
+            >
+              {isActive && (
+                <span className="absolute left-0 top-0.5 bottom-0.5 w-0.5 bg-emerald-500 rounded-full" />
+              )}
+              <span className={`flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-[8px] font-bold ${
+                isActive
+                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors"
+              }`}>
+                H{h.level}
+              </span>
+              <span className={`truncate leading-snug ${
+                h.level === 1 ? "font-semibold" : h.level === 2 ? "font-medium" : "opacity-80"
+              }`}>
+                {h.text || "(empty heading)"}
+              </span>
+            </button>
+          )
+        })
       )}
     </div>
   )
@@ -627,9 +646,14 @@ function ChecklistTab({ rfpText, documentContent }: { rfpText: string | null; do
 
   if (!rfpText) {
     return (
-      <p className="px-4 py-8 text-[11px] text-slate-400 dark:text-slate-500 text-center leading-relaxed">
-        Upload an RFP document in the chat sidebar to enable compliance checking.
-      </p>
+      <div className="flex flex-col items-center gap-2 px-5 py-10 text-center">
+        <div className="w-9 h-9 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-60">
+          <ClipboardCheck className="w-4.5 h-4.5 text-slate-400" />
+        </div>
+        <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed max-w-[180px]">
+          Upload an RFP document in the chat sidebar to enable compliance checking
+        </p>
+      </div>
     )
   }
 
@@ -649,9 +673,9 @@ function ChecklistTab({ rfpText, documentContent }: { rfpText: string | null; do
       {/* Progress bar */}
       {items.length > 0 && totalChecked > 0 && (
         <div className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-1">
-            <span>{metCount} met / {partialCount} partial / {items.length - metCount - partialCount} missing</span>
-            <span className="font-semibold text-emerald-600 dark:text-emerald-400 tabular-nums">{progressPct}%</span>
+          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-1">
+            <span><span className="text-emerald-600 dark:text-emerald-400 font-semibold">{metCount}</span> met · <span className="text-amber-500 font-semibold">{partialCount}</span> partial · <span className="text-red-500 font-semibold">{items.length - metCount - partialCount}</span> missing</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">{progressPct}%</span>
           </div>
           <div className="h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
             <div
@@ -687,34 +711,40 @@ function ChecklistTab({ rfpText, documentContent }: { rfpText: string | null; do
       {/* Items */}
       <div className="py-1">
         {items.length === 0 && !isGenerating && (
-          <p className="px-4 py-8 text-[11px] text-slate-400 dark:text-slate-500 text-center leading-relaxed">
-            Click &ldquo;Generate&rdquo; to extract requirements from the uploaded RFP.
-          </p>
+          <div className="flex flex-col items-center gap-2 px-4 py-8 text-center">
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
+              <ClipboardCheck className="w-4 h-4 text-emerald-500" />
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed max-w-[170px]">
+              Click "Generate" to extract RFP requirements automatically
+            </p>
+          </div>
         )}
 
         {isGenerating && (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex flex-col items-center justify-center gap-2 py-10">
             <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
-            <span className="ml-2 text-[11px] text-slate-500">Analyzing RFP...</span>
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">Analyzing RFP…</span>
           </div>
         )}
 
         {Object.entries(grouped).map(([category, categoryItems]) => (
-          <div key={category} className="mb-2">
-            <div className="px-3 py-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
-              {category}
+          <div key={category} className="mb-1">
+            <div className="px-3 pt-2 pb-0.5 flex items-center gap-1.5">
+              <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{category}</span>
+              <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
             </div>
             {categoryItems.map((item) => {
               const result = results.get(item.id)
               return (
                 <div
                   key={item.id}
-                  className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+                  className="px-3 py-1.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group"
                 >
                   <div className="flex items-start gap-2">
                     <div className="mt-0.5 flex-shrink-0">
                       {result ? statusIcons[result.status] : (
-                        <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-slate-200 dark:border-slate-700" />
+                        <div className="w-3.5 h-3.5 rounded-full border-[1.5px] border-slate-200 dark:border-slate-700 group-hover:border-emerald-300 dark:group-hover:border-emerald-600 group-hover:ring-2 group-hover:ring-emerald-400/20 transition-all" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -759,18 +789,19 @@ export function InspectorPanel({
   return (
     <div className="w-[276px] flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200/50 dark:border-slate-800/80 flex flex-col overflow-hidden animate-inspector-in">
       {/* Header with tabs */}
-      <div className="px-3 pt-2 pb-1.5 border-b border-slate-100/80 dark:border-slate-800/80 flex-shrink-0">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Inspector</span>
+      <div className="px-3 pt-2.5 pb-2 border-b border-slate-100/80 dark:border-slate-800/80 flex-shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 tracking-tight">Inspector</span>
           <button
             onClick={() => onTabChange(null)}
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+            title="Close inspector"
           >
-            <X className="w-3 h-3 text-slate-400" />
+            <X className="w-3.5 h-3.5 text-slate-400" />
           </button>
         </div>
         {/* Segmented control */}
-        <div className="flex bg-slate-100/80 dark:bg-slate-800/80 rounded-lg p-0.5">
+        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 gap-0.5">
           <TabButton label="Format" active={activeTab === "format"} onClick={() => onTabChange("format")} />
           <TabButton label="Outline" active={activeTab === "outline"} onClick={() => onTabChange("outline")} />
           <TabButton label="Checklist" active={activeTab === "checklist"} onClick={() => onTabChange("checklist")} />

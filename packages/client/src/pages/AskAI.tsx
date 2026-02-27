@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from "react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams, useNavigate } from "react-router-dom"
 import {
   Sparkles,
   FileText,
@@ -65,6 +65,8 @@ const parseResult = (data: Record<string, unknown>) => ({
 })
 
 export function AskAI() {
+  const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[]>([])
   const [topicFilter, setTopicFilter] = useState<string>("all")
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set())
@@ -88,6 +90,19 @@ export function AskAI() {
     }), [topicFilter, responseLength]),
     errorMessage: "Failed to connect to AI service. Please try again.",
   })
+
+  const latestFollowUps = useMemo(
+    () => [...chat.messages].reverse().find(m => m.role === "assistant" && !m.refused)?.followUpPrompts ?? [],
+    [chat.messages]
+  )
+
+  useEffect(() => {
+    const convId = searchParams.get("conv")
+    if (convId) {
+      chat.loadConversation(convId)
+      navigate("/ai", { replace: true })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     async function loadTopics() {
@@ -436,6 +451,7 @@ export function AskAI() {
       messagesEndRef={chat.messagesEndRef}
       inputRef={chat.inputRef}
       placeholder="Ask a question about your library..."
+      stickyFollowUps={latestFollowUps}
       renderContent={renderContent}
       renderExtraContent={renderExtraContent}
       renderActions={renderActions}

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react"
-import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText } from "lucide-react"
+import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText, ChevronDown, ChevronUp, Copy, Check as CheckIcon, Square, Database, ChevronRight as ChevronRightIcon } from "lucide-react"
 import { useChat } from "@/hooks/useChat"
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer"
 import { CHAT_THEMES, type ChatTheme, type ChartConfig } from "@/types/chat"
@@ -7,6 +7,7 @@ import type { UseDocumentStoreReturn } from "@/hooks/useDocumentStore"
 import type { ConversationSummary } from "@/lib/api"
 import { markdownToHtml } from "@/lib/markdownToHtml"
 import { studioApi } from "@/lib/api"
+import { DataBrowserPanel } from "./DataBrowserPanel"
 
 interface StudioChatSidebarProps {
   documentStore: UseDocumentStoreReturn
@@ -16,6 +17,70 @@ interface StudioChatSidebarProps {
 }
 
 const theme: ChatTheme = CHAT_THEMES.emerald
+
+// ── SVG Diagram Card ──────────────────────────────────────
+
+function SVGDiagramCard({ svgData, onInsert }: { svgData: { svg: string; title: string }; onInsert: () => void }) {
+  const [expanded, setExpanded] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(svgData.svg).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    })
+  }
+
+  return (
+    <div className="rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 bg-white dark:bg-slate-900 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50/60 dark:bg-emerald-900/20 border-b border-emerald-200/50 dark:border-emerald-800/30">
+        <div className="w-4 h-4 rounded flex items-center justify-center bg-emerald-100 dark:bg-emerald-800/40">
+          <svg viewBox="0 0 16 16" className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <rect x="2" y="5" width="4" height="6" rx="1" />
+            <rect x="10" y="5" width="4" height="6" rx="1" />
+            <line x1="6" y1="8" x2="10" y2="8" />
+          </svg>
+        </div>
+        <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 flex-1 truncate">{svgData.title || "Diagram"}</span>
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={handleCopy}
+            className="w-5 h-5 flex items-center justify-center rounded text-emerald-600/70 dark:text-emerald-400/70 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 transition-colors"
+            title="Copy SVG code"
+          >
+            {copied ? <CheckIcon className="w-2.5 h-2.5" /> : <Copy className="w-2.5 h-2.5" />}
+          </button>
+          <button
+            onClick={() => setExpanded((e) => !e)}
+            className="w-5 h-5 flex items-center justify-center rounded text-emerald-600/70 dark:text-emerald-400/70 hover:bg-emerald-100 dark:hover:bg-emerald-800/40 transition-colors"
+            title={expanded ? "Collapse" : "Expand"}
+          >
+            {expanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+          </button>
+        </div>
+      </div>
+
+      {/* SVG preview */}
+      {expanded && (
+        <div className="p-2 overflow-x-auto [&_svg]:max-w-full [&_svg]:w-full [&_svg]:h-auto [&_svg]:block bg-white dark:bg-slate-950/40">
+          <div dangerouslySetInnerHTML={{ __html: svgData.svg }} />
+        </div>
+      )}
+
+      {/* Insert button */}
+      <div className="px-3 py-2 border-t border-emerald-100/60 dark:border-emerald-800/30 bg-emerald-50/40 dark:bg-emerald-900/10">
+        <button
+          onClick={onInsert}
+          className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 rounded-lg transition-colors shadow-sm shadow-emerald-500/20"
+        >
+          <ArrowRight className="w-3 h-3" />
+          Insert Diagram
+        </button>
+      </div>
+    </div>
+  )
+}
 
 export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onToggleCollapse }: StudioChatSidebarProps) {
   const [attachedFile, setAttachedFile] = useState<{ name: string; text: string; isExtracting?: boolean; isRFP?: boolean } | null>(null)
@@ -78,6 +143,9 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
     el.style.height = Math.min(el.scrollHeight, 120) + "px"
   }, [chat.inputValue])
 
+  // Data browser
+  const [dataBrowserOpen, setDataBrowserOpen] = useState(false)
+
   // Chat history popover
   const [historyOpen, setHistoryOpen] = useState(false)
   const historyRef = useRef<HTMLDivElement>(null)
@@ -98,20 +166,22 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
   // Collapsed view
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-3 gap-2">
+      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-3 gap-3">
         <button
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           title="Expand AI sidebar"
         >
-          <PanelLeftOpen className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+          <PanelLeftOpen className="w-4 h-4" />
         </button>
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center shadow-sm"
+        <button
+          onClick={onToggleCollapse}
+          className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md ring-2 ring-emerald-400/20 dark:ring-emerald-500/20 hover:ring-emerald-400/40 dark:hover:ring-emerald-500/40 transition-all"
           style={{ background: theme.botGradient }}
+          title="AI Assistant"
         >
           <Sparkles className="w-3.5 h-3.5 text-white" />
-        </div>
+        </button>
       </div>
     )
   }
@@ -129,6 +199,17 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           </span>
         </div>
         <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => setDataBrowserOpen((o) => !o)}
+            className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+              dataBrowserOpen
+                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
+                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+            title="Data library"
+          >
+            <Database className="w-3 h-3" />
+          </button>
           <button
             onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }}
             className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -182,93 +263,108 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
                 : "Ask me to help draft, edit, or improve your document."}
             </p>
             {documentStore.mode === "editor" && (
-              <div className="space-y-px w-full max-w-[240px]">
+              <div className="space-y-1.5 w-full max-w-[240px]">
                 {[
-                  "Write an executive summary",
-                  "Create a timeline diagram",
-                  "Draft a case study overview",
-                ].map((prompt) => (
+                  { label: "Write an executive summary", icon: "✍️" },
+                  { label: "Draft a proposal response using our Q&A library", icon: "📋" },
+                  { label: "Add a case study from our portfolio", icon: "📄" },
+                  { label: "Pull a client testimonial that fits this section", icon: "💬" },
+                  { label: "Highlight a key result or stat that supports my point", icon: "📊" },
+                ].map(({ label, icon }) => (
                   <button
-                    key={prompt}
-                    onClick={() => handleSubmit(prompt)}
-                    className="w-full text-left px-3 py-2 text-[11px] text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/20 rounded-md transition-colors"
+                    key={label}
+                    onClick={() => handleSubmit(label)}
+                    className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200/60 dark:border-slate-700/40 hover:border-emerald-200/80 dark:hover:border-emerald-800/50 rounded-xl transition-all duration-150 group"
                   >
-                    {prompt}
+                    <span className="text-[14px] flex-shrink-0 group-hover:scale-110 transition-transform duration-150">{icon}</span>
+                    <span className="flex-1 leading-snug">{label}</span>
+                    <ArrowRight className="w-2.5 h-2.5 text-slate-300 dark:text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
                   </button>
                 ))}
+                <button
+                  onClick={() => setDataBrowserOpen(true)}
+                  className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl transition-all duration-150 group"
+                >
+                  <Database className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="flex-1 leading-snug font-medium">Browse data library</span>
+                  <ChevronRightIcon className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
+                </button>
               </div>
             )}
           </div>
         ) : (
-          <div className="px-3 py-3 space-y-3">
+          <div className="px-3 py-3 space-y-4">
             {chat.messages.map((message) => (
               <div key={message.id}>
                 {message.role === "user" ? (
                   <div className="flex justify-end">
-                    <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-md bg-emerald-50 dark:bg-emerald-900/20 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                    <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100/60 dark:border-emerald-800/30 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
                       {message.content}
                     </div>
                   </div>
                 ) : message.refused ? (
-                  <div className="px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 text-[12px] text-amber-700 dark:text-amber-300">
-                    {message.refusalReason || "Unable to process request."}
+                  <div className="flex gap-2 items-start">
+                    <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
+                      <Sparkles className="w-2.5 h-2.5 text-white" />
+                    </div>
+                    <div className="flex-1 px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 border-l-2 border-l-amber-400 dark:border-l-amber-500 text-[12px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                      {message.refusalReason || "Unable to process request."}
+                    </div>
                   </div>
                 ) : (
-                  <div className="space-y-1.5">
-                    <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed [&_.md-h2]:text-[13px] [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[12px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[12px] [&_p]:mb-1.5 [&_pre]:text-[10px] [&_pre]:p-2 [&_pre]:rounded-md [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800/60">
-                      <MarkdownRenderer content={message.content} />
+                  <div className="flex gap-2 items-start">
+                    <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
+                      <Sparkles className="w-2.5 h-2.5 text-white" />
                     </div>
-                    {message.svgData && (
-                      <div className="rounded-lg border border-slate-100 dark:border-slate-800 p-2 overflow-x-auto bg-white dark:bg-slate-900 [&_svg]:max-w-full [&_svg]:h-auto">
-                        <div dangerouslySetInnerHTML={{ __html: message.svgData.svg }} />
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed [&_.md-h2]:text-[13px] [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[12px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[12px] [&_p]:mb-1.5 [&_pre]:text-[10px] [&_pre]:p-2 [&_pre]:rounded-md [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800/60">
+                        <MarkdownRenderer content={message.content} />
                       </div>
-                    )}
-                    {/* Follow-ups */}
-                    {message.followUpPrompts && message.followUpPrompts.length > 0 && (
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {message.followUpPrompts.map((prompt, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleSubmit(prompt)}
-                            className="px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-transparent hover:border-emerald-200 dark:hover:border-emerald-800"
-                          >
-                            {prompt}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {/* Deploy actions */}
-                    {(message.content || message.svgData || message.reviewAnnotations?.length) && (
-                      <div className="flex flex-wrap gap-1 pt-0.5">
-                        {message.content && (
-                          <button
-                            onClick={() => documentStore.insertContent(markdownToHtml(message.content))}
-                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
-                          >
-                            <ArrowRight className="w-2.5 h-2.5" />
-                            Insert
-                          </button>
-                        )}
-                        {message.svgData && (
-                          <button
-                            onClick={() => documentStore.insertContent(message.svgData!.svg)}
-                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
-                          >
-                            <ArrowRight className="w-2.5 h-2.5" />
-                            Insert Diagram
-                          </button>
-                        )}
-                        {message.reviewAnnotations && message.reviewAnnotations.length > 0 && (
-                          <button
-                            onClick={() => documentStore.setAnnotations(message.reviewAnnotations!)}
-                            className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors border border-amber-200/60 dark:border-amber-800/40"
-                          >
-                            <FileSearch className="w-2.5 h-2.5" />
-                            Comments ({message.reviewAnnotations.length})
-                          </button>
-                        )}
-                      </div>
-                    )}
+                      {message.svgData && (
+                        <SVGDiagramCard
+                          svgData={message.svgData}
+                          onInsert={() => documentStore.insertContent(message.svgData!.svg)}
+                        />
+                      )}
+                      {/* Follow-ups */}
+                      {message.followUpPrompts && message.followUpPrompts.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1.5">
+                          {message.followUpPrompts.map((prompt, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleSubmit(prompt)}
+                              className="group flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/25 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg border border-emerald-200/60 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-150"
+                            >
+                              {prompt}
+                              <ArrowRight className="w-2 h-2 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {/* Deploy actions */}
+                      {(message.content || message.svgData || message.reviewAnnotations?.length) && (
+                        <div className="flex flex-wrap gap-1 pt-0.5">
+                          {message.content && (
+                            <button
+                              onClick={() => documentStore.insertContent(markdownToHtml(message.content))}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
+                            >
+                              <ArrowRight className="w-2.5 h-2.5" />
+                              Insert
+                            </button>
+                          )}
+                          {message.reviewAnnotations && message.reviewAnnotations.length > 0 && (
+                            <button
+                              onClick={() => documentStore.setAnnotations(message.reviewAnnotations!)}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors border border-amber-200/60 dark:border-amber-800/40"
+                            >
+                              <FileSearch className="w-2.5 h-2.5" />
+                              Comments ({message.reviewAnnotations.length})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -276,15 +372,32 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
 
             {/* Loading */}
             {chat.isStreaming && (
-              <div className="flex items-center gap-1.5 py-1 pl-0.5">
-                <Loader2 className="w-3 h-3 animate-spin text-emerald-500" />
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">Thinking...</span>
+              <div className="flex gap-2 items-start">
+                <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
+                  <Sparkles className="w-2.5 h-2.5 text-white" />
+                </div>
+                <div className="flex items-center gap-1 pt-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:0ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:150ms]" />
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:300ms]" />
+                </div>
               </div>
             )}
             <div ref={chat.messagesEndRef as React.RefObject<HTMLDivElement>} />
           </div>
         )}
       </div>
+
+      {/* Data Browser Panel */}
+      {dataBrowserOpen && (
+        <DataBrowserPanel
+          onInsert={(content) => documentStore.insertContent(content)}
+          onAskAI={(prompt) => {
+            chat.setInputValue(prompt)
+            setDataBrowserOpen(false)
+          }}
+        />
+      )}
 
       {/* Input */}
       <div className="flex-shrink-0 px-2.5 pb-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/80">
@@ -337,18 +450,24 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               style={{ minHeight: "34px", maxHeight: "120px" }}
             />
           </div>
-          <button
-            onClick={() => handleSubmit()}
-            disabled={!chat.inputValue.trim() || chat.isLoading || isExtracting}
-            className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-25"
-            style={{ background: !chat.inputValue.trim() || chat.isLoading ? undefined : theme.botGradient }}
-          >
-            {chat.isLoading ? (
-              <Loader2 className="w-3 h-3 animate-spin text-slate-400" />
-            ) : (
-              <Send className={`w-3 h-3 ${chat.inputValue.trim() ? "text-white" : "text-slate-400"}`} />
-            )}
-          </button>
+          {chat.isStreaming ? (
+            <button
+              onClick={() => chat.abortStream()}
+              className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/60 dark:border-red-700/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-150"
+              title="Stop generating"
+            >
+              <Square className="w-2.5 h-2.5 fill-current" />
+            </button>
+          ) : (
+            <button
+              onClick={() => handleSubmit()}
+              disabled={!chat.inputValue.trim() || chat.isLoading || isExtracting}
+              className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-25"
+              style={{ background: chat.inputValue.trim() && !chat.isLoading ? theme.botGradient : undefined }}
+            >
+              <Send className={`w-3 h-3 ${chat.inputValue.trim() && !chat.isLoading ? "text-white" : "text-slate-400"}`} />
+            </button>
+          )}
         </div>
       </div>
     </div>

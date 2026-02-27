@@ -9,6 +9,12 @@ import type { Response } from "express"
 import type OpenAI from "openai"
 import { validateTokenCount } from "../../lib/tokenCounter.js"
 
+export interface ActionData {
+  key: string
+  value: unknown
+  label: string
+}
+
 export interface StreamOptions {
   openai: OpenAI
   messages: OpenAI.ChatCompletionMessageParam[]
@@ -18,6 +24,24 @@ export interface StreamOptions {
   parseFollowUpPrompts: (response: string) => { cleanResponse: string; prompts: string[] }
   parseReviewAnnotations?: (response: string) => { cleanResponse: string; annotations: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> }
   res: Response
+}
+
+/**
+ * Parse APPLY_SETTING actions from AI response.
+ * Format: APPLY_SETTINGS: [{"key":"theme","value":"dark","label":"Dark mode enabled"}]
+ */
+export function parseActionData(response: string): { cleanText: string; actions: ActionData[] } {
+  const actionMatch = response.match(/APPLY_SETTINGS:\s*(\[[\s\S]*?\])\s*$/m)
+  if (actionMatch?.[1]) {
+    try {
+      const actions = JSON.parse(actionMatch[1]) as ActionData[]
+      const cleanText = response.replace(/APPLY_SETTINGS:\s*\[[\s\S]*?\]\s*$/m, "").trim()
+      return { cleanText, actions }
+    } catch {
+      // Malformed — ignore
+    }
+  }
+  return { cleanText: response, actions: [] }
 }
 
 /**
@@ -110,7 +134,13 @@ export async function streamCompletion({
 
     const { cleanResponse, prompts } = parseFollowUpPrompts(processedResponse)
     const { cleanText: chartClean, chartData } = parseChartData(cleanResponse)
-    const { cleanText: finalResponse, svgData } = parseSVGData(chartClean)
+    const { cleanText: svgClean, svgData } = parseSVGData(chartClean)
+    const { cleanText: finalResponse, actions } = parseActionData(svgClean)
+
+    // Send action event if AI requested settings changes
+    if (actions.length > 0) {
+      res.write(`event: action\ndata: ${JSON.stringify({ actions })}\n\n`)
+    }
 
     // Send done event
     res.write(
@@ -160,10 +190,11 @@ export function parseChartData(response: string): { cleanText: string; chartData
  * Format: SVG_DATA: <svg viewBox="0 0 800 600" xmlns="...">...</svg>
  */
 export function parseSVGData(response: string): { cleanText: string; svgData: { svg: string; title: string } | null } {
-  const svgMatch = response.match(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)\s*$/m)
+  // Use a greedy match (not anchored to end-of-line) so multi-line SVGs are captured correctly
+  const svgMatch = response.match(/SVG_DATA:\s*(<svg[\s\S]*<\/svg>)/)
   if (svgMatch?.[1]) {
     const titleMatch = svgMatch[1].match(/<!--\s*title:\s*(.*?)\s*-->/)
-    const cleanText = response.replace(/SVG_DATA:\s*<svg[\s\S]*?<\/svg>\s*$/m, "").trim()
+    const cleanText = response.replace(/SVG_DATA:\s*<svg[\s\S]*<\/svg>/, "").trim()
     return { cleanText, svgData: { svg: svgMatch[1], title: titleMatch?.[1] || "Diagram" } }
   }
   return { cleanText: response, svgData: null }

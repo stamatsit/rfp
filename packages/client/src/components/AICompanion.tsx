@@ -34,7 +34,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useChat } from "@/hooks/useChat"
 import { useCompanionBehavior } from "@/hooks/useCompanionBehavior"
 import { MarkdownRenderer } from "@/components/chat"
-import { loadSettings } from "@/components/SettingsPanel"
+import { loadSettings, saveSettings } from "@/components/SettingsPanel"
+import { toast } from "@/hooks/useToast"
 import { CHAT_THEMES, type ChatMessage } from "@/types/chat"
 
 const theme = CHAT_THEMES.sky
@@ -160,6 +161,21 @@ export function AICompanion() {
   const positionRef = useRef({ x: 0, y: 0 })
   const hasCustomPosition = useRef(false)
 
+  // Apply settings changes requested by the AI
+  const handleAction = useCallback((actions: Array<{ key: string; value: unknown; label: string }>) => {
+    const current = loadSettings()
+    const updated = { ...current }
+    for (const action of actions) {
+      (updated as Record<string, unknown>)[action.key] = action.value
+    }
+    saveSettings(updated)
+    // Show confirmation for last action label (or combined)
+    const label = actions.length === 1
+      ? actions[0]!.label
+      : `${actions.length} settings updated`
+    toast.success(label)
+  }, [])
+
   // Chat hook
   const chat = useChat({
     endpoint: "/companion/stream",
@@ -167,6 +183,7 @@ export function AICompanion() {
     page: "companion",
     parseResult,
     parseMetadata,
+    onAction: handleAction,
     buildBody: useCallback((query: string) => ({
       query,
       behaviorContext: getContextForPrompt(),

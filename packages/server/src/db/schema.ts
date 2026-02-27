@@ -73,6 +73,8 @@ export const photoAssets = pgTable("photo_assets", {
   originalFilename: text("original_filename").notNull(),
   fileSize: integer("file_size"),
   mimeType: text("mime_type"),
+  usageCount: integer("usage_count").notNull().default(0),
+  lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
@@ -80,6 +82,7 @@ export const photoAssets = pgTable("photo_assets", {
   statusIdx: index("idx_photo_assets_status").on(table.status),
   updatedAtIdx: index("idx_photo_assets_updated_at").on(table.updatedAt),
   topicStatusIdx: index("idx_photo_assets_topic_status").on(table.topicId, table.status),
+  usageCountIdx: index("idx_photo_assets_usage_count").on(table.usageCount),
 }))
 
 // Photo Asset Versions (history)

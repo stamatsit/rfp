@@ -23,13 +23,16 @@ function ToolbarButton({
     <button
       onClick={onClick}
       title={title}
-      className={`p-1.5 rounded transition-colors ${
+      className={`p-1.5 rounded-md transition-all relative ${
         active
-          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300"
+          ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 shadow-sm"
           : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300"
       }`}
     >
       {children}
+      {active && (
+        <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-0.5 bg-emerald-500 rounded-full" />
+      )}
     </button>
   )
 }
@@ -62,7 +65,7 @@ function ToolbarSelect<T extends string>({
 }
 
 function Divider() {
-  return <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-1" />
+  return <div className="w-px h-4 bg-slate-200 dark:bg-slate-700/80 mx-0.5 self-center flex-shrink-0" />
 }
 
 export function FormatToolbar({ format, onUpdate, editor }: FormatToolbarProps) {

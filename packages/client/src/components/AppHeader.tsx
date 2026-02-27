@@ -21,7 +21,7 @@ interface AppHeaderProps {
 const pageConfig: Record<string, { title: string }> = {
   "/": { title: "Content Library" },
   "/search": { title: "Search Library" },
-  "/ai": { title: "Ask AI" },
+  "/ai": { title: "AI Tools" },
   "/import": { title: "Import Data" },
   "/photos": { title: "Photo Library" },
   "/new": { title: "New Entry" },
@@ -109,15 +109,15 @@ export function AppHeader({
   const displayBreadcrumbs = breadcrumbs || defaultBreadcrumbs
 
   return (
-    <header className="sticky top-0 z-[200] backdrop-blur-premium border-b border-black/[0.05] dark:border-white/[0.08] transition-colors duration-300"
+    <header className="sticky top-0 z-[200] backdrop-blur-premium border-b border-black/[0.06] dark:border-white/[0.06] transition-colors duration-300"
       style={{
-        background: 'linear-gradient(to bottom, rgba(255,255,255,0.85), rgba(255,255,255,0.75))',
+        background: 'linear-gradient(to bottom, rgba(255,255,255,0.92), rgba(255,255,255,0.82))',
       }}
     >
       {/* Dark mode background override */}
       <div className="absolute inset-0 hidden dark:block transition-opacity duration-300"
         style={{
-          background: 'linear-gradient(to bottom, rgba(15,23,42,0.95), rgba(15,23,42,0.9))',
+          background: 'linear-gradient(to bottom, rgba(10,15,30,0.97), rgba(10,15,30,0.93))',
         }}
       />
 
@@ -142,7 +142,7 @@ export function AppHeader({
               <span className="text-[15px] font-semibold text-slate-900 dark:text-white tracking-[-0.02em] block leading-none transition-colors">
                 Stamats
               </span>
-              <span className="text-[11px] text-slate-400 dark:text-slate-500 tracking-wide block mt-0.5 transition-colors">
+              <span className="text-[10px] text-slate-400 dark:text-slate-600 tracking-[0.04em] uppercase block mt-0.5 transition-colors">
                 Content Library
               </span>
             </div>
@@ -204,8 +204,8 @@ export function AppHeader({
                 <button
                   data-tour="settings"
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
-                  className={`hidden sm:flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all duration-200
-                             hover:bg-slate-100/80 dark:hover:bg-slate-800/80
+                  className={`hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-200
+                             hover:bg-slate-100/70 dark:hover:bg-slate-800/70
                              ${isUserMenuOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}
                 >
                   <UserAvatar user={user} size="sm" />
@@ -218,44 +218,44 @@ export function AppHeader({
                 {/* Dropdown */}
                 {isUserMenuOpen && (
                   <div
-                    className="absolute right-0 top-full mt-1.5 w-52 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-lg shadow-black/10 dark:shadow-black/30 z-[100]"
+                    className="absolute right-0 top-full mt-2 w-52 py-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/80 shadow-xl shadow-black/8 dark:shadow-black/40 z-[100]"
                   >
                     {/* User info header */}
-                    <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-700">
-                      <p className="text-[13px] font-medium text-slate-900 dark:text-white">{user.name}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500">{user.email}</p>
+                    <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                      <p className="text-[13px] font-semibold text-slate-900 dark:text-white leading-none">{user.name}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{user.email}</p>
                     </div>
 
-                    <div className="py-1">
+                    <div className="py-1.5 px-1">
                       <button
                         onClick={() => { setIsUserMenuOpen(false); setIsSettingsOpen(true) }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                       >
-                        <Settings size={15} className="text-slate-400 dark:text-slate-500" />
+                        <Settings size={14} className="text-slate-400 dark:text-slate-500" />
                         Settings
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/help") }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                       >
-                        <HelpCircle size={15} className="text-slate-400 dark:text-slate-500" />
+                        <HelpCircle size={14} className="text-slate-400 dark:text-slate-500" />
                         Help
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/support") }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                       >
-                        <LifeBuoy size={15} className="text-slate-400 dark:text-slate-500" />
+                        <LifeBuoy size={14} className="text-slate-400 dark:text-slate-500" />
                         Support
                       </button>
                     </div>
 
-                    <div className="border-t border-slate-100 dark:border-slate-700 pt-1">
+                    <div className="border-t border-slate-100 dark:border-slate-800 py-1.5 px-1">
                       <button
                         onClick={() => { setIsUserMenuOpen(false); logout() }}
-                        className="flex items-center gap-2.5 w-full px-3.5 py-2 text-[13px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
                       >
-                        <LogOut size={15} />
+                        <LogOut size={14} />
                         Sign Out
                       </button>
                     </div>

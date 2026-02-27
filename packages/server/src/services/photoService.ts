@@ -313,10 +313,13 @@ export async function renamePhoto(id: string, newTitle: string): Promise<PhotoAs
 }
 
 /**
- * Record a download event (for audit logging)
+ * Record a download event (audit log + usage counter)
  */
 export async function recordDownload(id: string): Promise<void> {
   await logDownload(id)
+  await db!.update(photoAssets)
+    .set({ usageCount: sql`${photoAssets.usageCount} + 1`, lastUsedAt: new Date() })
+    .where(eq(photoAssets.id, id))
 }
 
 /**

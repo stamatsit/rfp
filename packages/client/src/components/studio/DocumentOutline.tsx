@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { X, ChevronRight } from "lucide-react"
+import { X, AlignLeft } from "lucide-react"
 import type { Editor } from "@tiptap/react"
 
 interface HeadingItem {
@@ -55,9 +55,17 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
     <div className="w-56 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-700">
-        <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wide">
-          Outline
-        </span>
+        <div className="flex items-center gap-1.5">
+          <AlignLeft className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
+            Outline
+          </span>
+          {headings.length > 0 && (
+            <span className="text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-1.5 py-0.5 tabular-nums">
+              {headings.length}
+            </span>
+          )}
+        </div>
         <button
           onClick={onClose}
           className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
@@ -67,29 +75,50 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
       </div>
 
       {/* Heading list */}
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-1.5">
         {headings.length === 0 ? (
-          <p className="px-3 py-4 text-xs text-slate-400 dark:text-slate-500 text-center">
-            No headings yet. Add headings (H1, H2, H3) to see the document outline.
-          </p>
+          <div className="flex flex-col items-center justify-center px-4 py-8 text-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-50">
+              <AlignLeft className="w-4 h-4 text-slate-400" />
+            </div>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+              Add headings to see the outline
+            </p>
+          </div>
         ) : (
-          headings.map((h, i) => (
-            <button
-              key={`${h.pos}-${i}`}
-              onClick={() => handleClick(h.pos)}
-              className={`w-full text-left px-3 py-1.5 text-xs transition-colors flex items-center gap-1 ${
-                activePos === h.pos
-                  ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-              style={{ paddingLeft: `${(h.level - 1) * 12 + 12}px` }}
-            >
-              <ChevronRight className="w-3 h-3 flex-shrink-0 opacity-40" />
-              <span className={`truncate ${h.level === 1 ? "font-semibold" : h.level === 2 ? "font-medium" : ""}`}>
-                {h.text || "(empty heading)"}
-              </span>
-            </button>
-          ))
+          headings.map((h, i) => {
+            const isActive = activePos === h.pos
+            return (
+              <button
+                key={`${h.pos}-${i}`}
+                onClick={() => handleClick(h.pos)}
+                className={`group w-full text-left py-1 text-xs transition-all flex items-center gap-2 relative ${
+                  isActive
+                    ? "text-emerald-700 dark:text-emerald-300"
+                    : "text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                }`}
+                style={{ paddingLeft: `${(h.level - 1) * 10 + 12}px`, paddingRight: "12px" }}
+              >
+                {/* Active indicator */}
+                {isActive && (
+                  <span className="absolute left-0 top-0.5 bottom-0.5 w-0.5 bg-emerald-500 rounded-full" />
+                )}
+                {/* Level badge */}
+                <span className={`flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-[8px] font-bold ${
+                  isActive
+                    ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors"
+                }`}>
+                  H{h.level}
+                </span>
+                <span className={`truncate text-[11px] leading-snug ${
+                  h.level === 1 ? "font-semibold" : h.level === 2 ? "font-medium" : "opacity-80"
+                }`}>
+                  {h.text || "(empty heading)"}
+                </span>
+              </button>
+            )
+          })
         )}
       </div>
     </div>

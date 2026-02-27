@@ -7,10 +7,10 @@ import {
   PenLine,
   Sparkles,
   ArrowRight,
-  TrendingUp,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { DashboardWidgets } from "@/components/DashboardWidgets"
+import { RecentConversations } from "@/components/RecentConversations"
 import { GuidedTour } from "@/components/tour"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
@@ -200,17 +200,17 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
         </div>
       )}
       <div
-        className="relative w-12 h-12 rounded-xl flex items-center justify-center mb-5 overflow-hidden transition-transform duration-300 ease-out group-hover:scale-110"
+        className="relative w-11 h-11 rounded-xl flex items-center justify-center mb-4 overflow-hidden transition-transform duration-300 ease-out group-hover:scale-110"
         style={{ background: gradient }}
       >
-        <div className="absolute inset-0 bg-gradient-to-br from-white/25 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
         <div className="relative text-white">{icon}</div>
       </div>
-      <h3 className="text-[17px] font-semibold text-slate-900 dark:text-white tracking-[-0.01em] mb-1.5 transition-colors">{title}</h3>
-      <p className="text-[14px] text-slate-500 dark:text-slate-400 leading-relaxed transition-colors">{description}</p>
-      <div className="mt-5 flex items-center text-[13px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
+      <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white tracking-[-0.01em] mb-1 transition-colors">{title}</h3>
+      <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed transition-colors">{description}</p>
+      <div className="mt-4 flex items-center text-[12px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
         <span>Open</span>
-        <ArrowRight size={14} className="ml-1.5 transition-transform duration-200 ease-out group-hover:translate-x-1" strokeWidth={2} />
+        <ArrowRight size={13} className="ml-1 transition-transform duration-200 ease-out group-hover:translate-x-1" strokeWidth={2} />
       </div>
     </>
   )
@@ -233,12 +233,12 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
 // Default card configurations (used as fallback if settings fail)
 const defaultCards = [
   {
-    id: "ask-ai",
+    id: "ai-tools",
     to: "/ai",
     icon: <Sparkles size={22} strokeWidth={2} />,
-    title: "Ask AI",
-    description: "Get AI-powered answers from your approved content",
-    gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
+    title: "AI Tools",
+    description: "Ask AI, Proposal Insights, Client Success, and Unified AI",
+    gradient: "linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #4F46E5 100%)",
     shadowColor: "rgba(139, 92, 246, 0.15)",
   },
   {
@@ -276,16 +276,6 @@ const defaultCards = [
     description: "Upload, organize, and manage proposal images",
     gradient: "linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)",
     shadowColor: "rgba(245, 158, 11, 0.15)",
-  },
-  {
-    id: "proposal-insights",
-    to: "/insights",
-    icon: <TrendingUp size={22} strokeWidth={2} />,
-    title: "Proposal Insights",
-    description: "AI-powered analytics on your proposal win rates and trends",
-    gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 50%, #0E7490 100%)",
-    shadowColor: "rgba(6, 182, 212, 0.15)",
-    badge: "NEW",
   },
 ]
 
@@ -413,10 +403,10 @@ export function HomePage() {
       <AppHeader />
 
       {/* Hero */}
-      <section className="pt-20 pb-12 px-6">
+      <section className="pt-16 pb-10 px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="flex items-baseline justify-between gap-4 mb-3">
-            <p className="text-[13px] font-medium text-slate-400 dark:text-slate-500 tracking-widest uppercase animate-fade-in transition-colors">
+          <div className="flex items-baseline justify-between gap-4 mb-2.5">
+            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.1em] uppercase animate-fade-in transition-colors">
               {greeting}
             </p>
             <div
@@ -460,7 +450,7 @@ export function HomePage() {
               </span>
             </div>
           </div>
-          <h1 className="text-[42px] font-semibold text-slate-900 dark:text-white tracking-[-0.03em] leading-[1.1] transition-colors">
+          <h1 className="text-[40px] font-semibold text-slate-900 dark:text-white tracking-[-0.03em] leading-[1.1] transition-colors">
             {typewriterPhrases ? (
               <TypewriterText phrases={typewriterPhrases} />
             ) : (
@@ -478,8 +468,11 @@ export function HomePage() {
           {/* Dashboard Widgets */}
           <DashboardWidgets />
 
+          {/* Section label */}
+          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.08em] uppercase mb-4 mt-1">Tools</p>
+
           {/* Action Tiles */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 stagger-children">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
             {visibleCards.filter((card) => isAdmin || !ADMIN_ONLY_TILES.has(card.id || "")).map((card) => (
               <Card
                 key={card.id || card.to}
@@ -489,13 +482,16 @@ export function HomePage() {
               />
             ))}
           </div>
+
+          {/* Recent Conversations */}
+          <RecentConversations />
         </div>
       </main>
 
       {/* Footer */}
-      <footer className="py-5 px-6 border-t border-slate-200/40 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 transition-colors">
+      <footer className="py-4 px-6 border-t border-slate-200/30 dark:border-slate-800/30 transition-colors">
         <div className="max-w-4xl mx-auto text-center">
-          <p className="text-[13px] text-slate-400 dark:text-slate-500 transition-colors">
+          <p className="text-[11px] text-slate-300 dark:text-slate-700 tracking-[0.04em] transition-colors">
             © {new Date().getFullYear()} Stamats
           </p>
         </div>

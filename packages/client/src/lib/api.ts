@@ -219,6 +219,8 @@ export interface PhotoResponse {
   createdAt: string
   updatedAt: string
   linkedAnswersCount?: number
+  usageCount: number
+  lastUsedAt: string | null
   fileUrl?: string | null // Pre-signed URL from server (avoids per-image API calls)
 }
 
@@ -1534,6 +1536,15 @@ export const conversationsApi = {
     })
     if (!response.ok) throw new ApiError(response.status, "Failed to delete conversation")
   },
+
+  async generateTitle(id: string, messages: Array<{ role: string; content: string }>): Promise<{ title: string }> {
+    const response = await fetchWithCredentials(`${API_BASE}/conversations/${id}/generate-title`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    })
+    return handleResponse<{ title: string }>(response)
+  },
 }
 
 // ─── Studio API (Documents, Templates, Assets) ─────────────────────────────────
@@ -1686,6 +1697,7 @@ export interface FetchSSECallbacks {
   onToken?: (token: string) => void
   onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; metadata?: Record<string, unknown> }) => void
   onError?: (error: string) => void
+  onAction?: (actions: Array<{ key: string; value: unknown; label: string }>) => void
 }
 
 /**
@@ -1743,6 +1755,8 @@ export async function fetchSSE(
             callbacks.onDone?.(parsed)
           } else if (currentEvent === "error") {
             callbacks.onError?.(parsed.error || "Stream error")
+          } else if (currentEvent === "action") {
+            if (parsed.actions) callbacks.onAction?.(parsed.actions)
           } else {
             // Default data event = token
             if (parsed.token) callbacks.onToken?.(parsed.token)

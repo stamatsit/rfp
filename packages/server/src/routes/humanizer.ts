@@ -23,7 +23,7 @@ const upload = multer({
 
 // POST /api/humanizer/stream — Humanize or scan text via SSE
 router.post("/stream", async (req: Request, res: Response) => {
-  const { text, tone, strength, twoPass, scanOnly, conversationHistory } = req.body || {}
+  const { text, tone, strength, twoPass, scanOnly, audience, voiceSample, conversationHistory } = req.body || {}
 
   if (!text || typeof text !== "string") {
     return res.status(400).json({ error: "Text is required" })
@@ -36,10 +36,12 @@ router.post("/stream", async (req: Request, res: Response) => {
   }
 
   const options: HumanizerOptions = {
-    tone: ["professional", "conversational", "academic"].includes(tone) ? tone : "professional",
+    tone: ["professional", "conversational", "academic", "thompson", "wallace"].includes(tone) ? tone : "professional",
     strength: ["light", "balanced", "heavy"].includes(strength) ? strength : "balanced",
     twoPass: twoPass === true,
     scanOnly: scanOnly === true,
+    audience: ["general", "executive", "technical", "academic"].includes(audience) ? audience : "general",
+    voiceSample: typeof voiceSample === "string" && voiceSample.trim() ? voiceSample.trim().slice(0, 500) : undefined,
   }
 
   try {

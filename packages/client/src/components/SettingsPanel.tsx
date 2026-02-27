@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
+import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/contexts/ThemeContext"
 import { usePanelResize, ResizeHandles } from "@/hooks/usePanelResize"
 import {
@@ -24,15 +25,12 @@ import {
   Beaker,
   Command,
   Rocket,
-  TrendingUp,
   GripVertical,
   Keyboard,
   Save,
   BarChart3,
   LineChart,
   Gauge,
-  BookOpen,
-  Layers,
   User,
   Camera,
   Trash2,
@@ -64,12 +62,12 @@ export interface TileConfig {
 
 const defaultTiles: TileConfig[] = [
   {
-    id: "ask-ai",
+    id: "ai-tools",
     to: "/ai",
     icon: <Sparkles size={22} strokeWidth={2} />,
-    title: "Ask AI",
-    description: "Get AI-powered answers from your approved content",
-    gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
+    title: "AI Tools",
+    description: "Ask AI, Proposal Insights, Client Success, and Unified AI",
+    gradient: "linear-gradient(135deg, #8B5CF6 0%, #6366F1 50%, #4F46E5 100%)",
     shadowColor: "rgba(139, 92, 246, 0.15)",
     enabled: true,
   },
@@ -124,28 +122,6 @@ const defaultTiles: TileConfig[] = [
     enabled: true,
   },
   {
-    id: "proposal-insights",
-    to: "/insights",
-    icon: <TrendingUp size={22} strokeWidth={2} />,
-    title: "Proposal Insights",
-    description: "AI-powered analytics on your proposal win rates and trends",
-    gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 50%, #0E7490 100%)",
-    shadowColor: "rgba(6, 182, 212, 0.15)",
-    enabled: true,
-    badge: "NEW",
-  },
-  {
-    id: "case-studies",
-    to: "/case-studies",
-    icon: <BookOpen size={22} strokeWidth={2} />,
-    title: "Client Success",
-    description: "Find and format client results, stats, and testimonials",
-    gradient: "linear-gradient(135deg, #64748B 0%, #475569 50%, #334155 100%)",
-    shadowColor: "rgba(100, 116, 139, 0.15)",
-    enabled: true,
-    badge: "BETA",
-  },
-  {
     id: "testimonials",
     to: "/testimonials",
     icon: <Quote size={22} strokeWidth={2} />,
@@ -155,17 +131,6 @@ const defaultTiles: TileConfig[] = [
     shadowColor: "rgba(249, 115, 22, 0.15)",
     enabled: true,
     badge: "NEW",
-  },
-  {
-    id: "unified-ai",
-    to: "/unified-ai",
-    icon: <Layers size={22} strokeWidth={2} />,
-    title: "Unified AI",
-    description: "Cross-reference all your data: proposals, client results, and library",
-    gradient: "linear-gradient(135deg, #0EA5E9 0%, #0284C7 50%, #0369A1 100%)",
-    shadowColor: "rgba(14, 165, 233, 0.15)",
-    enabled: false,
-    badge: "POWER",
   },
 ]
 
@@ -260,6 +225,7 @@ interface AppSettings {
   aiPoweredSearch: boolean
   smartSuggestions: boolean
   companionEnabled: boolean
+  navRailEnabled: boolean
   shortcuts: Record<string, string>
 }
 
@@ -287,6 +253,7 @@ const defaultSettings: AppSettings = {
   aiPoweredSearch: false,
   smartSuggestions: true,
   companionEnabled: true,
+  navRailEnabled: false,
   shortcuts: {
     search: "Cmd+K",
     ai: "Cmd+J",
@@ -540,6 +507,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
   const { user, refreshUser, checkAuth, resetTour, markTourCompleted } = useAuth()
   const isAdmin = useIsAdmin()
+  const navigate = useNavigate()
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings())
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>("general")
 
@@ -1042,7 +1010,10 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                   <div>
                     <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Keyboard</h3>
-                    <button className="flex items-center justify-between w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                    <button
+                      onClick={() => { onClose(); navigate("/help") }}
+                      className="flex items-center justify-between w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                    >
                       <div className="flex items-center gap-3">
                         <Keyboard size={16} className="text-slate-500 dark:text-slate-400" />
                         <span className="text-[13px] text-slate-700 dark:text-slate-300">Keyboard Shortcuts</span>
@@ -1256,8 +1227,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                   <p className="text-[13px] text-slate-500 dark:text-slate-400">
                     {settings.widgetsEnabled
-                      ? "Widgets are displayed on your home screen showing stats, trends, and suggestions."
-                      : "Enable widgets to see stats, trends, and suggestions on your home screen."}
+                      ? "Showing proposal pipeline charts on your home screen — Services breakdown, Top Services by win rate, and Momentum gauge."
+                      : "Enable to show proposal pipeline charts on your home screen: Services breakdown, Top Services by win rate, and Momentum gauge."}
                   </p>
                 </div>
               )}
@@ -1382,6 +1353,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           </div>
                         </div>
                         <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
+                        <div className="flex items-center gap-3">
+                          <LayoutGrid size={16} className="text-slate-500 dark:text-slate-400" />
+                          <div>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Side Navigation Rail</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Persistent icon sidebar for quick navigation</p>
+                          </div>
+                        </div>
+                        <Toggle enabled={settings.navRailEnabled} onChange={() => updateSetting("navRailEnabled", !settings.navRailEnabled)} />
                       </div>
                     </div>
                   </div>
