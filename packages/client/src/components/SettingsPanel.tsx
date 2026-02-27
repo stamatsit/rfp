@@ -1153,6 +1153,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         </div>
                         <Toggle enabled={settings.reduceMotion} onChange={() => updateSetting("reduceMotion", !settings.reduceMotion)} />
                       </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center gap-3">
+                          <LayoutGrid size={16} className="text-slate-500 dark:text-slate-400" />
+                          <div>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Side Navigation Rail</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Persistent icon sidebar for quick navigation</p>
+                          </div>
+                        </div>
+                        <Toggle enabled={settings.navRailEnabled} onChange={() => updateSetting("navRailEnabled", !settings.navRailEnabled)} />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1353,16 +1363,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           </div>
                         </div>
                         <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
-                        <div className="flex items-center gap-3">
-                          <LayoutGrid size={16} className="text-slate-500 dark:text-slate-400" />
-                          <div>
-                            <p className="text-[13px] text-slate-700 dark:text-slate-300">Side Navigation Rail</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Persistent icon sidebar for quick navigation</p>
-                          </div>
-                        </div>
-                        <Toggle enabled={settings.navRailEnabled} onChange={() => updateSetting("navRailEnabled", !settings.navRailEnabled)} />
                       </div>
                     </div>
                   </div>

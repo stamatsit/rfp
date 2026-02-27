@@ -1846,59 +1846,66 @@ export function SearchLibrary() {
         {/* Content Area */}
         {activeSection === "qa" ? (
       <main className="flex-1 overflow-y-auto">
-        <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">
-          {/* Search bar + Filters (same row) */}
-          <div className="flex flex-wrap gap-3 items-center">
-            {/* Search input - left side */}
-            <div className="flex-1 min-w-[200px] relative group">
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-500"
-              />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search answers and photos..."
-                className="pl-11 h-11 text-[15px] bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white shadow-[0_1px_3px_rgba(0,0,0,0.04)] rounded-xl"
-                onKeyDown={(e) => e.key === "Enter" && performSearch()}
-              />
-              {searchQuery && (
+        {/* ── Header bar ── */}
+        <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 px-6 py-3.5">
+          {/* Search */}
+          <div className="relative group max-w-2xl">
+            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search 872 answers and photos..."
+              className="pl-10 pr-10 h-10 text-[14px] bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 transition-colors"
+              onKeyDown={(e) => e.key === "Enter" && performSearch()}
+            />
+            {isSearching ? (
+              <Loader2 size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
+            ) : searchQuery ? (
+              <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <X size={14} />
+              </button>
+            ) : null}
+          </div>
+
+          {/* Filter pills */}
+          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+            {/* View toggle — Answers / Photos */}
+            {showPhotos && (
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mr-1">
                 <button
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700"
+                  onClick={() => setTypeFilter("all")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all ${
+                    typeFilter !== "photos"
+                      ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
                 >
-                  <X size={16} />
+                  <FileText size={12} className="text-blue-500" />
+                  Answers
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter !== "photos" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
+                    {totalAnswers}
+                  </span>
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={() => setTypeFilter("photos")}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all ${
+                    typeFilter === "photos"
+                      ? "bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm"
+                      : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                  }`}
+                >
+                  <ImageIcon size={12} className="text-purple-500" />
+                  Photos
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === "photos" ? "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
+                    {totalPhotos}
+                  </span>
+                </button>
+              </div>
+            )}
 
-            {/* Filters - right side */}
-            <Select
-              value={typeFilter}
-              onValueChange={(v) => setTypeFilter(v as SearchItemType)}
-            >
-              <SelectTrigger className="w-32 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <SelectValue placeholder="Type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="answers">
-                  <div className="flex items-center gap-2">
-                    <FileText size={14} className="text-blue-500" />
-                    Answers
-                  </div>
-                </SelectItem>
-                <SelectItem value="photos">
-                  <div className="flex items-center gap-2">
-                    <ImageIcon size={14} className="text-purple-500" />
-                    Photos
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-
+            {/* Topic pill */}
             <Select value={topicFilter} onValueChange={setTopicFilter}>
-              <SelectTrigger className="w-36 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+              <SelectTrigger className={`h-8 px-3 text-[12px] rounded-lg border transition-colors ${topicFilter !== "all" ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
                 <SelectValue placeholder="Topic" />
               </SelectTrigger>
               <SelectContent>
@@ -1908,7 +1915,7 @@ export function SearchLibrary() {
                   return (
                     <SelectItem key={topic.id} value={topic.id}>
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${color.bg} border ${color.border}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
                         {topic.displayName}
                       </div>
                     </SelectItem>
@@ -1917,33 +1924,26 @@ export function SearchLibrary() {
               </SelectContent>
             </Select>
 
-            <Select
-              value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}
-            >
-              <SelectTrigger className="w-32 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+            {/* Status pill */}
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}>
+              <SelectTrigger className={`h-8 px-3 text-[12px] rounded-lg border transition-colors ${statusFilter !== "all" ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="Approved">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 size={14} className="text-emerald-500" />
-                    Approved
-                  </div>
+                  <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-emerald-500" />Approved</div>
                 </SelectItem>
                 <SelectItem value="Draft">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle size={14} className="text-amber-500" />
-                    Draft
-                  </div>
+                  <div className="flex items-center gap-2"><AlertCircle size={12} className="text-amber-500" />Draft</div>
                 </SelectItem>
               </SelectContent>
             </Select>
 
+            {/* Sort pill */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="w-36 h-11 bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-white rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                <ArrowUpDown size={14} className="mr-2 text-slate-400" />
+              <SelectTrigger className="h-8 px-3 text-[12px] rounded-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+                <ArrowUpDown size={11} className="mr-1.5 text-slate-400" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -1951,145 +1951,70 @@ export function SearchLibrary() {
                 <SelectItem value="most-used">Most Used</SelectItem>
                 <SelectItem value="newest">Newest</SelectItem>
                 <SelectItem value="oldest">Oldest</SelectItem>
-                <SelectItem value="alphabetical">A-Z</SelectItem>
+                <SelectItem value="alphabetical">A–Z</SelectItem>
               </SelectContent>
             </Select>
 
-            {isSearching && (
-              <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
-            )}
-          </div>
-
-          {/* Results count */}
-          <div className="flex items-center justify-between">
-            <p className="text-slate-500 dark:text-slate-400 text-sm">
-              <span className="font-medium text-slate-700 dark:text-slate-300">{totalAnswers}</span> answers,{" "}
-              <span className="font-medium text-slate-700 dark:text-slate-300">{totalPhotos}</span> photos
-            </p>
             {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearAllFilters}
-                className="text-slate-500 hover:text-slate-700 h-8 rounded-lg"
-              >
-                <X size={14} className="mr-1" />
-                Clear filters
-              </Button>
+              <button onClick={clearAllFilters} className="flex items-center gap-1 h-8 px-2.5 text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <X size={11} />Clear
+              </button>
             )}
           </div>
+        </div>
 
-          {/* Results - Two Column Layout */}
-          <div className={`grid grid-cols-1 ${showPhotos ? "lg:grid-cols-5" : ""} gap-6`}>
-            {/* Answers Column - Takes up 3 columns (or full width if photos hidden) */}
-            <div className={`${showPhotos ? "lg:col-span-3" : ""} space-y-3`}>
-              {/* Answers Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <FileText size={18} className="text-blue-600" />
-                  Answers
-                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">
-                    ({sortedAnswers.length}{totalAnswers > sortedAnswers.length ? ` of ${totalAnswers}` : ""})
-                  </span>
-                </h2>
-              </div>
+        {/* ── Content ── */}
+        <div className="max-w-4xl mx-auto px-6 py-6 space-y-3">
 
-              {/* Top 10 Most Relevant Answers (when searching) */}
+          {/* ── ANSWERS VIEW ── */}
+          {typeFilter !== "photos" && (
+            <>
+              {/* Top results when searching */}
               {searchQuery && sortedAnswers.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-                    <Sparkles size={14} className="text-amber-500" />
-                    <span>Top results</span>
+                <div className="mb-5 space-y-2">
+                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">
+                    <Sparkles size={11} className="text-amber-400" />
+                    Top results
                   </div>
-                  {sortedAnswers.slice(0, 10).map((answer) => {
+                  {sortedAnswers.slice(0, 5).map((answer) => {
                     const topicColor = getTopicColor(answer.topicId, getTopicIndex(answer.topicId))
                     return (
-                      <Card
+                      <div
                         key={answer.id}
-                        className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group rounded-2xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-200 ease-out"
                         onClick={() => setSelectedAnswer(answer)}
+                        className="group flex items-start gap-3.5 p-4 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all duration-150 hover:shadow-[0_4px_16px_rgba(59,130,246,0.08)]"
                       >
-                        <CardContent className="p-5">
-                          <div className="flex items-start gap-4">
-                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100/80 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-200 group-hover:shadow-[0_2px_8px_rgba(59,130,246,0.15)]">
-                              <FileText size={20} className="text-blue-600" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
-                                {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
-                              </h3>
-                              <p className="text-slate-500 dark:text-slate-400 mt-1.5 text-sm line-clamp-2 leading-relaxed">
-                                {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
-                              </p>
-                              <div className="flex items-center gap-2 mt-3 flex-wrap">
-                                <Badge
-                                  variant="secondary"
-                                  className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}
-                                >
-                                  {topics.find((t) => t.id === answer.topicId)?.displayName || "Unknown"}
-                                </Badge>
-                                {answer.status === "Approved" ? (
-                                  <Badge variant="success" className="text-xs">Approved</Badge>
-                                ) : (
-                                  <Badge variant="warning" className="text-xs">Draft</Badge>
-                                )}
-                                {answer.tags.slice(0, 2).map((tag, i) => (
-                                  <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-xs">
-                                    {tag}
-                                  </Badge>
-                                ))}
-                                {answer.tags.length > 2 && (
-                                  <Badge variant="outline" className="text-xs">+{answer.tags.length - 2}</Badge>
-                                )}
-                                {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
-                                  <Badge variant="outline" className="text-xs ml-auto">
-                                    <ImageIcon size={10} className="mr-1" />
-                                    {answer.linkedPhotosCount}
-                                  </Badge>
-                                )}
-                                {(answer.usageCount || 0) > 0 && (
-                                  <span className={`text-[10px] text-slate-400 dark:text-slate-500 ${!(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) ? "ml-auto" : ""}`}>
-                                    Used {answer.usageCount}x
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleCopy(answer.answer, answer.id)}
-                                className="h-9 w-9 p-0 rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                              >
-                                {copiedId === answer.id ? (
-                                  <Check size={16} className="text-emerald-500" />
-                                ) : (
-                                  <Copy size={16} className="text-slate-400" />
-                                )}
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700">
-                                <ChevronRight size={16} className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-                              </Button>
-                            </div>
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Sparkles size={14} className="text-blue-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                            {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
+                          </p>
+                          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                            {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}>
+                              {topics.find((t) => t.id === answer.topicId)?.displayName || "Unknown"}
+                            </Badge>
+                            {answer.tags.slice(0, 2).map((tag, i) => (
+                              <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-[10px] px-1.5 py-0">{tag}</Badge>
+                            ))}
                           </div>
-                        </CardContent>
-                      </Card>
+                        </div>
+                        <div onClick={(e) => e.stopPropagation()}>
+                          <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)} className="h-8 w-8 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-100 dark:hover:bg-blue-900/40">
+                            {copiedId === answer.id ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-blue-500" />}
+                          </Button>
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
               )}
 
-              {/* Browse by Topic Section */}
-              {sortedAnswers.length > 0 && (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 pt-2">
-                    <Filter size={14} />
-                    <span>Browse by topic</span>
-                  </div>
-                </div>
-              )}
-
-              {/* Answers - Grouped by Topic Accordions */}
+              {/* Topic accordions */}
               {sortedAnswers.length > 0 && sortedAnswerTopicIds.map((topicId) => {
                 const topicAnswers = answersByTopic[topicId] || []
                 if (topicAnswers.length === 0) return null
@@ -2101,109 +2026,85 @@ export function SearchLibrary() {
                 const hasMore = topicAnswers.length > limit
                 const remaining = topicAnswers.length - limit
 
+                // Map color to a solid left-border accent
+                const accentColors: Record<string, string> = {
+                  "bg-blue-50": "border-l-blue-400", "bg-purple-50": "border-l-purple-400",
+                  "bg-teal-50": "border-l-teal-400", "bg-orange-50": "border-l-orange-400",
+                  "bg-amber-50": "border-l-amber-400", "bg-emerald-50": "border-l-emerald-400",
+                  "bg-slate-100": "border-l-slate-400",
+                }
+                const accentBorder = accentColors[topicColor.bg] || "border-l-slate-300"
+
                 return (
-                  <div key={topicId} className="rounded-2xl border border-slate-200/60 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800">
+                  <div key={topicId} className={`rounded-xl border border-slate-200/70 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-800/60 border-l-4 ${accentBorder} shadow-[0_1px_3px_rgba(0,0,0,0.04)]`}>
                     {/* Accordion Header */}
                     <button
                       onClick={() => toggleAnswerTopic(topicId)}
-                      className="w-full flex items-center gap-3 p-4 hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors text-left"
                     >
                       <ChevronRight
-                        size={18}
-                        className={`text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
+                        size={15}
+                        className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
                       />
-                      <Badge
-                        variant="secondary"
-                        className={`${topicColor.bg} ${topicColor.text} border ${topicColor.border} flex items-center gap-1.5`}
-                      >
-                        <FolderOpen size={12} />
+                      <span className={`text-[13px] font-semibold ${topicColor.text}`}>
                         {topic?.displayName || "Unknown"}
-                      </Badge>
-                      <span className="text-slate-500 dark:text-slate-400 text-sm">
-                        ({topicAnswers.length} {topicAnswers.length === 1 ? 'answer' : 'answers'})
+                      </span>
+                      <span className={`ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}>
+                        {topicAnswers.length}
                       </span>
                     </button>
 
                     {/* Accordion Content */}
                     {isExpanded && (
-                      <div className="border-t border-slate-200/60 dark:border-slate-700">
-                        <div className="p-3 space-y-3">
-                          {visibleAnswers.map((answer) => (
-                            <Card
-                              key={answer.id}
-                              className="hover:shadow-[0_4px_12px_rgba(0,0,0,0.06),0_1px_3px_rgba(0,0,0,0.04)] hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-900 transition-all duration-200 ease-out"
-                              onClick={() => setSelectedAnswer(answer)}
-                            >
-                              <CardContent className="p-4">
-                                <div className="flex items-start gap-3">
-                                  <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100/80 flex items-center justify-center flex-shrink-0 group-hover:from-blue-100 group-hover:to-blue-200 transition-all duration-200">
-                                    <FileText size={16} className="text-blue-600" />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <h3 className="font-medium text-slate-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug text-sm">
-                                      {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
-                                    </h3>
-                                    <p className="text-slate-500 dark:text-slate-400 mt-1 text-sm line-clamp-2 leading-relaxed">
-                                      {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
-                                    </p>
-                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                      {answer.status === "Approved" ? (
-                                        <Badge variant="success" className="text-xs">Approved</Badge>
-                                      ) : (
-                                        <Badge variant="warning" className="text-xs">Draft</Badge>
-                                      )}
-                                      {answer.tags.slice(0, 2).map((tag, i) => (
-                                        <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-xs">
-                                          {tag}
-                                        </Badge>
-                                      ))}
-                                      {answer.tags.length > 2 && (
-                                        <Badge variant="outline" className="text-xs">+{answer.tags.length - 2}</Badge>
-                                      )}
-                                      {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
-                                        <Badge variant="outline" className="text-xs ml-auto">
-                                          <ImageIcon size={10} className="mr-1" />
-                                          {answer.linkedPhotosCount}
-                                        </Badge>
-                                      )}
-                                      {(answer.usageCount || 0) > 0 && (
-                                        <span className={`text-[10px] text-slate-400 dark:text-slate-500 ${!(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) ? "ml-auto" : ""}`}>
-                                          Used {answer.usageCount}x
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleCopy(answer.answer, answer.id)}
-                                      className="h-8 w-8 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                    >
-                                      {copiedId === answer.id ? (
-                                        <Check size={14} className="text-emerald-500" />
-                                      ) : (
-                                        <Copy size={14} className="text-slate-400" />
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                      <div className="border-t border-slate-100 dark:border-slate-700/50 divide-y divide-slate-100 dark:divide-slate-700/40">
+                        {visibleAnswers.map((answer) => (
+                          <div
+                            key={answer.id}
+                            onClick={() => setSelectedAnswer(answer)}
+                            className="group flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/20 cursor-pointer transition-colors"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-medium text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                                {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
+                              </p>
+                              <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                                {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                {answer.status === "Draft" && (
+                                  <Badge variant="warning" className="text-[10px] px-1.5 py-0">Draft</Badge>
+                                )}
+                                {answer.tags.slice(0, 3).map((tag, i) => (
+                                  <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-[10px] px-1.5 py-0">{tag}</Badge>
+                                ))}
+                                {answer.tags.length > 3 && (
+                                  <span className="text-[10px] text-slate-400">+{answer.tags.length - 3}</span>
+                                )}
+                                {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
+                                  <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+                                    <ImageIcon size={10} />{answer.linkedPhotosCount}
+                                  </span>
+                                )}
+                                {(answer.usageCount || 0) > 0 && !(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) && (
+                                  <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500">Used {answer.usageCount}×</span>
+                                )}
+                              </div>
+                            </div>
+                            <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 mt-0.5">
+                              <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)}
+                                className="h-7 w-7 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-100 dark:hover:bg-slate-700">
+                                {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-400" />}
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
 
-                        {/* Show More Button */}
                         {hasMore && (
-                          <div className="px-3 pb-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => showMoreAnswers(topicId)}
-                              className="w-full h-9 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700"
-                            >
-                              Show {Math.min(ITEMS_PER_PAGE, remaining)} more
-                            </Button>
+                          <div className="px-4 py-2.5">
+                            <button onClick={() => showMoreAnswers(topicId)}
+                              className="text-[12px] text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                              Show {Math.min(ITEMS_PER_PAGE, remaining)} more in {topic?.displayName}
+                            </button>
                           </div>
                         )}
                       </div>
@@ -2212,169 +2113,110 @@ export function SearchLibrary() {
                 )
               })}
 
-              {sortedAnswers.length === 0 && (
-                <div className="text-center py-14 bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
-                    <FileText size={24} className="text-slate-300 dark:text-slate-500" />
+              {sortedAnswers.length === 0 && !isSearching && (
+                <div className="text-center py-16">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                    <FileText size={22} className="text-slate-300 dark:text-slate-600" />
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 text-[14px]">No answers found</p>
+                  <p className="text-[14px] text-slate-500 dark:text-slate-400">No answers match your filters</p>
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearAllFilters} className="mt-3 text-[13px] text-blue-500 hover:underline">Clear filters</button>
+                  )}
                 </div>
               )}
 
               {answers.length < totalAnswers && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={loadMoreAnswers}
-                    disabled={isLoadingMoreAnswers}
-                    className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    {isLoadingMoreAnswers ? (
-                      <><Loader2 size={14} className="mr-1.5 animate-spin" />Loading...</>
-                    ) : (
-                      <>
-                        View More
-                        <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
-                          ({answers.length} of {totalAnswers})
-                        </span>
-                      </>
-                    )}
+                <div className="flex justify-center pt-2 pb-4">
+                  <Button variant="outline" onClick={loadMoreAnswers} disabled={isLoadingMoreAnswers}
+                    className="h-9 px-6 rounded-lg border-slate-200 dark:border-slate-700 text-[13px]">
+                    {isLoadingMoreAnswers ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-400">{answers.length} of {totalAnswers}</span></>}
                   </Button>
                 </div>
               )}
-            </div>
+            </>
+          )}
 
-            {/* Photos Column - Takes up 2 columns (hidden if searchIncludePhotos is off) */}
-            {showPhotos && <div className="lg:col-span-2 space-y-3">
-              {/* Photos Header */}
-              <div className="flex items-center justify-between">
-                <h2 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                  <ImageIcon size={18} className="text-purple-600" />
-                  Photos
-                  <span className="text-slate-500 dark:text-slate-400 font-normal text-sm">
-                    ({sortedPhotos.length}{totalPhotos > sortedPhotos.length ? ` of ${totalPhotos}` : ""})
-                  </span>
-                </h2>
-              </div>
-
-              {/* Photos Grid - Flat list sorted by relevance */}
-              {sortedPhotos.length > 0 && (
-                <div className="grid grid-cols-2 gap-2">
+          {/* ── PHOTOS VIEW ── */}
+          {typeFilter === "photos" && showPhotos && (
+            <>
+              {sortedPhotos.length > 0 ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {sortedPhotos.map((photo) => {
                     const topicColor = getTopicColor(photo.topicId, getTopicIndex(photo.topicId))
                     return (
-                      <Card
+                      <div
                         key={photo.id}
-                        className="overflow-hidden hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] cursor-pointer group rounded-xl border-slate-200/60 dark:border-slate-700 dark:bg-slate-800 transition-all duration-300 ease-out hover:-translate-y-0.5"
                         onClick={() => setSelectedPhoto(photo)}
+                        className="group relative rounded-xl overflow-hidden cursor-pointer bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/60 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-[0_8px_24px_rgba(0,0,0,0.1)] transition-all duration-200 hover:-translate-y-0.5"
                       >
-                        <div className="aspect-square bg-slate-100 dark:bg-slate-700 relative overflow-hidden">
+                        <div className="aspect-square overflow-hidden">
                           <img
                             src={photo.fileUrl || photosApi.getFileUrl(photo.storageKey)}
                             alt={photo.displayTitle}
-                            className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-110"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             onError={(e) => {
                               e.currentTarget.style.display = "none"
-                              e.currentTarget.nextElementSibling?.classList.remove("hidden")
+                              const el = e.currentTarget.nextElementSibling as HTMLElement | null
+                              if (el) el.style.display = "flex"
                             }}
                           />
-                          <div className="hidden absolute inset-0 flex items-center justify-center">
-                            <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
-                          </div>
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                          <div className="absolute bottom-0 left-0 right-0 p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300 ease-out">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              className="w-full h-7 bg-white/95 backdrop-blur-sm hover:bg-white text-[10px] rounded-lg shadow-lg"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                handleDownload(photo)
-                              }}
-                            >
-                              <Download size={10} className="mr-1" />
-                              Download
-                            </Button>
+                          <div className="hidden w-full h-full items-center justify-center">
+                            <ImageIcon size={24} className="text-slate-300 dark:text-slate-600" />
                           </div>
                         </div>
-                        <div className="p-2">
-                          <p className="font-medium text-xs text-slate-900 dark:text-white truncate">
-                            {photo.displayTitle}
-                          </p>
-                          <div className="flex items-center gap-1 mt-1 flex-wrap">
-                            <Badge
-                              variant="secondary"
-                              className={`text-[9px] px-1 py-0 ${topicColor.bg} ${topicColor.text}`}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        <div className="absolute bottom-0 left-0 right-0 p-2.5 translate-y-1 group-hover:translate-y-0 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                          <p className="text-[11px] font-medium text-white truncate leading-tight">{photo.displayTitle}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${topicColor.bg} ${topicColor.text}`}>
+                              {topics.find((t) => t.id === photo.topicId)?.displayName || "?"}
+                            </span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDownload(photo) }}
+                              className="ml-auto p-1 rounded-md bg-white/20 hover:bg-white/30 transition-colors"
                             >
-                              {topics.find((t) => t.id === photo.topicId)?.displayName || "Unknown"}
-                            </Badge>
-                            {photo.status === "Approved" ? (
-                              <Badge variant="success" className="text-[9px] px-1 py-0">Approved</Badge>
-                            ) : (
-                              <Badge variant="warning" className="text-[9px] px-1 py-0">Draft</Badge>
-                            )}
-                            {(photo.usageCount || 0) > 0 && (
-                              <span className="text-[9px] text-slate-400 dark:text-slate-500 ml-auto">Used {photo.usageCount}x</span>
-                            )}
+                              <Download size={10} className="text-white" />
+                            </button>
                           </div>
                         </div>
-                      </Card>
+                      </div>
                     )
                   })}
                 </div>
-              )}
-
-              {sortedPhotos.length === 0 && (
-                <div className="text-center py-14 bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-900 dark:to-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon size={24} className="text-slate-300 dark:text-slate-500" />
+              ) : (
+                <div className="text-center py-16">
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
+                    <ImageIcon size={22} className="text-slate-300 dark:text-slate-600" />
                   </div>
-                  <p className="text-slate-500 dark:text-slate-400 text-[14px]">No photos found</p>
+                  <p className="text-[14px] text-slate-500 dark:text-slate-400">No photos match your filters</p>
+                  {activeFilterCount > 0 && (
+                    <button onClick={clearAllFilters} className="mt-3 text-[13px] text-blue-500 hover:underline">Clear filters</button>
+                  )}
                 </div>
               )}
 
               {photos.length < totalPhotos && (
-                <div className="flex justify-center pt-2">
-                  <Button
-                    variant="outline"
-                    onClick={loadMorePhotos}
-                    disabled={isLoadingMorePhotos}
-                    className="h-9 px-5 rounded-lg border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-                  >
-                    {isLoadingMorePhotos ? (
-                      <><Loader2 size={14} className="mr-1.5 animate-spin" />Loading...</>
-                    ) : (
-                      <>
-                        View More
-                        <span className="ml-1.5 text-slate-500 dark:text-slate-400 text-sm">
-                          ({photos.length} of {totalPhotos})
-                        </span>
-                      </>
-                    )}
+                <div className="flex justify-center pt-2 pb-4">
+                  <Button variant="outline" onClick={loadMorePhotos} disabled={isLoadingMorePhotos}
+                    className="h-9 px-6 rounded-lg border-slate-200 dark:border-slate-700 text-[13px]">
+                    {isLoadingMorePhotos ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-400">{photos.length} of {totalPhotos}</span></>}
                   </Button>
                 </div>
               )}
-            </div>}
-          </div>
+            </>
+          )}
 
-          {/* Empty state when both are empty */}
-          {answers.length === 0 && photos.length === 0 && (
-            <div className="text-center py-24">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-slate-100 to-slate-200/80 dark:from-slate-800 dark:to-slate-700 flex items-center justify-center mx-auto mb-6 shadow-[0_4px_12px_rgba(0,0,0,0.04)]">
-                <Search size={32} className="text-slate-400" />
+          {/* ── ALL-EMPTY state ── */}
+          {answers.length === 0 && photos.length === 0 && !isSearching && (
+            <div className="text-center py-20">
+              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-5">
+                <Search size={26} className="text-slate-300 dark:text-slate-600" />
               </div>
-              <p className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight">No results found</p>
-              <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-md mx-auto text-[15px] leading-relaxed">
-                Try adjusting your search query or filters to find what you're looking for.
-              </p>
+              <p className="text-[15px] font-semibold text-slate-700 dark:text-slate-300">No results</p>
+              <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">Try different keywords or clear your filters</p>
               {activeFilterCount > 0 && (
-                <Button
-                  variant="outline"
-                  onClick={clearAllFilters}
-                  className="mt-5 rounded-xl h-11"
-                >
-                  <X size={16} className="mr-2" />
-                  Clear all filters
+                <Button variant="outline" onClick={clearAllFilters} className="mt-4 rounded-xl h-9 text-[13px]">
+                  <X size={13} className="mr-1.5" />Clear filters
                 </Button>
               )}
             </div>
