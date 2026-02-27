@@ -1794,7 +1794,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             `)
 
             const total = (rows[0] as any)?._total ?? 0
-            return { rows: rows.map((r: any) => { const { _total, ...rest } = r; return rest }), total }
+            return {
+              rows: rows.map((r: any) => ({
+                id: r.id,
+                question: r.question,
+                answer: r.answer,
+                topicId: r.topic_id,
+                subtopic: r.subtopic,
+                status: r.status,
+                tags: r.tags ?? [],
+                usageCount: r.usage_count ?? 0,
+                lastUsedAt: r.last_used_at,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at,
+                createdBy: r.created_by,
+                linkedPhotosCount: r.linked_photos_count ?? 0,
+              })),
+              total,
+            }
           })(),
 
           // --- PHOTOS ---
@@ -1825,17 +1842,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             `)
 
             const total = (rows[0] as any)?._total ?? 0
-            const photos = rows.map((r: any) => { const { _total, ...rest } = r; return rest })
+            const photos = rows.map((r: any) => ({
+              id: r.id,
+              displayTitle: r.display_title,
+              storageKey: r.storage_key,
+              originalFilename: r.original_filename,
+              mimeType: r.mime_type,
+              topicId: r.topic_id,
+              status: r.status,
+              tags: r.tags ?? [],
+              description: r.description,
+              createdAt: r.created_at,
+              updatedAt: r.updated_at,
+              createdBy: r.created_by,
+              linkedAnswersCount: r.linked_answers_count ?? 0,
+              fileUrl: null as string | null,
+            }))
 
             // Batch signed URLs in the same parallel branch
             if (supabase && photos.length > 0) {
               const paths = photos.map((p: any) => {
-                const ext = (p.originalFilename || p.original_filename)?.match(/\.([^.]+)$/)?.[1] || "png"
-                return `${p.storageKey || p.storage_key}.${ext}`
+                const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+                return `${p.storageKey}.${ext}`
               })
               const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
               return {
-                rows: photos.map((p: any, i: number) => ({ ...p, fileUrl: signedData?.[i]?.signedUrl ?? null })),
+                rows: photos.map((p, i) => ({ ...p, fileUrl: signedData?.[i]?.signedUrl ?? null })),
                 total,
               }
             }
