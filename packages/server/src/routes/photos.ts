@@ -13,6 +13,7 @@ import {
   deletePhoto,
   recordDownload,
   searchPhotos,
+  withSignedUrls,
 } from "../services/photoService.js"
 import { getAllTopics, upsertTopic } from "../services/topicService.js"
 import { logAudit } from "../services/auditService.js"
@@ -187,7 +188,8 @@ router.get("/search", async (req: Request, res: Response) => {
       limit: limit ? parseInt(limit as string, 10) : undefined,
     })
 
-    res.json(photos)
+    const photosWithUrls = await withSignedUrls(photos)
+    res.json(photosWithUrls)
   } catch (error) {
     console.error("Failed to search photos:", error)
     res.status(500).json({ error: "Failed to search photos" })

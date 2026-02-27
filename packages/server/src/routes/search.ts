@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express"
 import { getAnswers, getAnswerById, searchAnswers } from "../services/answerService.js"
-import { getPhotos, getPhotoById, searchPhotos } from "../services/photoService.js"
+import { getPhotos, getPhotoById, searchPhotos, withSignedUrls } from "../services/photoService.js"
 import {
   linkAnswerToPhoto,
   unlinkAnswerFromPhoto,
@@ -64,9 +64,10 @@ router.get("/", async (req: Request, res: Response) => {
       }
     }
 
+    const photosWithUrls = await withSignedUrls(photos)
     res.json({
       answers,
-      photos,
+      photos: photosWithUrls,
       totalAnswers,
       totalPhotos,
     })
@@ -137,7 +138,8 @@ router.get("/photos", async (req: Request, res: Response) => {
       })
     }
 
-    res.json(photos)
+    const photosWithUrls = await withSignedUrls(photos)
+    res.json(photosWithUrls)
   } catch (error) {
     console.error("Search photos failed:", error)
     res.status(500).json({ error: "Search failed" })
@@ -191,11 +193,12 @@ router.get("/photos/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Photo not found" })
     }
 
-    // Get linked answers
+    // Get linked answers and attach signed URL
     const linkedAnswers = await getLinkedAnswers(id)
+    const [photoWithUrl] = await withSignedUrls([photo])
 
     res.json({
-      ...photo,
+      ...photoWithUrl,
       linkedAnswers,
     })
   } catch (error) {
@@ -291,7 +294,8 @@ router.get("/answers/:id/photos", async (req: Request, res: Response) => {
     }
 
     const photos = await getLinkedPhotos(id)
-    res.json(photos)
+    const photosWithUrls = await withSignedUrls(photos)
+    res.json(photosWithUrls)
   } catch (error) {
     console.error("Failed to get linked photos:", error)
     res.status(500).json({ error: "Failed to get linked photos" })

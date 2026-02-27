@@ -4,6 +4,7 @@ import {
   photoAssets,
   photoAssetVersions,
   linksAnswerPhoto,
+  supabaseAdmin,
   type PhotoAsset,
   type NewPhotoAsset,
   type PhotoAssetVersion,
@@ -13,6 +14,25 @@ import { logEdit, logRename, logDownload } from "./auditService.js"
 
 export interface PhotoWithMeta extends PhotoAsset {
   linkedAnswersCount?: number
+  fileUrl?: string | null
+}
+
+/**
+ * Batch-append Supabase signed URLs to an array of photos.
+ * Always call this before returning photos to the client so images render.
+ */
+export async function withSignedUrls<T extends { storageKey: string; originalFilename?: string; fileUrl?: string | null }>(
+  photos: T[]
+): Promise<(T & { fileUrl: string | null })[]> {
+  if (!supabaseAdmin || photos.length === 0) {
+    return photos.map(p => ({ ...p, fileUrl: p.fileUrl ?? null }))
+  }
+  const paths = photos.map(p => {
+    const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+    return `${p.storageKey}.${ext}`
+  })
+  const { data } = await supabaseAdmin.storage.from("photo-assets").createSignedUrls(paths, 3600)
+  return photos.map((p, i) => ({ ...p, fileUrl: data?.[i]?.signedUrl ?? null }))
 }
 
 /**
