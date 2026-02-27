@@ -1411,15 +1411,6 @@ export function SearchLibrary() {
     return Object.keys(answersByTopic).sort((a, b) => (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0))
   }, [answersByTopic])
 
-  // Auto-expand all topic groups on initial data load
-  const didInitExpand = useRef(false)
-  useEffect(() => {
-    if (!didInitExpand.current && sortedAnswerTopicIds.length > 0) {
-      didInitExpand.current = true
-      setExpandedAnswerTopics(new Set(sortedAnswerTopicIds))
-    }
-  }, [sortedAnswerTopicIds])
-
   // Toggle accordion expansion
   const toggleAnswerTopic = (topicId: string) => {
     setExpandedAnswerTopics(prev => {
