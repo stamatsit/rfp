@@ -1761,161 +1761,94 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const type = (req.query?.type as string) || "all"
         const topicId = req.query?.topicId as string
         const status = req.query?.status as string
-        const limit = parseInt(req.query?.limit as string) || 50
+        const limit = Math.min(parseInt(req.query?.limit as string) || 50, 200)
         const offset = parseInt(req.query?.offset as string) || 0
 
-        // Helper function to count occurrences of a word in text (case-insensitive)
-        const countOccurrences = (text: string, word: string): number => {
-          const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi')
-          return (text.match(regex) || []).length
-        }
+        // Run answers and photos queries in parallel
+        const [answersResult, photosResult] = await Promise.all([
+          // --- ANSWERS ---
+          (async () => {
+            if (type !== "all" && type !== "answers") return { rows: [], total: 0 }
 
-        // Helper function to score an item based on search query
-        const scoreItem = (title: string, body: string, searchQuery: string): number => {
-          if (!searchQuery.trim()) return 0
-
-          const queryLower = searchQuery.toLowerCase().trim()
-          const titleLower = title.toLowerCase()
-          const bodyLower = body.toLowerCase()
-          const searchWords = queryLower.split(/\s+/).filter(w => w.length > 0)
-
-          let score = 0
-
-          // Exact phrase match in title = highest priority (+50)
-          if (titleLower.includes(queryLower)) {
-            score += 50
-          }
-
-          // Exact phrase match in body (+25)
-          if (bodyLower.includes(queryLower)) {
-            score += 25
-          }
-
-          // Each search word found in title (+10 each)
-          for (const word of searchWords) {
-            if (titleLower.includes(word)) {
-              score += 10
+            const conditions: ReturnType<typeof sql>[] = []
+            if (query) {
+              conditions.push(sql`(
+                answer_items.question ILIKE ${'%' + query + '%'}
+                OR answer_items.answer ILIKE ${'%' + query + '%'}
+              )`)
             }
-          }
+            if (topicId) conditions.push(sql`answer_items.topic_id = ${topicId}`)
+            if (status) conditions.push(sql`answer_items.status = ${status}`)
 
-          // Count occurrences of each search word in body (+2 per occurrence)
-          for (const word of searchWords) {
-            const occurrences = countOccurrences(bodyLower, word)
-            score += occurrences * 2
-          }
+            const where = conditions.length > 0
+              ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+              : sql``
 
-          return score
-        }
+            // Single query: count + paginated rows via window function
+            const rows = await db.execute(sql`
+              SELECT *, COUNT(*) OVER()::int AS _total
+              FROM answer_items
+              ${where}
+              ORDER BY created_at DESC
+              LIMIT ${limit} OFFSET ${offset}
+            `)
 
-        let answerResults: any[] = []
-        let photoResults: any[] = []
-        let totalAnswers = 0
-        let totalPhotos = 0
+            const total = (rows[0] as any)?._total ?? 0
+            return { rows: rows.map((r: any) => { const { _total, ...rest } = r; return rest }), total }
+          })(),
 
-        if (type === "all" || type === "answers") {
-          const conditions = []
-          if (query) {
-            // Split query into words and match any word in question or answer
-            const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 0)
-            const wordConditions = searchWords.flatMap(word => [
-              ilike(answerItems.question, `%${word}%`),
-              ilike(answerItems.answer, `%${word}%`)
-            ])
-            if (wordConditions.length > 0) {
-              conditions.push(or(...wordConditions))
+          // --- PHOTOS ---
+          (async () => {
+            if (type !== "all" && type !== "photos") return { rows: [], total: 0 }
+
+            const conditions: ReturnType<typeof sql>[] = []
+            if (query) {
+              conditions.push(sql`(
+                photo_assets.display_title ILIKE ${'%' + query + '%'}
+                OR photo_assets.description ILIKE ${'%' + query + '%'}
+                OR photo_assets.original_filename ILIKE ${'%' + query + '%'}
+              )`)
             }
-          }
-          if (topicId) conditions.push(eq(answerItems.topicId, topicId))
-          if (status) conditions.push(eq(answerItems.status, status))
+            if (topicId) conditions.push(sql`photo_assets.topic_id = ${topicId}`)
+            if (status) conditions.push(sql`photo_assets.status = ${status}`)
 
-          // Get total count
-          const countQuery = conditions.length > 0
-            ? db.select({ count: sql<number>`count(*)::int` }).from(answerItems)
-                .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-            : db.select({ count: sql<number>`count(*)::int` }).from(answerItems)
-          const [countResult] = await countQuery
-          totalAnswers = countResult?.count || 0
+            const where = conditions.length > 0
+              ? sql`WHERE ${sql.join(conditions, sql` AND `)}`
+              : sql``
 
-          // Get all matching results (we'll sort and paginate after scoring)
-          let allAnswers: any[] = []
-          if (conditions.length > 0) {
-            allAnswers = await db.select().from(answerItems)
-              .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-          } else {
-            allAnswers = await db.select().from(answerItems)
-          }
+            const rows = await db.execute(sql`
+              SELECT *, COUNT(*) OVER()::int AS _total
+              FROM photo_assets
+              ${where}
+              ORDER BY created_at DESC
+              LIMIT ${limit} OFFSET ${offset}
+            `)
 
-          // Score and sort answers by relevance
-          if (query) {
-            const scoredAnswers = allAnswers.map(answer => ({
-              ...answer,
-              _relevanceScore: scoreItem(answer.question, answer.answer, query)
-            }))
-            scoredAnswers.sort((a, b) => b._relevanceScore - a._relevanceScore)
-            // Keep score in results for debugging, apply pagination
-            answerResults = scoredAnswers.slice(offset, offset + limit)
-          } else {
-            // No query = sort by date
-            allAnswers.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            answerResults = allAnswers.slice(offset, offset + limit)
-          }
-        }
+            const total = (rows[0] as any)?._total ?? 0
+            const photos = rows.map((r: any) => { const { _total, ...rest } = r; return rest })
 
-        if (type === "all" || type === "photos") {
-          const conditions = []
-          if (query) {
-            // Split query into words and match any word
-            const searchWords = query.toLowerCase().split(/\s+/).filter(w => w.length > 0)
-            const wordConditions = searchWords.flatMap(word => [
-              ilike(photoAssets.displayTitle, `%${word}%`),
-              ilike(photoAssets.description, `%${word}%`),
-              ilike(photoAssets.originalFilename, `%${word}%`)
-            ])
-            if (wordConditions.length > 0) {
-              conditions.push(or(...wordConditions))
+            // Batch signed URLs in the same parallel branch
+            if (supabase && photos.length > 0) {
+              const paths = photos.map((p: any) => {
+                const ext = (p.originalFilename || p.original_filename)?.match(/\.([^.]+)$/)?.[1] || "png"
+                return `${p.storageKey || p.storage_key}.${ext}`
+              })
+              const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
+              return {
+                rows: photos.map((p: any, i: number) => ({ ...p, fileUrl: signedData?.[i]?.signedUrl ?? null })),
+                total,
+              }
             }
-          }
-          if (topicId) conditions.push(eq(photoAssets.topicId, topicId))
-          if (status) conditions.push(eq(photoAssets.status, status))
 
-          // Get total count
-          const countQuery = conditions.length > 0
-            ? db.select({ count: sql<number>`count(*)::int` }).from(photoAssets)
-                .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-            : db.select({ count: sql<number>`count(*)::int` }).from(photoAssets)
-          const [countResult] = await countQuery
-          totalPhotos = countResult?.count || 0
-
-          // Get all matching results (we'll sort and paginate after scoring)
-          let allPhotos: any[] = []
-          if (conditions.length > 0) {
-            allPhotos = await db.select().from(photoAssets)
-              .where(conditions.length === 1 ? conditions[0]! : sql`${sql.join(conditions, sql` AND `)}`)
-          } else {
-            allPhotos = await db.select().from(photoAssets)
-          }
-
-          // Score and sort photos by relevance
-          if (query) {
-            const scoredPhotos = allPhotos.map(photo => ({
-              ...photo,
-              _relevanceScore: scoreItem(photo.displayTitle, (photo.description || '') + ' ' + photo.originalFilename, query)
-            }))
-            scoredPhotos.sort((a, b) => b._relevanceScore - a._relevanceScore)
-            // Keep score in results for debugging, apply pagination
-            photoResults = scoredPhotos.slice(offset, offset + limit)
-          } else {
-            // No query = sort by date
-            allPhotos.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            photoResults = allPhotos.slice(offset, offset + limit)
-          }
-        }
+            return { rows: photos, total }
+          })(),
+        ])
 
         return res.json({
-          answers: answerResults,
-          photos: photoResults,
-          totalAnswers,
-          totalPhotos
+          answers: answersResult.rows,
+          photos: photosResult.rows,
+          totalAnswers: answersResult.total,
+          totalPhotos: photosResult.total,
         })
       }
     }

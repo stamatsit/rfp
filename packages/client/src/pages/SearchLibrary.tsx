@@ -1905,7 +1905,7 @@ export function SearchLibrary() {
 
             {/* Topic pill */}
             <Select value={topicFilter} onValueChange={setTopicFilter}>
-              <SelectTrigger className={`h-8 px-3 text-[12px] rounded-lg border transition-colors ${topicFilter !== "all" ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
+              <SelectTrigger className={`w-auto h-8 px-3 text-[12px] rounded-lg border transition-colors ${topicFilter !== "all" ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
                 <SelectValue placeholder="Topic" />
               </SelectTrigger>
               <SelectContent>
@@ -1926,7 +1926,7 @@ export function SearchLibrary() {
 
             {/* Status pill */}
             <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}>
-              <SelectTrigger className={`h-8 px-3 text-[12px] rounded-lg border transition-colors ${statusFilter !== "all" ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
+              <SelectTrigger className={`w-auto h-8 px-3 text-[12px] rounded-lg border transition-colors ${statusFilter !== "all" ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
@@ -1942,7 +1942,7 @@ export function SearchLibrary() {
 
             {/* Sort pill */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-              <SelectTrigger className="h-8 px-3 text-[12px] rounded-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
+              <SelectTrigger className="w-auto h-8 px-3 text-[12px] rounded-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
                 <ArrowUpDown size={11} className="mr-1.5 text-slate-400" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
