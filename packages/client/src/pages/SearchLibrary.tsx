@@ -34,6 +34,7 @@ import {
   ArrowUp,
   ArrowDown,
   Plus,
+  GitBranch,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { RelatedContent } from "@/components/RelatedContent"
@@ -1602,9 +1603,7 @@ export function SearchLibrary() {
   }
 
   const confirmSaveAnswer = () => {
-    if (hasAnswerChanges()) {
-      setShowSaveConfirm(true)
-    }
+    if (hasAnswerChanges()) setShowSaveConfirm(true)
   }
 
   const saveAnswerChanges = async () => {
@@ -1622,9 +1621,32 @@ export function SearchLibrary() {
       setSelectedAnswer(updatedAnswer)
       setIsEditingAnswer(false)
       setShowSaveConfirm(false)
-      performSearch() // Refresh the list
+      performSearch()
     } catch (err) {
       console.error("Failed to save answer:", err)
+    } finally {
+      setIsSavingAnswer(false)
+    }
+  }
+
+  const saveAsNewEntry = async () => {
+    if (!selectedAnswer) return
+
+    setIsSavingAnswer(true)
+    try {
+      const newAnswer = await answersApi.fork(selectedAnswer.id, {
+        question: editAnswerForm.question,
+        answer: editAnswerForm.answer,
+        topicId: editAnswerForm.topicId,
+        status: editAnswerForm.status,
+        tags: editAnswerForm.tags.split(",").map(t => t.trim()).filter(Boolean),
+      })
+      setSelectedAnswer(newAnswer)
+      setIsEditingAnswer(false)
+      setShowSaveConfirm(false)
+      performSearch()
+    } catch (err) {
+      console.error("Failed to fork entry:", err)
     } finally {
       setIsSavingAnswer(false)
     }
@@ -2505,34 +2527,67 @@ export function SearchLibrary() {
                 </p>
               ) : (
                 <div className="space-y-3 max-h-[400px] overflow-y-auto">
-                  {answerVersions.slice().reverse().map((version) => (
-                    <div
-                      key={version.id}
-                      className={`p-4 rounded-xl border transition-colors cursor-pointer ${
-                        selectedVersion?.id === version.id
-                          ? "bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700"
-                          : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
-                      }`}
-                      onClick={() => setSelectedVersion(version)}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-xs">
-                            v{version.versionNumber}
-                          </Badge>
-                          <span className="text-xs text-slate-500 dark:text-slate-400">
-                            {new Date(version.createdAt).toLocaleDateString()} at{" "}
-                            {new Date(version.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                          </span>
+                  {answerVersions.slice().reverse().map((version) => {
+                    const isFork = !!version.forkedToId
+                    return isFork ? (
+                      <div
+                        key={version.id}
+                        className="p-4 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <GitBranch size={14} className="text-violet-600 dark:text-violet-400" />
+                            <span className="text-xs font-medium text-violet-700 dark:text-violet-300">Saved as new entry</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(version.createdAt).toLocaleDateString()} at{" "}
+                              {new Date(version.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-500 dark:text-slate-400">by {version.createdBy}</span>
                         </div>
-                        {version.versionNumber === answerVersions.length && (
-                          <Badge variant="success" className="text-xs">Current</Badge>
-                        )}
+                        <button
+                          className="text-sm text-violet-700 dark:text-violet-300 underline hover:text-violet-900 dark:hover:text-violet-100 text-left"
+                          onClick={async () => {
+                            try {
+                              const forked = await answersApi.getById(version.forkedToId!)
+                              setShowVersionHistory(false)
+                              setSelectedVersion(null)
+                              setSelectedAnswer(forked)
+                            } catch {}
+                          }}
+                        >
+                          Open forked entry →
+                        </button>
                       </div>
-                      <p className="text-sm font-medium text-slate-900 dark:text-white line-clamp-1">{version.question}</p>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1">{version.answer}</p>
-                    </div>
-                  ))}
+                    ) : (
+                      <div
+                        key={version.id}
+                        className={`p-4 rounded-xl border transition-colors cursor-pointer ${
+                          selectedVersion?.id === version.id
+                            ? "bg-blue-50 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700"
+                            : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
+                        }`}
+                        onClick={() => setSelectedVersion(version)}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              v{version.versionNumber}
+                            </Badge>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
+                              {new Date(version.createdAt).toLocaleDateString()} at{" "}
+                              {new Date(version.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                            </span>
+                          </div>
+                          {version.versionNumber === answerVersions.length && (
+                            <Badge variant="success" className="text-xs">Current</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium text-slate-900 dark:text-white line-clamp-1">{version.question}</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 line-clamp-2 mt-1">{version.answer}</p>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
@@ -3310,128 +3365,72 @@ export function SearchLibrary() {
       </Dialog>
 
       {/* Save Confirmation Dialog */}
-      <Dialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+      <Dialog open={showSaveConfirm} onOpenChange={(open) => { if (!open) setShowSaveConfirm(false) }}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle size={20} className="text-amber-500" />
-              Confirm Changes
+              Save Changes
             </DialogTitle>
             <DialogDescription>
-              Review your changes before saving. A new version will be created.
+              Choose how to save your edits.
             </DialogDescription>
           </DialogHeader>
           {selectedAnswer && (
             <div className="space-y-4">
-              {/* Changes Summary */}
-              <div className="space-y-3 max-h-[300px] overflow-y-auto">
+              <div className="space-y-3 max-h-[280px] overflow-y-auto">
                 {editAnswerForm.question !== selectedAnswer.question && (
                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Question</p>
-                    <div className="space-y-2">
-                      <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800">
-                        <p className="text-sm text-red-700 dark:text-red-300 line-through">{selectedAnswer.question}</p>
-                      </div>
-                      <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800">
-                        <p className="text-sm text-emerald-700 dark:text-emerald-300">{editAnswerForm.question}</p>
-                      </div>
+                    <div className="space-y-1.5">
+                      <p className="text-sm text-red-600 dark:text-red-400 line-through">{selectedAnswer.question}</p>
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400">{editAnswerForm.question}</p>
                     </div>
                   </div>
                 )}
-
                 {editAnswerForm.answer !== selectedAnswer.answer && (
                   <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
                     <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Answer</p>
-                    <div className="space-y-2">
-                      <div className="p-2 bg-red-50 dark:bg-red-900/30 rounded-lg border border-red-200 dark:border-red-800 max-h-[100px] overflow-y-auto">
-                        <p className="text-sm text-red-700 dark:text-red-300 line-through whitespace-pre-wrap">{selectedAnswer.answer}</p>
-                      </div>
-                      <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg border border-emerald-200 dark:border-emerald-800 max-h-[100px] overflow-y-auto">
-                        <p className="text-sm text-emerald-700 dark:text-emerald-300 whitespace-pre-wrap">{editAnswerForm.answer}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {editAnswerForm.topicId !== selectedAnswer.topicId && (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Topic</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline" className="line-through text-red-600 dark:text-red-400">
-                        {topics.find(t => t.id === selectedAnswer.topicId)?.displayName}
-                      </Badge>
-                      <span className="text-slate-400">→</span>
-                      <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400">
-                        {topics.find(t => t.id === editAnswerForm.topicId)?.displayName}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-
-                {editAnswerForm.status !== selectedAnswer.status && (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Status</p>
-                    <div className="flex items-center gap-2">
-                      <Badge variant={selectedAnswer.status === "Approved" ? "success" : "warning"} className="line-through opacity-60">
-                        {selectedAnswer.status}
-                      </Badge>
-                      <span className="text-slate-400">→</span>
-                      <Badge variant={editAnswerForm.status === "Approved" ? "success" : "warning"}>
-                        {editAnswerForm.status}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-
-                {editAnswerForm.tags !== (selectedAnswer.tags?.join(", ") || "") && (
-                  <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
-                    <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Tags</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-slate-400 line-through">{selectedAnswer.tags?.join(", ") || "(none)"}</span>
-                      <span className="text-slate-400">→</span>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400">{editAnswerForm.tags || "(none)"}</span>
+                    <div className="space-y-1.5">
+                      <p className="text-sm text-red-600 dark:text-red-400 line-through line-clamp-3 whitespace-pre-wrap">{selectedAnswer.answer}</p>
+                      <p className="text-sm text-emerald-600 dark:text-emerald-400 line-clamp-3 whitespace-pre-wrap">{editAnswerForm.answer}</p>
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-xl">
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  <strong>Note:</strong> The original content will be preserved in version history. You can always restore it later.
-                </p>
-              </div>
-
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-2.5">
                 <Button
+                  onClick={saveAnswerChanges}
+                  className="w-full rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                  disabled={isSavingAnswer}
+                >
+                  {isSavingAnswer ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                  Update this entry
+                </Button>
+                <Button
+                  onClick={saveAsNewEntry}
                   variant="outline"
+                  className="w-full rounded-xl"
+                  disabled={isSavingAnswer}
+                >
+                  {isSavingAnswer ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Plus size={16} className="mr-2" />}
+                  Save as new entry
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={() => setShowSaveConfirm(false)}
-                  className="flex-1 rounded-xl"
+                  className="w-full rounded-xl text-slate-500"
                   disabled={isSavingAnswer}
                 >
                   Cancel
-                </Button>
-                <Button
-                  onClick={saveAnswerChanges}
-                  className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                  disabled={isSavingAnswer}
-                >
-                  {isSavingAnswer ? (
-                    <>
-                      <Loader2 size={16} className="mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Check size={16} className="mr-2" />
-                      Confirm & Save
-                    </>
-                  )}
                 </Button>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   )
 }

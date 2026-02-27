@@ -32,7 +32,7 @@ const pageConfig: Record<string, { title: string }> = {
   "/case-studies": { title: "Client Success" },
   "/insights": { title: "Proposal Insights" },
   "/unified-ai": { title: "Unified AI" },
-  "/testimonials": { title: "Testimonials" },
+  "/testimonials": { title: "Testimonials & Awards" },
   "/studio": { title: "Document Studio" },
   "/humanize": { title: "AI Humanizer" },
 }

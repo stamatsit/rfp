@@ -157,7 +157,8 @@ async function getLatestVersionNumber(answerItemId: string): Promise<number> {
 async function createAnswerVersion(
   answer: AnswerItem,
   versionNumber: number,
-  createdBy = "local"
+  createdBy = "local",
+  forkedToId?: string
 ): Promise<void> {
   if (!db) throw new Error("Database not available")
 
@@ -171,6 +172,7 @@ async function createAnswerVersion(
     tags: answer.tags,
     versionNumber,
     createdBy,
+    ...(forkedToId ? { forkedToId } : {}),
   })
 }
 
@@ -378,6 +380,38 @@ export async function upsertAnswer(
     isNew: false,
     versionNumber,
   }
+}
+
+/**
+ * Fork an answer — create a new entry with edited content, then write a
+ * fork version record on the original pointing to the new entry's ID.
+ */
+export async function forkAnswer(
+  sourceId: string,
+  data: {
+    question: string
+    answer: string
+    topicId: string
+    topicName: string
+    subtopic?: string
+    status?: "Approved" | "Draft"
+    tags?: string[]
+    createdBy?: string
+  }
+): Promise<AnswerItem> {
+  if (!db) throw new Error("Database not available")
+
+  const source = await getAnswerById(sourceId)
+  if (!source) throw new Error(`Answer not found: ${sourceId}`)
+
+  // Create the new entry
+  const newAnswer = await createAnswer(data)
+
+  // Write a fork version record on the source so history shows the fork
+  const versionNumber = (await getLatestVersionNumber(sourceId)) + 1
+  await createAnswerVersion(source, versionNumber, data.createdBy, newAnswer.id)
+
+  return newAnswer
 }
 
 /**

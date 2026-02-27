@@ -609,6 +609,7 @@ export const answerItemVersions = pgTable("answer_item_versions", {
   versionNumber: integer("version_number").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: text("created_by").notNull().default("local"),
+  forkedToId: uuid("forked_to_id"),
 })
 
 export const photoAssets = pgTable("photo_assets", {
@@ -1479,6 +1480,66 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       return res.json(updated)
+    }
+
+    // POST /answers/:id/fork - save as new entry + record fork in source history
+    const answerForkMatch = path.match(/^\/answers\/([^/]+)\/fork$/)
+    if (answerForkMatch && method === "POST") {
+      const sourceId = answerForkMatch[1]
+      const { question, answer, topicId, subtopic, status, tags } = req.body || {}
+      if (!question?.trim()) return res.status(400).json({ error: "Question is required" })
+      if (!answer?.trim()) return res.status(400).json({ error: "Answer is required" })
+      if (!topicId) return res.status(400).json({ error: "Topic is required" })
+      const [topic] = await db.select().from(topics).where(eq(topics.id, topicId))
+      if (!topic) return res.status(400).json({ error: "Invalid topic ID" })
+      const [source] = await db.select().from(answerItems).where(eq(answerItems.id, sourceId))
+      if (!source) return res.status(404).json({ error: "Source answer not found" })
+
+      // Fingerprint: same hash pattern as PUT handler
+      const normalizedQ = question.trim().toLowerCase().replace(/\s+/g, " ")
+      const normalizedT = topic.name.toLowerCase().trim().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-")
+      const fingerprint = crypto.createHash("sha256").update(`${normalizedQ}|${normalizedT}|fork|${Date.now()}`).digest("hex").slice(0, 16)
+
+      const [newAnswer] = await db.insert(answerItems).values({
+        question: question.trim(),
+        answer: answer.trim(),
+        topicId,
+        subtopic: subtopic?.trim() ?? null,
+        status: status || "Draft",
+        tags: tags || [],
+        fingerprint,
+      }).returning()
+
+      // Initial version for the new entry
+      await db.insert(answerItemVersions).values({
+        answerItemId: newAnswer.id,
+        question: newAnswer.question,
+        answer: newAnswer.answer,
+        topicId: newAnswer.topicId,
+        subtopic: newAnswer.subtopic,
+        status: newAnswer.status,
+        tags: newAnswer.tags,
+        versionNumber: 1,
+        createdBy: session?.userName ?? "unknown",
+      })
+
+      // Fork version record on the source
+      const [maxVer] = await db.select({ max: sql<number>`COALESCE(MAX(version_number), 0)` })
+        .from(answerItemVersions).where(eq(answerItemVersions.answerItemId, sourceId))
+      await db.insert(answerItemVersions).values({
+        answerItemId: sourceId,
+        question: source.question,
+        answer: source.answer,
+        topicId: source.topicId,
+        subtopic: source.subtopic,
+        status: source.status,
+        tags: source.tags,
+        versionNumber: (maxVer?.max ?? 0) + 1,
+        createdBy: session?.userName ?? "unknown",
+        forkedToId: newAnswer.id,
+      })
+
+      return res.status(201).json(newAnswer)
     }
 
     // GET /answers/:id/versions - get version history
@@ -2865,7 +2926,7 @@ ${contextLines.join("\n")}`
     if (path === "/client-success/awards" && method === "GET") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
       try {
-        const rows = await queryClient`SELECT * FROM client_success_awards ORDER BY created_at`
+        const rows = await queryClient`SELECT * FROM client_success_awards ORDER BY created_at DESC`
         return res.json(rows)
       } catch (err: any) {
         return res.status(500).json({ error: "Failed to get awards" })
@@ -2874,13 +2935,40 @@ ${contextLines.join("\n")}`
 
     if (path === "/client-success/awards" && method === "POST") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
-      const { name, year, clientOrProject } = req.body || {}
-      if (!name?.trim() || !year?.trim() || !clientOrProject?.trim()) return res.status(400).json({ error: "All fields are required" })
+      const { name, year, clientOrProject, companyName, issuingAgency, category, awardLevel, submissionStatus, notes } = req.body || {}
+      if (!name?.trim() || !year?.trim()) return res.status(400).json({ error: "Name and year are required" })
       try {
-        const [row] = await queryClient`INSERT INTO client_success_awards (name, year, client_or_project) VALUES (${name.trim()}, ${year.trim()}, ${clientOrProject.trim()}) RETURNING *`
+        const coName = (companyName || clientOrProject || "").trim()
+        const [row] = await queryClient`
+          INSERT INTO client_success_awards (name, year, client_or_project, company_name, issuing_agency, category, award_level, submission_status, notes)
+          VALUES (${name.trim()}, ${year.trim()}, ${coName}, ${companyName?.trim() || null}, ${issuingAgency?.trim() || null}, ${category?.trim() || null}, ${awardLevel?.trim() || null}, ${submissionStatus || null}, ${notes?.trim() || null})
+          RETURNING *`
         return res.status(201).json(row)
       } catch (err: any) {
         return res.status(500).json({ error: "Failed to create award" })
+      }
+    }
+
+    // PUT /client-success/awards/:id — full update
+    if (path?.match(/^\/client-success\/awards\/[^/]+$/) && method === "PUT") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      const { name, year, companyName, issuingAgency, category, awardLevel, submissionStatus, notes } = req.body || {}
+      if (!name?.trim() || !year?.trim()) return res.status(400).json({ error: "Name and year are required" })
+      try {
+        const coName = companyName?.trim() || ""
+        const [row] = await queryClient`
+          UPDATE client_success_awards SET
+            name = ${name.trim()}, year = ${year.trim()}, client_or_project = ${coName},
+            company_name = ${companyName?.trim() || null}, issuing_agency = ${issuingAgency?.trim() || null},
+            category = ${category?.trim() || null}, award_level = ${awardLevel?.trim() || null},
+            submission_status = ${submissionStatus || null}, notes = ${notes?.trim() || null},
+            updated_at = NOW()
+          WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Award not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update award" })
       }
     }
 
@@ -2893,6 +2981,45 @@ ${contextLines.join("\n")}`
         return res.json(row)
       } catch (err: any) {
         return res.status(500).json({ error: "Failed to increment usage" })
+      }
+    }
+
+    // POST /client-success/awards/:id/badge — upload badge image
+    if (path?.match(/^\/client-success\/awards\/[^/]+\/badge$/) && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const { buffer, mimetype, filename } = await parseMultipartForm(req)
+        const ext = filename.match(/\.([^.]+)$/)?.[1] || "png"
+        const storageKey = `award-badges/${crypto.randomBytes(16).toString("hex")}`
+        const storagePath = `${storageKey}.${ext}`
+        const { error: uploadError } = await supabase.storage.from("photo-assets").upload(storagePath, buffer, { contentType: mimetype, upsert: false })
+        if (uploadError) throw uploadError
+        const [row] = await queryClient`UPDATE client_success_awards SET badge_storage_key = ${storageKey}, updated_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Award not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to upload badge" })
+      }
+    }
+
+    // DELETE /client-success/awards/:id/badge — remove badge image
+    if (path?.match(/^\/client-success\/awards\/[^/]+\/badge$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/")[3]
+      try {
+        const [existing] = await queryClient`SELECT badge_storage_key FROM client_success_awards WHERE id = ${id}`
+        if (existing?.badge_storage_key && supabase) {
+          const ext = existing.badge_storage_key.match(/\.([^.]+)$/)?.[1]
+          const storagePath = ext ? existing.badge_storage_key : `${existing.badge_storage_key}.png`
+          await supabase.storage.from("photo-assets").remove([storagePath])
+        }
+        const [row] = await queryClient`UPDATE client_success_awards SET badge_storage_key = NULL, updated_at = NOW() WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Award not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to remove badge" })
       }
     }
 

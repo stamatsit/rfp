@@ -5,7 +5,9 @@
  */
 
 import { Router, type Request, type Response } from "express"
-import { db } from "../db/index.js"
+import multer from "multer"
+import crypto from "crypto"
+import { db, supabaseAdmin } from "../db/index.js"
 import {
   clientSuccessEntries,
   clientSuccessResults,
@@ -15,6 +17,8 @@ import {
 import { eq, sql, and, or, ilike, desc, asc } from "drizzle-orm"
 import { requireWriteAccess } from "../middleware/auth.js"
 import { invalidateTestimonialCache } from "../services/utils/dbTestimonials.js"
+
+const badgeUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } })
 
 const router = Router()
 
@@ -251,7 +255,7 @@ router.get("/testimonials/:id", async (req: Request, res: Response) => {
 router.post("/testimonials", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const { quote, name, title, organization, source, sector, tags } = req.body
+    const { quote, name, title, organization, source, sector, tags, notes, testimonialDate } = req.body
     if (!quote?.trim() || !organization?.trim()) {
       return res.status(400).json({ error: "Quote and organization are required" })
     }
@@ -265,6 +269,8 @@ router.post("/testimonials", requireWriteAccess, async (req: Request, res: Respo
       status: "draft",
       sector: sector || null,
       tags: tags || [],
+      notes: notes?.trim() || null,
+      testimonialDate: testimonialDate || null,
       addedBy: userName || "unknown",
     }).returning()
     res.status(201).json(row)
@@ -278,7 +284,7 @@ router.post("/testimonials", requireWriteAccess, async (req: Request, res: Respo
 router.put("/testimonials/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const { quote, name, title, organization, source, sector, tags } = req.body
+    const { quote, name, title, organization, source, sector, tags, notes, testimonialDate } = req.body
     if (!quote?.trim() || !organization?.trim()) {
       return res.status(400).json({ error: "Quote and organization are required" })
     }
@@ -292,6 +298,8 @@ router.put("/testimonials/:id", requireWriteAccess, async (req: Request, res: Re
         source: source?.trim() || null,
         sector: sector || null,
         tags: tags || [],
+        notes: notes?.trim() || null,
+        testimonialDate: testimonialDate || null,
         updatedAt: new Date(),
       })
       .where(eq(clientSuccessTestimonials.id, req.params.id!))
@@ -426,7 +434,7 @@ router.delete("/testimonials/:id", requireWriteAccess, async (req: Request, res:
 router.get("/awards", async (_req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const rows = await db.select().from(clientSuccessAwards).orderBy(clientSuccessAwards.createdAt)
+    const rows = await db.select().from(clientSuccessAwards).orderBy(desc(clientSuccessAwards.createdAt))
     res.json(rows)
   } catch (error) {
     console.error("Failed to get awards:", error)
@@ -437,19 +445,95 @@ router.get("/awards", async (_req: Request, res: Response) => {
 router.post("/awards", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const { name, year, clientOrProject } = req.body
-    if (!name?.trim() || !year?.trim() || !clientOrProject?.trim()) {
-      return res.status(400).json({ error: "All fields are required" })
+    const { name, year, clientOrProject, companyName, issuingAgency, category, awardLevel, submissionStatus, notes } = req.body
+    if (!name?.trim() || !year?.trim()) {
+      return res.status(400).json({ error: "Name and year are required" })
     }
     const [row] = await db.insert(clientSuccessAwards).values({
       name: name.trim(),
       year: year.trim(),
-      clientOrProject: clientOrProject.trim(),
+      clientOrProject: (clientOrProject || companyName || "").trim(),
+      companyName: companyName?.trim() || null,
+      issuingAgency: issuingAgency?.trim() || null,
+      category: category?.trim() || null,
+      awardLevel: awardLevel?.trim() || null,
+      submissionStatus: submissionStatus || null,
+      notes: notes?.trim() || null,
     }).returning()
     res.status(201).json(row)
   } catch (error) {
     console.error("Failed to create award:", error)
     res.status(500).json({ error: "Failed to create award" })
+  }
+})
+
+// PUT /awards/:id — Full update
+router.put("/awards/:id", requireWriteAccess, async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const { name, year, companyName, issuingAgency, category, awardLevel, submissionStatus, notes } = req.body
+    if (!name?.trim() || !year?.trim()) {
+      return res.status(400).json({ error: "Name and year are required" })
+    }
+    const [row] = await db
+      .update(clientSuccessAwards)
+      .set({
+        name: name.trim(),
+        year: year.trim(),
+        clientOrProject: companyName?.trim() || "",
+        companyName: companyName?.trim() || null,
+        issuingAgency: issuingAgency?.trim() || null,
+        category: category?.trim() || null,
+        awardLevel: awardLevel?.trim() || null,
+        submissionStatus: submissionStatus || null,
+        notes: notes?.trim() || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(clientSuccessAwards.id, req.params.id!))
+      .returning()
+    if (!row) return res.status(404).json({ error: "Award not found" })
+    res.json(row)
+  } catch (error) {
+    console.error("Failed to update award:", error)
+    res.status(500).json({ error: "Failed to update award" })
+  }
+})
+
+// POST /awards/:id/badge — upload badge image
+router.post("/awards/:id/badge", requireWriteAccess, badgeUpload.single("badge"), async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const file = req.file
+    if (!file) return res.status(400).json({ error: "No file provided" })
+    const ext = file.originalname.match(/\.([^.]+)$/)?.[1] || "png"
+    const storageKey = `award-badges/${crypto.randomBytes(16).toString("hex")}.${ext}`
+    if (supabaseAdmin) {
+      const { error } = await supabaseAdmin.storage.from("photo-assets").upload(storageKey, file.buffer, { contentType: file.mimetype, upsert: true })
+      if (error) return res.status(500).json({ error: "Failed to upload badge to storage" })
+    }
+    const [row] = await db.update(clientSuccessAwards).set({ badgeStorageKey: storageKey, updatedAt: new Date() }).where(eq(clientSuccessAwards.id, req.params.id!)).returning()
+    if (!row) return res.status(404).json({ error: "Award not found" })
+    res.json(row)
+  } catch (err) {
+    console.error("Badge upload failed:", err)
+    res.status(500).json({ error: "Failed to upload badge" })
+  }
+})
+
+// DELETE /awards/:id/badge — remove badge image
+router.delete("/awards/:id/badge", requireWriteAccess, async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const [existing] = await db.select({ badgeStorageKey: clientSuccessAwards.badgeStorageKey }).from(clientSuccessAwards).where(eq(clientSuccessAwards.id, req.params.id!))
+    if (!existing) return res.status(404).json({ error: "Award not found" })
+    if (existing.badgeStorageKey && supabaseAdmin) {
+      await supabaseAdmin.storage.from("photo-assets").remove([existing.badgeStorageKey])
+    }
+    const [row] = await db.update(clientSuccessAwards).set({ badgeStorageKey: null, updatedAt: new Date() }).where(eq(clientSuccessAwards.id, req.params.id!)).returning()
+    res.json(row)
+  } catch (err) {
+    console.error("Badge delete failed:", err)
+    res.status(500).json({ error: "Failed to remove badge" })
   }
 })
 

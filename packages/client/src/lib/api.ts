@@ -530,6 +530,7 @@ export interface AnswerVersion {
   versionNumber: number
   createdAt: string
   createdBy: string
+  forkedToId?: string | null
 }
 
 export const answersApi = {
@@ -539,6 +540,14 @@ export const answersApi = {
   async getAll(): Promise<AnswerResponse[]> {
     const response = await fetchWithCredentials(`${API_BASE}/search/answers`)
     return handleResponse<AnswerResponse[]>(response)
+  },
+
+  /**
+   * Get a single answer by ID
+   */
+  async getById(id: string): Promise<AnswerResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/search/answers/${id}`)
+    return handleResponse<AnswerResponse>(response)
   },
 
   /**
@@ -581,6 +590,19 @@ export const answersApi = {
   async getVersions(id: string): Promise<AnswerVersion[]> {
     const response = await fetchWithCredentials(`${API_BASE}/answers/${id}/versions`)
     return handleResponse<AnswerVersion[]>(response)
+  },
+
+  /**
+   * Fork an answer — creates a new entry with edited content and records the
+   * fork event in the original's version history.
+   */
+  async fork(sourceId: string, data: CreateAnswerData): Promise<AnswerResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/answers/${sourceId}/fork`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<AnswerResponse>(response)
   },
 }
 
@@ -1107,6 +1129,8 @@ export interface ClientSuccessTestimonialResponse {
   approvedBy: string | null
   approvedAt: string | null
   fingerprint: string | null
+  notes: string | null
+  testimonialDate: string | null
   createdAt: string
   updatedAt: string
 }
@@ -1138,9 +1162,17 @@ export interface ClientSuccessAwardResponse {
   name: string
   year: string
   clientOrProject: string
+  companyName: string | null
+  issuingAgency: string | null
+  category: string | null
+  awardLevel: string | null
+  submissionStatus: "client-submission" | "stamats-submission" | "other" | null
+  badgeStorageKey: string | null
+  notes: string | null
   usageCount: number
   lastUsedAt: string | null
   createdAt: string
+  updatedAt: string
 }
 
 export const clientSuccessApi = {
@@ -1214,6 +1246,79 @@ export const clientSuccessApi = {
   },
 }
 
+// ─── Awards API (Full CRUD + badge upload) ──────────
+
+export const awardsApi = {
+  async list(): Promise<ClientSuccessAwardResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards`)
+    return handleResponse<ClientSuccessAwardResponse[]>(response)
+  },
+
+  async create(data: {
+    name: string
+    year: string
+    companyName?: string
+    issuingAgency?: string
+    category?: string
+    awardLevel?: string
+    submissionStatus?: "client-submission" | "stamats-submission" | "other"
+    notes?: string
+  }): Promise<ClientSuccessAwardResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+
+  async update(id: string, data: {
+    name: string
+    year: string
+    companyName?: string
+    issuingAgency?: string
+    category?: string
+    awardLevel?: string
+    submissionStatus?: "client-submission" | "stamats-submission" | "other" | null
+    notes?: string
+  }): Promise<ClientSuccessAwardResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+
+  async delete(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}`, { method: "DELETE" })
+  },
+
+  async incrementUsage(id: string): Promise<ClientSuccessAwardResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}/usage`, { method: "PATCH" })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+
+  async uploadBadge(id: string, file: File): Promise<ClientSuccessAwardResponse> {
+    const formData = new FormData()
+    formData.append("badge", file)
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}/badge`, {
+      method: "POST",
+      body: formData,
+    })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+
+  async deleteBadge(id: string): Promise<ClientSuccessAwardResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/awards/${id}/badge`, { method: "DELETE" })
+    return handleResponse<ClientSuccessAwardResponse>(response)
+  },
+
+  getBadgeUrl(storageKey: string): string {
+    return `${API_BASE}/photos/file/${storageKey}`
+  },
+}
+
 // ─── Testimonials API (Full CRUD + AI Finder) ──────
 
 export const testimonialsApi = {
@@ -1252,6 +1357,8 @@ export const testimonialsApi = {
     source?: string
     sector?: "higher-ed" | "healthcare" | "other"
     tags?: string[]
+    notes?: string
+    testimonialDate?: string | null
   }): Promise<ClientSuccessTestimonialResponse> {
     const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials`, {
       method: "POST",
@@ -1269,6 +1376,8 @@ export const testimonialsApi = {
     source?: string
     sector?: "higher-ed" | "healthcare" | "other" | null
     tags?: string[]
+    notes?: string
+    testimonialDate?: string | null
   }): Promise<ClientSuccessTestimonialResponse> {
     const response = await fetchWithCredentials(`${API_BASE}/client-success/testimonials/${id}`, {
       method: "PUT",

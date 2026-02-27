@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, primaryKey, jsonb, uuid, boolean, index } from "drizzle-orm/pg-core"
+import { pgTable, text, integer, timestamp, date, primaryKey, jsonb, uuid, boolean, index } from "drizzle-orm/pg-core"
 
 // Users
 export const users = pgTable("users", {
@@ -58,6 +58,7 @@ export const answerItemVersions = pgTable("answer_item_versions", {
   versionNumber: integer("version_number").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   createdBy: text("created_by").notNull().default("local"),
+  forkedToId: uuid("forked_to_id"), // set when this version was "save as new entry"
 })
 
 // Photo Assets (current state)
@@ -292,6 +293,8 @@ export const clientSuccessTestimonials = pgTable("client_success_testimonials", 
   approvedBy: text("approved_by"),
   approvedAt: timestamp("approved_at", { withTimezone: true }),
   fingerprint: text("fingerprint").unique(),
+  notes: text("notes"),
+  testimonialDate: date("testimonial_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, (table) => ({
@@ -305,7 +308,14 @@ export const clientSuccessAwards = pgTable("client_success_awards", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   year: text("year").notNull(),
-  clientOrProject: text("client_or_project").notNull(),
+  clientOrProject: text("client_or_project").notNull(), // legacy field — kept for backwards compat
+  companyName: text("company_name"),
+  issuingAgency: text("issuing_agency"),
+  category: text("category"),
+  awardLevel: text("award_level"),
+  submissionStatus: text("submission_status", { enum: ["client-submission", "stamats-submission", "other"] }),
+  badgeStorageKey: text("badge_storage_key"),
+  notes: text("notes"),
   usageCount: integer("usage_count").notNull().default(0),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

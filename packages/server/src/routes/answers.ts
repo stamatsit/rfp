@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express"
-import { createAnswer, updateAnswer, deleteAnswer, getAnswerById, getAnswerVersions } from "../services/answerService.js"
+import { createAnswer, updateAnswer, deleteAnswer, getAnswerById, getAnswerVersions, forkAnswer } from "../services/answerService.js"
 import { getTopicById } from "../services/topicService.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 import { requireWriteAccess } from "../middleware/auth.js"
@@ -124,6 +124,41 @@ router.put("/:id", requireWriteAccess, async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Failed to update answer:", error)
     res.status(500).json({ error: "Failed to update answer" })
+  }
+})
+
+/**
+ * POST /api/answers/:id/fork
+ * Save edited content as a new entry and record a fork event in the original's history
+ */
+router.post("/:id/fork", requireWriteAccess, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params
+    const { question, answer, topicId, subtopic, status, tags } = req.body
+
+    if (!id) return res.status(400).json({ error: "ID is required" })
+    if (!question?.trim()) return res.status(400).json({ error: "Question is required" })
+    if (!answer?.trim()) return res.status(400).json({ error: "Answer is required" })
+    if (!topicId) return res.status(400).json({ error: "Topic is required" })
+
+    const topic = await getTopicById(topicId)
+    if (!topic) return res.status(400).json({ error: "Invalid topic ID" })
+
+    const newAnswer = await forkAnswer(id, {
+      question: question.trim(),
+      answer: answer.trim(),
+      topicId,
+      topicName: topic.name,
+      subtopic: subtopic?.trim(),
+      status: status || "Draft",
+      tags: tags || [],
+      createdBy: getCurrentUserName(req),
+    })
+
+    res.status(201).json(newAnswer)
+  } catch (error) {
+    console.error("Failed to fork answer:", error)
+    res.status(500).json({ error: "Failed to fork answer" })
   }
 })
 
