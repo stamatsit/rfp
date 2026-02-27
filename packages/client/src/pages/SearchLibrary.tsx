@@ -1810,12 +1810,12 @@ export function SearchLibrary() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:from-slate-950 dark:to-slate-900 transition-colors">
       <AppHeader />
 
       <div className="flex-1 flex">
         {/* Sidebar Navigation */}
-        <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 pt-4 pb-6 px-2.5 space-y-1">
+        <aside className="w-48 shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 pt-5 pb-6 px-3 flex flex-col gap-0.5">
           {([
             { id: "qa" as const, label: "Q&A Library", icon: FileText },
             { id: "client-success" as const, label: "Client Success", icon: Trophy },
@@ -1826,18 +1826,18 @@ export function SearchLibrary() {
               onClick={() => setActiveSection(section.id)}
               className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left transition-all duration-150 ${
                 activeSection === section.id
-                  ? "bg-slate-600 text-white shadow-sm"
-                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50"
+                  ? "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 font-semibold"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
-              <section.icon size={15} className={activeSection === section.id ? "text-white" : ""} />
-              <span className="text-[13px] font-medium">{section.label}</span>
+              <section.icon size={14} className={activeSection === section.id ? "text-blue-500" : "text-slate-400"} />
+              <span className="text-[13px]">{section.label}</span>
             </button>
           ))}
           {isAdmin && (
-            <div className="border-t border-slate-200 dark:border-slate-700 mt-3 pt-3">
-              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-all text-[13px] font-medium">
-                <Plus size={15} /> New Entry
+            <div className="border-t border-slate-100 dark:border-slate-800 mt-auto pt-4">
+              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-[13px]">
+                <Plus size={14} /> New Entry
               </button>
             </div>
           )}
@@ -1845,33 +1845,32 @@ export function SearchLibrary() {
 
         {/* Content Area */}
         {activeSection === "qa" ? (
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950">
         {/* ── Header bar ── */}
-        <div className="sticky top-0 z-10 bg-white/90 dark:bg-slate-950/90 backdrop-blur-md border-b border-slate-200/60 dark:border-slate-800 px-6 py-3.5">
-          {/* Search */}
-          <div className="relative group max-w-2xl">
-            <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
-            <Input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search 872 answers and photos..."
-              className="pl-10 pr-10 h-10 text-[14px] bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 dark:text-white rounded-xl focus:bg-white dark:focus:bg-slate-800 transition-colors"
-              onKeyDown={(e) => e.key === "Enter" && performSearch()}
-            />
-            {isSearching ? (
-              <Loader2 size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
-            ) : searchQuery ? (
-              <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
-                <X size={14} />
-              </button>
-            ) : null}
-          </div>
+        <div className="sticky top-0 z-10 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 py-2.5">
+          <div className="flex items-center gap-3">
+            {/* Search */}
+            <div className="relative group flex-1 max-w-xl">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search answers and photos..."
+                className="pl-9 pr-8 h-9 text-[13px] bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white rounded-lg focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                onKeyDown={(e) => e.key === "Enter" && performSearch()}
+              />
+              {isSearching ? (
+                <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
+              ) : searchQuery ? (
+                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                  <X size={13} />
+                </button>
+              ) : null}
+            </div>
 
-          {/* Filter pills */}
-          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
             {/* View toggle — Answers / Photos */}
             {showPhotos && (
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mr-1">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
                 <button
                   onClick={() => setTypeFilter("all")}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[12px] font-medium transition-all ${
@@ -1880,7 +1879,7 @@ export function SearchLibrary() {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                   }`}
                 >
-                  <FileText size={12} className="text-blue-500" />
+                  <FileText size={12} className={typeFilter !== "photos" ? "text-blue-500" : "text-slate-400"} />
                   Answers
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter !== "photos" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
                     {totalAnswers}
@@ -1894,14 +1893,17 @@ export function SearchLibrary() {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                   }`}
                 >
-                  <ImageIcon size={12} className="text-purple-500" />
+                  <ImageIcon size={12} className={typeFilter === "photos" ? "text-violet-500" : "text-slate-400"} />
                   Photos
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === "photos" ? "bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === "photos" ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
                     {totalPhotos}
                   </span>
                 </button>
               </div>
             )}
+
+            {/* Divider */}
+            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
             {/* Topic pill */}
             <Select value={topicFilter} onValueChange={setTopicFilter}>
@@ -1915,7 +1917,7 @@ export function SearchLibrary() {
                   return (
                     <SelectItem key={topic.id} value={topic.id}>
                       <div className="flex items-center gap-2">
-                        <div className={`w-2.5 h-2.5 rounded-full ${color.bg} border ${color.border}`} />
+                        <div className={`w-2 h-2 rounded-full ${color.bg} border ${color.border}`} />
                         {topic.displayName}
                       </div>
                     </SelectItem>
@@ -1943,7 +1945,7 @@ export function SearchLibrary() {
             {/* Sort pill */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-auto h-8 px-3 text-[12px] rounded-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                <ArrowUpDown size={11} className="mr-1.5 text-slate-400" />
+                <ArrowUpDown size={11} className="mr-1 text-slate-400" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -1956,7 +1958,7 @@ export function SearchLibrary() {
             </Select>
 
             {activeFilterCount > 0 && (
-              <button onClick={clearAllFilters} className="flex items-center gap-1 h-8 px-2.5 text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <button onClick={clearAllFilters} className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                 <X size={11} />Clear
               </button>
             )}
@@ -1964,16 +1966,16 @@ export function SearchLibrary() {
         </div>
 
         {/* ── Content ── */}
-        <div className="max-w-4xl mx-auto px-6 py-6 space-y-3">
+        <div className="max-w-4xl mx-auto px-5 py-5 space-y-2">
 
           {/* ── ANSWERS VIEW ── */}
           {typeFilter !== "photos" && (
             <>
               {/* Top results when searching */}
               {searchQuery && sortedAnswers.length > 0 && (
-                <div className="mb-5 space-y-2">
-                  <div className="flex items-center gap-2 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest px-1">
-                    <Sparkles size={11} className="text-amber-400" />
+                <div className="mb-4 space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1 pb-0.5">
+                    <Sparkles size={10} className="text-amber-400" />
                     Top results
                   </div>
                   {sortedAnswers.slice(0, 5).map((answer) => {
@@ -1982,30 +1984,24 @@ export function SearchLibrary() {
                       <div
                         key={answer.id}
                         onClick={() => setSelectedAnswer(answer)}
-                        className="group flex items-start gap-3.5 p-4 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/40 dark:from-blue-950/30 dark:to-indigo-950/20 border border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all duration-150 hover:shadow-[0_4px_16px_rgba(59,130,246,0.08)]"
+                        className="group flex items-start gap-3 p-3 rounded-lg bg-white dark:bg-slate-900 border border-blue-100 dark:border-blue-900/50 hover:border-blue-300 dark:hover:border-blue-700 cursor-pointer transition-all duration-150 shadow-sm"
                       >
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Sparkles size={14} className="text-blue-500" />
-                        </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                          <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
                             {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                           </p>
-                          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">
                             {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                           </p>
-                          <div className="flex items-center gap-1.5 mt-2">
-                            <Badge variant="secondary" className={`text-[10px] px-1.5 py-0 ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}>
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-medium ${topicColor.bg} ${topicColor.text}`}>
                               {topics.find((t) => t.id === answer.topicId)?.displayName || "Unknown"}
-                            </Badge>
-                            {answer.tags.slice(0, 2).map((tag, i) => (
-                              <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-[10px] px-1.5 py-0">{tag}</Badge>
-                            ))}
+                            </span>
                           </div>
                         </div>
                         <div onClick={(e) => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)} className="h-8 w-8 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-blue-100 dark:hover:bg-blue-900/40">
-                            {copiedId === answer.id ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-blue-500" />}
+                          <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)} className="h-7 w-7 p-0 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
+                            {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-400" />}
                           </Button>
                         </div>
                       </div>
@@ -2036,49 +2032,49 @@ export function SearchLibrary() {
                 const accentBorder = accentColors[topicColor.bg] || "border-l-slate-300"
 
                 return (
-                  <div key={topicId} className={`rounded-xl border border-slate-200/70 dark:border-slate-700/60 overflow-hidden bg-white dark:bg-slate-800/60 border-l-4 ${accentBorder} shadow-[0_1px_3px_rgba(0,0,0,0.04)]`}>
+                  <div key={topicId} className={`rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 border-l-[3px] ${accentBorder}`}>
                     {/* Accordion Header */}
                     <button
                       onClick={() => toggleAnswerTopic(topicId)}
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 dark:hover:bg-slate-700/30 transition-colors text-left"
+                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-left"
                     >
                       <ChevronRight
-                        size={15}
-                        className={`text-slate-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
+                        size={13}
+                        className={`text-slate-300 dark:text-slate-600 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
                       />
                       <span className={`text-[13px] font-semibold ${topicColor.text}`}>
                         {topic?.displayName || "Unknown"}
                       </span>
-                      <span className={`ml-auto text-[11px] font-medium px-2 py-0.5 rounded-full ${topicColor.bg} ${topicColor.text} border ${topicColor.border}`}>
+                      <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
                         {topicAnswers.length}
                       </span>
                     </button>
 
                     {/* Accordion Content */}
                     {isExpanded && (
-                      <div className="border-t border-slate-100 dark:border-slate-700/50 divide-y divide-slate-100 dark:divide-slate-700/40">
+                      <div className="border-t border-slate-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
                         {visibleAnswers.map((answer) => (
                           <div
                             key={answer.id}
                             onClick={() => setSelectedAnswer(answer)}
-                            className="group flex items-start gap-3 px-4 py-3.5 hover:bg-slate-50/80 dark:hover:bg-slate-700/20 cursor-pointer transition-colors"
+                            className="group flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
                           >
                             <div className="flex-1 min-w-0">
-                              <p className="text-[13px] font-medium text-slate-800 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
+                              <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
                                 {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                               </p>
-                              <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                              <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1 leading-relaxed">
                                 {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                              <div className="flex items-center gap-1 mt-1.5 flex-wrap">
                                 {answer.status === "Draft" && (
                                   <Badge variant="warning" className="text-[10px] px-1.5 py-0">Draft</Badge>
                                 )}
-                                {answer.tags.slice(0, 3).map((tag, i) => (
+                                {answer.tags.slice(0, 2).map((tag, i) => (
                                   <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-[10px] px-1.5 py-0">{tag}</Badge>
                                 ))}
-                                {answer.tags.length > 3 && (
-                                  <span className="text-[10px] text-slate-400">+{answer.tags.length - 3}</span>
+                                {answer.tags.length > 2 && (
+                                  <span className="text-[10px] text-slate-400">+{answer.tags.length - 2}</span>
                                 )}
                                 {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
                                   <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
