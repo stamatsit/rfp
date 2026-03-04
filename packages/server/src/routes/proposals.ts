@@ -46,7 +46,7 @@ router.post("/query", async (req: Request, res: Response) => {
  */
 router.post("/stream", async (req: Request, res: Response) => {
   try {
-    const { query, conversationHistory, responseLength } = req.body
+    const { query, conversationHistory, responseLength, clientFilter } = req.body
 
     if (!query || typeof query !== "string") {
       return res.status(400).json({ error: "Query is required" })
@@ -60,7 +60,7 @@ router.post("/stream", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Query must be less than 1000 characters" })
     }
 
-    await streamProposalInsights(query.trim(), res, conversationHistory, responseLength as string | undefined)
+    await streamProposalInsights(query.trim(), res, conversationHistory, responseLength as string | undefined, clientFilter as string | undefined)
   } catch (error) {
     console.error("Proposal stream failed:", error)
     if (!res.headersSent) {

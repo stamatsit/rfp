@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { X, Search, FolderOpen, Trash2, Image, Code2, FileText, BarChart3 } from "lucide-react"
 import { studioApi } from "@/lib/api"
-import { markdownToHtml } from "@/lib/markdownToHtml"
+import { markdownToHtml, svgToImg } from "@/lib/markdownToHtml"
 
 interface Asset {
   id: string
@@ -63,7 +63,7 @@ export function AssetPanel({ onInsert, onClose }: AssetPanelProps) {
 
   const handleInsert = (asset: Asset) => {
     if (asset.type === "svg") {
-      onInsert(asset.data)
+      onInsert(svgToImg(asset.data))
     } else if (asset.type === "image") {
       onInsert(`<img src="${asset.data}" alt="${asset.name.replace(/"/g, "&quot;")}" />`)
     } else {

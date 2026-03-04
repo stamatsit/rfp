@@ -108,6 +108,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response) =>
     if (typeof email !== "string" || !email.includes("@")) {
       return res.status(400).json({ error: "Valid email is required" })
     }
+    if (!email.toLowerCase().trim().endsWith("@stamats.com")) {
+      return res.status(403).json({ error: "Registration is restricted to @stamats.com email addresses" })
+    }
 
     if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters" })

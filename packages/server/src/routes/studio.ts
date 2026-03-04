@@ -5,7 +5,6 @@ import { streamBriefing } from "../services/briefingAIService.js"
 import { streamDocumentChat, queryDocumentChat, detectRFPSignals, generateRFPChecklist, checkRFPCompliance, streamInlineEdit } from "../services/documentAIService.js"
 import { extractDocumentText } from "../services/rfpService.js"
 import { getCurrentUserId } from "../middleware/getCurrentUser.js"
-import { requireWriteAccess } from "../middleware/auth.js"
 import { db } from "../db/index.js"
 import { studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } from "../db/schema.js"
 import { eq, and, desc, ilike, or, sql } from "drizzle-orm"
@@ -49,7 +48,7 @@ router.post("/briefing/stream", async (_req, res) => {
 })
 
 // POST /api/studio/extract-document
-router.post("/extract-document", requireWriteAccess, upload.single("file"), async (req, res) => {
+router.post("/extract-document", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file uploaded" })
@@ -66,7 +65,7 @@ router.post("/extract-document", requireWriteAccess, upload.single("file"), asyn
 
 // POST /api/studio/chat/stream
 router.post("/chat/stream", async (req, res) => {
-  const { query, documentContent, reviewMode, conversationHistory, uploadedFileText } = req.body
+  const { query, documentContent, reviewMode, conversationHistory, uploadedFileText, blogWizardStep } = req.body
   if (!query || typeof query !== "string" || query.trim().length < 2) {
     return res.status(400).json({ error: "Query is required (min 2 characters)" })
   }
@@ -79,6 +78,7 @@ router.post("/chat/stream", async (req, res) => {
       uploadedFileText,
       reviewMode,
       conversationHistory,
+      blogWizardStep,
     })
   } catch (error) {
     console.error("Chat stream error:", error instanceof Error ? error.stack : error)
@@ -90,7 +90,7 @@ router.post("/chat/stream", async (req, res) => {
 
 // POST /api/studio/chat/query (non-streaming fallback)
 router.post("/chat/query", async (req, res) => {
-  const { query, documentContent, reviewMode, uploadedFileText } = req.body
+  const { query, documentContent, reviewMode, uploadedFileText, blogWizardStep } = req.body
   if (!query || typeof query !== "string" || query.trim().length < 2) {
     return res.status(400).json({ error: "Query is required" })
   }
@@ -99,6 +99,7 @@ router.post("/chat/query", async (req, res) => {
       documentContent,
       uploadedFileText,
       reviewMode,
+      blogWizardStep,
     })
     res.json(result)
   } catch (error) {
@@ -219,7 +220,7 @@ router.get("/documents/:id", async (req, res) => {
 })
 
 // POST /api/studio/documents
-router.post("/documents", requireWriteAccess, async (req, res) => {
+router.post("/documents", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -243,7 +244,7 @@ router.post("/documents", requireWriteAccess, async (req, res) => {
 })
 
 // PATCH /api/studio/documents/:id
-router.patch("/documents/:id", requireWriteAccess, async (req, res) => {
+router.patch("/documents/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -295,7 +296,7 @@ router.patch("/documents/:id", requireWriteAccess, async (req, res) => {
 })
 
 // DELETE /api/studio/documents/:id (soft delete — set mode to archived)
-router.delete("/documents/:id", requireWriteAccess, async (req, res) => {
+router.delete("/documents/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -335,7 +336,7 @@ router.get("/documents/:id/versions", async (req, res) => {
 // ─── Document Sharing ───
 
 // PATCH /api/studio/documents/:id/share
-router.patch("/documents/:id/share", requireWriteAccess, async (req, res) => {
+router.patch("/documents/:id/share", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -385,7 +386,7 @@ router.get("/templates", async (req, res) => {
 })
 
 // POST /api/studio/templates
-router.post("/templates", requireWriteAccess, async (req, res) => {
+router.post("/templates", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
 
@@ -409,7 +410,7 @@ router.post("/templates", requireWriteAccess, async (req, res) => {
 })
 
 // DELETE /api/studio/templates/:id
-router.delete("/templates/:id", requireWriteAccess, async (req, res) => {
+router.delete("/templates/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
 
@@ -466,7 +467,7 @@ router.get("/assets/:id", async (req, res) => {
 })
 
 // POST /api/studio/assets
-router.post("/assets", requireWriteAccess, async (req, res) => {
+router.post("/assets", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -494,7 +495,7 @@ router.post("/assets", requireWriteAccess, async (req, res) => {
 })
 
 // PATCH /api/studio/assets/:id
-router.patch("/assets/:id", requireWriteAccess, async (req, res) => {
+router.patch("/assets/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })
@@ -522,7 +523,7 @@ router.patch("/assets/:id", requireWriteAccess, async (req, res) => {
 })
 
 // DELETE /api/studio/assets/:id
-router.delete("/assets/:id", requireWriteAccess, async (req, res) => {
+router.delete("/assets/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database unavailable" })
   const userId = getCurrentUserId(req)
   if (!userId) return res.status(401).json({ error: "Not authenticated" })

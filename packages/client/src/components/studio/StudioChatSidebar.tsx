@@ -1,11 +1,12 @@
 import { useState, useCallback, useRef, useEffect } from "react"
-import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText, ChevronDown, ChevronUp, Copy, Check as CheckIcon, Square, Database, ChevronRight as ChevronRightIcon } from "lucide-react"
+import DOMPurify from "dompurify"
+import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText, ChevronDown, ChevronUp, Copy, Check as CheckIcon, Square, Database, PenLine, Lightbulb, Users, List, Wand2 } from "lucide-react"
 import { useChat } from "@/hooks/useChat"
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer"
-import { CHAT_THEMES, type ChatTheme, type ChartConfig } from "@/types/chat"
+import { type ChartConfig } from "@/types/chat"
 import type { UseDocumentStoreReturn } from "@/hooks/useDocumentStore"
 import type { ConversationSummary } from "@/lib/api"
-import { markdownToHtml } from "@/lib/markdownToHtml"
+import { markdownToHtml, svgToImg } from "@/lib/markdownToHtml"
 import { studioApi } from "@/lib/api"
 import { DataBrowserPanel } from "./DataBrowserPanel"
 
@@ -14,9 +15,91 @@ interface StudioChatSidebarProps {
   onRFPDetected?: (rfpText: string) => void
   collapsed?: boolean
   onToggleCollapse?: () => void
+  blogWizardActive?: boolean
+  onBlogWizardChange?: (active: boolean) => void
 }
 
-const theme: ChatTheme = CHAT_THEMES.emerald
+// ── Blog Wizard Steps ────────────────────────────────────
+
+const BLOG_STEPS = [
+  { id: "topic" as const, label: "Topic", icon: Lightbulb },
+  { id: "audience" as const, label: "Audience", icon: Users },
+  { id: "outline" as const, label: "Outline", icon: List },
+  { id: "draft" as const, label: "Draft", icon: PenLine },
+  { id: "polish" as const, label: "Polish", icon: Wand2 },
+]
+
+type BlogWizardStep = typeof BLOG_STEPS[number]["id"]
+
+const BLOG_STEP_PROMPTS: Record<BlogWizardStep, string> = {
+  topic: "I want to write a blog post. Help me pick a compelling topic based on Stamats' expertise and recent wins.",
+  audience: "Let's define the target audience and tone for this blog post.",
+  outline: "Generate a detailed outline for this blog post with key sections, data points, and case studies to reference.",
+  draft: "Write the full blog post draft based on our outline. Use real Stamats data and keep it polished.",
+  polish: "Review and polish this blog post. Suggest titles, meta description, SEO keywords, and any final improvements.",
+}
+
+function BlogWizardProgress({ currentStep, completedSteps, onStepClick }: {
+  currentStep: BlogWizardStep
+  completedSteps: Set<BlogWizardStep>
+  onStepClick: (step: BlogWizardStep) => void
+}) {
+  const currentIdx = BLOG_STEPS.findIndex(s => s.id === currentStep)
+  return (
+    <div className="flex items-center gap-1 px-3 py-2.5 border-b border-emerald-100/60 dark:border-emerald-900/30 bg-emerald-50/30 dark:bg-emerald-950/20">
+      {BLOG_STEPS.map((step, idx) => {
+        const Icon = step.icon
+        const isCurrent = step.id === currentStep
+        const isCompleted = completedSteps.has(step.id)
+        const isPast = idx < currentIdx
+        return (
+          <div key={step.id} className="flex items-center flex-1 min-w-0">
+            <button
+              onClick={() => onStepClick(step.id)}
+              className={`flex items-center gap-1 px-1.5 py-1 rounded-md text-[10px] font-medium transition-all duration-150 truncate ${
+                isCurrent
+                  ? "text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40"
+                  : isCompleted || isPast
+                    ? "text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                    : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"
+              }`}
+              title={step.label}
+            >
+              {isCompleted && !isCurrent ? (
+                <CheckIcon className="w-3 h-3 flex-shrink-0" />
+              ) : (
+                <Icon className="w-3 h-3 flex-shrink-0" />
+              )}
+              <span className="hidden sm:inline truncate">{step.label}</span>
+            </button>
+            {idx < BLOG_STEPS.length - 1 && (
+              <div className={`w-3 h-px mx-0.5 flex-shrink-0 ${
+                isPast || isCompleted ? "bg-emerald-300 dark:bg-emerald-700" : "bg-slate-200 dark:bg-slate-700"
+              }`} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Strip SVG_DATA markers and raw SVG code from message content for display.
+ *  During streaming the SVG arrives token-by-token and would show as raw code.
+ *  After streaming, the server's cleanResponse already has SVG stripped,
+ *  so this mainly catches the streaming case and any edge cases. */
+function stripSVGFromContent(content: string): string {
+  let cleaned = content
+  // Remove complete SVG_DATA blocks (with or without code fences)
+  cleaned = cleaned.replace(/```(?:svg|xml|html)?\s*\n?\s*SVG_DATA:\s*<svg[\s\S]*?<\/svg>\s*\n?\s*```/g, '')
+  cleaned = cleaned.replace(/SVG_DATA:\s*<svg[\s\S]*?<\/svg>/g, '')
+  cleaned = cleaned.replace(/```(?:svg|xml|html)?\s*\n?\s*<svg[\s\S]*?<\/svg>\s*\n?\s*```/g, '')
+  // Remove partial/in-progress SVG_DATA marker during streaming (no closing tag yet)
+  cleaned = cleaned.replace(/SVG_DATA:\s*(?:```(?:svg|xml|html)?\s*\n?\s*)?<svg[\s\S]*$/g, '')
+  // Remove partial code-fenced SVG during streaming
+  cleaned = cleaned.replace(/```(?:svg|xml|html)\s*\n?\s*<svg[\s\S]*$/g, '')
+  return cleaned.trim()
+}
 
 // ── SVG Diagram Card ──────────────────────────────────────
 
@@ -64,7 +147,7 @@ function SVGDiagramCard({ svgData, onInsert }: { svgData: { svg: string; title: 
       {/* SVG preview */}
       {expanded && (
         <div className="p-2 overflow-x-auto [&_svg]:max-w-full [&_svg]:w-full [&_svg]:h-auto [&_svg]:block bg-white dark:bg-slate-950/40">
-          <div dangerouslySetInnerHTML={{ __html: svgData.svg }} />
+          <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(svgData.svg, { USE_PROFILES: { svg: true, svgFilters: true } }) }} />
         </div>
       )}
 
@@ -82,11 +165,16 @@ function SVGDiagramCard({ svgData, onInsert }: { svgData: { svg: string; title: 
   )
 }
 
-export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onToggleCollapse }: StudioChatSidebarProps) {
+export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onToggleCollapse, blogWizardActive, onBlogWizardChange }: StudioChatSidebarProps) {
   const [attachedFile, setAttachedFile] = useState<{ name: string; text: string; isExtracting?: boolean; isRFP?: boolean } | null>(null)
   const attachedFileRef = useRef<{ name: string; text: string } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Blog wizard state
+  const [wizardStep, setWizardStep] = useState<BlogWizardStep>("topic")
+  const [completedSteps, setCompletedSteps] = useState<Set<BlogWizardStep>>(new Set())
+  const wizardInitRef = useRef(false)
 
   const chat = useChat({
     endpoint: "/studio/chat/query",
@@ -104,9 +192,48 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
       documentContent: documentStore.content,
       reviewMode: documentStore.mode === "review",
       uploadedFileText: attachedFileRef.current?.text,
+      blogWizardStep: blogWizardActive ? wizardStep : undefined,
     }),
     errorMessage: "Failed to get response from Studio AI",
   })
+
+  // Auto-start wizard when blogWizardActive transitions to true
+  useEffect(() => {
+    if (blogWizardActive && !wizardInitRef.current) {
+      wizardInitRef.current = true
+      setWizardStep("topic")
+      setCompletedSteps(new Set())
+      chat.startNewConversation()
+      // Small delay to let the new conversation start cleanly
+      setTimeout(() => {
+        chat.handleSubmit(BLOG_STEP_PROMPTS.topic)
+      }, 100)
+    }
+    if (!blogWizardActive) {
+      wizardInitRef.current = false
+    }
+  }, [blogWizardActive])
+
+  const advanceWizardStep = useCallback(() => {
+    const currentIdx = BLOG_STEPS.findIndex(s => s.id === wizardStep)
+    setCompletedSteps(prev => new Set([...prev, wizardStep]))
+    if (currentIdx < BLOG_STEPS.length - 1) {
+      const nextStep = BLOG_STEPS[currentIdx + 1]!.id
+      setWizardStep(nextStep)
+      // Use setTimeout to ensure the state update happens before submit
+      setTimeout(() => {
+        chat.handleSubmit(BLOG_STEP_PROMPTS[nextStep])
+      }, 50)
+    } else {
+      // Wizard complete
+      onBlogWizardChange?.(false)
+    }
+  }, [wizardStep, chat, onBlogWizardChange])
+
+  const handleWizardStepClick = useCallback((step: BlogWizardStep) => {
+    setWizardStep(step)
+    chat.handleSubmit(`Let's work on the ${step} step. ${BLOG_STEP_PROMPTS[step]}`)
+  }, [chat])
 
   const handleFileSelect = useCallback(async (file: File) => {
     setAttachedFile({ name: file.name, text: "", isExtracting: true })
@@ -166,21 +293,20 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
   // Collapsed view
   if (collapsed) {
     return (
-      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-3 gap-3">
+      <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-4 gap-2">
         <button
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
           title="Expand AI sidebar"
         >
           <PanelLeftOpen className="w-4 h-4" />
         </button>
         <button
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-lg flex items-center justify-center shadow-md ring-2 ring-emerald-400/20 dark:ring-emerald-500/20 hover:ring-emerald-400/40 dark:hover:ring-emerald-500/40 transition-all"
-          style={{ background: theme.botGradient }}
-          title="AI Assistant"
+          className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-150"
+          title="AI"
         >
-          <Sparkles className="w-3.5 h-3.5 text-white" />
+          <Sparkles className="w-3.5 h-3.5" />
         </button>
       </div>
     )
@@ -189,45 +315,43 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
   return (
     <div className="flex flex-col h-full bg-white dark:bg-slate-900">
       {/* Header */}
-      <div className="flex items-center justify-between px-3 h-10 flex-shrink-0 border-b border-slate-100/80 dark:border-slate-800/80">
+      <div className="flex items-center justify-between px-3 h-12 flex-shrink-0 border-b border-slate-100/60 dark:border-slate-800/60">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-md flex items-center justify-center shadow-sm" style={{ background: theme.botGradient }}>
-            <Sparkles className="w-2.5 h-2.5 text-white" />
-          </div>
-          <span className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 tracking-tight">
-            {documentStore.mode === "review" ? "AI Review" : "AI Assistant"}
+          <Sparkles className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
+          <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 tracking-tight">
+            {documentStore.mode === "review" ? "Review" : "AI"}
           </span>
         </div>
         <div className="flex items-center gap-0.5">
           <button
             onClick={() => setDataBrowserOpen((o) => !o)}
-            className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
               dataBrowserOpen
-                ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
-                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800"
+                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Data library"
           >
-            <Database className="w-3 h-3" />
+            <Database className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }}
-            className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
             title="New conversation"
           >
-            <MessageSquarePlus className="w-3 h-3" />
+            <MessageSquarePlus className="w-3.5 h-3.5" />
           </button>
           <div className="relative" ref={historyRef}>
             <button
               onClick={() => setHistoryOpen((o) => !o)}
-              className={`w-6 h-6 rounded-md flex items-center justify-center transition-colors ${
+              className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
                 historyOpen
-                  ? "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30"
-                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  ? "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800"
+                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
               }`}
               title="Chat history"
             >
-              <History className="w-3 h-3" />
+              <History className="w-3.5 h-3.5" />
             </button>
             {historyOpen && (
               <ChatHistoryPopover
@@ -241,125 +365,145 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           </div>
           <button
             onClick={onToggleCollapse}
-            className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
             title="Collapse sidebar"
           >
-            <PanelLeftClose className="w-3 h-3" />
+            <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
+      {/* Blog Wizard Progress */}
+      {blogWizardActive && (
+        <BlogWizardProgress
+          currentStep={wizardStep}
+          completedSteps={completedSteps}
+          onStepClick={handleWizardStepClick}
+        />
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {chat.messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-5">
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3 shadow-sm"
-              style={{ background: theme.botGradient }}>
-              <Sparkles className="w-3.5 h-3.5 text-white" />
-            </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center mb-4 leading-relaxed max-w-[200px]">
+          <div className="flex flex-col items-center justify-center h-full px-6">
+            <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center mb-5 leading-relaxed">
               {documentStore.mode === "review"
-                ? "Paste content in the editor, then ask for a review."
-                : "Ask me to help draft, edit, or improve your document."}
+                ? "Ask for a review of your document."
+                : "Ask AI to help draft or improve your document."}
             </p>
             {documentStore.mode === "editor" && (
-              <div className="space-y-1.5 w-full max-w-[240px]">
+              <div className="space-y-1.5 w-full max-w-[260px]">
                 {[
-                  { label: "Write an executive summary", icon: "✍️" },
-                  { label: "Draft a proposal response using our Q&A library", icon: "📋" },
-                  { label: "Add a case study from our portfolio", icon: "📄" },
-                  { label: "Pull a client testimonial that fits this section", icon: "💬" },
-                  { label: "Highlight a key result or stat that supports my point", icon: "📊" },
-                ].map(({ label, icon }) => (
+                  "Write an executive summary",
+                  "Draft a proposal response from Q&A library",
+                  "Add a case study from our portfolio",
+                ].map((label) => (
                   <button
                     key={label}
                     onClick={() => handleSubmit(label)}
-                    className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 hover:text-emerald-700 dark:hover:text-emerald-300 border border-slate-200/60 dark:border-slate-700/40 hover:border-emerald-200/80 dark:hover:border-emerald-800/50 rounded-xl transition-all duration-150 group"
+                    className="w-full text-left flex items-center gap-2 px-3 py-2.5 text-[12px] text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition-all duration-150 group"
                   >
-                    <span className="text-[14px] flex-shrink-0 group-hover:scale-110 transition-transform duration-150">{icon}</span>
                     <span className="flex-1 leading-snug">{label}</span>
-                    <ArrowRight className="w-2.5 h-2.5 text-slate-300 dark:text-slate-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
+                    <ArrowRight className="w-3 h-3 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
                   </button>
                 ))}
-                <button
-                  onClick={() => setDataBrowserOpen(true)}
-                  className="w-full text-left flex items-center gap-2.5 px-3 py-2 text-[11px] text-emerald-600 dark:text-emerald-400 bg-emerald-50/60 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 border border-emerald-200/60 dark:border-emerald-800/50 rounded-xl transition-all duration-150 group"
-                >
-                  <Database className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="flex-1 leading-snug font-medium">Browse data library</span>
-                  <ChevronRightIcon className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
-                </button>
               </div>
             )}
           </div>
         ) : (
-          <div className="px-3 py-3 space-y-4">
+          <div className="px-3 py-4 space-y-5">
             {chat.messages.map((message) => (
               <div key={message.id}>
                 {message.role === "user" ? (
-                  <div className="flex justify-end">
-                    <div className="max-w-[85%] px-3 py-2 rounded-2xl rounded-tr-md bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100/60 dark:border-emerald-800/30 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
+                  <div>
+                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mb-1 px-1">You</p>
+                    <div className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
                       {message.content}
                     </div>
                   </div>
                 ) : message.refused ? (
-                  <div className="flex gap-2 items-start">
-                    <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
-                      <Sparkles className="w-2.5 h-2.5 text-white" />
-                    </div>
-                    <div className="flex-1 px-3 py-2 rounded-lg bg-amber-50/80 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 border-l-2 border-l-amber-400 dark:border-l-amber-500 text-[12px] text-amber-700 dark:text-amber-300 leading-relaxed">
+                  <div className="pl-3 border-l-2 border-amber-300 dark:border-amber-600">
+                    <div className="px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300 leading-relaxed">
                       {message.refusalReason || "Unable to process request."}
                     </div>
                   </div>
                 ) : (
-                  <div className="flex gap-2 items-start">
-                    <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
-                      <Sparkles className="w-2.5 h-2.5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-1.5">
-                      <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed [&_.md-h2]:text-[13px] [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[12px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[12px] [&_p]:mb-1.5 [&_pre]:text-[10px] [&_pre]:p-2 [&_pre]:rounded-md [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800/60">
-                        <MarkdownRenderer content={message.content} />
+                  <div className="pl-3 border-l-2 border-emerald-200 dark:border-emerald-800/60">
+                    <div className="space-y-2">
+                      <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-[1.7] [&_.md-h2]:text-[13px] [&_.md-h2]:font-semibold [&_.md-h2]:mt-3 [&_.md-h2]:mb-1 [&_.md-h3]:text-[12px] [&_.md-h3]:font-semibold [&_.md-h3]:mt-2 [&_.md-h3]:mb-1 [&_ul]:pl-4 [&_ol]:pl-4 [&_li]:text-[12px] [&_p]:mb-1.5 [&_pre]:text-[11px] [&_pre]:p-2 [&_pre]:rounded-lg [&_pre]:bg-slate-50 [&_pre]:dark:bg-slate-800/60">
+                        <MarkdownRenderer content={stripSVGFromContent(message.content)} />
                       </div>
                       {message.svgData && (
                         <SVGDiagramCard
                           svgData={message.svgData}
-                          onInsert={() => documentStore.insertContent(message.svgData!.svg)}
+                          onInsert={() => documentStore.insertContent(svgToImg(message.svgData!.svg))}
                         />
                       )}
                       {/* Follow-ups */}
                       {message.followUpPrompts && message.followUpPrompts.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1.5">
+                        <div className="flex flex-wrap gap-1.5 pt-1">
                           {message.followUpPrompts.map((prompt, idx) => (
                             <button
                               key={idx}
                               onClick={() => handleSubmit(prompt)}
-                              className="group flex items-center gap-1 px-2.5 py-1 text-[10px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/25 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 rounded-lg border border-emerald-200/60 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 transition-all duration-150"
+                              className="group flex items-center gap-1 px-2.5 py-1 text-[11px] text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-full transition-all duration-150"
                             >
                               {prompt}
-                              <ArrowRight className="w-2 h-2 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 transition-all duration-150 flex-shrink-0" />
+                              <ArrowRight className="w-2.5 h-2.5 opacity-0 group-hover:opacity-60 transition-opacity duration-150 flex-shrink-0" />
                             </button>
                           ))}
                         </div>
                       )}
-                      {/* Deploy actions */}
-                      {(message.content || message.svgData || message.reviewAnnotations?.length) && (
-                        <div className="flex flex-wrap gap-1 pt-0.5">
-                          {message.content && (
+                      {/* Blog Wizard: Next Step / Finish */}
+                      {blogWizardActive && !chat.isStreaming && message.id === chat.messages[chat.messages.length - 1]?.id && (
+                        <div className="pt-1.5">
+                          {BLOG_STEPS.findIndex(s => s.id === wizardStep) < BLOG_STEPS.length - 1 ? (
                             <button
-                              onClick={() => documentStore.insertContent(markdownToHtml(message.content))}
-                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-md transition-colors border border-emerald-200/60 dark:border-emerald-800/40"
+                              onClick={advanceWizardStep}
+                              className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 rounded-lg transition-colors w-full justify-center"
                             >
-                              <ArrowRight className="w-2.5 h-2.5" />
-                              Insert
+                              Next: {BLOG_STEPS[BLOG_STEPS.findIndex(s => s.id === wizardStep) + 1]?.label}
+                              <ArrowRight className="w-3 h-3" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setCompletedSteps(prev => new Set([...prev, wizardStep]))
+                                onBlogWizardChange?.(false)
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-2 text-[11px] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 rounded-lg transition-colors w-full justify-center"
+                            >
+                              <CheckIcon className="w-3 h-3" />
+                              Finish Blog Post
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {/* Insert / Comments actions */}
+                      {(message.content || message.svgData || message.reviewAnnotations?.length) && (
+                        <div className="flex gap-2 pt-1">
+                          {(message.content || message.svgData) && (
+                            <button
+                              onClick={() => {
+                                const textContent = stripSVGFromContent(message.content)
+                                const parts: string[] = []
+                                if (textContent) parts.push(markdownToHtml(textContent))
+                                if (message.svgData) parts.push(svgToImg(message.svgData.svg))
+                                if (parts.length > 0) documentStore.insertContent(parts.join(''))
+                              }}
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-all duration-150"
+                            >
+                              <ArrowRight className="w-3 h-3" />
+                              Insert into document
                             </button>
                           )}
                           {message.reviewAnnotations && message.reviewAnnotations.length > 0 && (
                             <button
                               onClick={() => documentStore.setAnnotations(message.reviewAnnotations!)}
-                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-md transition-colors border border-amber-200/60 dark:border-amber-800/40"
+                              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-all duration-150"
                             >
-                              <FileSearch className="w-2.5 h-2.5" />
-                              Comments ({message.reviewAnnotations.length})
+                              <FileSearch className="w-3 h-3" />
+                              {message.reviewAnnotations.length} comments
                             </button>
                           )}
                         </div>
@@ -370,17 +514,10 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               </div>
             ))}
 
-            {/* Loading */}
+            {/* Streaming indicator — subtle pulsing bar */}
             {chat.isStreaming && (
-              <div className="flex gap-2 items-start">
-                <div className="w-5 h-5 rounded-md flex-shrink-0 flex items-center justify-center mt-0.5 shadow-sm" style={{ background: theme.botGradient }}>
-                  <Sparkles className="w-2.5 h-2.5 text-white" />
-                </div>
-                <div className="flex items-center gap-1 pt-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:0ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:150ms]" />
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 dark:bg-emerald-500 animate-bounce [animation-delay:300ms]" />
-                </div>
+              <div className="pl-3 border-l-2 border-emerald-200 dark:border-emerald-800/60">
+                <div className="h-4 w-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 animate-pulse" />
               </div>
             )}
             <div ref={chat.messagesEndRef as React.RefObject<HTMLDivElement>} />
@@ -399,75 +536,78 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
         />
       )}
 
-      {/* Input */}
-      <div className="flex-shrink-0 px-2.5 pb-2.5 pt-2 border-t border-slate-100/80 dark:border-slate-800/80">
+      {/* Input — unified box with attach + send inside */}
+      <div className="flex-shrink-0 px-3 pb-3 pt-2 border-t border-slate-100/60 dark:border-slate-800/60">
         {/* Attached file chip */}
         {attachedFile && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-2 bg-emerald-50/80 dark:bg-emerald-900/20 rounded-lg border border-emerald-100 dark:border-emerald-800/30">
-            <FileText className="w-3 h-3 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 flex-1 truncate font-medium">{attachedFile.name}</span>
+          <div className="flex items-center gap-1.5 px-2.5 py-1.5 mb-2 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200/50 dark:border-slate-700/40">
+            <FileText className="w-3 h-3 text-slate-500 dark:text-slate-400 flex-shrink-0" />
+            <span className="text-[11px] text-slate-600 dark:text-slate-300 flex-1 truncate font-medium">{attachedFile.name}</span>
             {attachedFile.isRFP && !isExtracting && (
-              <span className="px-1 py-px text-[8px] font-bold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex-shrink-0 uppercase tracking-wider">RFP</span>
+              <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex-shrink-0 uppercase tracking-wider">RFP</span>
             )}
             {isExtracting ? (
-              <Loader2 className="w-2.5 h-2.5 text-emerald-500 animate-spin flex-shrink-0" />
+              <Loader2 className="w-3 h-3 text-slate-400 animate-spin flex-shrink-0" />
             ) : (
-              <button onClick={handleFileRemove} className="p-0.5 hover:bg-emerald-100 dark:hover:bg-emerald-800 rounded transition-colors flex-shrink-0">
-                <X className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+              <button onClick={handleFileRemove} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors flex-shrink-0">
+                <X className="w-3 h-3 text-slate-400" />
               </button>
             )}
           </div>
         )}
-        <div className="flex items-end gap-1">
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={chat.isLoading || isExtracting}
-            className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-md text-slate-400 hover:text-emerald-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
-            title="Attach file"
-          >
-            <Paperclip className="w-3.5 h-3.5" />
-          </button>
+        <div className="relative">
           <input ref={fileInputRef} type="file" accept=".pdf,.docx,.doc,.txt" onChange={(e) => {
             const file = e.target.files?.[0]
             if (file) handleFileSelect(file)
             e.target.value = ""
           }} className="hidden" />
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={chat.inputValue}
-              onChange={(e) => chat.setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault()
-                  handleSubmit()
-                }
-              }}
-              placeholder={documentStore.mode === "review" ? "Ask for a review..." : "Ask AI anything..."}
-              disabled={chat.isLoading}
-              rows={1}
-              className="w-full rounded-lg bg-slate-50 dark:bg-slate-800/60 px-3 py-2 text-[12px] text-slate-900 dark:text-white leading-snug placeholder:text-slate-400 dark:placeholder:text-slate-500 border border-slate-200/60 dark:border-slate-700/40 focus:border-emerald-400/50 focus:outline-none focus:ring-1 focus:ring-emerald-400/20 resize-none overflow-hidden disabled:opacity-50 transition-all"
-              style={{ minHeight: "34px", maxHeight: "120px" }}
-            />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={chat.isLoading || isExtracting}
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-40 z-10"
+            title="Attach file"
+          >
+            <Paperclip className="w-3.5 h-3.5" />
+          </button>
+          <textarea
+            ref={textareaRef}
+            value={chat.inputValue}
+            onChange={(e) => chat.setInputValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                handleSubmit()
+              }
+            }}
+            placeholder={documentStore.mode === "review" ? "Ask for a review..." : "Ask anything..."}
+            disabled={chat.isLoading}
+            rows={1}
+            className="w-full rounded-xl bg-slate-50 dark:bg-slate-800/40 pl-9 pr-9 py-2.5 text-[12px] text-slate-900 dark:text-white leading-snug placeholder:text-slate-400/70 dark:placeholder:text-slate-500/70 border border-slate-200/50 dark:border-slate-700/40 focus:border-slate-300 dark:focus:border-slate-600 focus:outline-none resize-none overflow-hidden disabled:opacity-50 transition-all duration-150"
+            style={{ minHeight: "40px", maxHeight: "120px" }}
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2">
+            {chat.isStreaming ? (
+              <button
+                onClick={() => chat.abortStream()}
+                className="w-6 h-6 flex items-center justify-center rounded-md text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all duration-150"
+                title="Stop generating"
+              >
+                <Square className="w-3 h-3 fill-current" />
+              </button>
+            ) : (
+              <button
+                onClick={() => handleSubmit()}
+                disabled={!chat.inputValue.trim() || chat.isLoading || isExtracting}
+                className={`w-6 h-6 flex items-center justify-center rounded-md transition-all duration-150 ${
+                  chat.inputValue.trim() && !chat.isLoading
+                    ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                    : "text-slate-300 dark:text-slate-600"
+                } disabled:opacity-25`}
+              >
+                <Send className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
-          {chat.isStreaming ? (
-            <button
-              onClick={() => chat.abortStream()}
-              className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200/60 dark:border-red-700/40 text-red-500 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-all duration-150"
-              title="Stop generating"
-            >
-              <Square className="w-2.5 h-2.5 fill-current" />
-            </button>
-          ) : (
-            <button
-              onClick={() => handleSubmit()}
-              disabled={!chat.inputValue.trim() || chat.isLoading || isExtracting}
-              className="w-7 h-7 flex-shrink-0 flex items-center justify-center rounded-lg transition-all duration-150 disabled:opacity-25"
-              style={{ background: chat.inputValue.trim() && !chat.isLoading ? theme.botGradient : undefined }}
-            >
-              <Send className={`w-3 h-3 ${chat.inputValue.trim() && !chat.isLoading ? "text-white" : "text-slate-400"}`} />
-            </button>
-          )}
         </div>
       </div>
     </div>

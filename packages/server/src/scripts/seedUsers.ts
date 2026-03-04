@@ -11,7 +11,6 @@ const DEFAULT_PASSWORD = "St@mats"
 const SEED_USERS = [
   { email: "eric.yerke@stamats.com", name: "Eric Yerke" },
   { email: "becky.morehouse@stamats.com", name: "Becky Morehouse" },
-  { email: "lindsey.cook@stamats.com", name: "Lindsey Cook" },
 ]
 
 async function main() {

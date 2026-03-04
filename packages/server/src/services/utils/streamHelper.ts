@@ -188,15 +188,33 @@ export function parseChartData(response: string): { cleanText: string; chartData
 /**
  * Parse SVG_DATA from AI response.
  * Format: SVG_DATA: <svg viewBox="0 0 800 600" xmlns="...">...</svg>
+ * Also handles SVG wrapped in code fences (```svg ... ```)
  */
 export function parseSVGData(response: string): { cleanText: string; svgData: { svg: string; title: string } | null } {
-  // Use a greedy match (not anchored to end-of-line) so multi-line SVGs are captured correctly
-  const svgMatch = response.match(/SVG_DATA:\s*(<svg[\s\S]*<\/svg>)/)
+  let working = response
+
+  // First, unwrap SVG from code fences if present
+  // e.g. SVG_DATA: ```svg\n<svg...></svg>\n``` or ```xml\n<svg...></svg>\n```
+  working = working.replace(/SVG_DATA:\s*```(?:svg|xml|html)?\s*\n?\s*(<svg[\s\S]*?<\/svg>)\s*\n?\s*```/g, 'SVG_DATA: $1')
+  // Also handle bare code-fenced SVGs (without SVG_DATA: prefix)
+  working = working.replace(/```(?:svg|xml|html)?\s*\n?\s*(<svg[\s\S]*?<\/svg>)\s*\n?\s*```/g, 'SVG_DATA: $1')
+
+  // Now match SVG_DATA: <svg...>...</svg>
+  const svgMatch = working.match(/SVG_DATA:\s*(<svg[\s\S]*<\/svg>)/)
   if (svgMatch?.[1]) {
     const titleMatch = svgMatch[1].match(/<!--\s*title:\s*(.*?)\s*-->/)
-    const cleanText = response.replace(/SVG_DATA:\s*<svg[\s\S]*<\/svg>/, "").trim()
+    const cleanText = working.replace(/SVG_DATA:\s*<svg[\s\S]*<\/svg>/, "").trim()
     return { cleanText, svgData: { svg: svgMatch[1], title: titleMatch?.[1] || "Diagram" } }
   }
+
+  // Fallback: match bare <svg> blocks (AI didn't use SVG_DATA: marker)
+  const bareSvgMatch = working.match(/<svg[\s\S]*<\/svg>/)
+  if (bareSvgMatch?.[0]) {
+    const titleMatch = bareSvgMatch[0].match(/<!--\s*title:\s*(.*?)\s*-->/)
+    const cleanText = working.replace(/<svg[\s\S]*<\/svg>/, "").trim()
+    return { cleanText, svgData: { svg: bareSvgMatch[0], title: titleMatch?.[1] || "Diagram" } }
+  }
+
   return { cleanText: response, svgData: null }
 }
 

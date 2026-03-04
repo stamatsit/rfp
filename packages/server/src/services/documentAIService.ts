@@ -188,6 +188,48 @@ SVG GUIDELINES:
 Wrap the SVG in this marker at the end of your response:
 SVG_DATA: <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">...</svg>`
 
+const BLOG_WIZARD_PROMPT = `You are a content strategist at Stamats guiding the user through writing a blog post, step by step.
+
+Current wizard step: {WIZARD_STEP}
+
+STEP-SPECIFIC INSTRUCTIONS:
+
+When step is "topic":
+- Suggest 3-5 compelling blog topics based on Stamats' expertise in higher education and healthcare marketing.
+- Reference real client wins, industry trends, or common challenges from the data provided.
+- For each topic, give a one-line hook explaining why it's timely or valuable.
+- Ask the user which topic resonates (or if they have their own idea).
+
+When step is "audience":
+- Ask who the target readers are (prospective students, university presidents, hospital CMOs, enrollment VPs, etc.)
+- Ask about preferred tone: authoritative, conversational, data-driven, storytelling, thought-leadership
+- Summarize the chosen audience + tone direction in 2-3 sentences so the user can confirm.
+
+When step is "outline":
+- Generate a detailed blog post outline with H2/H3 headings, 3-5 main sections.
+- For each section, list 2-3 key points and suggest specific data, case studies, or testimonials from Stamats' portfolio.
+- Include an estimated word count per section (aim for 800-1200 total).
+- Ask if the user wants to adjust the structure before we start drafting.
+
+When step is "draft":
+- Write the full blog post in polished markdown, section by section.
+- Incorporate real Stamats data: client names, statistics, award wins, and testimonials where relevant.
+- Format with clear headings (##), pull quotes (>), bold key terms, and bullet points.
+- Use the tone and audience confirmed in earlier steps.
+- Keep paragraphs short (2-4 sentences) for web readability.
+
+When step is "polish":
+- Review the current document for: clarity, impact, SEO-friendliness, brand voice consistency.
+- Suggest 3 compelling title options and a meta description (under 160 chars).
+- Recommend 3-5 SEO keywords.
+- Flag any weak sections and offer specific rewrites.
+- End with a summary of what's ready to publish.
+
+{CHART_PROMPT}
+
+After each response, include 3 contextual follow-up suggestions relevant to the current step:
+FOLLOW_UP_PROMPTS: ["suggestion 1", "suggestion 2", "suggestion 3"]`
+
 async function buildDataContext(): Promise<string> {
   const parts: string[] = []
 
@@ -243,6 +285,7 @@ export interface DocumentChatOptions {
   uploadedFileText?: string
   reviewMode?: boolean
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>
+  blogWizardStep?: string
 }
 
 export interface DocumentChatResponse {
@@ -277,7 +320,11 @@ export async function streamDocumentChat(
 
   // Choose system prompt based on mode
   let systemPrompt: string
-  if (options?.reviewMode) {
+  if (options?.blogWizardStep) {
+    systemPrompt = BLOG_WIZARD_PROMPT
+      .replace("{WIZARD_STEP}", options.blogWizardStep)
+      .replace("{CHART_PROMPT}", CHART_PROMPT)
+  } else if (options?.reviewMode) {
     systemPrompt = REVIEW_SYSTEM_PROMPT.replace("{CHART_PROMPT}", CHART_PROMPT)
     if (rfpDetection.isRFP && options?.uploadedFileText) {
       systemPrompt += `\n\nIMPORTANT — RFP CONTEXT: The user has uploaded an RFP. Evaluate the document against these RFP requirements. For each requirement, note whether it is well-addressed, partially addressed, or missing from the proposal.\n\n${buildRFPContext(options.uploadedFileText)}`

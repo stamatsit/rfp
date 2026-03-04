@@ -6,6 +6,8 @@ import {
   FileEdit,
   Wand2,
   Quote,
+  Building2,
+  ImageDown,
 } from "lucide-react"
 
 interface NavItem {
@@ -18,9 +20,11 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/search", icon: Search, label: "Search Library" },
   { to: "/ai", icon: Sparkles, label: "AI Tools" },
+  { to: "/clients", icon: Building2, label: "Client Portfolio" },
   { to: "/studio", icon: FileEdit, label: "Document Studio" },
   { to: "/humanize", icon: Wand2, label: "AI Humanizer" },
   { to: "/testimonials", icon: Quote, label: "Testimonials & Awards" },
+  { to: "/convert", icon: ImageDown, label: "Image Converter" },
 ]
 
 export function NavRail() {

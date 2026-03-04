@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import { Navigate } from "react-router-dom"
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core"
 import type { Editor } from "@tiptap/react"
-import { X, FileText, Sparkles, FilePlus, Upload, LayoutTemplate, ArrowRight } from "lucide-react"
+import { X, FileText, Sparkles, FilePlus, Upload, LayoutTemplate, PenLine } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { ConfirmDialog } from "@/components/ConfirmDialog"
 import { useIsAdmin } from "@/contexts/AuthContext"
@@ -66,6 +66,7 @@ export function DocumentStudio() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [browserOpen, setBrowserOpen] = useState(false)
   const [humanizerOpen, setHumanizerOpen] = useState(false)
+  const [blogWizardActive, setBlogWizardActive] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
 
   // Load server templates
@@ -299,13 +300,15 @@ export function DocumentStudio() {
           {/* Left: Chat sidebar */}
           <div
             style={{ width: sidebarCollapsed ? COLLAPSED_WIDTH : `${leftFraction * 100}%` }}
-            className="flex-shrink-0 h-full overflow-hidden border-r border-slate-200/60 dark:border-slate-700/60 transition-[width] duration-200"
+            className="flex-shrink-0 h-full overflow-hidden border-r border-slate-200/40 dark:border-slate-800/50 transition-[width] duration-150"
           >
             <StudioChatSidebar
               documentStore={doc}
               onRFPDetected={setRfpText}
               collapsed={sidebarCollapsed}
               onToggleCollapse={() => setSidebarCollapsed((c) => !c)}
+              blogWizardActive={blogWizardActive}
+              onBlogWizardChange={setBlogWizardActive}
             />
           </div>
 
@@ -318,8 +321,8 @@ export function DocumentStudio() {
               <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
               <div className={`w-px h-full mx-auto transition-all duration-150 ${
                 doc.mode === "review"
-                  ? "bg-amber-300/40 dark:bg-amber-600/30 group-hover:bg-amber-400/70 dark:group-hover:bg-amber-500/50"
-                  : "bg-slate-200/70 dark:bg-slate-700/60 group-hover:bg-emerald-400/60 dark:group-hover:bg-emerald-500/50"
+                  ? "bg-amber-200/50 dark:bg-amber-700/30 group-hover:bg-amber-300/70 dark:group-hover:bg-amber-500/50"
+                  : "bg-slate-200/50 dark:bg-slate-700/40 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"
               } group-hover:w-[2px]`} />
             </div>
           )}
@@ -329,91 +332,79 @@ export function DocumentStudio() {
             <div className="flex-1 flex flex-col min-w-0 relative">
               {/* Review mode banner */}
               {doc.mode === "review" && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200/60 dark:border-amber-700/40 flex-shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                  <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">Review Mode — AI will analyze and annotate your document</span>
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50/60 dark:bg-amber-900/10 border-b border-amber-200/40 dark:border-amber-800/30 flex-shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">Review Mode</span>
                   <button
                     onClick={() => doc.setMode("editor")}
-                    className="ml-auto text-[10px] text-amber-600 dark:text-amber-400 hover:underline"
+                    className="ml-auto text-[11px] text-amber-500 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
                   >
-                    Exit Review
+                    Exit
                   </button>
                 </div>
               )}
 
               {showEmptyState ? (
-                <div className="flex-1 flex items-center justify-center bg-slate-50/50 dark:bg-slate-950/50 overflow-y-auto">
-                  <div className="max-w-lg w-full px-8 py-12 text-center">
-                    {/* Icon with glow */}
-                    <div className="relative w-14 h-14 mx-auto mb-5">
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-xl shadow-emerald-500/30" />
-                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 blur-lg opacity-40" />
-                      <div className="relative w-full h-full flex items-center justify-center">
-                        <Sparkles className="w-6 h-6 text-white drop-shadow" />
-                      </div>
-                    </div>
-                    <h2 className="text-[19px] font-semibold text-slate-800 dark:text-slate-100 tracking-tight mb-1.5">Document Studio</h2>
-                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-8 leading-relaxed max-w-sm mx-auto">
-                      Create polished proposals, case studies, and reports — powered by your company's data.
+                <div className="flex-1 flex items-center justify-center bg-neutral-50/40 dark:bg-slate-950/50 overflow-y-auto">
+                  <div className="max-w-md w-full px-8 py-16 text-center">
+                    <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-5 stroke-[1.5]" />
+                    <h2 className="text-[22px] font-semibold text-slate-800 dark:text-slate-100 tracking-tight mb-2">Create a document</h2>
+                    <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-10">
+                      Proposals, case studies, and reports powered by your data.
                     </p>
 
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      {/* New blank */}
+                    <div className="grid grid-cols-5 gap-3">
+                      {/* Blank */}
                       <button
                         onClick={() => { doc.newDocument(); doc.setMode("editor") }}
-                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-[0_4px_16px_rgba(16,185,129,0.10)] hover:-translate-y-0.5 transition-all duration-200 text-center"
+                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
                       >
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 flex items-center justify-center transition-colors">
-                          <FilePlus className="w-[18px] h-[18px] text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">Blank</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Start fresh</p>
-                        </div>
+                        <FilePlus className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Blank</span>
                       </button>
 
-                      {/* Templates */}
+                      {/* Template */}
                       <button
                         onClick={() => setActiveModal("templates")}
-                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-[0_4px_16px_rgba(16,185,129,0.10)] hover:-translate-y-0.5 transition-all duration-200 text-center"
+                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
                       >
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 flex items-center justify-center transition-colors">
-                          <LayoutTemplate className="w-[18px] h-[18px] text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">Template</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{allTemplates.length} available</p>
-                        </div>
+                        <LayoutTemplate className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Template</span>
                       </button>
 
                       {/* Import */}
                       <button
                         onClick={() => importInputRef.current?.click()}
-                        className="group flex flex-col items-center gap-2.5 p-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-[0_4px_16px_rgba(16,185,129,0.10)] hover:-translate-y-0.5 transition-all duration-200 text-center"
+                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
                       >
-                        <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-emerald-50 dark:group-hover:bg-emerald-900/30 flex items-center justify-center transition-colors">
-                          <Upload className="w-[18px] h-[18px] text-slate-400 group-hover:text-emerald-500 transition-colors" />
-                        </div>
-                        <div>
-                          <p className="text-[12px] font-semibold text-slate-700 dark:text-slate-200 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors">Import</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">PDF, DOCX, TXT</p>
-                        </div>
+                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
+                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Import</span>
+                      </button>
+
+                      {/* Start with AI */}
+                      <button
+                        onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false) }}
+                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
+                      >
+                        <Sparkles className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors" />
+                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Ask AI</span>
+                      </button>
+
+                      {/* Blog Post Wizard */}
+                      <button
+                        onClick={() => {
+                          doc.newDocument()
+                          doc.setTitle("Blog Post Draft")
+                          doc.setMode("editor")
+                          if (sidebarCollapsed) setSidebarCollapsed(false)
+                          setBlogWizardActive(true)
+                        }}
+                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:-translate-y-0.5 transition-all duration-150"
+                      >
+                        <PenLine className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors" />
+                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Blog Post</span>
                       </button>
                     </div>
-
-                    {/* AI starter prompt — more actionable */}
-                    <button
-                      onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false) }}
-                      className="group flex items-center gap-2.5 w-full p-3.5 rounded-xl border border-emerald-200/60 dark:border-emerald-800/50 bg-gradient-to-r from-emerald-50 to-teal-50/50 dark:from-emerald-900/15 dark:to-teal-900/10 hover:border-emerald-300 dark:hover:border-emerald-700 hover:from-emerald-50 hover:to-emerald-50/80 dark:hover:from-emerald-900/25 transition-all duration-200 text-left"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-800/50 flex items-center justify-center flex-shrink-0 group-hover:bg-emerald-200 dark:group-hover:bg-emerald-700/60 transition-colors">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                      </div>
-                      <p className="text-[11px] text-slate-600 dark:text-slate-400 flex-1 leading-relaxed">
-                        Or <span className="font-semibold text-emerald-700 dark:text-emerald-300">ask the AI</span> to draft it — try <em className="not-italic text-emerald-600 dark:text-emerald-400">"Write a proposal response for a higher ed RFP"</em>
-                      </p>
-                      <ArrowRight className="w-3.5 h-3.5 text-emerald-400 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
                   </div>
                 </div>
               ) : (
@@ -426,13 +417,9 @@ export function DocumentStudio() {
                   onResolveAnnotation={doc.resolveAnnotation}
                   onOpenTemplates={() => setActiveModal("templates")}
                   onImportFile={() => importInputRef.current?.click()}
-                  onFocusChat={() => {
-                    if (sidebarCollapsed) setSidebarCollapsed(false)
-                  }}
                   onOpenPhotos={() => setActiveModal("photos")}
                   onOpenAssets={() => setActiveModal("assets")}
                   onOpenQALibrary={() => setActiveModal("qa-browser")}
-                  onOpenDocument={(id) => void handleOpenDocument(id)}
                 />
               )}
             </div>

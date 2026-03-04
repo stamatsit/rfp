@@ -46,6 +46,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/case-studies": "Case Studies",
   "/unified-ai": "Unified AI",
   "/studio": "Document Studio",
+  "/convert": "Image Converter",
   "/help": "Help",
   "/support": "Support",
   "/settings": "Settings",
@@ -165,7 +166,7 @@ export function getBehaviorContextForPrompt(): string {
   }
 
   // Pages never visited (from key pages)
-  const keyPages = ["/search", "/ai", "/insights", "/case-studies", "/studio", "/photos"]
+  const keyPages = ["/search", "/ai", "/insights", "/case-studies", "/studio", "/photos", "/convert"]
   const unvisited = keyPages.filter(p => !summary.pageVisits[p]).map(p => PAGE_NAMES[p] || p)
   if (unvisited.length > 0) {
     lines.push(`Has NOT yet visited: ${unvisited.join(", ")}`)

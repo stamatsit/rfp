@@ -20,8 +20,10 @@ import {
   MessageSquare,
   Clock,
   X,
+  Building2,
+  ImageDown,
 } from "lucide-react"
-import { conversationsApi, type ConversationSummary } from "@/lib/api"
+import { conversationsApi, clientsApi, type ConversationSummary, type ClientResponse } from "@/lib/api"
 import { loadSettings } from "./SettingsPanel"
 
 interface CommandPaletteProps {
@@ -50,9 +52,11 @@ const ROUTE_ITEMS: PaletteItem[] = [
   { id: "studio", type: "route", label: "Document Studio", description: "Rich document editor", icon: FileEdit, href: "/studio" },
   { id: "humanize", type: "route", label: "AI Humanizer", description: "Rewrite AI text", icon: Wand2, href: "/humanize" },
   { id: "testimonials", type: "route", label: "Testimonials & Awards", description: "Client testimonials", icon: Quote, href: "/testimonials" },
+  { id: "clients", type: "route", label: "Client Portfolio", description: "All assets by client", icon: Building2, href: "/clients" },
   { id: "analyze", type: "route", label: "Document Scanner", description: "Scan RFPs for red flags", icon: FileSearch, href: "/analyze" },
   { id: "import", type: "route", label: "Import Data", description: "Bulk Excel import", icon: FileSpreadsheet, href: "/import" },
   { id: "photos", type: "route", label: "Photo Library", description: "Image assets", icon: Image, href: "/photos" },
+  { id: "image-converter", type: "route", label: "Image Converter", description: "Convert images to WebP", icon: ImageDown, href: "/convert" },
   { id: "new", type: "route", label: "New Entry", description: "Create a Q&A entry", icon: PenLine, href: "/new" },
   { id: "help", type: "route", label: "Help", description: "Documentation & guides", icon: HelpCircle, href: "/help" },
   { id: "support", type: "route", label: "Support", description: "Contact support", icon: LifeBuoy, href: "/support" },
@@ -88,10 +92,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
+  const [clients, setClients] = useState<ClientResponse[]>([])
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
 
-  // Fetch recent conversations on open
+  // Fetch recent conversations + client list on open
   useEffect(() => {
     if (!isOpen) return
     setQuery("")
@@ -99,6 +104,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     inputRef.current?.focus()
     conversationsApi.list()
       .then(list => setConversations(list.slice(0, 5)))
+      .catch(() => {})
+    clientsApi.list()
+      .then(setClients)
       .catch(() => {})
   }, [isOpen])
 
@@ -120,7 +128,22 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       updatedAt: c.updatedAt,
     }))
 
-  const allItems = [...filteredRoutes, ...filteredConvs]
+  // Client quick actions — only show when query matches a client name
+  const filteredClients: PaletteItem[] = q
+    ? clients
+        .filter(c => c.name.toLowerCase().includes(q))
+        .slice(0, 4)
+        .map(c => ({
+          id: `client-${c.id}`,
+          type: "route" as const,
+          label: c.name,
+          description: `View client portfolio`,
+          icon: Building2,
+          href: `/clients?select=${encodeURIComponent(c.name)}`,
+        }))
+    : []
+
+  const allItems = [...filteredRoutes, ...filteredClients, ...filteredConvs]
 
   // Keyboard navigation
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -232,13 +255,46 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                 </div>
               )}
 
-              {filteredConvs.length > 0 && (
+              {filteredClients.length > 0 && (
                 <div className={filteredRoutes.length > 0 ? "mt-1 pt-1 border-t border-slate-100 dark:border-slate-700/60" : ""}>
+                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                    Clients
+                  </div>
+                  {filteredClients.map((item, i) => {
+                    const globalIndex = filteredRoutes.length + i
+                    const isSelected = globalIndex === selectedIndex
+                    return (
+                      <button
+                        key={item.id}
+                        data-index={globalIndex}
+                        onClick={() => { navigate(item.href); onClose() }}
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left
+                          ${isSelected ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
+                          ${isSelected ? "bg-sky-50 dark:bg-sky-900/40 shadow-sm" : "bg-sky-50 dark:bg-sky-900/20"}`}>
+                          <Building2 size={15} className="text-sky-500 dark:text-sky-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 truncate">{item.label}</p>
+                          {item.description && (
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{item.description}</p>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {filteredConvs.length > 0 && (
+                <div className={(filteredRoutes.length > 0 || filteredClients.length > 0) ? "mt-1 pt-1 border-t border-slate-100 dark:border-slate-700/60" : ""}>
                   <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
                     Recent Conversations
                   </div>
                   {filteredConvs.map((item, i) => {
-                    const globalIndex = filteredRoutes.length + i
+                    const globalIndex = filteredRoutes.length + filteredClients.length + i
                     const isSelected = globalIndex === selectedIndex
                     return (
                       <button

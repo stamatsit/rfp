@@ -35,6 +35,8 @@ const pageConfig: Record<string, { title: string }> = {
   "/testimonials": { title: "Testimonials & Awards" },
   "/studio": { title: "Document Studio" },
   "/humanize": { title: "AI Humanizer" },
+  "/clients": { title: "Client Portfolio" },
+  "/convert": { title: "Image Converter" },
 }
 
 function ThemeToggle() {

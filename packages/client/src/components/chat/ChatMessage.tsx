@@ -6,6 +6,7 @@ import {
   ThumbsDown,
   Lightbulb,
 } from "lucide-react"
+import DOMPurify from "dompurify"
 import { Button, Card, CardContent } from "@/components/ui"
 import { MarkdownRenderer } from "./MarkdownRenderer"
 import { InlineChart } from "./InlineChart"
@@ -75,7 +76,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">{message.svgData.title}</p>
                   <div
                     className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 p-4 overflow-x-auto [&_svg]:max-w-full [&_svg]:h-auto"
-                    dangerouslySetInnerHTML={{ __html: message.svgData.svg }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(message.svgData.svg, { USE_PROFILES: { svg: true, svgFilters: true } }) }}
                   />
                 </div>
               )}

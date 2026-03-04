@@ -13,6 +13,7 @@ import { Toaster } from "./components/ui/toast"
 import { AICompanion } from "./components/AICompanion"
 import { CommandPalette } from "./components/CommandPalette"
 import { NavRail } from "./components/NavRail"
+import { ErrorBoundary } from "./components/ErrorBoundary"
 import { loadSettings } from "./components/SettingsPanel"
 
 // Lazy-load non-critical routes to reduce initial bundle size
@@ -28,6 +29,8 @@ const Support = lazy(() => import("./pages/Support").then(m => ({ default: m.Sup
 const DocumentStudio = lazy(() => import("./pages/DocumentStudio").then(m => ({ default: m.DocumentStudio })))
 const TestimonialManager = lazy(() => import("./pages/TestimonialManager").then(m => ({ default: m.TestimonialManager })))
 const AIHumanizer = lazy(() => import("./pages/AIHumanizer").then(m => ({ default: m.AIHumanizer })))
+const ClientPortfolio = lazy(() => import("./pages/ClientPortfolio").then(m => ({ default: m.ClientPortfolio })))
+const ImageConverter = lazy(() => import("./pages/ImageConverter").then(m => ({ default: m.ImageConverter })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -44,6 +47,8 @@ function applyFontSize(fontSize: string) {
 }
 
 function AppRoutes() {
+  const location = useLocation()
+  const isAuthPage = ["/login", "/register", "/change-password"].includes(location.pathname)
   const [showNewEntry, setShowNewEntry] = useState(false)
   const [newEntryDefaultType, setNewEntryDefaultType] = useState<string | undefined>()
   const [showCommandPalette, setShowCommandPalette] = useState(false)
@@ -87,15 +92,16 @@ function AppRoutes() {
     <>
       <KeyboardShortcuts />
       <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-      {navRailEnabled && <NavRail />}
+      {navRailEnabled && !isAuthPage && <NavRail />}
       <NewEntryPanel
         isOpen={showNewEntry}
         onClose={() => setShowNewEntry(false)}
         onSaved={handleNewEntrySaved}
         defaultType={newEntryDefaultType as any}
       />
-      <div className={navRailEnabled ? "pl-14" : ""}>
+      <div className={navRailEnabled && !isAuthPage ? "pl-14" : ""}>
         <PageTransition>
+          <ErrorBoundary>
           <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -116,8 +122,11 @@ function AppRoutes() {
             <Route path="/studio" element={<ProtectedRoute><DocumentStudio /></ProtectedRoute>} />
             <Route path="/testimonials" element={<ProtectedRoute><TestimonialManager /></ProtectedRoute>} />
             <Route path="/humanize" element={<ProtectedRoute><AIHumanizer /></ProtectedRoute>} />
+            <Route path="/clients" element={<ProtectedRoute><ClientPortfolio /></ProtectedRoute>} />
+            <Route path="/convert" element={<ProtectedRoute><ImageConverter /></ProtectedRoute>} />
           </Routes>
           </Suspense>
+          </ErrorBoundary>
         </PageTransition>
         <AICompanion />
         <Toaster />

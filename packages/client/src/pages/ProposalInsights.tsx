@@ -19,11 +19,13 @@ import {
   LineChart,
   Building2,
   Sparkles,
+  X,
+  ChevronDown,
 } from "lucide-react"
 import { Button } from "@/components/ui"
 import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
-import { proposalInsightsApi, type ProposalSyncStatus } from "@/lib/api"
+import { proposalInsightsApi, clientsApi, type ProposalSyncStatus, type ClientResponse } from "@/lib/api"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 import { loadSettings } from "@/components/SettingsPanel"
 import { useIsAdmin } from "@/contexts/AuthContext"
@@ -84,12 +86,16 @@ export function ProposalInsights() {
   const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
+  const [clientFilter, setClientFilter] = useState<string>("")
+  const [dbClients, setDbClients] = useState<ClientResponse[]>([])
+  const [showClientDropdown, setShowClientDropdown] = useState(false)
+
   const chat = useChat({
     endpoint: "/proposals/query",
     streamEndpoint: "/proposals/stream",
     page: "proposal-insights",
     parseResult,
-    buildBody: useCallback((query: string) => ({ query, responseLength }), [responseLength]),
+    buildBody: useCallback((query: string) => ({ query, responseLength, clientFilter: clientFilter || undefined }), [responseLength, clientFilter]),
     parseMetadata: useCallback((data: Record<string, unknown>) =>
       (data.dataUsed as Record<string, unknown>) ?? data
     , []),
@@ -107,7 +113,16 @@ export function ProposalInsights() {
       chat.loadConversation(convId)
       navigate("/ai", { replace: true })
     }
+    const clientParam = searchParams.get("client")
+    if (clientParam) {
+      setClientFilter(clientParam)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load client list for dropdown
+  useEffect(() => {
+    clientsApi.list().then(setDbClients).catch(() => {})
+  }, [])
 
   const [syncStatus, setSyncStatus] = useState<ProposalSyncStatus | null>(null)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -217,8 +232,8 @@ export function ProposalInsights() {
       }
       statusBar={
         <div className="border-b border-slate-200/60 dark:border-slate-700 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm">
-          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4 text-sm">
+          <div className="max-w-4xl mx-auto px-6 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3 text-sm flex-wrap">
               <div className="flex items-center gap-2">
                 <Database size={14} className="text-cyan-500" />
                 <span className="text-slate-600 dark:text-slate-300">
@@ -233,6 +248,47 @@ export function ProposalInsights() {
                   </span>
                 </div>
               )}
+
+              {/* Client filter */}
+              <div className="relative">
+                {clientFilter ? (
+                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 border border-cyan-200 dark:border-cyan-800">
+                    <Building2 size={11} />
+                    <span>{clientFilter}</span>
+                    <button
+                      onClick={() => setClientFilter("")}
+                      className="ml-0.5 text-cyan-400 hover:text-cyan-600 transition-colors"
+                    >
+                      <X size={11} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowClientDropdown(v => !v)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-cyan-300 hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors bg-white dark:bg-slate-900"
+                  >
+                    <Building2 size={11} />
+                    Client focus
+                    <ChevronDown size={10} />
+                  </button>
+                )}
+                {showClientDropdown && !clientFilter && (
+                  <div className="absolute top-full left-0 mt-1 z-50 w-56 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-lg overflow-hidden">
+                    <div className="max-h-52 overflow-y-auto py-1">
+                      {dbClients.map(c => (
+                        <button
+                          key={c.id}
+                          onClick={() => { setClientFilter(c.name); setShowClientDropdown(false) }}
+                          className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors flex items-center gap-2"
+                        >
+                          <Building2 size={11} className="text-slate-400 shrink-0" />
+                          {c.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             {isAdmin && (
               <Button

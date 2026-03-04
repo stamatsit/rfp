@@ -4,12 +4,24 @@ import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import { createClient } from "@supabase/supabase-js"
 import { pgTable, text, timestamp, uuid, integer, boolean, primaryKey } from "drizzle-orm/pg-core"
-import { eq, ilike, or, desc, sql, and, isNull } from "drizzle-orm"
+import { eq, ilike, or, desc, asc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
 import mammoth from "mammoth"
 import { createRequire } from "module"
+
+// --- SSRF guard ---
+function isPublicUrl(urlString: string): boolean {
+  let url: URL
+  try { url = new URL(urlString) } catch { return false }
+  if (!["http:", "https:"].includes(url.protocol)) return false
+  const h = url.hostname
+  if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return false
+  if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|169\.254\.|0\.)/.test(h)) return false
+  if (h === "::1" || h.startsWith("[::1]") || h.startsWith("[fe80")) return false
+  return true
+}
 
 // --- Multipart form parsing for file uploads ---
 async function parseMultipartForm(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string; filename: string }> {
@@ -52,11 +64,12 @@ function parseMultipartBuffer(
     const headerEnd = part.indexOf("\r\n\r\n")
     if (headerEnd === -1) continue
     const headers = part.slice(0, headerEnd).toString()
-    if (!headers.includes('name="file"')) continue
-
+    // Accept any field that has a filename attribute (not just name="file")
     const filenameMatch = headers.match(/filename="([^"]*)"/)
+    if (!filenameMatch) continue
+
     const contentTypeMatch = headers.match(/Content-Type:\s*(.+)/i)
-    const filename = filenameMatch?.[1] || "upload"
+    const filename = filenameMatch[1] || "upload"
     const mimetype = contentTypeMatch?.[1]?.trim() || "application/octet-stream"
     let fileData = part.slice(headerEnd + 4)
     // Strip trailing \r\n
@@ -81,6 +94,60 @@ function splitBuffer(buf: Buffer, delimiter: Buffer): Buffer[] {
     start = idx + delimiter.length
   }
   return parts
+}
+
+// --- Multipart form parsing (all fields + file) ---
+async function parseMultipartFormFull(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string; filename: string; fields: Record<string, string> }> {
+  return new Promise((resolve, reject) => {
+    const contentType = req.headers["content-type"] || ""
+    const boundaryMatch = contentType.match(/boundary=(.+)/)
+    if (!boundaryMatch) return reject(new Error("No boundary found in content-type"))
+    const processBody = (body: Buffer) => {
+      const boundary = boundaryMatch[1]!
+      const boundaryBytes = Buffer.from(`--${boundary}`)
+      const parts = splitBuffer(body, boundaryBytes)
+      let fileBuffer: Buffer | null = null
+      let fileMime = "application/octet-stream"
+      let fileFilename = "upload"
+      const fields: Record<string, string> = {}
+      for (const part of parts) {
+        const headerEnd = part.indexOf("\r\n\r\n")
+        if (headerEnd === -1) continue
+        const headers = part.slice(0, headerEnd).toString()
+        const cdMatch = headers.match(/Content-Disposition:[^\r\n]+name="([^"]+)"/)
+        if (!cdMatch) continue
+        const fieldName = cdMatch[1]!
+        const filenameMatch = headers.match(/filename="([^"]*)"/)
+        let value = part.slice(headerEnd + 4)
+        if (value.length >= 2 && value[value.length - 2] === 0x0d && value[value.length - 1] === 0x0a) {
+          value = value.slice(0, -2)
+        }
+        if (filenameMatch) {
+          const ctMatch = headers.match(/Content-Type:\s*(.+)/i)
+          fileBuffer = value
+          fileMime = ctMatch?.[1]?.trim() || "application/octet-stream"
+          fileFilename = filenameMatch[1] || "upload"
+        } else {
+          fields[fieldName] = value.toString("utf-8")
+        }
+      }
+      if (!fileBuffer) return reject(new Error("No file field found in multipart form"))
+      resolve({ buffer: fileBuffer, mimetype: fileMime, filename: fileFilename, fields })
+    }
+    if (Buffer.isBuffer(req.body)) return processBody(req.body)
+    if (typeof req.body === "string") return processBody(Buffer.from(req.body))
+    const MAX_BYTES = 25 * 1024 * 1024
+    let totalBytes = 0
+    const chunks: Buffer[] = []
+    const stream = req as any
+    stream.on("data", (c: Buffer) => {
+      totalBytes += c.length
+      if (totalBytes > MAX_BYTES) return reject(new Error("File too large (25MB max)"))
+      chunks.push(c)
+    })
+    stream.on("end", () => processBody(Buffer.concat(chunks)))
+    stream.on("error", reject)
+  })
 }
 
 // --- Extracted image type ---
@@ -805,10 +872,22 @@ export const studioAssets = pgTable("studio_assets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Writing Persona Samples (per-user voice samples for AI Humanizer)
+const writingPersonaSamples = pgTable("writing_persona_samples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  label: text("label").notNull(),
+  sourceType: text("source_type").notNull().default("paste"),
+  originalFilename: text("original_filename"),
+  charCount: integer("char_count").notNull(),
+  extractedText: text("extracted_text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Database connection
 const DATABASE_URL = process.env.DATABASE_URL ?? ""
 const queryClient = DATABASE_URL ? postgres(DATABASE_URL, { max: 2, idle_timeout: 20 }) : null
-const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, answerItemVersions, photoAssets, linksAnswerPhoto, proposals, proposalPipeline, users, conversations, savedDocuments, scanCriteria, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets } }) : null
+const db = queryClient ? drizzle(queryClient, { schema: { topics, answerItems, answerItemVersions, photoAssets, linksAnswerPhoto, proposals, proposalPipeline, users, conversations, savedDocuments, scanCriteria, studioDocuments, studioDocumentVersions, studioTemplates, studioAssets, writingPersonaSamples } }) : null
 
 // Supabase client - use service role key for server-side operations (bypasses RLS)
 const SUPABASE_URL = (process.env.SUPABASE_URL ?? "").trim()
@@ -905,8 +984,8 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   if (path.startsWith("/humanizer/")) return true
   if (path.startsWith("/unified-ai/")) return true
   if (path.startsWith("/proposals/query") || path.startsWith("/proposals/stream")) return true
-  if (path.startsWith("/studio/chat/") || path.startsWith("/studio/briefing/") ||
-      path.startsWith("/studio/checklist/") || path === "/studio/inline-edit") return true
+  // Studio — all operations allowed (ownership enforced per-route)
+  if (path.startsWith("/studio/")) return true
   // Conversations — user's own chat history
   if (path.startsWith("/conversations")) return true
   // Feedback — logging only
@@ -1137,6 +1216,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         if (typeof email !== "string" || !email.includes("@")) {
           return res.status(400).json({ error: "Valid email is required" })
+        }
+        if (!email.toLowerCase().trim().endsWith("@stamats.com")) {
+          return res.status(403).json({ error: "Registration is restricted to @stamats.com email addresses" })
         }
         if (typeof password !== "string" || password.length < 8) {
           return res.status(400).json({ error: "Password must be at least 8 characters" })
@@ -1372,8 +1454,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Allow public read access to client-success data (testimonials, awards, entries, results, clients)
+    const isPublicClientSuccessRead = method === "GET" && path.startsWith("/client-success/")
+
     // All other routes require authentication
-    if (!isAuthenticated) {
+    if (!isAuthenticated && !isPublicClientSuccessRead) {
       return res.status(401).json({ error: "Unauthorized" })
     }
 
@@ -2670,6 +2755,155 @@ ${contextLines.join("\n")}`
       }
     }
 
+    // ─── Client AI Chat Stream ──────────
+    if (path === "/ai/client-chat/stream" && method === "POST") {
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service not configured." })}\n\n`)
+        return res.end()
+      }
+      const { query, clientContext, conversationHistory } = req.body || {}
+      if (!query || typeof query !== "string" || query.trim().length < 2) {
+        return res.status(400).json({ error: "Query must be at least 2 characters" })
+      }
+      if (!clientContext?.clientName) {
+        return res.status(400).json({ error: "clientContext with clientName is required" })
+      }
+
+      // Build client context string
+      const ctx = clientContext as any
+      const sections: string[] = []
+      sections.push(`=== CLIENT: ${String(ctx.clientName).toUpperCase()} ===`)
+      if (ctx.sector) sections.push(`Sector: ${ctx.sector}`)
+      if (ctx.caseStudies?.length > 0) {
+        const lines = (ctx.caseStudies as any[]).map((cs: any, i: number) => {
+          const metrics = (cs.metrics || []).map((m: any) => `${m.value} ${m.label}`).join("; ")
+          const parts = [`[Case Study ${i + 1}] Focus: ${cs.focus}`]
+          if (cs.challenge) parts.push(`  Challenge: ${cs.challenge}`)
+          if (cs.solution) parts.push(`  Solution: ${cs.solution}`)
+          if (metrics) parts.push(`  Results: ${metrics}`)
+          if (cs.testimonialQuote) parts.push(`  Quote: "${cs.testimonialQuote}"${cs.testimonialAttribution ? ` — ${cs.testimonialAttribution}` : ""}`)
+          return parts.join("\n")
+        })
+        sections.push(`=== CASE STUDIES (${lines.length}) ===\n${lines.join("\n\n")}`)
+      }
+      if (ctx.results?.length > 0) {
+        const lines = (ctx.results as any[]).map((r: any) => `${r.direction === "increase" ? "↑" : "↓"} ${r.result} ${r.metric}`)
+        sections.push(`=== KEY RESULTS (${lines.length}) ===\n${lines.join("\n")}`)
+      }
+      if (ctx.testimonials?.length > 0) {
+        const lines = (ctx.testimonials as any[]).map((t: any) => {
+          const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+          return `"${t.quote}"${who ? ` — ${who}` : ""}`
+        })
+        sections.push(`=== TESTIMONIALS (${lines.length}) ===\n${lines.join("\n\n")}`)
+      }
+      if (ctx.awards?.length > 0) {
+        const lines = (ctx.awards as any[]).map((a: any) => {
+          const parts = [a.name, a.year]
+          if (a.awardLevel) parts.push(a.awardLevel)
+          if (a.issuingAgency) parts.push(`from ${a.issuingAgency}`)
+          return parts.join(" · ")
+        })
+        sections.push(`=== AWARDS (${lines.length}) ===\n${lines.join("\n")}`)
+      }
+      if (ctx.proposals?.length > 0) {
+        const won = (ctx.proposals as any[]).filter((p: any) => p.won === "Yes").length
+        const lost = (ctx.proposals as any[]).filter((p: any) => p.won === "No").length
+        const pending = (ctx.proposals as any[]).filter((p: any) => !p.won || p.won === "Pending").length
+        const lines = (ctx.proposals as any[]).map((p: any) => {
+          const label = p.projectType || p.category || "Proposal"
+          const date = p.date ? new Date(p.date).getFullYear() : "?"
+          const svcs = p.servicesOffered?.length ? ` [${(p.servicesOffered as string[]).slice(0, 3).join(", ")}]` : ""
+          return `${label} (${date}) — ${p.won ?? "Pending"}${svcs}`
+        })
+        sections.push(`=== PROPOSALS (${lines.length} total — ${won} won, ${lost} lost, ${pending} pending) ===\n${lines.join("\n")}`)
+      }
+      const contextStr = sections.join("\n\n")
+
+      const CHART_PROMPT = `\nWhen discussing quantitative data, include a visualization by appending:\nCHART_DATA: {"type":"bar","title":"...","data":[...],"xKey":"label","yKeys":["value"]}\nOnly include when data is concrete and from provided sources.`
+
+      const systemPrompt = `You are an expert client intelligence assistant for Stamats, a marketing agency. You have deep knowledge of every asset Stamats has for the client "${ctx.clientName}" — their case studies, measurable results, testimonials, awards, and proposal history.
+
+Your job is to help Stamats team members:
+- Understand what work has been done for this client and what results were achieved
+- Identify the strongest proof points to use in proposals or presentations
+- Draft case study summaries, proposal sections, or talking points
+- Spot patterns and opportunities (e.g., what services have been most successful, win/loss patterns)
+- Answer any specific question about this client's history with Stamats
+
+Use ONLY the data provided below — never invent stats, quotes, or results. Format for instant use: **bold** key metrics, clean bullets, clear attribution.${CHART_PROMPT}
+
+Always end with:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+--- CLIENT DATA ---
+${contextStr}`
+
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      res.write(`event: metadata\ndata: ${JSON.stringify({ clientName: ctx.clientName })}\n\n`)
+
+      try {
+        const history: OpenAI.ChatCompletionMessageParam[] = Array.isArray(conversationHistory)
+          ? (conversationHistory as Array<{ role: string; content: string }>)
+              .slice(-10)
+              .map(m => ({ role: m.role as "user" | "assistant", content: m.content }))
+          : []
+
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: systemPrompt },
+            ...history,
+            { role: "user", content: query.trim() },
+          ],
+          temperature: 0.4,
+          max_tokens: 3000,
+          stream: true,
+        })
+
+        let fullResponse = ""
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            fullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        // Parse follow-up prompts
+        let cleanResponse = fullResponse
+        let prompts: string[] = []
+        const fuMatch = fullResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+        if (fuMatch?.[1]) {
+          try {
+            prompts = JSON.parse(`[${fuMatch[1]}]`)
+            cleanResponse = fullResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          } catch { /* ignore */ }
+        }
+        if (!prompts.length) {
+          prompts = [
+            "What are the strongest proof points for a proposal?",
+            "Can you draft a brief case study summary?",
+            "What patterns do you see in their proposal history?",
+          ]
+        }
+
+        res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse, followUpPrompts: prompts })}\n\n`)
+        return res.end()
+      } catch (err: any) {
+        console.error("Client chat stream error:", err?.message)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "Streaming failed" })}\n\n`)
+        return res.end()
+      }
+    }
+
     // ─── Client Success Testimonials CRUD ──────────
     if (path === "/client-success/testimonials" && method === "GET") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
@@ -3018,7 +3252,818 @@ ${contextLines.join("\n")}`
       }
     }
 
+    // ─── Clients CRUD ──────────────────────────────────────────────
+
+    if (path === "/client-success/clients" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`SELECT * FROM clients ORDER BY name ASC`
+        return res.json(rows)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get clients" })
+      }
+    }
+
+    if (path === "/client-success/clients" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { name, sector, notes } = req.body || {}
+      if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+      try {
+        const [row] = await queryClient`
+          INSERT INTO clients (name, sector, notes)
+          VALUES (${name.trim()}, ${sector || "other"}, ${notes?.trim() || null})
+          RETURNING *`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to create client" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/clients\/[^/]+$/) && method === "PUT") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      const { name, sector, notes } = req.body || {}
+      if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+      try {
+        const [row] = await queryClient`
+          UPDATE clients SET name = ${name.trim()}, sector = ${sector || "other"}, notes = ${notes?.trim() || null}, updated_at = NOW()
+          WHERE id = ${id} RETURNING *`
+        if (!row) return res.status(404).json({ error: "Client not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update client" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/clients\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()
+      try {
+        await queryClient`DELETE FROM clients WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete client" })
+      }
+    }
+
+    // ─── Client Profile ────────────────────────────────────────────
+
+    // GET /client-success/client-profile/:clientName — all DB assets for one client
+    if (path?.match(/^\/client-success\/client-profile\/[^/]+$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const name = decodeURIComponent(path.split("/client-profile/")[1] || "").trim()
+      if (!name) return res.status(400).json({ error: "clientName is required" })
+      try {
+        const [entries, results, testimonials, awards, proposalRows] = await Promise.all([
+          queryClient`SELECT * FROM client_success_entries WHERE client ILIKE ${name}`,
+          queryClient`SELECT * FROM client_success_results WHERE client ILIKE ${name}`,
+          queryClient`SELECT * FROM client_success_testimonials WHERE organization ILIKE ${name}`,
+          queryClient`SELECT * FROM client_success_awards WHERE company_name ILIKE ${name} OR client_or_project ILIKE ${name}`,
+          queryClient`SELECT id, date, ce, client, project_type, won, category, services_offered, sheet_name FROM proposals WHERE client ILIKE ${name} ORDER BY date DESC`,
+        ])
+        return res.json({
+          caseStudies: entries,
+          results,
+          testimonials,
+          awards,
+          proposals: proposalRows,
+        })
+      } catch (err: any) {
+        console.error("Failed to get client profile:", err)
+        return res.status(500).json({ error: "Failed to get client profile" })
+      }
+    }
+
+    // ─── Client ↔ Q&A Links ──────────────────────────────────────────
+
+    // GET /client-success/qa-links/by-answers — batch: answerIds → clientNames[] (must be before :clientName regex)
+    if (path === "/client-success/qa-links/by-answers" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const ids = String((req.query as any).ids || "").split(",").map((s: string) => s.trim()).filter(Boolean)
+      if (ids.length === 0) return res.json({})
+      try {
+        const placeholders = ids.map((_: string, i: number) => `$${i + 1}`).join(",")
+        const links = await queryClient.unsafe(
+          `SELECT answer_id, client_name FROM client_qa_links WHERE answer_id IN (${placeholders})`,
+          ids
+        )
+        const result: Record<string, string[]> = {}
+        for (const l of links as any[]) {
+          const key = l.answer_id as string
+          if (!result[key]) result[key] = []
+          result[key]!.push(l.client_name as string)
+        }
+        return res.json(result)
+      } catch (err: any) {
+        console.error("Failed to get QA links by answers:", err)
+        return res.status(500).json({ error: "Failed to get links" })
+      }
+    }
+
+    // GET /client-success/qa-links/:clientName — list linked answers for a client
+    if (path?.match(/^\/client-success\/qa-links\/[^/]+$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/qa-links/")[1] || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      try {
+        const links = await queryClient.unsafe(`
+          SELECT
+            cql.id AS "linkId", cql.linked_by AS "linkedBy", cql.created_at AS "linkedAt",
+            ai.id AS "answerId", ai.question, ai.answer, ai.status, ai.topic_id AS "topicId",
+            ai.tags, ai.usage_count AS "usageCount",
+            t.display_name AS topic
+          FROM client_qa_links cql
+          INNER JOIN answer_items ai ON cql.answer_id = ai.id
+          LEFT JOIN topics t ON ai.topic_id = t.id
+          WHERE cql.client_name = $1
+          ORDER BY cql.created_at DESC
+        `, [clientName])
+        return res.json(links)
+      } catch (err: any) {
+        console.error("Failed to get QA links:", err)
+        return res.status(500).json({ error: "Failed to get QA links" })
+      }
+    }
+
+    // POST /client-success/qa-links — create a link
+    if (path === "/client-success/qa-links" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { clientName, answerId } = req.body || {}
+      if (!clientName?.trim() || !answerId?.trim()) {
+        return res.status(400).json({ error: "clientName and answerId are required" })
+      }
+      const normalizedName = clientName.trim().toLowerCase()
+      const linkedBy = session?.userName || "unknown"
+      try {
+        const rows = await queryClient`
+          INSERT INTO client_qa_links (client_name, answer_id, linked_by)
+          VALUES (${normalizedName}, ${answerId.trim()}, ${linkedBy})
+          ON CONFLICT (client_name, answer_id) DO NOTHING
+          RETURNING *
+        `
+        return res.status(201).json(rows[0] || { clientName: normalizedName, answerId })
+      } catch (err: any) {
+        console.error("Failed to create QA link:", err)
+        return res.status(500).json({ error: "Failed to create link" })
+      }
+    }
+
+    // DELETE /client-success/qa-links/:linkId — remove a link
+    if (path?.match(/^\/client-success\/qa-links\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const linkId = path.split("/qa-links/")[1]
+      try {
+        await queryClient`DELETE FROM client_qa_links WHERE id = ${linkId}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        console.error("Failed to delete QA link:", err)
+        return res.status(500).json({ error: "Failed to delete link" })
+      }
+    }
+
+    // ─── Client Win Rates ──────────────────────────────────────────
+
+    // GET /client-success/client-win-rates — win/loss grouped by client name
+    if (path === "/client-success/client-win-rates" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`
+          SELECT
+            lower(trim(client)) AS client_key,
+            COUNT(*)::int AS total,
+            COUNT(*) FILTER (WHERE won = 'Yes')::int AS won,
+            COUNT(*) FILTER (WHERE won = 'No')::int AS lost,
+            COUNT(*) FILTER (WHERE won = 'Pending' OR won IS NULL OR won = 'Cancelled')::int AS pending,
+            MAX(date) AS last_proposal_date
+          FROM proposals
+          WHERE client IS NOT NULL AND trim(client) != ''
+          GROUP BY lower(trim(client))
+          ORDER BY total DESC
+        `
+        const result: Record<string, unknown> = {}
+        for (const row of rows as any[]) {
+          const key = row.client_key as string
+          const won = Number(row.won)
+          const total = Number(row.total)
+          result[key] = {
+            won, total,
+            lost: Number(row.lost),
+            pending: Number(row.pending),
+            rate: total > 0 ? Math.round((won / total) * 100) : 0,
+            lastProposalDate: row.last_proposal_date ?? null,
+          }
+        }
+        return res.json(result)
+      } catch (err: any) {
+        console.error("Failed to get client win rates:", err)
+        return res.status(500).json({ error: "Failed to get win rates" })
+      }
+    }
+
+    // ─── Client Brief Generation ──────────────────────────────────────────
+
+    // POST /client-success/client-brief/:clientName — generate client brief via GPT-4o
+    if (path?.match(/^\/client-success\/client-brief\/[^/]+$/) && method === "POST") {
+      if (!openai) return res.status(503).json({ error: "AI service not configured" })
+      const clientName = decodeURIComponent(path.split("/client-brief/")[1] || "").trim()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      const { clientContext } = req.body || {}
+      if (!clientContext) return res.status(400).json({ error: "clientContext is required" })
+      try {
+        const ctx = clientContext as any
+        const sections: string[] = [`CLIENT: ${clientName}`, ctx.sector ? `Sector: ${ctx.sector}` : ""]
+        if (ctx.caseStudies?.length > 0) {
+          const lines = (ctx.caseStudies as any[]).map((cs: any, i: number) => {
+            const metrics = (cs.metrics || []).map((m: any) => `${m.value} ${m.label}`).join("; ")
+            return `  ${i + 1}. ${cs.focus}${metrics ? ` — ${metrics}` : ""}${cs.challenge ? `\n     Challenge: ${cs.challenge}` : ""}`
+          })
+          sections.push(`Case Studies (${lines.length}):\n${lines.join("\n")}`)
+        }
+        if (ctx.results?.length > 0) {
+          const lines = (ctx.results as any[]).map((r: any) => `  ${r.direction === "increase" ? "↑" : "↓"} ${r.result} ${r.metric}`)
+          sections.push(`Key Results:\n${lines.join("\n")}`)
+        }
+        if (ctx.testimonials?.length > 0) {
+          const lines = (ctx.testimonials as any[]).map((t: any) => {
+            const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+            return `  "${t.quote}"${who ? ` — ${who}` : ""}`
+          })
+          sections.push(`Testimonials:\n${lines.join("\n")}`)
+        }
+        if (ctx.awards?.length > 0) sections.push(`Awards:\n${(ctx.awards as any[]).map((a: any) => `  ${a.name} (${a.year})`).join("\n")}`)
+        if (ctx.proposals?.length > 0) {
+          const won = (ctx.proposals as any[]).filter((p: any) => p.won === "Yes").length
+          const total = (ctx.proposals as any[]).length
+          const rate = total > 0 ? Math.round((won / total) * 100) : 0
+          const lines = (ctx.proposals as any[]).map((p: any) => {
+            const date = p.date ? new Date(p.date).getFullYear() : "?"
+            return `  ${p.projectType || p.category || "Proposal"} (${date}) — ${p.won ?? "Pending"}`
+          })
+          sections.push(`Proposals (${total} total, ${won} won, ${rate}% win rate):\n${lines.join("\n")}`)
+        }
+        if (ctx.qaAnswers?.length > 0) {
+          const lines = (ctx.qaAnswers as any[]).map((a: any) => `  Q: ${a.question}`)
+          sections.push(`Linked Q&A:\n${lines.join("\n")}`)
+        }
+        const dataContext = sections.filter(Boolean).join("\n\n")
+        const completion = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: "You are a client relationship strategist at Stamats, a marketing agency. Generate a concise, professional client brief in Markdown using ONLY the data provided. Use headers, bullet points, and bold text. Be specific — use real numbers and quotes." },
+            { role: "user", content: `Generate a client relationship brief for ${clientName} using ONLY this data:\n\n${dataContext}\n\nUse this structure:\n## ${clientName} — Client Relationship Brief\n### Relationship Overview\n### Strongest Proof Points\n### Services & Win Rate\n### Ready-to-Use Quotes\n### Awards & Recognition\n### Recommended Approach\n\nIf a section has no data, write "No data available". Keep it under 600 words.` },
+          ],
+          temperature: 0.4,
+          max_tokens: 2000,
+        })
+        const markdown = completion.choices[0]?.message?.content || ""
+        return res.json({ markdown })
+      } catch (err: any) {
+        console.error("Failed to generate client brief:", err)
+        return res.status(500).json({ error: "Failed to generate brief" })
+      }
+    }
+
+    // ─── Client Documents ─────────────────────────────────────────────────────
+
+    // GET /client-success/documents/:clientName — list docs for a client
+    if (path?.match(/^\/client-success\/documents\/[^/]+$/) && method === "GET"
+        && !path.endsWith("/text") && !path.endsWith("/download")) {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/documents/")[1] || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      try {
+        const rows = await queryClient`
+          SELECT id, client_name AS "clientName", title, doc_type AS "docType",
+            storage_key AS "storageKey", original_filename AS "originalFilename",
+            file_size AS "fileSize", mime_type AS "mimeType", summary,
+            key_points AS "keyPoints", uploaded_by AS "uploadedBy", created_at AS "createdAt"
+          FROM client_documents
+          WHERE client_name = ${clientName}
+          ORDER BY created_at DESC
+        `
+        return res.json(rows)
+      } catch (err: any) {
+        console.error("Failed to list client documents:", err)
+        return res.status(500).json({ error: "Failed to list documents" })
+      }
+    }
+
+    // POST /client-success/documents — upload document
+    if ((path === "/client-success/documents" || path === "/client-success/documents/") && method === "POST") {
+      try {
+        const { buffer, mimetype, filename, fields } = await parseMultipartFormFull(req)
+        const clientName = (fields.clientName || "").trim().toLowerCase()
+        const title = (fields.title || "").trim()
+        const docType = (fields.docType || "general").trim()
+        if (!clientName) return res.status(400).json({ error: "clientName is required" })
+
+        const rawExt = filename.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "bin"
+        const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 10) || "bin"
+        const storageKey = `client-documents/${clientName}/${crypto.randomBytes(16).toString("hex")}.${ext}`
+        const docTitle = title || filename.replace(/\.[^.]+$/, "")
+
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const { error: uploadErr } = await supabase.storage.from("client-documents").upload(storageKey, buffer, { contentType: mimetype, upsert: true })
+        if (uploadErr) return res.status(500).json({ error: "Failed to upload to storage" })
+
+        // Extract text
+        let extractedText: string | null = null
+        try {
+          if (mimetype === "application/pdf") {
+            const createReq = createRequire(import.meta.url)
+            const { PDFParse } = createReq("pdf-parse")
+            const parser = new PDFParse({ data: new Uint8Array(buffer), verbosity: 0 })
+            const result = await parser.promise
+            extractedText = result.text?.slice(0, 50000) || null
+          } else if (mimetype.includes("wordprocessingml") || mimetype.includes("msword")) {
+            const result = await mammoth.extractRawText({ buffer })
+            extractedText = result.value?.slice(0, 50000) || null
+          } else if (mimetype.startsWith("text/")) {
+            extractedText = buffer.toString("utf-8").slice(0, 50000)
+          }
+        } catch { /* extraction failed — non-fatal */ }
+
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        let row: any
+        try {
+          ;[row] = await queryClient`
+            INSERT INTO client_documents (client_name, title, doc_type, storage_key, original_filename, file_size, mime_type, extracted_text, uploaded_by)
+            VALUES (${clientName}, ${docTitle}, ${docType}, ${storageKey}, ${filename}, ${buffer.length}, ${mimetype}, ${extractedText}, ${session?.userId ? `user:${session.userId}` : "unknown"})
+            RETURNING id, client_name AS "clientName", title, doc_type AS "docType",
+              storage_key AS "storageKey", original_filename AS "originalFilename",
+              file_size AS "fileSize", mime_type AS "mimeType", summary,
+              key_points AS "keyPoints", uploaded_by AS "uploadedBy", created_at AS "createdAt"
+          `
+        } catch (dbErr) {
+          // Rollback: remove the already-uploaded Supabase file
+          await supabase.storage.from("client-documents").remove([storageKey])
+          throw dbErr
+        }
+
+        // Fire-and-forget AI summary
+        if (extractedText?.trim() && row && openai) {
+          ;(async () => {
+            try {
+              const completion = await openai!.chat.completions.create({
+                model: "gpt-4o-mini",
+                messages: [
+                  { role: "system", content: 'Return valid JSON only: { "summary": string, "keyPoints": string[] }. Summary: 2-3 sentences. keyPoints: up to 8 key dates, decisions, commitments, dollar amounts, or names.' },
+                  { role: "user", content: extractedText!.slice(0, 15000) },
+                ],
+                response_format: { type: "json_object" },
+                temperature: 0.2,
+                max_tokens: 800,
+              })
+              const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}")
+              const summary = typeof parsed.summary === "string" ? parsed.summary : null
+              const keyPoints = Array.isArray(parsed.keyPoints) ? JSON.stringify(parsed.keyPoints) : null
+              if (queryClient) {
+                await queryClient`
+                  UPDATE client_documents SET summary = ${summary}, key_points = ${keyPoints}::jsonb, updated_at = NOW()
+                  WHERE id = ${(row as any).id}
+                `
+              }
+            } catch { /* AI processing failed — non-fatal */ }
+          })().catch(() => {})
+        }
+
+        return res.status(201).json(row)
+      } catch (err: any) {
+        console.error("Document upload failed:", err)
+        return res.status(500).json({ error: "Failed to upload document" })
+      }
+    }
+
+    // GET /client-success/documents/:id/text — return extracted text
+    if (path?.match(/^\/client-success\/documents\/[^/]+\/text$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/documents/")[1]?.replace("/text", "")
+      if (!id) return res.status(400).json({ error: "id is required" })
+      try {
+        const [row] = await queryClient`SELECT extracted_text AS "extractedText" FROM client_documents WHERE id = ${id}`
+        if (!row) return res.status(404).json({ error: "Document not found" })
+        return res.json({ extractedText: (row as any).extractedText })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get text" })
+      }
+    }
+
+    // GET /client-success/documents/:id/download — proxy from Supabase
+    if (path?.match(/^\/client-success\/documents\/[^/]+\/download$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/documents/")[1]?.replace("/download", "")
+      if (!id) return res.status(400).json({ error: "id is required" })
+      try {
+        const [row] = await queryClient`SELECT storage_key AS "storageKey", original_filename AS "originalFilename", mime_type AS "mimeType" FROM client_documents WHERE id = ${id}`
+        if (!row) return res.status(404).json({ error: "Document not found" })
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const { data, error } = await supabase.storage.from("client-documents").download((row as any).storageKey)
+        if (error || !data) return res.status(500).json({ error: "Failed to download" })
+        const buf = Buffer.from(await data.arrayBuffer())
+        const safeFilename = ((row as any).originalFilename as string).replace(/"/g, '\\"')
+        res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"`)
+        res.setHeader("Content-Type", (row as any).mimeType || "application/octet-stream")
+        return res.send(buf)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to download document" })
+      }
+    }
+
+    // PATCH /client-success/documents/:id — update title or docType
+    if (path?.match(/^\/client-success\/documents\/[^/]+$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/documents/")[1]
+      if (!id) return res.status(400).json({ error: "id is required" })
+      const { title, docType } = req.body || {}
+      if (!title && !docType) return res.status(400).json({ error: "No valid fields to update" })
+      try {
+        const sets: string[] = ["updated_at = NOW()"]
+        if (typeof title === "string" && title.trim()) sets.push(`title = '${title.trim().replace(/'/g, "''")}'`)
+        if (typeof docType === "string" && docType.trim()) sets.push(`doc_type = '${docType.trim().replace(/'/g, "''")}'`)
+        const [row] = await queryClient`
+          UPDATE client_documents SET ${queryClient.unsafe(sets.join(", "))} WHERE id = ${id}
+          RETURNING id, client_name AS "clientName", title, doc_type AS "docType", original_filename AS "originalFilename",
+            file_size AS "fileSize", mime_type AS "mimeType", summary, key_points AS "keyPoints",
+            uploaded_by AS "uploadedBy", created_at AS "createdAt", updated_at AS "updatedAt"`
+        if (!row) return res.status(404).json({ error: "Document not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update document" })
+      }
+    }
+
+    // DELETE /client-success/documents/:id
+    if (path?.match(/^\/client-success\/documents\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/documents/")[1]
+      if (!id) return res.status(400).json({ error: "id is required" })
+      try {
+        const [row] = await queryClient`SELECT storage_key AS "storageKey" FROM client_documents WHERE id = ${id}`
+        if (!row) return res.status(404).json({ error: "Document not found" })
+        if (supabase) await supabase.storage.from("client-documents").remove([(row as any).storageKey])
+        await queryClient`DELETE FROM client_documents WHERE id = ${id}`
+        return res.json({ success: true })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete document" })
+      }
+    }
+
+    // ─── Client Brand Kit ─────────────────────────────────────────────────────
+
+    // GET /client-success/brand-kit/:clientName
+    if (path?.match(/^\/client-success\/brand-kit\/[^/]+$/) && method === "GET"
+        && !path.endsWith("/scrape") && !path.endsWith("/logo")) {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/brand-kit/")[1] || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      try {
+        const [row] = await queryClient`
+          SELECT id, client_name AS "clientName", website_url AS "websiteUrl",
+            scraped_at AS "scrapedAt", logo_storage_key AS "logoStorageKey",
+            logo_url AS "logoUrl", primary_color AS "primaryColor",
+            secondary_color AS "secondaryColor", accent_color AS "accentColor",
+            background_color AS "backgroundColor", text_color AS "textColor",
+            raw_colors AS "rawColors", primary_font AS "primaryFont",
+            secondary_font AS "secondaryFont", font_stack AS "fontStack",
+            tone, style_notes AS "styleNotes", scrape_status AS "scrapeStatus",
+            scrape_error AS "scrapeError", created_at AS "createdAt", updated_at AS "updatedAt"
+          FROM client_brand_kit
+          WHERE client_name = ${clientName}
+        `
+        return res.json(row || null)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to get brand kit" })
+      }
+    }
+
+    // POST /client-success/brand-kit/:clientName/scrape
+    if (path?.match(/^\/client-success\/brand-kit\/[^/]+\/scrape$/) && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/brand-kit/")[1]?.replace("/scrape", "") || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      const { websiteUrl } = req.body || {}
+      if (!websiteUrl?.trim()) return res.status(400).json({ error: "websiteUrl is required" })
+      if (!isPublicUrl(websiteUrl.trim())) return res.status(400).json({ error: "Invalid or non-public URL" })
+      const scrapeUpdatedBy = session?.userId ? `user:${session.userId}` : "vercel"
+      try {
+        // Upsert with pending
+        await queryClient`
+          INSERT INTO client_brand_kit (client_name, website_url, scrape_status, updated_by)
+          VALUES (${clientName}, ${websiteUrl.trim()}, 'pending', ${scrapeUpdatedBy})
+          ON CONFLICT (client_name) DO UPDATE SET website_url = ${websiteUrl.trim()}, scrape_status = 'pending', updated_by = ${scrapeUpdatedBy}, updated_at = NOW()
+        `
+        // Fetch HTML
+        let html = ""
+        let scrapeStatus = "failed"
+        const logoData = { logoUrl: null as string | null, logoStorageKey: null as string | null }
+        try {
+          const ctrl = new AbortController()
+          const timer = setTimeout(() => ctrl.abort(), 10000)
+          const resp = await fetch(websiteUrl.trim(), { signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; Stamats-Bot/1.0)" } })
+          clearTimeout(timer)
+          html = await resp.text()
+        } catch (err: any) {
+          await queryClient`UPDATE client_brand_kit SET scrape_status = 'failed', scrape_error = ${err.message}, updated_at = NOW() WHERE client_name = ${clientName}`
+          const [row] = await queryClient`SELECT id, client_name AS "clientName", website_url AS "websiteUrl", scrape_status AS "scrapeStatus", scrape_error AS "scrapeError" FROM client_brand_kit WHERE client_name = ${clientName}`
+          return res.json(row || null)
+        }
+        // Collect inline <style> blocks
+        const inlineStyles = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m: RegExpMatchArray) => m[1] || "").join("\n")
+        // Fetch linked external stylesheets (up to 3, 5s timeout each)
+        const scrapeBase = new URL(websiteUrl.trim())
+        const sheetHrefs = [...html.matchAll(/<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi)]
+          .map((m: RegExpMatchArray) => {
+            const href = m[1]
+            if (!href) return null
+            if (href.startsWith("http")) return href
+            if (href.startsWith("//")) return `${scrapeBase.protocol}${href}`
+            if (href.startsWith("/")) return `${scrapeBase.protocol}//${scrapeBase.host}${href}`
+            return `${scrapeBase.protocol}//${scrapeBase.host}/${href}`
+          })
+          .filter((h: string | null): h is string => !!h && isPublicUrl(h))
+          .slice(0, 3)
+        const sheetTexts = await Promise.all(sheetHrefs.map(async (href: string) => {
+          try {
+            const ctrl = new AbortController()
+            const t = setTimeout(() => ctrl.abort(), 5000)
+            const r = await fetch(href, { signal: ctrl.signal, headers: { "User-Agent": "Mozilla/5.0 (compatible; Stamats-Bot/1.0)" } })
+            clearTimeout(t)
+            return r.ok ? await r.text() : ""
+          } catch { return "" }
+        }))
+        const allCss = [inlineStyles, ...sheetTexts].join("\n")
+        // Parse colors
+        const allHex = [...new Set([...(allCss.match(/#[0-9a-fA-F]{6}/g) || [])])]
+        const cssVarColors = [...(allCss.match(/--(?:color|primary|secondary|accent|brand|theme)[^:]*:\s*(#[0-9a-fA-F]{6})/gi) || [])]
+          .map((m: string) => { const match = m.match(/#[0-9a-fA-F]{6}/); return match?.[0] || null }).filter(Boolean) as string[]
+        const filteredColors = allHex.filter((hex: string) => {
+          const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16)
+          return !(r < 30 && g < 30 && b < 30) && !(r > 230 && g > 230 && b > 230)
+        })
+        const prioritized = [...new Set([...cssVarColors, ...filteredColors])].slice(0, 10)
+        // Parse fonts
+        const fontMatches = [...(allCss.matchAll(/font-family:\s*([^;}"]+)/gi))].map((m: RegExpMatchArray) =>
+          m[1]?.trim().replace(/^['"]|['"]$/g, "").split(",")[0]?.trim()
+        ).filter(Boolean) as string[]
+        const primaryFont = fontMatches.find((f: string) => f && !["inherit","initial","unset","serif","sans-serif","monospace"].includes(f.toLowerCase())) || null
+        const fontStack = [...new Set(fontMatches)].slice(0, 3).join(", ") || null
+        // Parse logo
+        const logoMatch = html.match(/<img[^>]*(?:logo|brand)[^>]*src=["']([^"']+)["']/i) || html.match(/<img[^>]*src=["']([^"']*logo[^"']*)["']/i)
+        let rawLogoUrl = logoMatch?.[1] || null
+        if (!rawLogoUrl) {
+          const favMatch = html.match(/<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*href=["']([^"']+)["']/i) || html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:shortcut )?icon["']/i)
+          rawLogoUrl = favMatch?.[1] || null
+        }
+        if (rawLogoUrl && !rawLogoUrl.startsWith("http")) {
+          rawLogoUrl = rawLogoUrl.startsWith("/") ? `${scrapeBase.protocol}//${scrapeBase.host}${rawLogoUrl}` : `${scrapeBase.protocol}//${scrapeBase.host}/${rawLogoUrl}`
+        }
+        // Validate before fetching (second-order SSRF guard)
+        if (rawLogoUrl && !isPublicUrl(rawLogoUrl)) rawLogoUrl = null
+
+        if (rawLogoUrl && supabase) {
+          try {
+            const lCtrl = new AbortController(); const lTimer = setTimeout(() => lCtrl.abort(), 8000)
+            const lResp = await fetch(rawLogoUrl, { signal: lCtrl.signal }); clearTimeout(lTimer)
+            if (lResp.ok) {
+              const lBuf = Buffer.from(await lResp.arrayBuffer())
+              const lMime = lResp.headers.get("content-type") || "image/png"
+              const lExt = lMime.includes("svg") ? "svg" : lMime.includes("png") ? "png" : "jpg"
+              const lKey = `client-logos/${clientName}/${crypto.randomBytes(12).toString("hex")}.${lExt}`
+              const { error: lErr } = await supabase.storage.from("client-documents").upload(lKey, lBuf, { contentType: lMime, upsert: true })
+              if (!lErr) { logoData.logoStorageKey = lKey; logoData.logoUrl = rawLogoUrl }
+            }
+          } catch { /* non-fatal */ }
+        } else if (rawLogoUrl) {
+          logoData.logoUrl = rawLogoUrl
+        }
+        scrapeStatus = prioritized.length > 0 || primaryFont ? "success" : "partial"
+        const colorsJson = JSON.stringify(prioritized)
+        const [updatedRow] = await queryClient`
+          UPDATE client_brand_kit SET
+            scraped_at = NOW(), scrape_status = ${scrapeStatus}, scrape_error = NULL,
+            raw_colors = ${colorsJson}::jsonb,
+            primary_color = ${prioritized[0] || null}, secondary_color = ${prioritized[1] || null}, accent_color = ${prioritized[2] || null},
+            primary_font = ${primaryFont}, font_stack = ${fontStack},
+            logo_url = ${logoData.logoUrl}, logo_storage_key = ${logoData.logoStorageKey},
+            updated_by = ${scrapeUpdatedBy}, updated_at = NOW()
+          WHERE client_name = ${clientName}
+          RETURNING id, client_name AS "clientName", website_url AS "websiteUrl",
+            scraped_at AS "scrapedAt", logo_storage_key AS "logoStorageKey", logo_url AS "logoUrl",
+            primary_color AS "primaryColor", secondary_color AS "secondaryColor", accent_color AS "accentColor",
+            background_color AS "backgroundColor", text_color AS "textColor",
+            raw_colors AS "rawColors", primary_font AS "primaryFont", secondary_font AS "secondaryFont",
+            font_stack AS "fontStack", tone, style_notes AS "styleNotes",
+            scrape_status AS "scrapeStatus", scrape_error AS "scrapeError",
+            updated_by AS "updatedBy", created_at AS "createdAt", updated_at AS "updatedAt"
+        `
+        return res.json(updatedRow)
+      } catch (err: any) {
+        console.error("Brand kit scrape failed:", err)
+        return res.status(500).json({ error: "Failed to scrape brand kit" })
+      }
+    }
+
+    // PATCH /client-success/brand-kit/:clientName — manual update
+    if (path?.match(/^\/client-success\/brand-kit\/[^/]+$/) && method === "PATCH") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/brand-kit/")[1] || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      const b = req.body || {}
+      const patchUpdatedBy = session?.userId ? `user:${session.userId}` : "vercel"
+      // Use CASE WHEN to only override fields that were explicitly provided in the request.
+      // This lets callers pass null to clear a field, while omitted fields stay unchanged.
+      const val = (key: string) => key in b ? b[key] ?? null : undefined
+      try {
+        const [existing] = await queryClient`SELECT id FROM client_brand_kit WHERE client_name = ${clientName}`
+        const websiteUrl = val("websiteUrl"); const primaryColor = val("primaryColor")
+        const secondaryColor = val("secondaryColor"); const accentColor = val("accentColor")
+        const backgroundColor = val("backgroundColor"); const textColor = val("textColor")
+        const primaryFont = val("primaryFont"); const secondaryFont = val("secondaryFont")
+        const fontStack = val("fontStack"); const tone = val("tone"); const styleNotes = val("styleNotes")
+        const row = existing
+          ? (await queryClient`UPDATE client_brand_kit SET
+              website_url = CASE WHEN ${websiteUrl !== undefined} THEN ${websiteUrl ?? null} ELSE website_url END,
+              primary_color = CASE WHEN ${primaryColor !== undefined} THEN ${primaryColor ?? null} ELSE primary_color END,
+              secondary_color = CASE WHEN ${secondaryColor !== undefined} THEN ${secondaryColor ?? null} ELSE secondary_color END,
+              accent_color = CASE WHEN ${accentColor !== undefined} THEN ${accentColor ?? null} ELSE accent_color END,
+              background_color = CASE WHEN ${backgroundColor !== undefined} THEN ${backgroundColor ?? null} ELSE background_color END,
+              text_color = CASE WHEN ${textColor !== undefined} THEN ${textColor ?? null} ELSE text_color END,
+              primary_font = CASE WHEN ${primaryFont !== undefined} THEN ${primaryFont ?? null} ELSE primary_font END,
+              secondary_font = CASE WHEN ${secondaryFont !== undefined} THEN ${secondaryFont ?? null} ELSE secondary_font END,
+              font_stack = CASE WHEN ${fontStack !== undefined} THEN ${fontStack ?? null} ELSE font_stack END,
+              tone = CASE WHEN ${tone !== undefined} THEN ${tone ?? null} ELSE tone END,
+              style_notes = CASE WHEN ${styleNotes !== undefined} THEN ${styleNotes ?? null} ELSE style_notes END,
+              updated_by = ${patchUpdatedBy}, updated_at = NOW()
+            WHERE client_name = ${clientName}
+            RETURNING id, client_name AS "clientName", website_url AS "websiteUrl",
+              primary_color AS "primaryColor", secondary_color AS "secondaryColor", accent_color AS "accentColor",
+              background_color AS "backgroundColor", text_color AS "textColor",
+              primary_font AS "primaryFont", secondary_font AS "secondaryFont", font_stack AS "fontStack",
+              tone, style_notes AS "styleNotes", scrape_status AS "scrapeStatus",
+              scraped_at AS "scrapedAt", logo_url AS "logoUrl", logo_storage_key AS "logoStorageKey",
+              raw_colors AS "rawColors", updated_by AS "updatedBy", updated_at AS "updatedAt", created_at AS "createdAt"
+          `)[0]
+          : (await queryClient`INSERT INTO client_brand_kit (client_name, website_url, primary_color, secondary_color, accent_color, background_color, text_color, primary_font, secondary_font, font_stack, tone, style_notes, updated_by)
+              VALUES (${clientName}, ${websiteUrl ?? null}, ${primaryColor ?? null}, ${secondaryColor ?? null}, ${accentColor ?? null}, ${backgroundColor ?? null}, ${textColor ?? null}, ${primaryFont ?? null}, ${secondaryFont ?? null}, ${fontStack ?? null}, ${tone ?? null}, ${styleNotes ?? null}, ${patchUpdatedBy})
+              RETURNING id, client_name AS "clientName", website_url AS "websiteUrl",
+                primary_color AS "primaryColor", secondary_color AS "secondaryColor", accent_color AS "accentColor",
+                background_color AS "backgroundColor", text_color AS "textColor",
+                primary_font AS "primaryFont", secondary_font AS "secondaryFont", font_stack AS "fontStack",
+                tone, style_notes AS "styleNotes", scrape_status AS "scrapeStatus",
+                scraped_at AS "scrapedAt", logo_url AS "logoUrl", logo_storage_key AS "logoStorageKey",
+                raw_colors AS "rawColors", updated_by AS "updatedBy", updated_at AS "updatedAt", created_at AS "createdAt"
+          `)[0]
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to update brand kit" })
+      }
+    }
+
+    // POST /client-success/brand-kit/:clientName/logo — upload logo
+    if (path?.match(/^\/client-success\/brand-kit\/[^/]+\/logo$/) && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const clientName = decodeURIComponent(path.split("/brand-kit/")[1]?.replace("/logo", "") || "").trim().toLowerCase()
+      if (!clientName) return res.status(400).json({ error: "clientName is required" })
+      try {
+        const { buffer, mimetype, filename } = await parseMultipartForm(req)
+        const rawExt = filename.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "png"
+        const ext = rawExt.replace(/[^a-z0-9]/g, "").slice(0, 10) || "png"
+        const logoStorageKey = `client-logos/${clientName}/${crypto.randomBytes(12).toString("hex")}.${ext}`
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const { error: uploadErr } = await supabase.storage.from("client-documents").upload(logoStorageKey, buffer, { contentType: mimetype, upsert: true })
+        if (uploadErr) return res.status(500).json({ error: "Failed to upload logo" })
+        const [existing] = await queryClient`SELECT id, logo_storage_key AS "oldLogoKey" FROM client_brand_kit WHERE client_name = ${clientName}`
+        const row = existing
+          ? (await queryClient`UPDATE client_brand_kit SET logo_storage_key = ${logoStorageKey}, updated_at = NOW() WHERE client_name = ${clientName}
+              RETURNING id, client_name AS "clientName", logo_storage_key AS "logoStorageKey", logo_url AS "logoUrl", scrape_status AS "scrapeStatus"`)[0]
+          : (await queryClient`INSERT INTO client_brand_kit (client_name, logo_storage_key) VALUES (${clientName}, ${logoStorageKey})
+              RETURNING id, client_name AS "clientName", logo_storage_key AS "logoStorageKey", logo_url AS "logoUrl", scrape_status AS "scrapeStatus"`)[0]
+        // Clean up old logo file
+        const oldKey = (existing as any)?.oldLogoKey
+        if (oldKey && oldKey !== logoStorageKey) {
+          supabase.storage.from("client-documents").remove([oldKey]).catch(() => {})
+        }
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to upload logo" })
+      }
+    }
+
     // ─── AI Humanizer ──────────────────────────────────────────────
+
+    // GET /humanizer/persona — list user's persona samples
+    if (path === "/humanizer/persona" && method === "GET") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      try {
+        const samples = await db
+          .select({
+            id: writingPersonaSamples.id,
+            label: writingPersonaSamples.label,
+            sourceType: writingPersonaSamples.sourceType,
+            originalFilename: writingPersonaSamples.originalFilename,
+            charCount: writingPersonaSamples.charCount,
+            createdAt: writingPersonaSamples.createdAt,
+          })
+          .from(writingPersonaSamples)
+          .where(eq(writingPersonaSamples.userId, session.userId))
+          .orderBy(asc(writingPersonaSamples.createdAt))
+        const totalChars = samples.reduce((sum: number, s: any) => sum + s.charCount, 0)
+        return res.json({ samples, totalChars, budget: 8000 })
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to fetch persona" })
+      }
+    }
+
+    // POST /humanizer/persona — add pasted text sample
+    if (path === "/humanizer/persona" && method === "POST") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      const { text: rawText, label } = req.body || {}
+      if (!rawText || typeof rawText !== "string" || rawText.trim().length < 50) {
+        return res.status(400).json({ error: "Sample must be at least 50 characters" })
+      }
+      const trimmed = rawText.trim().slice(0, 3000)
+      try {
+        const existing = await db.select({ charCount: writingPersonaSamples.charCount }).from(writingPersonaSamples).where(eq(writingPersonaSamples.userId, session.userId))
+        const total = existing.reduce((s: number, r: any) => s + r.charCount, 0)
+        if (total + trimmed.length > 8000) {
+          return res.status(400).json({ error: "Persona budget exceeded (8000 chars total). Remove a sample first." })
+        }
+        const [row] = await db.insert(writingPersonaSamples).values({
+          userId: session.userId,
+          label: (typeof label === "string" && label.trim()) ? label.trim().slice(0, 80) : "Pasted sample",
+          sourceType: "paste",
+          charCount: trimmed.length,
+          extractedText: trimmed,
+        }).returning()
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to save sample" })
+      }
+    }
+
+    // POST /humanizer/persona/upload — upload document as persona sample
+    if (path === "/humanizer/persona/upload" && method === "POST") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      try {
+        const { buffer, mimetype, filename } = await parseMultipartForm(req)
+        const result = await extractDocumentText(buffer, mimetype, filename)
+        const trimmed = result.text.trim().slice(0, 3000)
+        if (trimmed.length < 50) {
+          return res.status(400).json({ error: `Extracted text too short (${trimmed.length} chars). Need at least 50.` })
+        }
+        const existing = await db.select({ charCount: writingPersonaSamples.charCount }).from(writingPersonaSamples).where(eq(writingPersonaSamples.userId, session.userId))
+        const total = existing.reduce((s: number, r: any) => s + r.charCount, 0)
+        if (total + trimmed.length > 8000) {
+          return res.status(400).json({ error: "Persona budget exceeded (8000 chars total). Remove a sample first." })
+        }
+        const [row] = await db.insert(writingPersonaSamples).values({
+          userId: session.userId,
+          label: filename.replace(/\.[^.]+$/, "").slice(0, 80),
+          sourceType: "upload",
+          originalFilename: filename,
+          charCount: trimmed.length,
+          extractedText: trimmed,
+        }).returning()
+        return res.status(201).json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: err?.message || "Failed to process file" })
+      }
+    }
+
+    // PATCH /humanizer/persona/:id — rename a sample
+    if (path.match(/^\/humanizer\/persona\/[^/]+$/) && method === "PATCH") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      const sampleId = path.split("/").pop()!
+      const { label } = req.body || {}
+      if (!label || typeof label !== "string" || !label.trim()) {
+        return res.status(400).json({ error: "Label is required" })
+      }
+      try {
+        const [row] = await db.update(writingPersonaSamples)
+          .set({ label: label.trim().slice(0, 80) })
+          .where(and(eq(writingPersonaSamples.id, sampleId), eq(writingPersonaSamples.userId, session.userId)))
+          .returning()
+        if (!row) return res.status(404).json({ error: "Sample not found" })
+        return res.json(row)
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to rename sample" })
+      }
+    }
+
+    // DELETE /humanizer/persona/:id — delete a sample
+    if (path.match(/^\/humanizer\/persona\/[^/]+$/) && method === "DELETE") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      const sampleId = path.split("/").pop()!
+      try {
+        const deleted = await db.delete(writingPersonaSamples)
+          .where(and(eq(writingPersonaSamples.id, sampleId), eq(writingPersonaSamples.userId, session.userId)))
+          .returning()
+        if (!deleted.length) return res.status(404).json({ error: "Sample not found" })
+        return res.status(204).end()
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to delete sample" })
+      }
+    }
 
     // POST /humanizer/upload — Extract text from uploaded file
     if (path === "/humanizer/upload" && method === "POST") {
@@ -3091,7 +4136,25 @@ ${contextLines.join("\n")}`
         academic: "\n=== AUDIENCE ===\nAUDIENCE: Academic or scholarly readers. Careful qualification. Acknowledge nuance and exceptions. Avoid overclaiming.\n",
       }
       const audienceSection = audienceTargets[hmAudience] || ""
-      const voiceSection = hmVoiceSample ? `\n=== VOICE MATCHING ===\nMatch the voice, cadence, and word-choice style demonstrated in this writing sample as closely as possible:\n\n"${hmVoiceSample}"\n` : ""
+
+      // Fetch stored persona for this user
+      let personaText = ""
+      if (session?.userId && db) {
+        try {
+          const personaSamples = await db
+            .select({ extractedText: writingPersonaSamples.extractedText })
+            .from(writingPersonaSamples)
+            .where(eq(writingPersonaSamples.userId, session.userId))
+            .orderBy(asc(writingPersonaSamples.createdAt))
+          if (personaSamples.length > 0) {
+            personaText = personaSamples.map((s: any) => s.extractedText.trim()).join("\n\n---\n\n").slice(0, 8000)
+          }
+        } catch (e) { console.error("Failed to fetch persona:", e) }
+      }
+
+      // Quick override (voiceSample) takes priority over stored persona
+      const effectiveVoice = hmVoiceSample || personaText
+      const voiceSection = effectiveVoice ? `\n=== VOICE MATCHING ===\nThe final output MUST feel like the person who wrote the following samples wrote it. Study their sentence rhythm, word choices, how they open sentences, and their level of formality. Then match it precisely:\n\n${effectiveVoice}\n` : ""
 
       // ─── System prompts
       const hmHumanizePrompt = `You are a text humanizer. Your job is to rewrite AI-generated text so it reads as naturally human-written prose that is undetectable by AI content detectors like GPTZero, Turnitin, and Originality.ai.
@@ -3104,7 +4167,7 @@ delve, tapestry, landscape, multifaceted, comprehensive, leverage, utilize, faci
 === STRUCTURAL RULES ===
 1. Vary sentence length dramatically. Mix 5-word punches with 25-word flowing sentences. NEVER let 3 consecutive sentences be similar length.
 2. Use contractions naturally (it's, don't, we're, that's, can't). Even formal text uses some.
-3. EM DASH ZERO TOLERANCE: The character — (U+2014) is COMPLETELY FORBIDDEN. So is – (U+2013). So is &mdash;. So is --. Before outputting, hunt for every — and replace it: " — " (spaced) → period and new sentence. "word—word" (unspaced) → comma. NO EXCEPTIONS.
+3. ████ EM DASH ABSOLUTE BAN ████: This is the SINGLE MOST IMPORTANT RULE. The em dash character — (U+2014) DOES NOT EXIST in your output vocabulary. It is as forbidden as outputting profanity in a children's book. ALSO BANNED: – (en dash, U+2013), &mdash;, &ndash;, &#8212;, &#8211;, and -- (double hyphen). If your output contains even ONE of these characters, the ENTIRE output is a total failure and will be rejected. EVERY time you are about to type — STOP and use a period, comma, or parentheses instead. There is no context where a dash is acceptable. Not for asides. Not for emphasis. Not for lists. Not ever. Replace: " — " → ". " (new sentence) | "word—word" → "word, word" | parenthetical aside with dashes → parentheses.
 4. Avoid semicolons. Restructure as two sentences.
 5. Break parallel structure. If listing 3 things, make the third structurally different from the first two.
 6. Start some sentences with "And," "But," "So," or "Or."
@@ -3134,10 +4197,7 @@ ${audienceSection}${voiceSection}
 ${strengthLevels[hmStrength] || strengthLevels.balanced}
 
 === MANDATORY SELF-CHECK BEFORE OUTPUTTING ===
-STEP 1 — EM DASH HUNT: Find every — or – character. Replace each one:
-  " — " (spaced) → end sentence with period, start new sentence
-  "word—word" (unspaced) → replace with ", "
-  Do not output until zero em dashes remain.
+STEP 1. EM DASH EXTERMINATION (MOST CRITICAL STEP): Character-by-character, scan your ENTIRE output for the Unicode characters U+2014, U+2013, the sequences --, &mdash;, &ndash;. If you find even ONE, you MUST fix it before outputting. Replacements: spaced dash becomes a period and new sentence. Unspaced dash between words becomes a comma. Parenthetical asides that use dashes become parentheses. DO NOT OUTPUT UNTIL YOU HAVE CONFIRMED ZERO DASHES REMAIN. Re-scan after fixing to make sure you did not introduce new ones.
 STEP 2 — BANNED WORDS: Scan for leverage, utilize, delve, transformative, impactful, seamless, robust, comprehensive, furthermore, moreover, in conclusion, paramount, pivotal. Replace any found.
 STEP 3 — PARAGRAPH CHECK: Find any paragraph with exactly 3 sentences of similar length. Restructure one.
 
@@ -3173,7 +4233,7 @@ FOLLOW_UP_PROMPTS: ["Humanize this text", "Which paragraph is most detectable?",
 === WHAT DETECTORS LOOK FOR ===
 1. Burstiness failure: three or more consecutive sentences of similar length
 2. Banned vocabulary: delve, tapestry, leverage, utilize, multifaceted, transformative, impactful, actionable, proactive, seamless, robust, holistic, comprehensive, streamline, optimize, elevate, empower, synergy, paramount, pivotal, foster, furthermore, moreover, in conclusion, underpinning, overarching, integral, essential, critical, fundamental, vital
-3. Em dashes (—) or semicolons
+3. **Em dashes (—), en dashes (–), or double hyphens (--)**: ANY dash character is an INSTANT FAIL. Replace every single one with a period, comma, or parentheses. This is the highest-priority fix.
 4. Transition openers: "In addition", "Furthermore", "Moreover", "Additionally", "As a result", "Therefore", "Thus"
 5. Perfectly parallel lists: three items that all follow the exact same grammatical structure
 6. Zero hedging: no "probably", "tends to", "in most cases", "from what I can tell"
@@ -3241,7 +4301,7 @@ Text to review:`
 
 ${trimmedText}
 
-Rules: No banned words (delve, leverage, utilize, transformative, moreover, furthermore, etc.). NEVER use em dashes. Vary sentence length. Use contractions where natural. No passive chains. Return ONLY the rewritten paragraph — nothing else.
+Rules: No banned words (delve, leverage, utilize, transformative, moreover, furthermore, etc.). ████ ABSOLUTE BAN: Em dashes (—), en dashes (–), and double hyphens (--) are COMPLETELY FORBIDDEN. Not one. Not ever. Use periods, commas, or parentheses instead. ████ Vary sentence length. Use contractions where natural. No passive chains. Return ONLY the rewritten paragraph, nothing else.
 
 ${tonePersonas[hmTone] || tonePersonas.professional}`
 
@@ -3281,7 +4341,7 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
 
 ${trimmedText}
 
-Rules: No banned AI vocabulary (delve, leverage, utilize, transformative, impactful, seamless, robust, etc.). NEVER use em dashes. Keep the same meaning. Make it feel like a real person wrote it. Use contractions if natural. Return ONLY the rewritten sentence.
+Rules: No banned AI vocabulary (delve, leverage, utilize, transformative, impactful, seamless, robust, etc.). ████ ABSOLUTE BAN: Em dashes (—), en dashes (–), and double hyphens (--) are FORBIDDEN. Use periods, commas, or parentheses. Not one dash, ever. ████ Keep the same meaning. Make it feel like a real person wrote it. Use contractions if natural. Return ONLY the rewritten sentence.
 
 ${tonePersonas[hmTone] || tonePersonas.professional}`
 
@@ -4257,12 +5317,32 @@ ${compDataContext}`
           return res.end()
         }
 
-        const { query: pStreamQuery, conversationHistory: pConvHistory, responseLength: pResponseLength } = req.body || {}
+        const { query: pStreamQuery, conversationHistory: pConvHistory, responseLength: pResponseLength, clientFilter: pClientFilter } = req.body || {}
 
         // Get all proposals from database (same as non-streaming)
-        const pStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
+        const allPStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
 
-        if (pStreamProposals.length === 0) {
+        // Apply client filter if provided
+        const pClientFilterNorm = typeof pClientFilter === "string" ? pClientFilter.toLowerCase().trim() : ""
+        const pStreamProposals = pClientFilterNorm
+          ? allPStreamProposals.filter(p => {
+              const client = (p.client ?? "").toLowerCase().trim()
+              return client.includes(pClientFilterNorm) || pClientFilterNorm.includes(client)
+            })
+          : allPStreamProposals
+
+        // Build client focus section
+        let pClientFocusSection = ""
+        if (pClientFilterNorm && pStreamProposals.length > 0) {
+          const cfWon = pStreamProposals.filter(p => p.won === "Yes").length
+          const cfLost = pStreamProposals.filter(p => p.won === "No").length
+          const cfPending = pStreamProposals.filter(p => !p.won || p.won === "Pending").length
+          const cfTotal = pStreamProposals.length
+          const cfWinRate = (cfWon + cfLost) > 0 ? ((cfWon / (cfWon + cfLost)) * 100).toFixed(1) : "N/A"
+          pClientFocusSection = `\n\n=== CLIENT FOCUS: ${pClientFilter.toUpperCase()} ===\nTotal proposals: ${cfTotal}\nWon: ${cfWon} | Lost: ${cfLost} | Pending: ${cfPending}\nWin rate: ${cfWinRate}%\n===`
+        }
+
+        if (allPStreamProposals.length === 0) {
           res.setHeader("Content-Type", "text/event-stream")
           res.setHeader("Cache-Control", "no-cache")
           res.setHeader("Connection", "keep-alive")
@@ -4316,7 +5396,7 @@ ${compDataContext}`
 
         // Build messages with conversation history
         const pStreamMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
-          { role: "system", content: pStreamSystemPrompt }
+          { role: "system", content: pStreamSystemPrompt + (pClientFilterNorm ? `\n\nNOTE: User is focused on client "${pClientFilter}". Analyze patterns specific to this client only.${pClientFocusSection}` : "") }
         ]
         if (pConvHistory && Array.isArray(pConvHistory) && pConvHistory.length > 0) {
           const truncated = truncateHistory(pConvHistory)

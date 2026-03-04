@@ -13,8 +13,6 @@ import {
   Loader2,
   X,
   Unlink,
-  ChevronRight,
-  Filter,
   ArrowUpDown,
   CheckCircle2,
   AlertCircle,
@@ -26,7 +24,6 @@ import {
   RotateCcw,
   AlertTriangle,
   Trash2,
-  FolderOpen,
   Trophy,
   TrendingUp,
   Quote,
@@ -44,7 +41,6 @@ import { NewEntryPanel } from "@/components/NewEntryPanel"
 import {
   Button,
   Card,
-  CardContent,
   Input,
   Badge,
   Select,
@@ -1244,7 +1240,6 @@ export function SearchLibrary() {
   const activeFilterCount = [
     typeFilter !== "all",
     topicFilter !== "all",
-    statusFilter !== "all",
   ].filter(Boolean).length
 
   // Load topics on mount
@@ -1406,10 +1401,17 @@ export function SearchLibrary() {
     return grouped
   }, [sortedAnswers])
 
-  // Sort topic IDs by count (most results first) - for answers only
+  // Sort topic IDs - alphabetical by topic name when A-Z, otherwise by count
   const sortedAnswerTopicIds = useMemo(() => {
-    return Object.keys(answersByTopic).sort((a, b) => (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0))
-  }, [answersByTopic])
+    return Object.keys(answersByTopic).sort((a, b) => {
+      if (sortBy === "alphabetical") {
+        const nameA = topics.find(t => t.id === a)?.displayName || ""
+        const nameB = topics.find(t => t.id === b)?.displayName || ""
+        return nameA.localeCompare(nameB)
+      }
+      return (answersByTopic[b]?.length || 0) - (answersByTopic[a]?.length || 0)
+    })
+  }, [answersByTopic, sortBy, topics])
 
   // Toggle accordion expansion
   const toggleAnswerTopic = (topicId: string) => {
@@ -1747,7 +1749,7 @@ export function SearchLibrary() {
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
         <AppHeader />
         <div className="flex-1 flex">
-          <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 pt-4 pb-6 px-2.5 space-y-1">
+          <aside className="w-44 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 pt-4 pb-6 px-2.5 space-y-1">
             {([
               { id: "qa" as const, label: "Q&A Library", icon: FileText },
               { id: "client-success" as const, label: "Client Success", icon: Trophy },
@@ -1825,13 +1827,6 @@ export function SearchLibrary() {
               <span className="text-[13px]">{section.label}</span>
             </button>
           ))}
-          {isAdmin && (
-            <div className="border-t border-slate-100 dark:border-slate-800 mt-auto pt-4">
-              <button onClick={() => setShowNewEntry(true)} className="flex items-center gap-2 w-full px-3 py-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-[13px]">
-                <Plus size={14} /> New Entry
-              </button>
-            </div>
-          )}
         </aside>
 
         {/* Content Area */}
@@ -1893,9 +1888,6 @@ export function SearchLibrary() {
               </div>
             )}
 
-            {/* Divider */}
-            <div className="w-px h-5 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
             {/* Topic pill */}
             <Select value={topicFilter} onValueChange={setTopicFilter}>
               <SelectTrigger className={`w-auto h-8 px-3 text-[12px] rounded-lg border transition-colors ${topicFilter !== "all" ? "bg-blue-50 border-blue-200 text-blue-700 dark:bg-blue-900/20 dark:border-blue-800 dark:text-blue-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
@@ -1914,22 +1906,6 @@ export function SearchLibrary() {
                     </SelectItem>
                   )
                 })}
-              </SelectContent>
-            </Select>
-
-            {/* Status pill */}
-            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as ItemStatus | "all")}>
-              <SelectTrigger className={`w-auto h-8 px-3 text-[12px] rounded-lg border transition-colors ${statusFilter !== "all" ? "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-900/20 dark:border-emerald-800 dark:text-emerald-400" : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400"}`}>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="Approved">
-                  <div className="flex items-center gap-2"><CheckCircle2 size={12} className="text-emerald-500" />Approved</div>
-                </SelectItem>
-                <SelectItem value="Draft">
-                  <div className="flex items-center gap-2"><AlertCircle size={12} className="text-amber-500" />Draft</div>
-                </SelectItem>
               </SelectContent>
             </Select>
 
@@ -1952,6 +1928,12 @@ export function SearchLibrary() {
               <button onClick={clearAllFilters} className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                 <X size={11} />Clear
               </button>
+            )}
+
+            {isAdmin && (
+              <Button size="sm" onClick={() => setShowNewEntry(true)} className="h-8 rounded-lg text-[12px] font-semibold bg-blue-500 hover:bg-blue-600 text-white shadow-sm active:scale-[0.98] transition-all">
+                <Plus size={13} className="mr-1.5" /> New Entry
+              </Button>
             )}
           </div>
         </div>
@@ -2013,48 +1995,53 @@ export function SearchLibrary() {
                 const hasMore = topicAnswers.length > limit
                 const remaining = topicAnswers.length - limit
 
-                // Map color to a solid left-border accent
-                const accentColors: Record<string, string> = {
-                  "bg-blue-50": "border-l-blue-400", "bg-purple-50": "border-l-purple-400",
-                  "bg-teal-50": "border-l-teal-400", "bg-orange-50": "border-l-orange-400",
-                  "bg-amber-50": "border-l-amber-400", "bg-emerald-50": "border-l-emerald-400",
-                  "bg-slate-100": "border-l-slate-400",
+                // Map topic bg to a solid dot color
+                const dotColors: Record<string, string> = {
+                  "bg-blue-50": "bg-blue-500", "bg-purple-50": "bg-purple-500",
+                  "bg-teal-50": "bg-teal-500", "bg-orange-50": "bg-orange-500",
+                  "bg-amber-50": "bg-amber-500", "bg-emerald-50": "bg-emerald-500",
+                  "bg-slate-100": "bg-slate-400",
                 }
-                const accentBorder = accentColors[topicColor.bg] || "border-l-slate-300"
+                const dotColor = dotColors[topicColor.bg] || "bg-slate-400"
 
                 return (
-                  <div key={topicId} className={`rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 border-l-[3px] ${accentBorder}`}>
+                  <div key={topicId}>
                     {/* Accordion Header */}
                     <button
                       onClick={() => toggleAnswerTopic(topicId)}
-                      className="w-full flex items-center gap-2.5 px-3.5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors text-left"
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                        isExpanded
+                          ? "bg-white dark:bg-slate-800/60 shadow-[0_1px_3px_rgba(0,0,0,0.04),0_0_0_1px_rgba(0,0,0,0.02)] dark:shadow-[0_1px_3px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.03)]"
+                          : "hover:bg-white/80 dark:hover:bg-slate-800/40 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_1px_3px_rgba(0,0,0,0.3)]"
+                      }`}
                     >
-                      <ChevronRight
-                        size={13}
-                        className={`text-slate-300 dark:text-slate-600 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
-                      />
-                      <span className={`text-[13px] font-semibold ${topicColor.text}`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${dotColor} flex-shrink-0 shadow-sm`} />
+                      <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.005em] flex-1">
                         {topic?.displayName || "Unknown"}
                       </span>
-                      <span className="ml-auto text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+                      <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-md">
                         {topicAnswers.length}
                       </span>
+                      <ChevronDown
+                        size={14}
+                        className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+                      />
                     </button>
 
                     {/* Accordion Content */}
                     {isExpanded && (
-                      <div className="border-t border-slate-100 dark:border-slate-800 divide-y divide-slate-100 dark:divide-slate-800">
+                      <div className="mt-1 ml-5 space-y-0.5">
                         {visibleAnswers.map((answer) => (
                           <div
                             key={answer.id}
                             onClick={() => setSelectedAnswer(answer)}
-                            className="group flex items-start gap-3 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors"
+                            className="group flex items-start gap-3 px-4 py-3 rounded-lg hover:bg-white dark:hover:bg-slate-800/60 hover:shadow-[0_1px_3px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_1px_3px_rgba(0,0,0,0.3)] cursor-pointer transition-all duration-150"
                           >
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
                                 {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                               </p>
-                              <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1 leading-relaxed">
+                              <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                                 {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                               </p>
                               <div className="flex items-center gap-1 mt-1.5 flex-wrap">

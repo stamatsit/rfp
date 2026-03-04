@@ -31,6 +31,7 @@ export interface HumanizerOptions {
   scanOnly: boolean
   audience?: "general" | "executive" | "technical" | "academic"
   voiceSample?: string
+  personaText?: string
 }
 
 export interface HumanizerResult {
@@ -87,8 +88,11 @@ function buildHumanizePrompt(options: HumanizerOptions): string {
     ? `\n=== AUDIENCE ===\n${AUDIENCE_TARGETS[options.audience]}\n`
     : ""
 
-  const voiceSection = options.voiceSample?.trim()
-    ? `\n=== VOICE MATCHING ===\nThe final output MUST feel like the person who wrote this sample wrote it. Study their sentence rhythm, word choices, how they open sentences, and their level of formality. Then match it precisely:\n\n"${options.voiceSample.trim()}"\n`
+  // Quick override (voiceSample) takes priority over stored persona
+  const effectiveVoice = options.voiceSample?.trim() || options.personaText?.trim()
+
+  const voiceSection = effectiveVoice
+    ? `\n=== VOICE MATCHING ===\nThe final output MUST feel like the person who wrote the following samples wrote it. Study their sentence rhythm, word choices, how they open sentences, and their level of formality. Then match it precisely:\n\n${effectiveVoice}\n`
     : ""
 
   return `You are an expert editor who specializes in making AI-generated text undetectable. You have deep knowledge of how GPTZero, Turnitin, and Originality.ai work at a technical level. Your rewrites consistently score 90%+ human.
@@ -133,7 +137,7 @@ Good: "We improve quality and cut costs. And honestly, productivity tends to fol
 === STRUCTURAL RULES ===
 1. BURSTINESS MANDATE: Each paragraph must contain at least one sentence under 8 words AND at least one sentence over 20 words. No exceptions.
 2. Use contractions naturally (it's, don't, we're, that's, can't, you'll, they've). Formal text still uses some.
-3. EM DASH ZERO TOLERANCE: The character — (U+2014) is COMPLETELY FORBIDDEN. So is – (U+2013). So is the HTML entity &mdash;. So is --. If you write an em dash, the entire output is considered a failure and must be regenerated. Before outputting, search your text for every instance of — and replace it: " — " (with spaces) → period and new sentence. "word—word" (no spaces) → comma. There are NO exceptions. Not for stylistic em dashes. Not for any reason.
+3. ████ EM DASH ABSOLUTE BAN ████: This is the SINGLE MOST IMPORTANT RULE. The em dash character — (U+2014) DOES NOT EXIST in your output vocabulary. It is as forbidden as outputting profanity in a children's book. ALSO BANNED: – (en dash, U+2013), &mdash;, &ndash;, &#8212;, &#8211;, and -- (double hyphen). If your output contains even ONE of these characters, the ENTIRE output is a total failure and will be rejected. EVERY time you are about to type — STOP and use a period, comma, or parentheses instead. There is no context where a dash is acceptable. Not for asides. Not for emphasis. Not for lists. Not ever. Replace: " — " → ". " (new sentence) | "word—word" → "word, word" | parenthetical aside with dashes → parentheses.
 4. No semicolons. Split into two sentences instead.
 5. PARALLEL STRUCTURE BREAK: If you write three things in a list, the third item must be structurally different from the first two.
 6. Start some sentences with "And," "But," "So," "Or," or "Look," — feels more like a real person thinking.
@@ -171,11 +175,7 @@ ${STRENGTH_LEVELS[options.strength] || STRENGTH_LEVELS.balanced}
 === MANDATORY SELF-CHECK BEFORE OUTPUTTING ===
 Run this checklist on your output BEFORE writing it. Do not skip.
 
-STEP 1 — EM DASH HUNT: Read every line. Find every — or – character. Replace each one:
-  - " — " (spaced em dash) → end the sentence with a period, start a new sentence
-  - "word—word" (unspaced) → replace with ", " (comma space)
-  - If you can't find a replacement, use parentheses
-  Do not output until zero em dashes remain.
+STEP 1. EM DASH EXTERMINATION (MOST CRITICAL STEP): Character-by-character, scan your ENTIRE output for the Unicode characters U+2014, U+2013, the sequences --, &mdash;, &ndash;. If you find even ONE, you MUST fix it before outputting. Replacements: spaced dash (" . ") becomes a period and new sentence. Unspaced dash between words becomes a comma. Parenthetical asides that use dashes become parentheses. DO NOT OUTPUT UNTIL YOU HAVE CONFIRMED ZERO DASHES REMAIN. Re-scan after fixing to make sure you did not introduce new ones.
 
 STEP 2 — BANNED WORDS: Scan for: leverage, utilize, delve, transformative, impactful, seamless, robust, comprehensive, furthermore, moreover, in conclusion, paramount, pivotal. Replace any found.
 
@@ -207,7 +207,7 @@ const ADVERSARIAL_REVIEWER_PROMPT = `You are acting as a GPTZero / Turnitin AI d
 === WHAT DETECTORS LOOK FOR ===
 1. **Burstiness failure**: Three or more consecutive sentences of similar length (all medium, all long, or all short)
 2. **Banned vocabulary**: any of these words appearing — delve, tapestry, leverage, utilize, multifaceted, transformative, impactful, actionable, proactive, seamless, robust, holistic, comprehensive, streamline, optimize, elevate, empower, synergy, paramount, pivotal, foster, furthermore, moreover, in conclusion, underpinning, overarching, integral
-3. **Em dashes** (—) or semicolons
+3. **Em dashes (—), en dashes (–), or double hyphens (--)**: ANY dash character is an INSTANT FAIL. Replace every single one with a period, comma, or parentheses. This is the highest-priority fix.
 4. **Transition openers**: paragraphs starting with "In addition", "Furthermore", "Moreover", "Additionally", "As a result", "Therefore", "Thus"
 5. **Perfectly parallel lists**: three items that all follow the exact same grammatical structure
 6. **Zero hedging**: no "probably", "tends to", "in most cases", "from what I can tell" anywhere
@@ -277,7 +277,7 @@ ${rawText}
 === RULES ===
 Apply all standard humanization rules:
 - No banned words: delve, tapestry, leverage, utilize, multifaceted, transformative, impactful, actionable, proactive, streamline, optimize, elevate, empower, moreover, furthermore, in conclusion, etc.
-- NEVER use em dashes (—). Replace with a period, comma, or parentheses.
+- ████ ABSOLUTE BAN: Em dashes (—), en dashes (–), and double hyphens (--) are COMPLETELY FORBIDDEN. Not one. Not ever. Use periods, commas, or parentheses instead. This is the #1 rule. ████
 - Vary sentence length. Mix short punches with longer flowing sentences.
 - No passive voice chains.
 - No perfectly balanced structure.
@@ -298,7 +298,7 @@ ${rawText}
 
 === RULES ===
 - No banned AI vocabulary (delve, leverage, utilize, transformative, impactful, seamless, robust, etc.)
-- NEVER use em dashes (—)
+- ████ ABSOLUTE BAN: Em dashes (—), en dashes (–), and double hyphens (--) are FORBIDDEN. Use periods, commas, or parentheses. Not one dash, ever. ████
 - Keep the same meaning
 - Make it feel like a real person wrote it — allow personality, specificity, unexpected word choices
 - Use contractions if natural

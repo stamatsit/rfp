@@ -33,10 +33,14 @@ import {
   CheckSquare,
   Square,
   Download,
+  Sparkles,
+  Wand2,
+  Copy,
+  Check,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { Button, Card, CardContent, Badge } from "@/components/ui"
-import { rfpApi, topicsApi, type SavedDocument, type ScanFlag, type ExtractedImage } from "@/lib/api"
+import { rfpApi, topicsApi, searchApi, type SavedDocument, type ScanFlag, type ExtractedImage, type AnswerResponse } from "@/lib/api"
 
 type ActiveTab = "scan" | "library"
 type DocumentType = "RFP" | "Proposal"
@@ -100,6 +104,12 @@ export function RFPAnalyzer() {
   const [libraryTotal, setLibraryTotal] = useState(0)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+
+  // Smart answer suggestions state
+  const [flagSuggestions, setFlagSuggestions] = useState<Record<string, AnswerResponse[]>>({})
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [expandedSuggestionFlagId, setExpandedSuggestionFlagId] = useState<string | null>(null)
+  const [copiedSuggestionId, setCopiedSuggestionId] = useState<string | null>(null)
 
   // Hooks
   const criteria = useScanCriteria()
@@ -235,6 +245,47 @@ export function RFPAnalyzer() {
     }
   }, [scanner.scanResult?.documentId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-fetch answer suggestions after scan completes
+  const prevFlagCount = useRef(0)
+  useEffect(() => {
+    const activeFlags = scanner.flags.filter(f => !f.dismissed)
+    // Only trigger when flags go from 0 to >0 (new scan)
+    if (activeFlags.length === 0 || prevFlagCount.current > 0) {
+      prevFlagCount.current = activeFlags.length
+      return
+    }
+    prevFlagCount.current = activeFlags.length
+
+    setLoadingSuggestions(true)
+    setFlagSuggestions({})
+    setExpandedSuggestionFlagId(null)
+
+    const fetchAll = async () => {
+      const pairs = await Promise.allSettled(
+        activeFlags.map(async (flag) => {
+          const keywords = [flag.title, flag.excerpt.split(/\s+/).slice(0, 8).join(" ")].join(" ")
+          const answers = await searchApi.searchAnswers({
+            q: keywords,
+            status: "Approved",
+            limit: 3,
+          })
+          return { flagId: flag.id, answers }
+        })
+      )
+
+      const suggestions: Record<string, AnswerResponse[]> = {}
+      for (const result of pairs) {
+        if (result.status === "fulfilled" && result.value.answers.length > 0) {
+          suggestions[result.value.flagId] = result.value.answers
+        }
+      }
+      setFlagSuggestions(suggestions)
+      setLoadingSuggestions(false)
+    }
+
+    fetchAll().catch(() => setLoadingSuggestions(false))
+  }, [scanner.flags]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleReupload = () => {
     setDocument(null)
     scanner.reset()
@@ -245,6 +296,10 @@ export function RFPAnalyzer() {
     setShowImagesPanel(false)
     setSelectedImageIds(new Set())
     setImageSaveResult(null)
+    setFlagSuggestions({})
+    setLoadingSuggestions(false)
+    setExpandedSuggestionFlagId(null)
+    prevFlagCount.current = 0
   }
 
   // ─── Add Custom Criterion ───
@@ -903,6 +958,75 @@ export function RFPAnalyzer() {
                                     </button>
                                   )}
                                 </div>
+
+                                {/* Smart Answer Suggestions */}
+                                {(() => {
+                                  const suggestions = flagSuggestions[flag.id]
+                                  if (!suggestions || suggestions.length === 0) return null
+                                  return (
+                                  <div className="mt-2 border-t border-slate-200/40 dark:border-slate-600/40 pt-2">
+                                    <button
+                                      onClick={() => setExpandedSuggestionFlagId(
+                                        expandedSuggestionFlagId === flag.id ? null : flag.id
+                                      )}
+                                      className="flex items-center gap-1.5 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 transition-colors"
+                                    >
+                                      <Sparkles size={11} />
+                                      {suggestions.length} suggested answer{suggestions.length > 1 ? "s" : ""}
+                                      <ChevronRight size={11} className={`transition-transform duration-150 ${expandedSuggestionFlagId === flag.id ? "rotate-90" : ""}`} />
+                                    </button>
+
+                                    {expandedSuggestionFlagId === flag.id && (
+                                      <div className="mt-2 space-y-2">
+                                        {suggestions.map((answer) => (
+                                          <div
+                                            key={answer.id}
+                                            className="p-2.5 rounded-lg bg-white/70 dark:bg-slate-800/70 border border-blue-100 dark:border-blue-900/40"
+                                          >
+                                            <p className="text-[11px] font-medium text-slate-700 dark:text-slate-200 line-clamp-1 mb-1">
+                                              {answer.question}
+                                            </p>
+                                            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed mb-2">
+                                              {answer.answer}
+                                            </p>
+                                            <div className="flex items-center gap-1.5">
+                                              <button
+                                                onClick={async () => {
+                                                  await navigator.clipboard.writeText(answer.answer)
+                                                  searchApi.logCopy(answer.id).catch(() => {})
+                                                  setCopiedSuggestionId(answer.id)
+                                                  setTimeout(() => setCopiedSuggestionId(null), 2000)
+                                                }}
+                                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                              >
+                                                {copiedSuggestionId === answer.id
+                                                  ? <><Check size={10} className="text-emerald-500" /> Copied</>
+                                                  : <><Copy size={10} /> Copy</>
+                                                }
+                                              </button>
+                                              <button
+                                                onClick={() => window.open(`/search?answerId=${answer.id}`, "_blank")}
+                                                className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                                              >
+                                                <Wand2 size={10} /> Adapt
+                                              </button>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  )
+                                })()}
+
+                                {/* Loading shimmer for suggestions */}
+                                {loadingSuggestions && !flagSuggestions[flag.id] && (
+                                  <div className="mt-2 border-t border-slate-200/40 dark:border-slate-600/40 pt-2">
+                                    <div className="flex items-center gap-1.5">
+                                      <div className="h-2.5 bg-slate-200/60 dark:bg-slate-700/60 rounded w-28 animate-pulse" />
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           )

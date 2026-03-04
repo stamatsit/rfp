@@ -1,3 +1,21 @@
+import DOMPurify from "dompurify"
+
+/**
+ * Convert raw SVG markup to an <img> tag with a base64 data URI.
+ * TipTap doesn't have an SVG node type, so raw <svg> tags get rendered
+ * as text. Wrapping in an <img> lets TipTap's image extension handle it.
+ */
+export function svgToImg(svg: string): string {
+  const encoded = btoa(unescape(encodeURIComponent(svg)))
+  // Extract viewBox dimensions for sizing, fall back to reasonable defaults
+  const vbMatch = svg.match(/viewBox=["'][\d.\s]+ [\d.\s]+ ([\d.]+) ([\d.]+)["']/)
+  const wMatch = svg.match(/width=["']([\d.]+)/)
+  const hMatch = svg.match(/height=["']([\d.]+)/)
+  const w = wMatch?.[1] || vbMatch?.[1] || "600"
+  const h = hMatch?.[1] || vbMatch?.[2] || "400"
+  return `<img src="data:image/svg+xml;base64,${encoded}" alt="Diagram" width="${w}" height="${h}" style="max-width:100%;height:auto;" />`
+}
+
 /**
  * Converts markdown to HTML for insertion into TipTap editor.
  * Based on MarkdownRenderer's renderMarkdown() with image support added.
@@ -68,14 +86,14 @@ export function markdownToHtml(raw: string): string {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
 
-    // Restore SVG blocks
+    // Restore SVG blocks as <img> tags (TipTap can't render raw <svg>)
     const svgPlaceholder = line.trim().match(/^__SVG_BLOCK_(\d+)__$/)
     if (svgPlaceholder) {
       if (inList) {
         processed.push(`</${inList}>`)
         inList = null
       }
-      processed.push(svgBlocks[parseInt(svgPlaceholder[1]!)]!)
+      processed.push(svgToImg(svgBlocks[parseInt(svgPlaceholder[1]!)]!))
       continue
     }
 
@@ -119,7 +137,10 @@ export function markdownToHtml(raw: string): string {
   }
   if (inList) processed.push(`</${inList}>`)
 
-  return processed.join("")
+  return DOMPurify.sanitize(processed.join(""), {
+    ADD_TAGS: ["img"],
+    ADD_ATTR: ["src", "alt", "width", "height", "style", "href", "target"],
+  })
 }
 
 /**

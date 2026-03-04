@@ -129,6 +129,7 @@ export function TestimonialManager() {
   const [testimonials, setTestimonials] = useState<ClientSuccessTestimonialResponse[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
   const [sectorFilter, setSectorFilter] = useState<SectorFilter>("all")
   const [searchQuery, setSearchQuery] = useState("")
@@ -209,16 +210,19 @@ export function TestimonialManager() {
       if (statusFilter !== "all") params.status = statusFilter
       if (sectorFilter !== "all") params.sector = sectorFilter
       if (searchQuery.trim()) params.search = searchQuery.trim()
+      console.log("[Testimonials] Fetching with params:", params)
       const data = await testimonialsApi.list(params as any)
+      console.log("[Testimonials] API response:", { total: data?.total, count: data?.testimonials?.length, keys: data ? Object.keys(data) : "null" })
       const filtered = isAdmin ? data.testimonials : data.testimonials.filter(t => t.status !== "hidden")
       setTestimonials(filtered)
       setTotal(isAdmin ? data.total : filtered.length)
-    } catch (err) {
-      console.error("Failed to fetch testimonials:", err)
+    } catch (err: any) {
+      console.error("[Testimonials] FETCH FAILED:", err?.message, err?.status, err)
+      setFetchError(err?.message || "Unknown error")
     } finally {
       setLoading(false)
     }
-  }, [statusFilter, sectorFilter, searchQuery, sortBy])
+  }, [statusFilter, sectorFilter, searchQuery, sortBy, isAdmin])
 
   useEffect(() => { fetchTestimonials() }, [fetchTestimonials])
 
@@ -562,6 +566,15 @@ export function TestimonialManager() {
               <div className="flex flex-col items-center justify-center py-24">
                 <div className="w-9 h-9 border-[2.5px] border-orange-200 border-t-orange-500 rounded-full animate-spin mb-4" />
                 <p className="text-sm text-slate-400">Loading testimonials...</p>
+              </div>
+            ) : fetchError ? (
+              <div className="text-center py-20">
+                <div className="w-16 h-16 rounded-2xl bg-red-50 dark:bg-red-900/15 flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle size={28} className="text-red-400 dark:text-red-500" />
+                </div>
+                <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">Failed to load testimonials</p>
+                <p className="text-sm text-red-500 mb-3">{fetchError}</p>
+                <button onClick={() => { setFetchError(null); fetchTestimonials() }} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 transition-colors">Retry</button>
               </div>
             ) : testimonials.length === 0 ? (
               <div className="text-center py-20">
@@ -1465,8 +1478,8 @@ function AwardFormModal({ award, onClose, onSaved }: {
           </div>
 
           <div>
-            <label className={labelCls}>Notes <span className="text-xs text-slate-400 font-normal">(visible to all team members)</span></label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal context, submission history..." className={`${inputCls} resize-none`} />
+            <label className={labelCls}>Comments <span className="text-xs text-slate-400 font-normal">(visible to all team members)</span></label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal comments, submission history..." className={`${inputCls} resize-none`} />
           </div>
 
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-700/50">
@@ -1607,7 +1620,7 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
 
           <div>
             <label className={labelCls}>Source <span className="text-xs text-slate-400 font-normal">(publication, event, etc.)</span></label>
-            <input type="text" value={source} onChange={e => setSource(e.target.value)} placeholder="e.g., PR Newswire, CASE Conference" className={inputCls} />
+            <input type="text" value={source} onChange={e => setSource(e.target.value)} placeholder="e.g., conference, publication, email" className={inputCls} />
           </div>
 
           {/* Tag pills input */}
@@ -1639,8 +1652,8 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
           </div>
 
           <div>
-            <label className={labelCls}>Notes <span className="text-xs text-slate-400 font-normal">(internal)</span></label>
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal notes visible to all team members..." className={`${inputCls} resize-none`} />
+            <label className={labelCls}>Comments <span className="text-xs text-slate-400 font-normal">(internal)</span></label>
+            <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal comments visible to all team members..." className={`${inputCls} resize-none`} />
           </div>
 
           <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-700/50">

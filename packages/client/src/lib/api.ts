@@ -5,7 +5,7 @@
 import type { ImportPreview, ImportResult, ImportIssue } from "@/types"
 import { addCsrfHeader } from "./csrfToken"
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+const API_BASE = import.meta.env.VITE_API_URL || "/api"
 
 // Default fetch options to include credentials for session auth
 const fetchWithCredentials = async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -959,6 +959,22 @@ export const aiApi = {
     })
     return handleResponse<AIAdaptResponse>(response)
   },
+
+  async adaptBulk(params: {
+    items: Array<{ id: string; content: string }>
+    adaptationType: AdaptationType
+    customInstruction?: string
+    targetWordCount?: number
+    clientName?: string
+    industry?: string
+  }): Promise<{ results: Array<AIAdaptResponse & { id: string }> }> {
+    const response = await fetchWithCredentials(`${API_BASE}/ai/adapt-bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    })
+    return handleResponse<{ results: Array<AIAdaptResponse & { id: string }> }>(response)
+  },
 }
 
 // ─── Case Studies AI Builder ────────────────────────────────
@@ -1432,6 +1448,286 @@ export const testimonialsApi = {
       body: JSON.stringify({ description, ...filters }),
     })
     return handleResponse<TestimonialFinderResponse>(response)
+  },
+}
+
+// ─── Clients API (user-added clients, merged with hardcoded namedClients) ──────
+
+export interface ClientResponse {
+  id: string
+  name: string
+  sector: "higher-ed" | "healthcare" | "other"
+  notes: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const clientsApi = {
+  async list(): Promise<ClientResponse[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients`)
+    return handleResponse<ClientResponse[]>(response)
+  },
+  async create(data: { name: string; sector: "higher-ed" | "healthcare" | "other"; notes?: string }): Promise<ClientResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientResponse>(response)
+  },
+  async update(id: string, data: { name: string; sector: "higher-ed" | "healthcare" | "other"; notes?: string }): Promise<ClientResponse> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientResponse>(response)
+  },
+  async delete(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/client-success/clients/${id}`, { method: "DELETE" })
+  },
+}
+
+// ─── Client Portfolio API ──────────────────────
+
+export interface ClientProfileApiResponse {
+  caseStudies: ClientSuccessEntryResponse[]
+  results: ClientSuccessResultResponse[]
+  testimonials: ClientSuccessTestimonialResponse[]
+  awards: ClientSuccessAwardResponse[]
+  proposals: {
+    id: string
+    date: string | null
+    ce: string | null
+    client: string | null
+    projectType: string | null
+    won: "Yes" | "No" | "Pending" | "Cancelled" | null
+    category: string | null
+    servicesOffered: string[]
+    sheetName: string | null
+  }[]
+}
+
+export interface LinkedQaAnswer {
+  linkId: string
+  linkedBy: string | null
+  linkedAt: string
+  answerId: string
+  question: string
+  answer: string
+  status: string
+  topic: string | null
+  tags: string[]
+  usageCount: number
+}
+
+export interface ClientWinRate {
+  won: number
+  total: number
+  lost: number
+  pending: number
+  rate: number
+  lastProposalDate: string | null
+}
+
+export const clientPortfolioApi = {
+  async getClientProfile(clientName: string): Promise<ClientProfileApiResponse> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/client-profile/${encodeURIComponent(clientName)}`
+    )
+    return handleResponse<ClientProfileApiResponse>(response)
+  },
+  async generateBrief(clientName: string, clientContext: Record<string, unknown>): Promise<{ markdown: string }> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/client-brief/${encodeURIComponent(clientName)}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientContext }) }
+    )
+    return handleResponse<{ markdown: string }>(response)
+  },
+  async getWinRates(): Promise<Record<string, ClientWinRate>> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/client-win-rates`)
+    return handleResponse<Record<string, ClientWinRate>>(response)
+  },
+  async gapAnalysis(_clientName: string, clientContext: unknown): Promise<{ markdown: string }> {
+    const response = await fetchWithCredentials(`${API_BASE}/ai/client-gap-analysis`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientContext }),
+    })
+    return handleResponse<{ markdown: string }>(response)
+  },
+}
+
+export const clientQaApi = {
+  async list(clientName: string): Promise<LinkedQaAnswer[]> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/qa-links/${encodeURIComponent(clientName.toLowerCase())}`
+    )
+    return handleResponse<LinkedQaAnswer[]>(response)
+  },
+  async listByAnswers(answerIds: string[]): Promise<Record<string, string[]>> {
+    if (answerIds.length === 0) return {}
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/qa-links/by-answers?ids=${answerIds.join(",")}`
+    )
+    return handleResponse<Record<string, string[]>>(response)
+  },
+  async link(clientName: string, answerId: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/qa-links`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientName: clientName.toLowerCase(), answerId }),
+    })
+    await handleResponse<unknown>(response)
+  },
+  async unlink(linkId: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/qa-links/${linkId}`, { method: "DELETE" })
+    await handleResponse<unknown>(response)
+  },
+}
+
+// ─── Client Documents API ──────────────────────────────────────────
+
+export interface ClientDocument {
+  id: string
+  clientName: string
+  title: string
+  docType: string
+  storageKey: string
+  originalFilename: string
+  fileSize: number | null
+  mimeType: string | null
+  summary: string | null
+  keyPoints: string[] | null
+  uploadedBy: string | null
+  createdAt: string
+}
+
+export const clientDocumentsApi = {
+  async list(clientName: string): Promise<ClientDocument[]> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/documents/${encodeURIComponent(clientName.toLowerCase())}`
+    )
+    return handleResponse<ClientDocument[]>(response)
+  },
+
+  async upload(clientName: string, file: File, title: string, docType: string): Promise<ClientDocument> {
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("clientName", clientName.toLowerCase())
+    formData.append("title", title)
+    formData.append("docType", docType)
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents`, {
+      method: "POST",
+      body: formData,
+    })
+    return handleResponse<ClientDocument>(response)
+  },
+
+  async download(id: string, filename: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents/${id}/download`)
+    if (!response.ok) throw new Error("Download failed")
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  },
+
+  async patch(id: string, data: { title?: string; docType?: string }): Promise<ClientDocument> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<ClientDocument>(response)
+  },
+
+  async delete(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents/${id}`, { method: "DELETE" })
+    await handleResponse<unknown>(response)
+  },
+
+  async getText(id: string): Promise<{ extractedText: string | null }> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents/${id}/text`)
+    return handleResponse<{ extractedText: string | null }>(response)
+  },
+
+  async getSummary(id: string): Promise<{ summary: string | null; keyPoints: string[] | null }> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/documents/${id}/summary`)
+    return handleResponse<{ summary: string | null; keyPoints: string[] | null }>(response)
+  },
+}
+
+// ─── Client Brand Kit API ──────────────────────────────────────────
+
+export interface ClientBrandKit {
+  id: string
+  clientName: string
+  websiteUrl: string | null
+  scrapedAt: string | null
+  logoStorageKey: string | null
+  logoUrl: string | null
+  primaryColor: string | null
+  secondaryColor: string | null
+  accentColor: string | null
+  backgroundColor: string | null
+  textColor: string | null
+  rawColors: string[] | null
+  primaryFont: string | null
+  secondaryFont: string | null
+  fontStack: string | null
+  tone: string | null
+  styleNotes: string | null
+  scrapeStatus: "pending" | "success" | "partial" | "failed" | null
+  scrapeError: string | null
+  updatedBy: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export const clientBrandKitApi = {
+  async get(clientName: string): Promise<ClientBrandKit | null> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/brand-kit/${encodeURIComponent(clientName.toLowerCase())}`
+    )
+    return handleResponse<ClientBrandKit | null>(response)
+  },
+
+  async scrape(clientName: string, websiteUrl: string): Promise<ClientBrandKit> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/brand-kit/${encodeURIComponent(clientName.toLowerCase())}/scrape`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ websiteUrl }),
+      }
+    )
+    return handleResponse<ClientBrandKit>(response)
+  },
+
+  async update(clientName: string, data: Partial<ClientBrandKit>): Promise<ClientBrandKit> {
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/brand-kit/${encodeURIComponent(clientName.toLowerCase())}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }
+    )
+    return handleResponse<ClientBrandKit>(response)
+  },
+
+  async uploadLogo(clientName: string, file: File): Promise<ClientBrandKit> {
+    const formData = new FormData()
+    formData.append("logo", file)
+    const response = await fetchWithCredentials(
+      `${API_BASE}/client-success/brand-kit/${encodeURIComponent(clientName.toLowerCase())}/logo`,
+      { method: "POST", body: formData }
+    )
+    return handleResponse<ClientBrandKit>(response)
   },
 }
 

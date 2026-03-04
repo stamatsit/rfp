@@ -8,6 +8,18 @@ interface MarkdownRendererProps {
 function renderMarkdown(raw: string): string {
   let html = raw
 
+  // ── SVG extraction FIRST (before code blocks escape angle brackets) ──
+  // Strip SVG_DATA: marker prefix
+  html = html.replace(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)/g, '$1')
+  // Also extract SVGs wrapped in code fences (```svg, ```xml, or bare ```)
+  html = html.replace(/```(?:svg|xml|html)?\s*\n?\s*(<svg[\s\S]*?<\/svg>)\s*\n?\s*```/g, '$1')
+  const svgBlocks: string[] = []
+  html = html.replace(/<svg[\s\S]*?<\/svg>/g, (match) => {
+    const idx = svgBlocks.length
+    svgBlocks.push(match)
+    return `\n__SVG_BLOCK_${idx}__\n`
+  })
+
   // Code blocks (triple backtick) — must be done before inline code
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
     const escaped = code.replace(/</g, "&lt;").replace(/>/g, "&gt;").trimEnd()
@@ -50,16 +62,6 @@ function renderMarkdown(raw: string): string {
       return `<table class="md-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`
     }
   )
-
-  // Extract SVG blocks before line processing (they span multiple lines)
-  // Handle both inline SVG and SVG_DATA: marker from streaming
-  html = html.replace(/SVG_DATA:\s*(<svg[\s\S]*?<\/svg>)/g, '$1')
-  const svgBlocks: string[] = []
-  html = html.replace(/<svg[\s\S]*?<\/svg>/g, (match) => {
-    const idx = svgBlocks.length
-    svgBlocks.push(match)
-    return `__SVG_BLOCK_${idx}__`
-  })
 
   // Process lines for lists and paragraphs
   const lines = html.split("\n")

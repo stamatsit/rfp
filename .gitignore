@@ -36,6 +36,9 @@ data/*.db-wal
 storage/photos/*
 !storage/photos/.gitkeep
 
+# Excel temp/lock files
+~$*
+
 # Misc
 *.tsbuildinfo
 .vercel

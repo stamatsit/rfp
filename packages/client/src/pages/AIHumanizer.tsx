@@ -40,9 +40,10 @@ import {
   ArrowLeft,
   Settings2,
   Download,
-  Mic,
   Clock,
   X,
+  Trash2,
+  User,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { ChatHistorySidebar } from "@/components/chat"
@@ -62,6 +63,22 @@ type Tone = "professional" | "conversational" | "academic" | "thompson" | "walla
 type Strength = "light" | "balanced" | "heavy"
 type Audience = "general" | "executive" | "technical" | "academic"
 type ViewMode = "clean" | "diff"
+
+interface PersonaSample {
+  id: string
+  label: string
+  sourceType: "upload" | "paste"
+  originalFilename?: string | null
+  charCount: number
+  createdAt: string
+}
+
+interface PersonaState {
+  samples: PersonaSample[]
+  totalChars: number
+  budget: number
+  loading: boolean
+}
 
 // ─── Word Diff Algorithm ─────────────────────────────────────
 
@@ -163,11 +180,6 @@ function scoreBg(score: number) {
 
 function WorkspaceControlsBar({
   mode,
-  tone, onToneChange,
-  strength, onStrengthChange,
-  twoPass, onTwoPassChange,
-  audience, onAudienceChange,
-  voiceSample, onVoiceSampleChange,
   viewMode, onViewModeChange,
   hasDoc, hasOriginal,
   canUndo, onUndo,
@@ -175,13 +187,11 @@ function WorkspaceControlsBar({
   versionLabel,
   onNewDocument,
   scoreHistory,
+  sidebarOpen, onToggleSidebar,
+  personaSidebarOpen, onTogglePersonaSidebar,
+  hasPersona,
 }: {
   mode: Mode
-  tone: Tone; onToneChange: (t: Tone) => void
-  strength: Strength; onStrengthChange: (s: Strength) => void
-  twoPass: boolean; onTwoPassChange: (v: boolean) => void
-  audience: Audience; onAudienceChange: (a: Audience) => void
-  voiceSample: string; onVoiceSampleChange: (v: string) => void
   viewMode: ViewMode; onViewModeChange: (v: ViewMode) => void
   hasDoc: boolean; hasOriginal: boolean
   canUndo: boolean; onUndo: () => void
@@ -189,227 +199,27 @@ function WorkspaceControlsBar({
   versionLabel: string
   onNewDocument: () => void
   scoreHistory: Array<{ version: number; score: number }>
+  sidebarOpen: boolean; onToggleSidebar: () => void
+  personaSidebarOpen: boolean; onTogglePersonaSidebar: () => void
+  hasPersona: boolean
 }) {
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsTab, setSettingsTab] = useState<"tone" | "voice">("tone")
-  const settingsRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
-        setSettingsOpen(false)
-      }
-    }
-    if (settingsOpen) document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [settingsOpen])
-
-  const TONES: { value: Tone; label: string }[] = [
-    { value: "professional", label: "Professional" },
-    { value: "conversational", label: "Conversational" },
-    { value: "academic", label: "Academic" },
-    { value: "thompson", label: "Thompson (HST)" },
-    { value: "wallace", label: "Wallace (DFW)" },
-  ]
-
-  const AUDIENCES: { value: Audience; label: string; desc: string }[] = [
-    { value: "general", label: "General", desc: "Grade 8 reading level" },
-    { value: "executive", label: "Executive", desc: "Outcome-focused, brief" },
-    { value: "technical", label: "Technical", desc: "Domain precision OK" },
-    { value: "academic", label: "Academic", desc: "Careful qualification" },
-  ]
-
-  const toneLabel = TONES.find((t) => t.value === tone)?.label ?? tone
-  const hasNonDefaultSettings = tone !== "professional" || strength !== "balanced" || twoPass || audience !== "general" || voiceSample.trim().length > 0
-
   return (
     <div className="border-b border-slate-200/60 dark:border-slate-700 bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm flex-shrink-0">
       <div className="px-4 h-10 flex items-center gap-2">
 
-        {/* Settings cog — only in humanize mode */}
-        {mode === "humanize" && (
-          <div className="relative" ref={settingsRef}>
-            <button
-              onClick={() => setSettingsOpen((o) => !o)}
-              title="Tone, strength, audience, and voice settings"
-              className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-all duration-200
-                ${settingsOpen || hasNonDefaultSettings
-                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
-                  : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
-                }`}
-            >
-              <Settings2 size={11} />
-              {hasNonDefaultSettings && (
-                <span className="text-[10px] font-medium">
-                  {toneLabel} · {strength}{twoPass ? " · 2×" : ""}{audience !== "general" ? ` · ${audience}` : ""}{voiceSample.trim() ? " · voice" : ""}
-                </span>
-              )}
-            </button>
-
-            {/* Settings popover */}
-            {settingsOpen && (
-              <div className="absolute top-full left-0 mt-2 z-50 w-72
-                              bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700
-                              rounded-2xl shadow-xl shadow-slate-900/10 dark:shadow-slate-900/40 overflow-hidden">
-
-                {/* Tabs */}
-                <div className="flex border-b border-slate-200 dark:border-slate-700">
-                  <button
-                    onClick={() => setSettingsTab("tone")}
-                    className={`flex-1 py-2.5 text-xs font-medium transition-colors
-                      ${settingsTab === "tone"
-                        ? "text-amber-700 dark:text-amber-300 border-b-2 border-amber-500"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                      }`}
-                  >
-                    Style & Strength
-                  </button>
-                  <button
-                    onClick={() => setSettingsTab("voice")}
-                    className={`flex-1 py-2.5 text-xs font-medium transition-colors flex items-center justify-center gap-1
-                      ${settingsTab === "voice"
-                        ? "text-amber-700 dark:text-amber-300 border-b-2 border-amber-500"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                      }`}
-                  >
-                    <Mic size={10} />
-                    Voice & Audience
-                    {(voiceSample.trim() || audience !== "general") && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 ml-0.5" />
-                    )}
-                  </button>
-                </div>
-
-                <div className="p-4">
-                  {settingsTab === "tone" ? (
-                    <>
-                      {/* Tone */}
-                      <div className="mb-4">
-                        <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Tone</label>
-                        <div className="flex flex-col gap-1">
-                          {TONES.map((t) => (
-                            <button
-                              key={t.value}
-                              onClick={() => { onToneChange(t.value); }}
-                              className={`flex items-center justify-between px-3 py-1.5 rounded-lg text-sm text-left transition-all duration-150
-                                ${tone === t.value
-                                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 font-medium"
-                                  : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
-                                }`}
-                            >
-                              {t.label}
-                              {tone === t.value && <Check size={12} />}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Strength */}
-                      <div className="mb-4">
-                        <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Rewrite Strength</label>
-                        <div className="flex gap-1.5">
-                          {(["light", "balanced", "heavy"] as Strength[]).map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => onStrengthChange(s)}
-                              className={`flex-1 py-1.5 rounded-lg text-xs capitalize font-medium transition-all duration-150
-                                ${strength === s
-                                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
-                                  : "bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                }`}
-                            >
-                              {s}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Two-pass */}
-                      <button
-                        onClick={() => onTwoPassChange(!twoPass)}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-all duration-150
-                          ${twoPass
-                            ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300"
-                            : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                          }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <Zap size={13} />
-                          <div className="text-left">
-                            <div className="font-medium text-xs">Two-pass rewrite</div>
-                            <div className="text-[11px] opacity-70">Adversarial second pass catches remaining tells</div>
-                          </div>
-                        </div>
-                        <div className={`w-8 h-4 rounded-full transition-all duration-200 flex items-center px-0.5
-                          ${twoPass ? "bg-amber-500 justify-end" : "bg-slate-300 dark:bg-slate-600 justify-start"}`}>
-                          <div className="w-3 h-3 rounded-full bg-white shadow-sm" />
-                        </div>
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {/* Audience */}
-                      <div className="mb-4">
-                        <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Audience</label>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {AUDIENCES.map((a) => (
-                            <button
-                              key={a.value}
-                              onClick={() => onAudienceChange(a.value)}
-                              className={`flex flex-col items-start px-3 py-2 rounded-lg text-left transition-all duration-150
-                                ${audience === a.value
-                                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
-                                  : "bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
-                                }`}
-                            >
-                              <span className="text-xs font-medium">{a.label}</span>
-                              <span className="text-[10px] opacity-60 mt-0.5">{a.desc}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Voice sample */}
-                      <div>
-                        <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1.5">
-                          Voice Sample
-                          <span className="ml-1 normal-case font-normal opacity-60">optional</span>
-                        </label>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">
-                          Paste 1–2 sentences written in your natural voice. The AI will match it.
-                        </p>
-                        <div className="relative">
-                          <textarea
-                            value={voiceSample}
-                            onChange={(e) => onVoiceSampleChange(e.target.value.slice(0, 500))}
-                            placeholder="e.g. Look, the thing most people miss about enterprise sales is that the product almost never wins deals by itself."
-                            rows={3}
-                            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700
-                                       bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300
-                                       placeholder:text-slate-300 dark:placeholder:text-slate-600
-                                       focus:outline-none focus:border-amber-400 dark:focus:border-amber-500
-                                       resize-none transition-all"
-                          />
-                          {voiceSample && (
-                            <button
-                              onClick={() => onVoiceSampleChange("")}
-                              className="absolute top-2 right-2 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"
-                            >
-                              <X size={12} />
-                            </button>
-                          )}
-                        </div>
-                        <div className="text-right text-[10px] text-slate-300 dark:text-slate-600 mt-1">
-                          {voiceSample.length}/500
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {/* History toggle — left side, matches Settings button style */}
+        <button
+          onClick={onToggleSidebar}
+          title="Conversation history"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200
+            ${sidebarOpen
+              ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25"
+              : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700"
+            }`}
+        >
+          <History size={13} />
+          History
+        </button>
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -481,6 +291,417 @@ function WorkspaceControlsBar({
             </button>
           </>
         )}
+
+        {/* Sidebar toggle — prominent button */}
+        {mode === "humanize" && (
+          <>
+            <div className="w-px h-4 bg-slate-200 dark:bg-slate-700 mx-1" />
+            <button
+              onClick={onTogglePersonaSidebar}
+              title="Settings & writing persona"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200
+                ${personaSidebarOpen
+                  ? "bg-amber-500 text-white shadow-sm shadow-amber-500/25"
+                  : hasPersona
+                    ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300 border border-slate-200 dark:border-slate-700"
+                }`}
+            >
+              <Settings2 size={13} />
+              Settings
+              {hasPersona && !personaSidebarOpen && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ─── PersonaSidebar ────────────────────────────────────────────
+
+function PersonaSidebar({
+  persona, onAddPasteSample, onUploadSample, onDeleteSample, onRenameSample,
+  tone, onToneChange,
+  strength, onStrengthChange,
+  twoPass, onTwoPassChange,
+  audience, onAudienceChange,
+  voiceSample, onVoiceSampleChange,
+}: {
+  persona: PersonaState
+  onAddPasteSample: (text: string, label: string) => Promise<void>
+  onUploadSample: (file: File) => Promise<void>
+  onDeleteSample: (id: string) => Promise<void>
+  onRenameSample: (id: string, label: string) => Promise<void>
+  tone: Tone; onToneChange: (t: Tone) => void
+  strength: Strength; onStrengthChange: (s: Strength) => void
+  twoPass: boolean; onTwoPassChange: (v: boolean) => void
+  audience: Audience; onAudienceChange: (a: Audience) => void
+  voiceSample: string; onVoiceSampleChange: (v: string) => void
+}) {
+  const personaFileRef = useRef<HTMLInputElement>(null)
+  const [pastePanelOpen, setPastePanelOpen] = useState(false)
+  const [pasteText, setPasteText] = useState("")
+  const [pasteLabel, setPasteLabel] = useState("")
+  const [savingPaste, setSavingPaste] = useState(false)
+  const [uploadingSample, setUploadingSample] = useState(false)
+  const [quickOverrideOpen, setQuickOverrideOpen] = useState(false)
+  const [editingLabelId, setEditingLabelId] = useState<string | null>(null)
+  const [editingLabelText, setEditingLabelText] = useState("")
+
+  const AUDIENCES: { value: Audience; label: string; desc: string }[] = [
+    { value: "general", label: "General", desc: "Grade 8 reading level" },
+    { value: "executive", label: "Executive", desc: "Outcome-focused, brief" },
+    { value: "technical", label: "Technical", desc: "Domain precision OK" },
+    { value: "academic", label: "Academic", desc: "Careful qualification" },
+  ]
+
+  const TONES: { value: Tone; label: string; icon: typeof Pen }[] = [
+    { value: "professional", label: "Professional", icon: BookOpen },
+    { value: "conversational", label: "Conversational", icon: MessageSquare },
+    { value: "academic", label: "Academic", icon: Search },
+    { value: "thompson", label: "Gonzo", icon: Zap },
+    { value: "wallace", label: "Literary", icon: Pen },
+  ]
+
+  const STRENGTHS: { value: Strength; label: string; desc: string }[] = [
+    { value: "light", label: "Light", desc: "Minimal changes" },
+    { value: "balanced", label: "Balanced", desc: "Natural rewrite" },
+    { value: "heavy", label: "Heavy", desc: "Full transformation" },
+  ]
+
+  return (
+    <div className="h-full overflow-y-auto bg-white dark:bg-slate-950">
+      <div className="p-4 space-y-5">
+
+        {/* Section: Tone */}
+        <div>
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
+            <Wand2 size={10} />
+            Tone
+          </label>
+          <div className="space-y-1">
+            {TONES.map((t) => {
+              const Icon = t.icon
+              return (
+                <button
+                  key={t.value}
+                  onClick={() => onToneChange(t.value)}
+                  className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150
+                    ${tone === t.value
+                      ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 shadow-sm shadow-amber-500/10"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 border border-transparent"
+                    }`}
+                >
+                  <Icon size={13} className={tone === t.value ? "text-amber-500" : "text-slate-400"} />
+                  {t.label}
+                  {tone === t.value && <Check size={12} className="ml-auto text-amber-500" />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-slate-200/60 dark:border-slate-700" />
+
+        {/* Section: Strength */}
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Strength</label>
+          <div className="flex gap-1.5">
+            {STRENGTHS.map((s) => (
+              <button
+                key={s.value}
+                onClick={() => onStrengthChange(s.value)}
+                className={`flex-1 flex flex-col items-center px-2 py-2 rounded-lg text-center transition-all duration-150
+                  ${strength === s.value
+                    ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700 shadow-sm shadow-amber-500/10"
+                    : "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent"
+                  }`}
+              >
+                <span className="text-xs font-medium">{s.label}</span>
+                <span className="text-[10px] opacity-60 mt-0.5">{s.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Two-pass toggle */}
+        <div className="flex items-center justify-between py-1">
+          <div>
+            <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Two-pass rewrite</span>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Rewrite → score → rewrite again</p>
+          </div>
+          <button
+            onClick={() => onTwoPassChange(!twoPass)}
+            className={`relative w-9 h-5 rounded-full transition-all duration-200 ${
+              twoPass
+                ? "bg-amber-500 shadow-inner shadow-amber-600/30"
+                : "bg-slate-200 dark:bg-slate-700"
+            }`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow-sm transition-transform duration-200 ${twoPass ? "translate-x-4" : ""}`} />
+          </button>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-slate-200/60 dark:border-slate-700" />
+
+        {/* Section: Writing Persona */}
+        <div>
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1.5">
+            <User size={10} />
+            Your Writing Persona
+          </label>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+            Upload writing samples so the AI always matches your voice.
+          </p>
+
+          {/* Sample list */}
+          {persona.loading ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 size={16} className="animate-spin text-slate-400" />
+            </div>
+          ) : persona.samples.length > 0 ? (
+            <div className="space-y-1 mb-3">
+              {persona.samples.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 group"
+                >
+                  <FileText size={12} className="text-slate-400 flex-shrink-0" />
+                  {editingLabelId === s.id ? (
+                    <input
+                      autoFocus
+                      value={editingLabelText}
+                      onChange={(e) => setEditingLabelText(e.target.value)}
+                      onBlur={() => {
+                        if (editingLabelText.trim() && editingLabelText.trim() !== s.label) {
+                          onRenameSample(s.id, editingLabelText.trim())
+                        }
+                        setEditingLabelId(null)
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") (e.target as HTMLInputElement).blur()
+                        if (e.key === "Escape") setEditingLabelId(null)
+                      }}
+                      className="flex-1 min-w-0 text-xs bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-600 rounded px-1.5 py-0.5 outline-none text-slate-700 dark:text-slate-200"
+                    />
+                  ) : (
+                    <span
+                      onClick={() => { setEditingLabelId(s.id); setEditingLabelText(s.label) }}
+                      className="flex-1 min-w-0 text-xs text-slate-600 dark:text-slate-400 truncate cursor-pointer hover:text-slate-800 dark:hover:text-slate-200"
+                      title={`Click to rename — ${s.label}`}
+                    >
+                      {s.label}
+                    </span>
+                  )}
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0 tabular-nums">
+                    {(s.charCount / 1000).toFixed(1)}k
+                  </span>
+                  <button
+                    onClick={() => onDeleteSample(s.id)}
+                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all"
+                    title="Remove sample"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4 text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-lg mb-3">
+              No samples yet. Add your writing to build your persona.
+            </div>
+          )}
+
+          {/* Budget bar */}
+          {persona.samples.length > 0 && (
+            <div className="mb-3">
+              <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
+                <span>{persona.totalChars.toLocaleString()} / {persona.budget.toLocaleString()} chars</span>
+                <span>{Math.round((persona.totalChars / persona.budget) * 100)}%</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    persona.totalChars / persona.budget > 0.75
+                      ? "bg-amber-500"
+                      : "bg-emerald-500"
+                  }`}
+                  style={{ width: `${Math.min(100, (persona.totalChars / persona.budget) * 100)}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Add sample actions */}
+          {!pastePanelOpen && (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPastePanelOpen(true)}
+                disabled={persona.totalChars >= persona.budget}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium
+                  bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700
+                  hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-200 dark:hover:border-amber-700
+                  disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                <Pen size={11} />
+                Paste text
+              </button>
+              <button
+                onClick={() => personaFileRef.current?.click()}
+                disabled={persona.totalChars >= persona.budget || uploadingSample}
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium
+                  bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700
+                  hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-700 dark:hover:text-amber-300 hover:border-amber-200 dark:hover:border-amber-700
+                  disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+              >
+                {uploadingSample ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
+                Upload doc
+              </button>
+              <input
+                ref={personaFileRef}
+                type="file"
+                accept=".pdf,.docx,.doc,.txt"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  setUploadingSample(true)
+                  try { await onUploadSample(file) } finally { setUploadingSample(false) }
+                  e.target.value = ""
+                }}
+              />
+            </div>
+          )}
+
+          {/* Paste panel */}
+          {pastePanelOpen && (
+            <div className="space-y-2">
+              <input
+                value={pasteLabel}
+                onChange={(e) => setPasteLabel(e.target.value.slice(0, 80))}
+                placeholder="Sample name (optional)"
+                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700
+                  bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300
+                  placeholder:text-slate-300 dark:placeholder:text-slate-600
+                  focus:outline-none focus:border-amber-400 transition-all"
+              />
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value.slice(0, 3000))}
+                placeholder="Paste a paragraph or two of your writing..."
+                rows={5}
+                className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700
+                  bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300
+                  placeholder:text-slate-300 dark:placeholder:text-slate-600
+                  focus:outline-none focus:border-amber-400 resize-none transition-all"
+              />
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-400">{pasteText.length}/3000</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setPastePanelOpen(false); setPasteText(""); setPasteLabel("") }}
+                    className="px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={async () => {
+                      if (pasteText.trim().length < 50) return
+                      setSavingPaste(true)
+                      try {
+                        await onAddPasteSample(pasteText, pasteLabel)
+                        setPastePanelOpen(false)
+                        setPasteText("")
+                        setPasteLabel("")
+                      } finally { setSavingPaste(false) }
+                    }}
+                    disabled={pasteText.trim().length < 50 || savingPaste}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-amber-500 text-white
+                      hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-1"
+                  >
+                    {savingPaste && <Loader2 size={11} className="animate-spin" />}
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-slate-200/60 dark:border-slate-700" />
+
+        {/* Section 2: Audience */}
+        <div>
+          <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Audience</label>
+          <div className="grid grid-cols-2 gap-1.5">
+            {AUDIENCES.map((a) => (
+              <button
+                key={a.value}
+                onClick={() => onAudienceChange(a.value)}
+                className={`flex flex-col items-start px-3 py-2 rounded-lg text-left transition-all duration-150
+                  ${audience === a.value
+                    ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                    : "bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent"
+                  }`}
+              >
+                <span className="text-xs font-medium">{a.label}</span>
+                <span className="text-[10px] opacity-60 mt-0.5">{a.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-slate-200/60 dark:border-slate-700" />
+
+        {/* Section 3: Quick Override */}
+        <div>
+          <button
+            onClick={() => setQuickOverrideOpen(!quickOverrideOpen)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide hover:text-slate-600 dark:hover:text-slate-400 transition-colors mb-1"
+          >
+            <ChevronDown size={10} className={`transition-transform ${quickOverrideOpen ? "" : "-rotate-90"}`} />
+            Quick Override
+            {voiceSample.trim() && <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />}
+          </button>
+          {quickOverrideOpen && (
+            <div className="mt-2">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">
+                Overrides your stored persona for this session only.
+              </p>
+              <div className="relative">
+                <textarea
+                  value={voiceSample}
+                  onChange={(e) => onVoiceSampleChange(e.target.value.slice(0, 500))}
+                  placeholder="Paste 1–2 sentences in a different voice..."
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 dark:border-slate-700
+                             bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300
+                             placeholder:text-slate-300 dark:placeholder:text-slate-600
+                             focus:outline-none focus:border-amber-400 dark:focus:border-amber-500
+                             resize-none transition-all"
+                />
+                {voiceSample && (
+                  <button
+                    onClick={() => onVoiceSampleChange("")}
+                    className="absolute top-2 right-2 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+              <div className="text-right text-[10px] text-slate-300 dark:text-slate-600 mt-1">
+                {voiceSample.length}/500
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -1496,6 +1717,79 @@ export function AIHumanizer() {
   const [audience, setAudience] = useState<Audience>("general")
   const [voiceSample, setVoiceSample] = useState("")
 
+  // ── Persona state ────────────────────────────────────────
+  const [persona, setPersona] = useState<PersonaState>({ samples: [], totalChars: 0, budget: 8000, loading: true })
+
+  const fetchPersona = useCallback(async () => {
+    try {
+      const headers = await addCsrfHeader({})
+      const resp = await fetch(`${API_BASE}/humanizer/persona`, { credentials: "include", headers: headers as HeadersInit })
+      if (resp.ok) {
+        const data = await resp.json()
+        setPersona({ samples: data.samples, totalChars: data.totalChars, budget: data.budget, loading: false })
+      } else {
+        setPersona((p) => ({ ...p, loading: false }))
+      }
+    } catch {
+      setPersona((p) => ({ ...p, loading: false }))
+    }
+  }, [])
+
+  useEffect(() => { fetchPersona() }, [fetchPersona])
+
+  const handleAddPasteSample = useCallback(async (text: string, label: string) => {
+    const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+    const resp = await fetch(`${API_BASE}/humanizer/persona`, {
+      method: "POST", credentials: "include", headers: headers as HeadersInit,
+      body: JSON.stringify({ text, label: label || undefined }),
+    })
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: "Failed to save" }))
+      toast.error(err.error || "Failed to save sample")
+      return
+    }
+    toast.success("Sample added to your persona")
+    await fetchPersona()
+  }, [fetchPersona])
+
+  const handleUploadSample = useCallback(async (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    const headers = await addCsrfHeader({})
+    const resp = await fetch(`${API_BASE}/humanizer/persona/upload`, {
+      method: "POST", credentials: "include", headers: headers as HeadersInit, body: formData,
+    })
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: "Failed to upload" }))
+      toast.error(err.error || "Failed to upload sample")
+      return
+    }
+    toast.success("Document added to your persona")
+    await fetchPersona()
+  }, [fetchPersona])
+
+  const handleDeleteSample = useCallback(async (id: string) => {
+    const headers = await addCsrfHeader({})
+    const resp = await fetch(`${API_BASE}/humanizer/persona/${id}`, {
+      method: "DELETE", credentials: "include", headers: headers as HeadersInit,
+    })
+    if (!resp.ok) {
+      toast.error("Failed to remove sample")
+      return
+    }
+    toast.success("Sample removed")
+    await fetchPersona()
+  }, [fetchPersona])
+
+  const handleRenameSample = useCallback(async (id: string, label: string) => {
+    const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+    await fetch(`${API_BASE}/humanizer/persona/${id}`, {
+      method: "PATCH", credentials: "include", headers: headers as HeadersInit,
+      body: JSON.stringify({ label }),
+    })
+    await fetchPersona()
+  }, [fetchPersona])
+
   // ── Workspace state ────────────────────────────────────────
   const [docVersions, setDocVersions] = useState<string[]>([])
   const [currentDocIdx, setCurrentDocIdx] = useState(-1)
@@ -1507,6 +1801,7 @@ export function AIHumanizer() {
   const [paragraphRewritingIdx, setParagraphRewritingIdx] = useState<number | null>(null)
   const [copiedAll, setCopiedAll] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [personaSidebarOpen, setPersonaSidebarOpen] = useState(false)
   const [paragraphScores, setParagraphScores] = useState<Array<{ idx: number; score: number }>>([])
   const [scoreHistory, setScoreHistory] = useState<Array<{ version: number; score: number }>>([])
   const [twoPassState, setTwoPassState] = useState<{ active: boolean; pass: 1 | 2; pass1Score?: number }>({ active: false, pass: 1 })
@@ -1870,11 +2165,6 @@ export function AIHumanizer() {
 
       <WorkspaceControlsBar
         mode={mode}
-        tone={tone} onToneChange={setTone}
-        strength={strength} onStrengthChange={setStrength}
-        twoPass={twoPass} onTwoPassChange={setTwoPass}
-        audience={audience} onAudienceChange={setAudience}
-        voiceSample={voiceSample} onVoiceSampleChange={setVoiceSample}
         viewMode={viewMode} onViewModeChange={setViewMode}
         hasDoc={!!currentDoc}
         hasOriginal={!!originalForDiff}
@@ -1883,13 +2173,18 @@ export function AIHumanizer() {
         versionLabel={versionLabel}
         onNewDocument={handleNewDocument}
         scoreHistory={scoreHistory}
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen((o) => !o)}
+        personaSidebarOpen={personaSidebarOpen}
+        onTogglePersonaSidebar={() => setPersonaSidebarOpen((o) => !o)}
+        hasPersona={persona.samples.length > 0}
       />
 
       <div className="flex-1 flex overflow-hidden">
         {/* History sidebar */}
-        <div className={`flex-shrink-0 flex border-r border-slate-200/60 dark:border-slate-700 transition-all duration-200 ${sidebarOpen ? "w-64" : "w-10"}`}>
-          {sidebarOpen ? (
-            <div className="relative flex-1 overflow-hidden">
+        <div className={`flex-shrink-0 border-r border-slate-200/60 dark:border-slate-700 transition-all duration-200 overflow-hidden ${sidebarOpen ? "w-64" : "w-0 border-r-0"}`}>
+          {sidebarOpen && (
+            <div className="relative w-64 h-full overflow-hidden">
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="absolute top-3 right-3 z-10 p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
@@ -1907,14 +2202,6 @@ export function AIHumanizer() {
                 onRename={chat.renameConversation}
               />
             </div>
-          ) : (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="w-10 flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-all"
-              title="Show conversation history"
-            >
-              <History size={15} />
-            </button>
           )}
         </div>
 
@@ -1968,6 +2255,31 @@ export function AIHumanizer() {
             </>
           )}
         </div>
+
+        {/* Persona sidebar (right) */}
+        {mode === "humanize" && (
+          <div className={`flex-shrink-0 border-l border-slate-200/60 dark:border-slate-700 transition-all duration-200 ${personaSidebarOpen ? "w-72" : "w-0"} overflow-hidden`}>
+            {personaSidebarOpen && (
+              <PersonaSidebar
+                persona={persona}
+                onAddPasteSample={handleAddPasteSample}
+                onUploadSample={handleUploadSample}
+                onDeleteSample={handleDeleteSample}
+                onRenameSample={handleRenameSample}
+                tone={tone}
+                onToneChange={setTone}
+                strength={strength}
+                onStrengthChange={setStrength}
+                twoPass={twoPass}
+                onTwoPassChange={setTwoPass}
+                audience={audience}
+                onAudienceChange={setAudience}
+                voiceSample={voiceSample}
+                onVoiceSampleChange={setVoiceSample}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

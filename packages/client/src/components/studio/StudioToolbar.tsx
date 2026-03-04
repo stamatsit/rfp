@@ -120,7 +120,7 @@ function DocumentBrowserPopover({
       ref={ref}
       className="absolute top-full left-0 mt-1 z-50 animate-fade-in-up"
     >
-      <div className="w-[320px] bg-white dark:bg-slate-800 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden">
+      <div className="w-[340px] bg-white dark:bg-slate-800 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
         {/* Search + New */}
         <div className="p-2 border-b border-slate-100 dark:border-slate-700/60">
           <div className="flex items-center gap-1.5">
@@ -284,24 +284,24 @@ export function StudioToolbar({
   const isReview = mode === "review"
 
   return (
-    <div className={`relative z-50 flex items-center h-10 px-3 gap-2 flex-shrink-0 transition-colors duration-200 ${
+    <div className={`relative z-50 flex items-center h-12 px-4 gap-2 flex-shrink-0 transition-colors duration-150 ${
       isReview
-        ? "bg-amber-50/80 dark:bg-amber-950/30 border-b border-amber-200/60 dark:border-amber-800/50"
-        : "bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/50 dark:border-slate-800/80"
+        ? "bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200/40 dark:border-amber-800/30"
+        : "bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/40 dark:border-slate-800/50"
     } backdrop-blur-xl`}>
       {/* Documents browser button */}
       {onToggleBrowser && (
         <div className="relative">
           <button
             onClick={onToggleBrowser}
-            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150 ${
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
               browserOpen
-                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-200/50 dark:ring-emerald-700/40"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Browse documents (⌘O)"
           >
-            <FolderOpen className="w-3.5 h-3.5" />
+            <FolderOpen className="w-4 h-4" />
           </button>
 
           {browserOpen && onOpenDocument && onNewDocument && (
@@ -317,10 +317,10 @@ export function StudioToolbar({
 
       {/* Divider */}
       {onToggleBrowser && (
-        <div className="w-px h-4 bg-slate-200/60 dark:bg-slate-700/50" />
+        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40" />
       )}
 
-      {/* Document Title */}
+      {/* Document Title — Notion-style inline rename */}
       <input
         type="text"
         value={title}
@@ -331,19 +331,19 @@ export function StudioToolbar({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur()
         }}
-        className={`min-w-[120px] max-w-[360px] bg-transparent text-[13px] font-semibold border-none outline-none focus:ring-0 px-2 py-1 rounded-md transition-colors tracking-[-0.01em] ${
+        className={`min-w-[120px] max-w-[400px] bg-transparent text-[14px] font-medium border-none outline-none focus:ring-0 px-1.5 py-1 rounded-md transition-all duration-150 tracking-[-0.01em] border-b border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-emerald-400/50 dark:focus:border-emerald-500/50 focus:font-semibold ${
           isReview
-            ? "text-amber-800 dark:text-amber-200 hover:bg-amber-100/50 dark:hover:bg-amber-900/20 focus:bg-amber-100/50 dark:focus:bg-amber-900/20"
-            : "text-slate-800 dark:text-slate-100 hover:bg-slate-50 dark:hover:bg-slate-800/60 focus:bg-slate-50 dark:focus:bg-slate-800/60"
+            ? "text-amber-800 dark:text-amber-200"
+            : "text-slate-800 dark:text-slate-100"
         }`}
         placeholder="Untitled"
       />
 
-      {/* Save status — icon + label, tooltip */}
-      <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium transition-all duration-300 select-none ${
+      {/* Save status — icon only with tooltip */}
+      <div className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[11px] font-medium transition-all duration-150 select-none ${
         saveStatus === "saving" ? "text-slate-400 dark:text-slate-500" :
-        saveStatus === "saved" ? "text-emerald-600/70 dark:text-emerald-400/70" :
-        saveStatus === "unsaved" ? "text-amber-500/80 dark:text-amber-400/80" :
+        saveStatus === "saved" ? "text-emerald-500/60 dark:text-emerald-400/60" :
+        saveStatus === "unsaved" ? "text-amber-500/70 dark:text-amber-400/70" :
         "text-red-500 dark:text-red-400"
       }`} title={
         saveStatus === "saving" ? "Saving… (⌘S)" :
@@ -351,40 +351,37 @@ export function StudioToolbar({
         saveStatus === "unsaved" ? "Unsaved changes — ⌘S to save" :
         "Save error — try ⌘S"
       }>
-        {saveStatus === "saving" && <><Loader2 className="w-3 h-3 animate-spin" /><span>Saving…</span></>}
-        {saveStatus === "saved" && <><Check className="w-3 h-3" /><span>Saved</span></>}
-        {saveStatus === "unsaved" && <><Circle className="w-2 h-2 fill-current" /><span>Unsaved</span></>}
-        {saveStatus === "error" && <><AlertCircle className="w-3 h-3" /><span>Error</span></>}
+        {saveStatus === "saving" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        {saveStatus === "saved" && <Check className="w-3.5 h-3.5" />}
+        {saveStatus === "unsaved" && <Circle className="w-2 h-2 fill-current" />}
+        {saveStatus === "error" && <AlertCircle className="w-3.5 h-3.5" />}
       </div>
 
       {/* Spacer */}
       <div className="flex-1" />
 
       {/* Right-side actions */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         {/* Review toggle */}
         <button
           onClick={() => onModeChange(isReview ? "editor" : "review")}
-          className={`flex items-center gap-1.5 px-2.5 h-7 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+          className={`flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium rounded-lg transition-all duration-150 ${
             isReview
-              ? "bg-amber-500 text-white shadow-sm shadow-amber-500/30 hover:bg-amber-600 active:bg-amber-700"
-              : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300"
+              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200/60 dark:ring-amber-700/40"
+              : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-300"
           }`}
           title={isReview ? "Exit review mode" : "Enter review mode (⌘⇧R)"}
         >
           <MessageSquareText className="w-3.5 h-3.5" />
           {isReview ? "Reviewing" : "Review"}
-          {!isReview && (
-            <kbd className="hidden sm:inline ml-0.5 px-1 py-px text-[8px] bg-slate-100/80 dark:bg-slate-700/80 rounded text-slate-400 font-mono leading-none">⌘⇧R</kbd>
-          )}
         </button>
 
-        <div className="w-px h-4 bg-slate-200/60 dark:bg-slate-700/50 mx-0.5" />
+        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40 mx-0.5" />
 
         {/* Export */}
         <button
           onClick={onExport}
-          className="flex items-center gap-1.5 px-2.5 h-7 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/25 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-200/60 dark:border-emerald-800/50 hover:border-emerald-300 dark:hover:border-emerald-700 rounded-md transition-all duration-150 active:bg-emerald-200"
+          className="flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-100 rounded-lg transition-all duration-150"
           title="Export document (⌘E)"
         >
           <FileDown className="w-3.5 h-3.5" />
@@ -395,23 +392,23 @@ export function StudioToolbar({
         {hasDocumentId && onShare && (
           <button
             onClick={onShare}
-            className="w-7 h-7 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
+            className="w-8 h-8 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition-all duration-150"
             title="Share document"
           >
             <Share2 className="w-3.5 h-3.5" />
           </button>
         )}
 
-        <div className="w-px h-4 bg-slate-200/60 dark:bg-slate-700/50 mx-0.5" />
+        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40 mx-0.5" />
 
         {/* Humanizer toggle */}
         {onToggleHumanizer && (
           <button
             onClick={onToggleHumanizer}
-            className={`flex items-center gap-1.5 px-2.5 h-7 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium rounded-lg transition-all duration-150 ${
               humanizerOpen
-                ? "bg-violet-500 text-white shadow-sm shadow-violet-500/25 hover:bg-violet-600 active:bg-violet-700"
-                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300"
+                ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200/60 dark:ring-violet-700/40"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-300"
             }`}
             title="Humanize document — detect and reduce AI patterns"
           >
@@ -424,10 +421,10 @@ export function StudioToolbar({
         {onToggleInspector && (
           <button
             onClick={onToggleInspector}
-            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150 ${
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
               inspectorOpen
-                ? "bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 shadow-sm ring-1 ring-emerald-200/50 dark:ring-emerald-700/40"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Inspector — format, outline, checklist"
           >

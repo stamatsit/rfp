@@ -249,6 +249,16 @@ export const auditLog = pgTable("audit_log", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Clients — user-added clients (merged with hardcoded namedClients on display)
+export const clients = pgTable("clients", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  sector: text("sector", { enum: ["higher-ed", "healthcare", "other"] }).notNull().default("other"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
 // Client Success — user-added entries (merged with hardcoded clientSuccessData on display)
 export const clientSuccessEntries = pgTable("client_success_entries", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -407,7 +417,86 @@ export const studioAssets = pgTable("studio_assets", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 })
 
+// Client Documents — per-client uploaded files with AI-extracted summaries
+export const clientDocuments = pgTable("client_documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientName: text("client_name").notNull(),
+  title: text("title").notNull(),
+  docType: text("doc_type").notNull().default("general"),
+  storageKey: text("storage_key").notNull().unique(),
+  originalFilename: text("original_filename").notNull(),
+  fileSize: integer("file_size"),
+  mimeType: text("mime_type"),
+  extractedText: text("extracted_text"),
+  summary: text("summary"),
+  keyPoints: jsonb("key_points").$type<string[]>(),
+  uploadedBy: text("uploaded_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  clientNameIdx: index("idx_client_docs_client").on(table.clientName),
+  docTypeIdx: index("idx_client_docs_type").on(table.docType),
+}))
+
+// Client Brand Kit — scraped or manually-entered brand identity per client
+export const clientBrandKit = pgTable("client_brand_kit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientName: text("client_name").notNull().unique(),
+  websiteUrl: text("website_url"),
+  scrapedAt: timestamp("scraped_at", { withTimezone: true }),
+  logoStorageKey: text("logo_storage_key"),
+  logoUrl: text("logo_url"),
+  primaryColor: text("primary_color"),
+  secondaryColor: text("secondary_color"),
+  accentColor: text("accent_color"),
+  backgroundColor: text("background_color"),
+  textColor: text("text_color"),
+  rawColors: jsonb("raw_colors").$type<string[]>(),
+  primaryFont: text("primary_font"),
+  secondaryFont: text("secondary_font"),
+  fontStack: text("font_stack"),
+  tone: text("tone"),
+  styleNotes: text("style_notes"),
+  scrapeStatus: text("scrape_status").default("pending"),
+  scrapeError: text("scrape_error"),
+  updatedBy: text("updated_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+// Client ↔ Q&A linking table (non-destructive overlay — answer_items data is never modified)
+export const clientQaLinks = pgTable("client_qa_links", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  clientName: text("client_name").notNull(), // normalized lowercase
+  answerId: uuid("answer_id").notNull().references(() => answerItems.id, { onDelete: "cascade" }),
+  linkedBy: text("linked_by"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  clientNameIdx: index("idx_client_qa_links_client").on(table.clientName),
+  answerIdIdx: index("idx_client_qa_links_answer").on(table.answerId),
+}))
+
+// Writing Persona Samples (per-user voice samples for AI Humanizer)
+export const writingPersonaSamples = pgTable("writing_persona_samples", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: text("user_id").notNull(),
+  label: text("label").notNull(),
+  sourceType: text("source_type", { enum: ["upload", "paste"] }).notNull().default("paste"),
+  originalFilename: text("original_filename"),
+  charCount: integer("char_count").notNull(),
+  extractedText: text("extracted_text").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  userIdIdx: index("idx_persona_samples_user_id").on(table.userId),
+}))
+
 // Type exports for use in services
+export type ClientDocument = typeof clientDocuments.$inferSelect
+export type NewClientDocument = typeof clientDocuments.$inferInsert
+export type ClientBrandKitRow = typeof clientBrandKit.$inferSelect
+export type NewClientBrandKit = typeof clientBrandKit.$inferInsert
+export type ClientQaLink = typeof clientQaLinks.$inferSelect
+export type NewClientQaLink = typeof clientQaLinks.$inferInsert
 export type User = typeof users.$inferSelect
 export type NewUser = typeof users.$inferInsert
 export type Topic = typeof topics.$inferSelect
@@ -434,6 +523,8 @@ export type ProposalSyncLogEntry = typeof proposalSyncLog.$inferSelect
 export type NewProposalSyncLogEntry = typeof proposalSyncLog.$inferInsert
 export type ProposalPipelineEntry = typeof proposalPipeline.$inferSelect
 export type NewProposalPipelineEntry = typeof proposalPipeline.$inferInsert
+export type Client = typeof clients.$inferSelect
+export type NewClient = typeof clients.$inferInsert
 export type ClientSuccessEntry = typeof clientSuccessEntries.$inferSelect
 export type NewClientSuccessEntry = typeof clientSuccessEntries.$inferInsert
 export type ClientSuccessResult = typeof clientSuccessResults.$inferSelect
@@ -452,3 +543,5 @@ export type StudioTemplateRow = typeof studioTemplates.$inferSelect
 export type NewStudioTemplate = typeof studioTemplates.$inferInsert
 export type StudioAssetRow = typeof studioAssets.$inferSelect
 export type NewStudioAsset = typeof studioAssets.$inferInsert
+export type WritingPersonaSample = typeof writingPersonaSamples.$inferSelect
+export type NewWritingPersonaSample = typeof writingPersonaSamples.$inferInsert

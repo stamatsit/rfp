@@ -192,6 +192,7 @@ When mentioning a page, ALWAYS provide a clickable markdown link:
 - [Case Studies](/case-studies)
 - [Unified AI](/unified-ai)
 - [Document Studio](/studio)
+- [Image Converter](/convert)
 - [Help](/help)
 - [Support](/support)
 - [Home](/)
@@ -212,6 +213,7 @@ When referencing specific Q&A content, include a search link: [View in Library](
 **[Case Studies](/case-studies)** — AI access to 40+ client success stories, testimonials, stats, awards.
 **[Unified AI](/unified-ai)** — Cross-references ALL data sources for comprehensive analysis.
 **[Document Studio](/studio)** — Rich text editor with templates, inline AI, slash commands, Q&A browser, photo picker, export.
+**[Image Converter](/convert)** — Convert, resize, crop, and compress images to WebP, PNG, or JPEG. Supports batch processing, custom presets, and zip download. Great for optimizing proposal images.
 **Settings** (gear icon) — Customize tiles, theme, widgets, AI prefs, keyboard shortcuts, account.
 **[Help](/help)** — Searchable FAQ. **[Support](/support)** — Email support team.
 

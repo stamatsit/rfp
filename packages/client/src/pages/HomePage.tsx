@@ -14,7 +14,7 @@ import { RecentConversations } from "@/components/RecentConversations"
 import { GuidedTour } from "@/components/tour"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { useTheme } from "@/contexts/ThemeContext"
-import { getVisibleTiles, TileConfig } from "./Settings"
+import { getVisibleTiles, TileConfig } from "@/components/SettingsPanel"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
 import { clientSuccessData } from "@/data/clientSuccessData"
 
@@ -333,13 +333,18 @@ export function HomePage() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const [topicsRes, answersRes, photosRes, health, syncStatus] = await Promise.all([
-          topicsApi.getAll().catch(() => []),
-          answersApi.getAll().catch(() => []),
-          photosApi.getAll().catch(() => []),
-          healthApi.check().catch(() => null),
-          proposalInsightsApi.getSyncStatus().catch(() => null),
+        const results = await Promise.allSettled([
+          topicsApi.getAll(),
+          answersApi.getAll(),
+          photosApi.getAll(),
+          healthApi.check(),
+          proposalInsightsApi.getSyncStatus(),
         ])
+        const topicsRes = results[0].status === "fulfilled" ? results[0].value : []
+        const answersRes = results[1].status === "fulfilled" ? results[1].value : []
+        const photosRes = results[2].status === "fulfilled" ? results[2].value : []
+        const health = results[3].status === "fulfilled" ? results[3].value : null
+        const syncStatus = results[4].status === "fulfilled" ? results[4].value : null
 
         // Get win rate from metrics if we have proposals
         let winRate = 0

@@ -1602,7 +1602,8 @@ export async function streamProposalInsights(
   query: string,
   res: Response,
   conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>,
-  responseLength?: string
+  responseLength?: string,
+  clientFilter?: string
 ): Promise<void> {
   const openai = getOpenAI()
 
@@ -1613,17 +1614,40 @@ export async function streamProposalInsights(
     return
   }
 
-  const proposals = await getAllProposals()
+  const allProposals = await getAllProposals()
 
-  if (proposals.length === 0) {
+  if (allProposals.length === 0) {
     res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache", Connection: "keep-alive" })
     res.write(`event: error\ndata: ${JSON.stringify({ error: "No proposal data found." })}\n\n`)
     res.end()
     return
   }
 
-  const context = await buildContext(proposals, query)
-  const cached = await getOrComputeAnalytics(proposals)
+  // Apply client filter if provided
+  const clientFilterNorm = clientFilter?.toLowerCase().trim()
+  const proposals = clientFilterNorm
+    ? allProposals.filter(p => {
+        const client = (p.client ?? "").toLowerCase().trim()
+        return client.includes(clientFilterNorm) || clientFilterNorm.includes(client)
+      })
+    : allProposals
+
+  // Build client focus context prefix if filtering
+  let clientFocusSection = ""
+  if (clientFilterNorm && proposals.length > 0) {
+    const won = proposals.filter(p => p.won === "Yes").length
+    const lost = proposals.filter(p => p.won === "No").length
+    const pending = proposals.filter(p => !p.won || p.won === "Pending").length
+    const total = proposals.length
+    const winRate = total > 0 ? ((won / (won + lost)) * 100).toFixed(1) : "N/A"
+    const sortedByDate = [...proposals].filter(p => p.date).sort((a, b) => new Date(b.date!).getTime() - new Date(a.date!).getTime())
+    const mostRecent = sortedByDate[0]
+    const services = [...new Set(proposals.flatMap(p => p.servicesOffered ?? []))].slice(0, 8)
+    clientFocusSection = `\n\n=== CLIENT FOCUS: ${clientFilter?.toUpperCase()} ===\nTotal proposals for this client: ${total}\nWon: ${won} | Lost: ${lost} | Pending: ${pending}\nWin rate: ${winRate}%\n${mostRecent ? `Most recent: ${new Date(mostRecent.date!).toLocaleDateString("en-US", { month: "short", year: "numeric" })}, ${mostRecent.won ?? "Pending"}` : ""}\nServices pitched: ${services.join(", ") || "N/A"}\n===`
+  }
+
+  const context = await buildContext(proposals.length > 0 ? proposals : allProposals, query)
+  const cached = await getOrComputeAnalytics(proposals.length > 0 ? proposals : allProposals)
   const { winRates, analytics } = cached
 
   const dates = proposals.filter((p) => p.date).map((p) => new Date(p.date!))
@@ -1644,7 +1668,7 @@ export async function streamProposalInsights(
   await streamCompletion({
     openai,
     messages: [
-      { role: "system", content: `${SYSTEM_PROMPT}\n\n--- PROPOSAL DATA ---\n${context}` },
+      { role: "system", content: `${SYSTEM_PROMPT}${clientFilterNorm ? `\n\nNOTE: The user is focused on a specific client. Analyze patterns specific to "${clientFilter}" only.` : ""}\n\n--- PROPOSAL DATA ---${clientFocusSection}\n${context}` },
       ...historyMessages,
       { role: "user", content: query },
     ],

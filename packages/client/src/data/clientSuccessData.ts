@@ -50,6 +50,7 @@ export interface Testimonial {
   title: string
   organization: string
   source?: string
+  internalNote?: string
 }
 
 export interface Award {
@@ -1395,6 +1396,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Brian Davis",
       title: "Chief Marketing Officer (formerly)",
       organization: "Edward-Elmhurst Health",
+      internalNote: "Year unconfirmed (2019?). Chris Johnson and Julie Toomsen requested year verification from Lindsey Cook (Jan 2025).",
     },
     {
       quote: "Thank you for your fabulous and thorough work on this project! It will be invaluable as we make changes to our program, seek to enhance our partnership with key partners, and market our offerings on the web.",
@@ -1407,6 +1409,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Barb Dreger",
       title: "Director of College Marketing",
       organization: "Fox Valley Technical College",
+      internalNote: "Quote from Lisa SW. —Lindsey Cook",
     },
     {
       quote: "I love the Scholarships page you put together. Such a nice addition to the consumer experience! Bravo!",
@@ -1437,18 +1440,21 @@ export const clientSuccessData: ClientSuccessData = {
       name: "",
       title: "Faculty Participant in Design Survey",
       organization: "General Website Redesign",
+      internalNote: "From the PPT Presentation. —Lindsey Cook",
     },
     {
       quote: "On our recent launch, the vendor did not build flexible templates, and we were handcuffed. Stamats' strategy is so flexible, and we have had them rebuild our new site so it can support our needs. We would have saved a lot of time and budget hiring Stamats originally.",
       name: "",
       title: "",
       organization: "New Stamats Client",
+      internalNote: "Year unconfirmed (2023?/2024?). Chris Johnson and Julie Toomsen requested year verification from Lindsey Cook (Jan 2025).",
     },
     {
       quote: "Your audit became part of our strategic enrollment plan. It's our blueprint and bible for how we are moving forward. It's relevant even three years later.",
       name: "",
       title: "",
       organization: "Governors State University",
+      internalNote: "Quote from Sandra via ping. Did not have a name. —Lindsey Cook",
     },
     {
       quote: "Your research was the impetus for all our recent growth. We really appreciate all your help!",
@@ -1479,12 +1485,14 @@ export const clientSuccessData: ClientSuccessData = {
       name: "",
       title: "Writing for the Web Attendee",
       organization: "Illinois Central College",
+      internalNote: "Relationship didn't end well. —Lindsey Cook, Becky Morehouse (Jan 2025)",
     },
     {
       quote: "I've finished reviewing all the new content pages, and I love them! Thank you so much for understanding our tone and helping to simplify the information. Going with Stamats was certainly the right choice.",
       name: "Bianca Myers, PhD",
       title: "Executive Dean, Advancement",
       organization: "Indian Hills Community College",
+      internalNote: "Only use with permission from Sandra. —Lindsey Cook (Jun 2023)",
     },
     {
       quote: "I 'almost' felt guilty letting you handle it. Those conversations take grace, patience, and experience and I am the one usually having to take over when they reach a tense point. I appreciated the way you (and the rest of the team) worked your way through it.",
@@ -1527,6 +1535,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Dr. Larry Cripe",
       title: "Founder and Principal Investigator, Cancer Care Road Map; Professor of Medicine, IU School of Medicine",
       organization: "IU Simon Comprehensive Cancer Center",
+      internalNote: "Use this only if needed/wanted. —Lindsey Cook (May 2024)",
     },
     {
       quote: "We greatly appreciate working with your staff. Sandra and Lisa have been exceptional at keeping us moving along, and the expertise and insights from everyone involved with our website projects are above the industry average. Finding vendors that are easy to work with is very hard these days and it makes it that much better that your staff are not only functionally competent but also very enjoyable to work with!",
@@ -1545,6 +1554,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Anna Maria V. Storniolo, MD",
       title: "Professor Emeritus of Hematology Oncology, IU School of Medicine",
       organization: "IU Simon / Komen Tissue Bank",
+      internalNote: "New quotes from Lisa SW. —Lindsey Cook (May 2024)",
     },
     {
       quote: "Our new website looks amazing!",
@@ -1569,6 +1579,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Allison Kapson",
       title: "AVP, Research Communications, Marketing & Public Relations",
       organization: "MedStar Health Research Institute",
+      internalNote: "Only use this if needed? Preceded by Stamats-authored preamble in source doc. —Lindsey Cook (May 2024)",
     },
     {
       quote: "Thanks, Mariah! I am so grateful to be working with you and your talent for making things make sense.",
@@ -1623,6 +1634,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "April Hobbs Nutter",
       title: "Director of Strategic Communications",
       organization: "Morehead State University",
+      internalNote: "From an email — we can pull what we want. Yes, it's informal. —Becky Morehouse (Jan 2025)",
     },
     {
       quote: "The more we use Cascade, the more we like it. It gives us so much more flexibility on what a page can look like and how we can deliver content. No more cookie-cutter pages.",
@@ -1701,18 +1713,21 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Maggie Romance",
       title: "Manager, Continuing Education, Workforce & Continuing Education",
       organization: "Pima Community College",
+      internalNote: "Got quote from Marianne on 11/30. —Lindsey Cook (Dec 2022)",
     },
     {
       quote: "We don't ever want you to leave.",
       name: "Anne Denogean",
       title: "Marketing Coordinator",
       organization: "Pima Community College",
+      internalNote: "Got quote from Marianne on 11/30. —Lindsey Cook (Dec 2022)",
     },
     {
       quote: "This has been a dream come true!",
       name: "Ian Roark",
       title: "Vice Chancellor of Workforce Development & Innovation",
       organization: "Pima Community College",
+      internalNote: "Got quote from Marianne on 11/30. —Lindsey Cook (Dec 2022)",
     },
     {
       quote: "Doing the math: 105 Fall 2022 students taking 1,038 credits x $92.50 = $96,015.00 generated revenue. In fact, it sounds almost too good to be true. Do you guys regularly see this type of ROI?",
@@ -1725,6 +1740,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Michelle Burt (Peto), MBA",
       title: "Manager of Student Recruitment",
       organization: "Pima Community College",
+      internalNote: "Got from Marianne on 12/14, not sure who to attribute it to. Per Marianne: ROI for the 45% yield on the click to apply is calculated at $20,000 for Pima, and they expect that to go up. —Lindsey Cook (Dec 2022/Jan 2023)",
     },
     {
       quote: "I have never seen a more effective campaign in my 25 years.",
@@ -1935,6 +1951,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "",
       title: "Director",
       organization: "UT Southwestern Medical Center",
+      internalNote: "Checking with Sandra if this is good to go. —Lindsey Cook (Jun 2024)",
     },
     {
       quote: "The lessons that I've learned from working with you will be valuable for discussions about what Parkside does in marketing overall as we go forward. Engaging in this campaign, we were able to witness firsthand what you are capable of, and we've been impressed.",
@@ -1971,6 +1988,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Irene Neller",
       title: "Vice President of Enrollment, Marketing, and Communications",
       organization: "Westmont College",
+      internalNote: "Edit/modify as needed. —Lindsey Cook (Dec 2024)",
     },
     {
       quote: "I just want to say this has been so amazing. I'm really appreciative of this opportunity to learn from you. It develops a lot more trust between us. I feel like we are having a really great partnership, and we are growing with you.",
@@ -1990,6 +2008,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Jeannette Long",
       title: "Vice President, Global Brand Director",
       organization: "American Standard",
+      internalNote: "Got from a Loopio entry. Note to self: move to archive section. —Lindsey Cook (Jun 2022/Jan 2025)",
     },
     {
       quote: "The study brought to light options available regarding various pricing models the university might consider in restructuring its out-of-state tuition charges.",
@@ -2020,12 +2039,14 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Debra Lukehart",
       title: "Executive Director of Marketing and Communications (formerly)",
       organization: "Drake University",
+      internalNote: "Thorburn Group/Eric/Bill T. reference. From Loopio. —Chris Johnson, Lindsey Cook",
     },
     {
       quote: "I am pleased to say that we have seen a growth of over 5% in high-quality inquiries during a time when many colleges are in decline. This speaks volumes about the quality of their work.",
       name: "Cindy Olsen",
       title: "Director of Marketing",
       organization: "Dunwoody College of Technology",
+      internalNote: "Quote from Loopio. —Lindsey Cook (Jun 2022)",
     },
     {
       quote: "I am in the process of writing a comprehensive marketing and communications plan for our office, and the sequence map that Stamats demonstrated will be invaluable to me as a guide.",
@@ -2056,12 +2077,14 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Joseph P. Bagnoli, PhD",
       title: "Vice President for Enrollment, Dean of Admission & Financial Aid",
       organization: "Grinnell College",
+      internalNote: "Grinnell's ad agency of record is Ologie in 2020. Keep using this quote? —Lindsey Cook (May 2022)",
     },
     {
       quote: "Their insightful and thoughtful approach has received praises from every single one of our college presidents — not an easy task.",
       name: "Terri Giltner",
       title: "Systems Director of Marketing Communications",
       organization: "Kentucky Community & Technical College System",
+      internalNote: "Quote from Loopio. —Lindsey Cook (Jun 2022)",
     },
     {
       quote: "I could not be more pleased, but more importantly, senior leadership (including Marywood's Board of Trustees) completely endorsed and supported the effort. I have zero reservations recommending Stamats to any institution that needs to better position themselves for growth in these challenging times.",
@@ -2110,12 +2133,14 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Liz Lampman",
       title: "Associate Dean of Admission Communications & Special Projects (formerly)",
       organization: "Reed College",
+      internalNote: "Liz left Reed in 2020 but the quote may still be used. —Lindsey Cook (May 2022)",
     },
     {
       quote: "Stamats strategic approach to brand definition, development, and creative delivery was a great fit for our university. We needed 'everything,' and they did it all — on time and on budget. Simply stated, Stamats provided everything we needed to make us better at what we do.",
       name: "Richie C. Hunter",
       title: "Vice President, Strategic Communications and External Relations",
       organization: "Rensselaer Polytechnic Institute",
+      internalNote: "This quote came from Loopio, was a TTG quote, but has been modified for Stamats. —Lindsey Cook (Jun 2022)",
     },
     {
       quote: "Stamats provided a thorough exploratory and research process to assess tuition pricing for Taylor. The study analysis led to immediate action with the administration's approach to consider long-term pricing strategies.",
@@ -2152,6 +2177,7 @@ export const clientSuccessData: ClientSuccessData = {
       name: "Dr. Linda Stonecipher",
       title: "Director of Graduate Programs",
       organization: "Western Oregon University",
+      internalNote: "From Nadine: Linda said this in the final phone call but did not give permission to quote her name. Consider using without naming — 'Director of Graduate Programs, 4 year public University'. —Lindsey Cook (May 2022)",
     },
     {
       quote: "We considered Stamats for its reputation, capacity, and our need for reliable data. Stamats was at the top of our list. The Stamats team gave me fodder to get approval for this program.",

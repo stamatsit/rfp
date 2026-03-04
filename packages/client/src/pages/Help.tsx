@@ -17,6 +17,7 @@ import {
   Wand2,
   FileText,
   Keyboard,
+  ImageDown,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 
@@ -46,6 +47,7 @@ const categoryMeta: Record<string, CategoryInfo> = {
   "RFP Analyzer": { icon: <FileSearch size={20} />, color: "text-red-500", bg: "bg-red-50" },
   "Import Data": { icon: <FileSpreadsheet size={20} />, color: "text-blue-500", bg: "bg-blue-50" },
   "Photo Library": { icon: <Image size={20} />, color: "text-orange-500", bg: "bg-orange-50" },
+  "Image Converter": { icon: <ImageDown size={20} />, color: "text-emerald-500", bg: "bg-emerald-50" },
   "New Entry": { icon: <PenLine size={20} />, color: "text-indigo-500", bg: "bg-indigo-50" },
   "Keyboard & Navigation": { icon: <Keyboard size={20} />, color: "text-slate-500", bg: "bg-slate-100" },
   "Settings": { icon: <Settings size={20} />, color: "text-slate-500", bg: "bg-slate-100" },
@@ -420,6 +422,37 @@ const helpArticles: HelpArticle[] = [
     question: "How do I resume a previous AI conversation?",
     answer: "Every AI page keeps a conversation history accessible from the sidebar (click the history icon). You can also use the Command Palette (Cmd+K) which shows your five most recent conversations with direct links. Conversations are saved automatically and scoped to your account.",
   },
+  // Image Converter
+  {
+    id: "img-1",
+    category: "Image Converter",
+    question: "What is the Image Converter?",
+    answer: "The Image Converter lets you convert images (PNG, JPEG, GIF, BMP, etc.) to WebP format — a modern format that produces significantly smaller files with minimal quality loss. You can also crop and resize images to exact pixel dimensions using social media presets (Instagram, Facebook, LinkedIn, YouTube, and more).",
+  },
+  {
+    id: "img-2",
+    category: "Image Converter",
+    question: "How do I convert an image to WebP?",
+    answer: "Navigate to Image Converter from the sidebar or home page. Drop an image (or click to browse), then hit 'Convert & Download'. The image is converted to WebP at the quality level you choose (default 80%). You can also switch to Crop mode to interactively crop before converting. Everything happens in your browser — no files are uploaded to any server.",
+  },
+  {
+    id: "img-3",
+    category: "Image Converter",
+    question: "Can I resize without converting to WebP?",
+    answer: "Yes! After loading an image, use the 'Download as PNG/JPEG' button to download at the new dimensions without changing the format. This is useful when you just need to resize for a specific platform.",
+  },
+  {
+    id: "img-4",
+    category: "Image Converter",
+    question: "Can I process multiple images at once?",
+    answer: "Yes — drop or select multiple images and they appear in a filmstrip below the preview. Click any thumbnail to select it. You can convert all images at once with 'Convert All', or download everything as a ZIP file. Drag thumbnails to reorder them.",
+  },
+  {
+    id: "img-5",
+    category: "Image Converter",
+    question: "Does the Image Converter save my work?",
+    answer: "Your session is automatically saved to your browser's local storage. If you navigate away and come back, your images, crop settings, and quality preferences are restored. Clear the session with the reset button to start fresh.",
+  },
 ]
 
 const categoryOrder = [
@@ -435,6 +468,7 @@ const categoryOrder = [
   "RFP Analyzer",
   "Import Data",
   "Photo Library",
+  "Image Converter",
   "New Entry",
   "Keyboard & Navigation",
   "Settings",

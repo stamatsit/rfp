@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react"
-import { LayoutTemplate, Upload, Sparkles, ZoomIn, ZoomOut, FileText } from "lucide-react"
+import { ZoomIn, ZoomOut } from "lucide-react"
 import { useEditor, EditorContent, ReactRenderer } from "@tiptap/react"
 import type { Editor } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
@@ -27,7 +27,7 @@ import { SlashCommandMenu, type SlashCommandMenuRef } from "./SlashCommandMenu"
 import type { SlashCommandItem } from "./extensions/SlashCommands"
 import type { ReviewAnnotation } from "@/types/chat"
 import type { FormatSettings, LetterheadConfig } from "@/types/studio"
-import { studioApi } from "@/lib/api"
+
 import { getFontDef, legacyFontToValue, legacySizeToValue, loadAllGoogleFonts } from "./fonts"
 import "./tiptap-editor.css"
 
@@ -41,11 +41,9 @@ interface DocumentEditorProps {
   onApplyAnnotationFix?: (id: string) => void
   onOpenTemplates?: () => void
   onImportFile?: () => void
-  onFocusChat?: () => void
   onOpenPhotos?: () => void
   onOpenAssets?: () => void
   onOpenQALibrary?: () => void
-  onOpenDocument?: (id: string) => void
 }
 
 // 8.5 x 11 inches at 96 DPI
@@ -364,7 +362,7 @@ function PaginatedPageView({
   return (
     <div
       id={`studio-page-${pageNum - 1}`}
-      className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_12px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_2px_4px_rgba(0,0,0,0.2),0_12px_32px_rgba(0,0,0,0.3)]"
+      className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_16px_rgba(0,0,0,0.2)]"
       style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
     >
       <PageHeader format={formatSettings} title="Document" />
@@ -401,11 +399,9 @@ export function DocumentEditor({
   onApplyAnnotationFix: _onApplyAnnotationFix,
   onOpenTemplates,
   onImportFile,
-  onFocusChat,
   onOpenPhotos,
   onOpenAssets: _onOpenAssets,
   onOpenQALibrary,
-  onOpenDocument,
 }: DocumentEditorProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const measureRef = useRef<HTMLDivElement>(null)
@@ -418,17 +414,6 @@ export function DocumentEditor({
   const [inlineAI, setInlineAI] = useState<{ selectedText: string; position: { top: number; left: number }; from: number; to: number } | null>(null)
   const [zoom, setZoom] = useState(1)
   const [wordCount, setWordCount] = useState(0)
-  const [recentDocs, setRecentDocs] = useState<Array<{ id: string; title: string; updatedAt: string }>>([])
-
-  // Fetch recent documents for empty state
-  useEffect(() => {
-    if (content && content !== "<p></p>") return
-    if (!onOpenDocument) return
-    studioApi.listDocuments().then((data) => {
-      const docs = (data as Array<{ id: string; title: string; updatedAt: string }>).slice(0, 5)
-      setRecentDocs(docs)
-    }).catch(() => {})
-  }, [content, onOpenDocument])
 
   const ZOOM_STEPS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 2]
   const zoomIn = useCallback(() => {
@@ -762,15 +747,11 @@ export function DocumentEditor({
     return () => el.removeEventListener("scroll", handleScroll)
   }, [handleScroll])
 
-  const scrollToPage = (pageNum: number) => {
-    if (!scrollRef.current) return
-    scrollRef.current.scrollTo({ top: (pageNum - 1) * (PAGE_HEIGHT + 32), behavior: "smooth" })
-  }
 
   const totalPages = paginatedPages.length || 1
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-slate-100/60 dark:bg-[#0b111e]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-neutral-100/50 dark:bg-[#0b111e]">
       {/* Hidden measurement div */}
       <div
         ref={hiddenMeasureRef}
@@ -801,7 +782,7 @@ export function DocumentEditor({
           {/* Page 0: Live TipTap editor */}
           <div
             id="studio-page-0"
-            className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_0_0_1px_rgba(0,0,0,0.03),0_2px_4px_rgba(0,0,0,0.04),0_12px_32px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_2px_4px_rgba(0,0,0,0.2),0_12px_32px_rgba(0,0,0,0.3)]"
+            className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_16px_rgba(0,0,0,0.2)]"
             style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
           >
             <PageHeader format={formatSettings} title="Document" />
@@ -835,91 +816,7 @@ export function DocumentEditor({
                         })
                       }}
                     />
-                    {/* Empty state overlay */}
-                    {(!content || content === "<p></p>") && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ top: marginPx + getHeaderHeight(formatSettings) }}>
-                        <div className="text-center pointer-events-auto">
-                          {/* Gradient orb */}
-                          <div className="relative w-14 h-14 mx-auto mb-5">
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 shadow-xl shadow-emerald-500/25" />
-                            <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-500 blur-lg opacity-40" />
-                            <div className="relative w-full h-full flex items-center justify-center">
-                              <Sparkles className="w-6 h-6 text-white drop-shadow" />
-                            </div>
-                          </div>
-                          <p className="text-[17px] font-semibold text-slate-700 dark:text-slate-200 mb-1.5 tracking-tight">Start a new document</p>
-                          <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-7">Choose how you'd like to begin</p>
-                          <div className="flex gap-3 justify-center">
-                            {onOpenTemplates && (
-                              <button
-                                onClick={onOpenTemplates}
-                                className="flex flex-col items-center gap-2.5 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 hover:shadow-[0_4px_16px_rgba(16,185,129,0.12)] hover:-translate-y-0.5 transition-all duration-200 group"
-                              >
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-800/40 flex items-center justify-center transition-colors">
-                                  <LayoutTemplate className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-                                </div>
-                                <div>
-                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block transition-colors">Template</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Use a template</span>
-                                </div>
-                              </button>
-                            )}
-                            {onImportFile && (
-                              <button
-                                onClick={onImportFile}
-                                className="flex flex-col items-center gap-2.5 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 hover:shadow-[0_4px_16px_rgba(16,185,129,0.12)] hover:-translate-y-0.5 transition-all duration-200 group"
-                              >
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-800/40 flex items-center justify-center transition-colors">
-                                  <Upload className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-                                </div>
-                                <div>
-                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block transition-colors">Import</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Upload a file</span>
-                                </div>
-                              </button>
-                            )}
-                            {onFocusChat && (
-                              <button
-                                onClick={onFocusChat}
-                                className="flex flex-col items-center gap-2.5 w-32 py-4 rounded-xl border border-slate-200/80 dark:border-slate-700/60 bg-white/60 dark:bg-slate-800/40 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 hover:shadow-[0_4px_16px_rgba(16,185,129,0.12)] hover:-translate-y-0.5 transition-all duration-200 group"
-                              >
-                                <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-700 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-800/40 flex items-center justify-center transition-colors">
-                                  <Sparkles className="w-4 h-4 text-slate-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors" />
-                                </div>
-                                <div>
-                                  <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 block transition-colors">Ask AI</span>
-                                  <span className="text-[10px] text-slate-400 dark:text-slate-500">Let AI write it</span>
-                                </div>
-                              </button>
-                            )}
-                          </div>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-5">
-                            or click to start typing &mdash; press <kbd className="px-1.5 py-0.5 text-[9px] bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 font-mono">/</kbd> for commands
-                          </p>
-
-                          {/* Recent documents */}
-                          {recentDocs.length > 0 && onOpenDocument && (
-                            <div className="mt-8 pt-6 border-t border-slate-200/60 dark:border-slate-700/40">
-                              <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Recent Documents</p>
-                              <div className="flex gap-2 justify-center flex-wrap">
-                                {recentDocs.map((d) => (
-                                  <button
-                                    key={d.id}
-                                    onClick={() => onOpenDocument(d.id)}
-                                    className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200/80 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/30 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/60 dark:hover:bg-emerald-900/20 hover:shadow-sm transition-all duration-200 group max-w-[180px]"
-                                  >
-                                    <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 flex-shrink-0 transition-colors" />
-                                    <span className="text-[11px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 truncate transition-colors">
-                                      {d.title || "Untitled"}
-                                    </span>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                    {/* Empty state — minimal, let TipTap placeholder handle text */}
                   </>
                 ) : (
                   <div className="flex items-center justify-center h-[600px] text-slate-300 dark:text-slate-600">
@@ -948,76 +845,52 @@ export function DocumentEditor({
         </div>
       </div>
 
-      {/* Bottom bar — word count + page nav + zoom controls */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
-        {/* Unified floating pill */}
-        <div className="flex items-center gap-1 px-2 py-1 bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-full shadow-[0_4px_16px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_4px_16px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)] pointer-events-auto">
-          {/* Word count */}
+      {/* Bottom status bar — clean inline, bottom-left */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center h-7 px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-t border-slate-200/30 dark:border-slate-800/30">
+        <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 tabular-nums font-medium">
           {wordCount > 0 && (
-            <>
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums px-1.5">
-                {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
-              </span>
-              <div className="w-px h-3 bg-slate-200/70 dark:bg-slate-700/70" />
-            </>
+            <span>{wordCount.toLocaleString()} words</span>
           )}
-
-          {/* Page navigator */}
           {totalPages > 1 && (
             <>
-              <div className="flex items-center gap-0.5 px-1">
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium tabular-nums">
-                  {currentPage} / {totalPages}
-                </span>
-                {Array.from({ length: Math.min(totalPages, 8) }, (_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => scrollToPage(i + 1)}
-                    className={`w-4 h-4 text-[8px] rounded-full transition-all tabular-nums font-medium ${
-                      currentPage === i + 1
-                        ? "bg-emerald-500 text-white shadow-sm"
-                        : "text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300"
-                    }`}
-                    title={`Page ${i + 1}`}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-              </div>
-              <div className="w-px h-3 bg-slate-200/70 dark:bg-slate-700/70" />
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <span>Page {currentPage} of {totalPages}</span>
             </>
           )}
-
-          {/* Zoom controls */}
-          <div className="flex items-center gap-0.5 px-0.5">
-            <button
-              onClick={zoomOut}
-              disabled={zoom <= 0.5}
-              className="w-5 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-25 disabled:hover:bg-transparent"
-              title="Zoom out (⌘−)"
-            >
-              <ZoomOut className="w-3 h-3" />
-            </button>
-            <button
-              onClick={zoomReset}
-              className={`min-w-[34px] h-5 text-[10px] font-semibold tabular-nums rounded-full px-1 transition-all ${
-                zoom === 1
-                  ? "text-emerald-600 dark:text-emerald-400"
-                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-700 dark:hover:text-slate-200"
-              }`}
-              title="Reset zoom (⌘0)"
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              onClick={zoomIn}
-              disabled={zoom >= 2}
-              className="w-5 h-5 flex items-center justify-center rounded-full text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-25 disabled:hover:bg-transparent"
-              title="Zoom in (⌘+)"
-            >
-              <ZoomIn className="w-3 h-3" />
-            </button>
-          </div>
+          {zoom !== 1 && (
+            <>
+              <span className="text-slate-300 dark:text-slate-600">·</span>
+              <button onClick={zoomReset} className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                {Math.round(zoom * 100)}%
+              </button>
+            </>
+          )}
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-0.5 group">
+          <button
+            onClick={zoomOut}
+            disabled={zoom <= 0.5}
+            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-150 disabled:opacity-20"
+            title="Zoom out"
+          >
+            <ZoomOut className="w-3 h-3" />
+          </button>
+          <button
+            onClick={zoomReset}
+            className="px-1 text-[11px] tabular-nums text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors font-medium"
+            title="Reset zoom"
+          >
+            {Math.round(zoom * 100)}%
+          </button>
+          <button
+            onClick={zoomIn}
+            disabled={zoom >= 2}
+            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-150 disabled:opacity-20"
+            title="Zoom in"
+          >
+            <ZoomIn className="w-3 h-3" />
+          </button>
         </div>
       </div>
 
