@@ -1,33 +1,40 @@
 /**
  * StudioHumanizerPanel — Humanize the current document directly inside Document Studio.
  *
- * Slides in as a right-side panel (320px). Takes the editor's plain text, streams
- * through /api/humanizer/stream, shows live preview + AI score, and lets the user
- * apply the result back to the document with a single click.
+ * Full-power humanizer in a 300px side panel: all 5 tones, audience, persona/voice,
+ * two-pass, refine bar with presets + freeform instructions.
  */
 
 import { useState, useRef, useCallback, useEffect } from "react"
 import {
   X, Wand2, Search, Loader2, Check, Copy, ChevronDown, Zap,
-  BookOpen, MessageSquare, RefreshCw, AlertTriangle,
+  BookOpen, MessageSquare, RefreshCw, AlertTriangle, Pen, Send,
+  User, Settings2,
 } from "lucide-react"
 import { fetchSSE } from "@/lib/api"
+import { addCsrfHeader } from "@/lib/csrfToken"
 import { markdownToHtml } from "@/lib/markdownToHtml"
 
 // ── Types ─────────────────────────────────────────────────────
 
-type HumanizeTone = "professional" | "conversational" | "academic"
+type HumanizeTone = "professional" | "conversational" | "academic" | "thompson" | "wallace"
 type HumanizeStrength = "light" | "balanced" | "heavy"
 type HumanizeMode = "humanize" | "scan"
+type HumanizeAudience = "general" | "executive" | "technical" | "academic"
+
+interface PersonaSample {
+  id: string
+  label: string
+  charCount: number
+}
 
 interface StudioHumanizerPanelProps {
-  /** Raw HTML content of the current document */
   documentContent: string
-  /** Called when user applies the humanized result — receives HTML */
   onApply: (html: string) => void
-  /** Close the panel */
   onClose: () => void
 }
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
 
 // ── Score chip ────────────────────────────────────────────────
 
@@ -37,11 +44,11 @@ function HumanScoreChip({ score }: { score: number }) {
   const color = isGood
     ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-700"
     : isMid
-    ? "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300 border-amber-200 dark:border-amber-700"
+    ? "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-700"
     : "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-700"
   const label = isGood ? "Human" : isMid ? "Partial" : "AI"
   const ringColor = isGood ? "#10b981" : isMid ? "#f59e0b" : "#ef4444"
-  const dash = (score / 100) * 2 * Math.PI * 7 // radius = 7
+  const dash = (score / 100) * 2 * Math.PI * 7
   return (
     <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${color}`}>
       <svg width="16" height="16" viewBox="0 0 16 16" className="flex-shrink-0">
@@ -59,18 +66,34 @@ function HumanScoreChip({ score }: { score: number }) {
   )
 }
 
-// ── Tone selector ─────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────
 
 const TONES: { value: HumanizeTone; label: string; icon: React.ElementType }[] = [
   { value: "professional", label: "Professional", icon: BookOpen },
   { value: "conversational", label: "Conversational", icon: MessageSquare },
   { value: "academic", label: "Academic", icon: BookOpen },
+  { value: "thompson", label: "Gonzo", icon: Zap },
+  { value: "wallace", label: "Literary", icon: Pen },
 ]
 
 const STRENGTHS: { value: HumanizeStrength; label: string; desc: string }[] = [
   { value: "light", label: "Light", desc: "~20-30% changed" },
   { value: "balanced", label: "Balanced", desc: "~50-60% changed" },
   { value: "heavy", label: "Heavy", desc: "Full rewrite" },
+]
+
+const AUDIENCES: { value: HumanizeAudience; label: string; desc: string }[] = [
+  { value: "general", label: "General", desc: "Grade 8 reading" },
+  { value: "executive", label: "Executive", desc: "Brief, outcomes" },
+  { value: "technical", label: "Technical", desc: "Domain precision" },
+  { value: "academic", label: "Academic", desc: "Careful qualify" },
+]
+
+const REFINE_PRESETS = [
+  { label: "More Casual", icon: MessageSquare, prompt: "Make it more casual and conversational" },
+  { label: "Shorten", icon: Zap, prompt: "Make it shorter while keeping the key points" },
+  { label: "More Formal", icon: BookOpen, prompt: "Make it more formal and polished" },
+  { label: "Rewrite Again", icon: RefreshCw, prompt: "Do another full rewrite pass. There are still some AI-sounding phrases." },
 ]
 
 // ── Main panel ────────────────────────────────────────────────
@@ -80,10 +103,19 @@ export function StudioHumanizerPanel({
   onApply,
   onClose,
 }: StudioHumanizerPanelProps) {
+  // Settings
   const [mode, setMode] = useState<HumanizeMode>("humanize")
   const [tone, setTone] = useState<HumanizeTone>("professional")
   const [strength, setStrength] = useState<HumanizeStrength>("balanced")
+  const [audience, setAudience] = useState<HumanizeAudience>("general")
+  const [twoPass, setTwoPass] = useState(false)
+  const [voiceSample, setVoiceSample] = useState("")
 
+  // Persona
+  const [personaSamples, setPersonaSamples] = useState<PersonaSample[]>([])
+  const [personaLoaded, setPersonaLoaded] = useState(false)
+
+  // Stream state
   const [isStreaming, setIsStreaming] = useState(false)
   const [streamingText, setStreamingText] = useState("")
   const [result, setResult] = useState<string | null>(null)
@@ -91,11 +123,30 @@ export function StudioHumanizerPanel({
   const [aiFlags, setAiFlags] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+
+  // UI
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [refineInput, setRefineInput] = useState("")
 
   const abortRef = useRef<AbortController | null>(null)
   const settingsRef = useRef<HTMLDivElement>(null)
   const resultRef = useRef<HTMLDivElement>(null)
+  const refineTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  // Load persona on mount
+  useEffect(() => {
+    (async () => {
+      try {
+        const headers = await addCsrfHeader({})
+        const resp = await fetch(`${API_BASE}/humanizer/persona`, { credentials: "include", headers: headers as HeadersInit })
+        if (resp.ok) {
+          const data = await resp.json()
+          setPersonaSamples(data.samples || [])
+        }
+      } catch { /* ignore */ }
+      setPersonaLoaded(true)
+    })()
+  }, [])
 
   // Close settings popover on outside click
   useEffect(() => {
@@ -109,7 +160,14 @@ export function StudioHumanizerPanel({
     return () => document.removeEventListener("mousedown", handler)
   }, [settingsOpen])
 
-  // Extract plain text from the document HTML
+  // Auto-resize refine textarea
+  useEffect(() => {
+    const el = refineTextareaRef.current
+    if (!el) return
+    el.style.height = "auto"
+    el.style.height = `${Math.min(el.scrollHeight, 80)}px`
+  }, [refineInput])
+
   const getPlainText = useCallback(() => {
     const div = document.createElement("div")
     div.innerHTML = documentContent
@@ -127,34 +185,48 @@ export function StudioHumanizerPanel({
 
   const wordCountDelta = result ? resultWordCount - wordCount : null
 
-  const handleRun = useCallback(async () => {
+  const hasPersona = personaSamples.length > 0
+
+  // ── Run humanize/scan ──────────────────────────────────────
+
+  const handleRun = useCallback(async (refineInstruction?: string) => {
     const plainText = getPlainText()
-    if (!plainText.trim()) return
-    if (plainText.length > 15000) {
+    if (!plainText.trim() && !refineInstruction) return
+    if (plainText.length > 15000 && !refineInstruction) {
       setError("Document is too long. Maximum 15,000 characters (~2,500 words).")
       return
     }
 
     setIsStreaming(true)
     setStreamingText("")
-    setResult(null)
-    setHumanScore(undefined)
-    setAiFlags([])
+    if (!refineInstruction) {
+      setResult(null)
+      setHumanScore(undefined)
+      setAiFlags([])
+    }
     setError(null)
     setSettingsOpen(false)
 
     abortRef.current = new AbortController()
     let accumulated = ""
 
+    // Build request body
+    let text = plainText
+    if (refineInstruction && result) {
+      text = `[REFINE]\n\nCURRENT DOCUMENT:\n${result}\n\nINSTRUCTION: ${refineInstruction}`
+    }
+
     try {
       await fetchSSE(
         "/humanizer/stream",
         {
-          text: plainText,
+          text,
           tone,
           strength,
-          twoPass: false,
+          twoPass,
           scanOnly: mode === "scan",
+          audience,
+          voiceSample: voiceSample.trim() || undefined,
         },
         {
           onToken(token) {
@@ -162,7 +234,6 @@ export function StudioHumanizerPanel({
             setStreamingText(accumulated)
           },
           onDone(data) {
-            // Server sends: { cleanResponse, followUpPrompts, metadata: { humanScore, aiFlags } }
             const d = data as {
               cleanResponse?: string
               metadata?: { humanScore?: number; aiFlags?: string[] }
@@ -190,7 +261,7 @@ export function StudioHumanizerPanel({
       }
       setIsStreaming(false)
     }
-  }, [getPlainText, tone, strength, mode])
+  }, [getPlainText, tone, strength, mode, twoPass, audience, voiceSample, result])
 
   const handleCancel = useCallback(() => {
     abortRef.current?.abort()
@@ -199,7 +270,6 @@ export function StudioHumanizerPanel({
 
   const handleApply = useCallback(() => {
     if (!result) return
-    // Convert plain text paragraphs to HTML
     const html = markdownToHtml(result)
     onApply(html)
   }, [result, onApply])
@@ -211,6 +281,13 @@ export function StudioHumanizerPanel({
       setTimeout(() => setCopied(false), 1500)
     })
   }, [result])
+
+  const handleRefineSubmit = useCallback((prompt?: string) => {
+    const instruction = prompt || refineInput.trim()
+    if (!instruction) return
+    setRefineInput("")
+    handleRun(instruction)
+  }, [refineInput, handleRun])
 
   const hasDoc = wordCount > 0
 
@@ -227,7 +304,7 @@ export function StudioHumanizerPanel({
           <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300 tracking-tight">Humanizer</span>
         </div>
         <div className="flex items-center gap-0.5">
-          {/* Settings popover */}
+          {/* Settings popover trigger */}
           <div className="relative" ref={settingsRef}>
             <button
               onClick={() => setSettingsOpen((o) => !o)}
@@ -238,12 +315,13 @@ export function StudioHumanizerPanel({
               }`}
               title="Humanizer settings"
             >
-              {TONES.find((t) => t.value === tone)?.label ?? tone}
+              <Settings2 className="w-3 h-3" />
               <ChevronDown className="w-2.5 h-2.5" />
             </button>
 
             {settingsOpen && (
-              <div className="absolute right-0 top-full mt-1 z-50 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden animate-fade-in-up p-2 space-y-2">
+              <div className="absolute right-0 top-full mt-1 z-50 w-56 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden animate-fade-in-up p-2 space-y-2 max-h-[70vh] overflow-y-auto">
+
                 {/* Mode */}
                 <div>
                   <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Mode</p>
@@ -273,18 +351,19 @@ export function StudioHumanizerPanel({
                   <div>
                     <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Tone</p>
                     <div className="space-y-0.5">
-                      {TONES.map(({ value, label }) => (
+                      {TONES.map(({ value, label, icon: Icon }) => (
                         <button
                           key={value}
                           onClick={() => setTone(value)}
-                          className={`w-full text-left flex items-center justify-between px-2 py-1.5 rounded-md text-[11px] transition-colors ${
+                          className={`w-full text-left flex items-center gap-2 px-2 py-1.5 rounded-md text-[11px] transition-colors ${
                             tone === value
                               ? "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
                               : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                           }`}
                         >
+                          <Icon className={`w-3 h-3 flex-shrink-0 ${tone === value ? "text-violet-500" : "text-slate-400"}`} />
                           {label}
-                          {tone === value && <Check className="w-2.5 h-2.5" />}
+                          {tone === value && <Check className="w-2.5 h-2.5 ml-auto" />}
                         </button>
                       ))}
                     </div>
@@ -316,6 +395,90 @@ export function StudioHumanizerPanel({
                     </div>
                   </div>
                 )}
+
+                {/* Audience */}
+                {mode === "humanize" && (
+                  <div>
+                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Audience</p>
+                    <div className="grid grid-cols-2 gap-0.5">
+                      {AUDIENCES.map(({ value, label, desc }) => (
+                        <button
+                          key={value}
+                          onClick={() => setAudience(value)}
+                          className={`text-left px-2 py-1.5 rounded-md text-[10px] transition-colors ${
+                            audience === value
+                              ? "bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
+                              : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
+                          }`}
+                        >
+                          <span className="font-medium block">{label}</span>
+                          <span className="text-[8px] text-slate-400 dark:text-slate-500">{desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Two-pass toggle */}
+                {mode === "humanize" && (
+                  <div className="flex items-center justify-between px-1 py-1">
+                    <div>
+                      <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">Two-pass</span>
+                      <p className="text-[9px] text-slate-400 dark:text-slate-500">Rewrite → score → rewrite</p>
+                    </div>
+                    <button
+                      onClick={() => setTwoPass(!twoPass)}
+                      className={`relative w-8 h-4.5 rounded-full transition-all duration-200 ${
+                        twoPass
+                          ? "bg-amber-500 shadow-inner shadow-amber-600/30"
+                          : "bg-slate-200 dark:bg-slate-700"
+                      }`}
+                      style={{ width: 32, height: 18 }}
+                    >
+                      <span
+                        className={`absolute top-0.5 left-0.5 w-3.5 h-3.5 rounded-full bg-white shadow-sm transition-transform duration-200 ${twoPass ? "translate-x-3.5" : ""}`}
+                        style={{ width: 14, height: 14 }}
+                      />
+                    </button>
+                  </div>
+                )}
+
+                {/* Persona indicator */}
+                {personaLoaded && (
+                  <div className="px-1 py-1">
+                    <div className="flex items-center gap-1.5">
+                      <User className="w-3 h-3 text-slate-400" />
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                        {hasPersona
+                          ? `${personaSamples.length} persona sample${personaSamples.length !== 1 ? "s" : ""} active`
+                          : "No persona — set up in Humanizer page"}
+                      </span>
+                      {hasPersona && <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />}
+                    </div>
+                  </div>
+                )}
+
+                {/* Voice override */}
+                {mode === "humanize" && (
+                  <div>
+                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">
+                      Quick Voice Override
+                    </p>
+                    <textarea
+                      value={voiceSample}
+                      onChange={(e) => setVoiceSample(e.target.value.slice(0, 500))}
+                      placeholder="Paste 1-2 sentences in a different voice..."
+                      rows={2}
+                      className="w-full px-2 py-1.5 text-[10px] rounded-lg border border-slate-200 dark:border-slate-700
+                        bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300
+                        placeholder:text-slate-300 dark:placeholder:text-slate-600
+                        focus:outline-none focus:border-amber-400 resize-none transition-all"
+                    />
+                    <div className="text-right text-[9px] text-slate-300 dark:text-slate-600 mt-0.5">
+                      {voiceSample.length}/500
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -331,9 +494,24 @@ export function StudioHumanizerPanel({
 
       {/* Document info strip */}
       <div className="flex items-center justify-between px-3 py-1.5 bg-slate-50/60 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
-        <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
-          {wordCount > 0 ? `${wordCount.toLocaleString()} words in document` : "No document content"}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 tabular-nums">
+            {wordCount > 0 ? `${wordCount.toLocaleString()} words` : "No content"}
+          </span>
+          {/* Active settings pills */}
+          {mode === "humanize" && (
+            <div className="flex items-center gap-1">
+              <span className="px-1.5 py-0.5 rounded-full text-[8px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                {TONES.find(t => t.value === tone)?.label}
+              </span>
+              {twoPass && (
+                <span className="px-1.5 py-0.5 rounded-full text-[8px] font-medium bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                  2-pass
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         {humanScore !== undefined && <HumanScoreChip score={humanScore} />}
       </div>
 
@@ -363,7 +541,7 @@ export function StudioHumanizerPanel({
           <div className="px-3 py-3">
             <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
               <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
-              {mode === "scan" ? "Scanning for AI patterns…" : "Rewriting…"}
+              {mode === "scan" ? "Scanning for AI patterns…" : twoPass ? "Rewriting (two-pass)…" : "Rewriting…"}
             </div>
             <div className="text-[12px] text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
               {streamingText || (
@@ -424,12 +602,50 @@ export function StudioHumanizerPanel({
             {/* AI flags */}
             {aiFlags.length > 0 && (
               <div className="space-y-1">
-                <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Remaining AI Patterns</p>
+                <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">AI Patterns</p>
                 {aiFlags.slice(0, 4).map((flag, i) => (
                   <div key={i} className="flex items-start gap-1.5 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60">
                     <AlertTriangle className="w-2.5 h-2.5 text-amber-500 flex-shrink-0 mt-0.5" />
                     <span className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">{flag}</span>
                   </div>
+                ))}
+                {aiFlags.length > 4 && (
+                  <span className="text-[9px] text-slate-400 px-2">+{aiFlags.length - 4} more</span>
+                )}
+                <button
+                  onClick={() => handleRefineSubmit("Fix the AI patterns you flagged. Focus on the specific issues and rewrite only those sections.")}
+                  disabled={isStreaming}
+                  className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-lg
+                    bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300
+                    border border-amber-200 dark:border-amber-700
+                    hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-all
+                    disabled:opacity-40"
+                >
+                  <Wand2 className="w-2.5 h-2.5" />
+                  Fix These Issues
+                </button>
+              </div>
+            )}
+
+            {/* Refine presets */}
+            {mode === "humanize" && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {REFINE_PRESETS.map(({ label, icon: Icon, prompt }) => (
+                  <button
+                    key={label}
+                    onClick={() => handleRefineSubmit(prompt)}
+                    disabled={isStreaming}
+                    className="flex items-center gap-1 px-2 py-0.5 text-[9px] font-medium whitespace-nowrap rounded-full
+                      bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400
+                      border border-slate-200/80 dark:border-slate-700/80
+                      hover:border-amber-300 dark:hover:border-amber-600
+                      hover:text-amber-700 dark:hover:text-amber-300
+                      hover:bg-amber-50 dark:hover:bg-amber-900/20
+                      transition-all disabled:opacity-40"
+                  >
+                    <Icon className="w-2 h-2" />
+                    {label}
+                  </button>
                 ))}
               </div>
             )}
@@ -468,47 +684,84 @@ export function StudioHumanizerPanel({
         )}
       </div>
 
-      {/* Footer actions */}
-      <div className="flex-shrink-0 px-3 pb-3 pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
-        {isStreaming ? (
-          <button
-            onClick={handleCancel}
-            className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
-          >
-            <X className="w-3 h-3" />
-            Cancel
-          </button>
-        ) : result && mode === "humanize" ? (
-          <>
+      {/* Footer — action buttons + refine bar */}
+      <div className="flex-shrink-0 border-t border-slate-100 dark:border-slate-800">
+        {/* Refine bar — only after result */}
+        {result && mode === "humanize" && !isStreaming && (
+          <div className="px-3 pt-2 flex items-end gap-1.5">
+            <textarea
+              ref={refineTextareaRef}
+              value={refineInput}
+              onChange={(e) => setRefineInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault()
+                  handleRefineSubmit()
+                }
+              }}
+              placeholder="Refine: 'Fix paragraph 2', 'Add personality'..."
+              rows={1}
+              className="flex-1 px-2 py-1.5 text-[11px] rounded-lg border border-slate-200 dark:border-slate-700
+                bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white
+                placeholder:text-slate-400 dark:placeholder:text-slate-500
+                focus:outline-none focus:border-amber-400 dark:focus:border-amber-500
+                resize-none transition-all"
+              style={{ minHeight: 28, maxHeight: 80 }}
+            />
             <button
-              onClick={handleApply}
-              className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-semibold text-white rounded-lg transition-all shadow-sm hover:opacity-90 active:opacity-75"
+              onClick={() => handleRefineSubmit()}
+              disabled={!refineInput.trim()}
+              className="h-7 w-7 flex-shrink-0 flex items-center justify-center rounded-lg
+                bg-gradient-to-br from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600
+                text-white disabled:opacity-40 transition-all shadow-sm"
+            >
+              <Send className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
+        {/* Action buttons */}
+        <div className="px-3 pb-3 pt-2 space-y-1.5">
+          {isStreaming ? (
+            <button
+              onClick={handleCancel}
+              className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            >
+              <X className="w-3 h-3" />
+              Cancel
+            </button>
+          ) : result && mode === "humanize" ? (
+            <>
+              <button
+                onClick={handleApply}
+                className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-semibold text-white rounded-lg transition-all shadow-sm hover:opacity-90 active:opacity-75"
+                style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)" }}
+              >
+                <Check className="w-3 h-3" />
+                Apply to Document
+              </button>
+              <button
+                onClick={() => handleRun()}
+                disabled={!hasDoc}
+                className="w-full flex items-center justify-center gap-1.5 h-7 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+              >
+                <RefreshCw className="w-2.5 h-2.5" />
+                Start Fresh
+              </button>
+            </>
+          ) : (
+            <button
+              onClick={() => handleRun()}
+              disabled={!hasDoc || isStreaming}
+              className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-semibold text-white rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:opacity-90 active:opacity-75"
               style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)" }}
             >
-              <Check className="w-3 h-3" />
-              Apply to Document
+              {mode === "scan"
+                ? <><Search className="w-3 h-3" /> Scan Document</>
+                : <><Wand2 className="w-3 h-3" /> Humanize Document</>}
             </button>
-            <button
-              onClick={handleRun}
-              disabled={!hasDoc}
-              className="w-full flex items-center justify-center gap-1.5 h-7 text-[10px] font-medium text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
-            >
-              <RefreshCw className="w-2.5 h-2.5" />
-              Rewrite Again
-            </button>
-          </>
-        ) : (
-          <button
-            onClick={handleRun}
-            disabled={!hasDoc || isStreaming}
-            className="w-full flex items-center justify-center gap-1.5 h-8 text-[11px] font-semibold text-white rounded-lg transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm hover:opacity-90 active:opacity-75"
-            style={{ background: "linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)" }}
-          >
-            {mode === "scan"
-              ? <><Search className="w-3 h-3" /> Scan Document</>
-              : <><Wand2 className="w-3 h-3" /> Humanize Document</>}
-          </button>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
