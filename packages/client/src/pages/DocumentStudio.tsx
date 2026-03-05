@@ -264,7 +264,7 @@ export function DocumentStudio() {
         onChange={handleImportFile}
         className="hidden"
       />
-      <div className="h-screen bg-slate-100/60 dark:bg-slate-950 flex flex-col overflow-hidden">
+      <div className="h-screen bg-slate-50/80 dark:bg-[#070c16] flex flex-col overflow-hidden">
         <AppHeader title="Document Studio" />
         <StudioToolbar
           mode={doc.mode}
@@ -300,7 +300,7 @@ export function DocumentStudio() {
           {/* Left: Chat sidebar */}
           <div
             style={{ width: sidebarCollapsed ? COLLAPSED_WIDTH : `${leftFraction * 100}%` }}
-            className="flex-shrink-0 h-full overflow-hidden border-r border-slate-200/40 dark:border-slate-800/50 transition-[width] duration-150"
+            className="flex-shrink-0 h-full overflow-hidden border-r border-slate-200/50 dark:border-slate-800/60 transition-[width] duration-200 ease-out"
           >
             <StudioChatSidebar
               documentStore={doc}
@@ -316,13 +316,13 @@ export function DocumentStudio() {
           {!sidebarCollapsed && (
             <div
               onMouseDown={handleMouseDown}
-              className="w-1.5 flex-shrink-0 cursor-col-resize group relative"
+              className="w-1 flex-shrink-0 cursor-col-resize group relative"
             >
-              <div className="absolute inset-y-0 -left-1 -right-1 z-10" />
-              <div className={`w-px h-full mx-auto transition-all duration-150 ${
+              <div className="absolute inset-y-0 -left-1.5 -right-1.5 z-10" />
+              <div className={`w-px h-full mx-auto transition-all duration-200 ${
                 doc.mode === "review"
-                  ? "bg-amber-200/50 dark:bg-amber-700/30 group-hover:bg-amber-300/70 dark:group-hover:bg-amber-500/50"
-                  : "bg-slate-200/50 dark:bg-slate-700/40 group-hover:bg-slate-300 dark:group-hover:bg-slate-600"
+                  ? "bg-amber-200/40 dark:bg-amber-700/25 group-hover:bg-amber-400/60 dark:group-hover:bg-amber-500/40"
+                  : "bg-slate-200/40 dark:bg-slate-700/30 group-hover:bg-emerald-400/50 dark:group-hover:bg-emerald-500/40"
               } group-hover:w-[2px]`} />
             </div>
           )}
@@ -332,12 +332,12 @@ export function DocumentStudio() {
             <div className="flex-1 flex flex-col min-w-0 relative">
               {/* Review mode banner */}
               {doc.mode === "review" && (
-                <div className="flex items-center gap-2 px-4 py-1.5 bg-amber-50/60 dark:bg-amber-900/10 border-b border-amber-200/40 dark:border-amber-800/30 flex-shrink-0">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">Review Mode</span>
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-amber-50/70 to-amber-50/40 dark:from-amber-900/15 dark:to-amber-900/5 border-b border-amber-200/30 dark:border-amber-800/25 flex-shrink-0">
+                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_4px_rgba(245,158,11,0.4)]" />
+                  <span className="text-[10.5px] font-semibold text-amber-600/80 dark:text-amber-400/80 tracking-wide uppercase">Review Mode</span>
                   <button
                     onClick={() => doc.setMode("editor")}
-                    className="ml-auto text-[11px] text-amber-500 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                    className="ml-auto text-[10.5px] font-medium text-amber-500/70 dark:text-amber-400/70 hover:text-amber-700 dark:hover:text-amber-300 transition-colors duration-200"
                   >
                     Exit
                   </button>
@@ -345,49 +345,64 @@ export function DocumentStudio() {
               )}
 
               {showEmptyState ? (
-                <div className="flex-1 flex items-center justify-center bg-neutral-50/40 dark:bg-slate-950/50 overflow-y-auto">
-                  <div className="max-w-md w-full px-8 py-16 text-center">
-                    <FileText className="w-10 h-10 text-slate-300 dark:text-slate-600 mx-auto mb-5 stroke-[1.5]" />
-                    <h2 className="text-[22px] font-semibold text-slate-800 dark:text-slate-100 tracking-tight mb-2">Create a document</h2>
-                    <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-10">
-                      Proposals, case studies, and reports powered by your data.
+                <div className="flex-1 flex items-center justify-center bg-gradient-to-b from-slate-50/80 via-white/40 to-slate-50/60 dark:from-slate-950/60 dark:via-slate-950/40 dark:to-slate-950/60 overflow-y-auto">
+                  <div className="max-w-lg w-full px-8 py-20 text-center">
+                    {/* Hero icon with glow */}
+                    <div className="relative mx-auto mb-7 w-16 h-16">
+                      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 dark:from-emerald-500/10 dark:to-cyan-500/10 blur-xl" />
+                      <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-sm flex items-center justify-center">
+                        <FileText className="w-7 h-7 text-slate-400 dark:text-slate-500 stroke-[1.5]" />
+                      </div>
+                    </div>
+
+                    <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.025em] mb-1.5">Create a document</h2>
+                    <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-10 leading-relaxed">
+                      Proposals, case studies, and reports — powered by your data.
                     </p>
 
-                    <div className="grid grid-cols-5 gap-3">
+                    <div className="grid grid-cols-5 gap-2.5">
                       {/* Blank */}
                       <button
                         onClick={() => { doc.newDocument(); doc.setMode("editor") }}
-                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
+                        className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
-                        <FilePlus className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Blank</span>
+                        <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
+                          <FilePlus className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Blank</span>
                       </button>
 
                       {/* Template */}
                       <button
                         onClick={() => setActiveModal("templates")}
-                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
+                        className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
-                        <LayoutTemplate className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Template</span>
+                        <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
+                          <LayoutTemplate className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Template</span>
                       </button>
 
                       {/* Import */}
                       <button
                         onClick={() => importInputRef.current?.click()}
-                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
+                        className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
-                        <Upload className="w-5 h-5 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors" />
-                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Import</span>
+                        <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
+                          <Upload className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Import</span>
                       </button>
 
                       {/* Start with AI */}
                       <button
                         onClick={() => { if (sidebarCollapsed) setSidebarCollapsed(false) }}
-                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-slate-300 dark:hover:border-slate-600 hover:-translate-y-0.5 transition-all duration-150"
+                        className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-emerald-300/60 dark:hover:border-emerald-700/50 hover:shadow-[0_2px_12px_rgba(16,185,129,0.06)] dark:hover:shadow-[0_2px_12px_rgba(16,185,129,0.08)] hover:-translate-y-0.5 transition-all duration-200"
                       >
-                        <Sparkles className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors" />
-                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Ask AI</span>
+                        <div className="w-9 h-9 rounded-lg bg-emerald-50/80 dark:bg-emerald-900/20 flex items-center justify-center group-hover:bg-emerald-100/80 dark:group-hover:bg-emerald-800/30 transition-colors duration-200">
+                          <Sparkles className="w-4 h-4 text-emerald-500/70 group-hover:text-emerald-600 dark:text-emerald-400/70 dark:group-hover:text-emerald-400 transition-colors duration-200" />
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-200">Ask AI</span>
                       </button>
 
                       {/* Blog Post Wizard */}
@@ -399,12 +414,19 @@ export function DocumentStudio() {
                           if (sidebarCollapsed) setSidebarCollapsed(false)
                           setBlogWizardActive(true)
                         }}
-                        className="group flex flex-col items-center gap-3 p-5 rounded-xl border border-slate-200/50 dark:border-slate-700/40 bg-white dark:bg-slate-900 hover:border-emerald-300 dark:hover:border-emerald-700 hover:-translate-y-0.5 transition-all duration-150"
+                        className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-emerald-300/60 dark:hover:border-emerald-700/50 hover:shadow-[0_2px_12px_rgba(16,185,129,0.06)] dark:hover:shadow-[0_2px_12px_rgba(16,185,129,0.08)] hover:-translate-y-0.5 transition-all duration-200"
                       >
-                        <PenLine className="w-5 h-5 text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors" />
-                        <span className="text-[12px] font-medium text-slate-600 dark:text-slate-300 group-hover:text-slate-800 dark:group-hover:text-slate-100 transition-colors">Blog Post</span>
+                        <div className="w-9 h-9 rounded-lg bg-emerald-50/80 dark:bg-emerald-900/20 flex items-center justify-center group-hover:bg-emerald-100/80 dark:group-hover:bg-emerald-800/30 transition-colors duration-200">
+                          <PenLine className="w-4 h-4 text-emerald-500/70 group-hover:text-emerald-600 dark:text-emerald-400/70 dark:group-hover:text-emerald-400 transition-colors duration-200" />
+                        </div>
+                        <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-300 transition-colors duration-200">Blog Post</span>
                       </button>
                     </div>
+
+                    {/* Subtle keyboard hint */}
+                    <p className="mt-8 text-[10px] text-slate-300 dark:text-slate-600 tracking-wide">
+                      ⌘O open &nbsp;·&nbsp; ⌘S save &nbsp;·&nbsp; ⌘E export
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -485,16 +507,16 @@ export function DocumentStudio() {
       {/* Template picker — proper centered modal */}
       {activeModal === "templates" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center animate-fade-in">
-          <div className="absolute inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-sm" onClick={() => setActiveModal(null)} />
-          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 w-[400px] max-h-[70vh] overflow-hidden animate-scale-in">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 dark:border-slate-700/60">
+          <div className="absolute inset-0 bg-black/25 dark:bg-black/50 backdrop-blur-[6px]" onClick={() => setActiveModal(null)} />
+          <div className="relative bg-white dark:bg-slate-800 rounded-2xl shadow-[0_16px_64px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_16px_64px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)] w-[380px] max-h-[70vh] overflow-hidden animate-scale-in">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100/80 dark:border-slate-700/50">
               <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-50 to-emerald-100/80 dark:from-emerald-900/30 dark:to-emerald-800/20 flex items-center justify-center shadow-sm">
                   <FileText className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-100">Templates</h2>
+                <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.01em]">Templates</h2>
               </div>
-              <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+              <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-200">
                 <X className="w-3.5 h-3.5 text-slate-400" />
               </button>
             </div>
@@ -503,17 +525,17 @@ export function DocumentStudio() {
                 <button
                   key={t.name + i}
                   onClick={() => handleTemplateSelect(t)}
-                  className="w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] text-slate-700 dark:text-slate-200 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors group"
+                  className="w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] text-slate-700 dark:text-slate-200 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20 transition-all duration-200 group flex items-center justify-between"
                 >
                   <span className="font-medium">{t.name}</span>
-                  <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-2 group-hover:text-emerald-500">{t.category}</span>
+                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 uppercase tracking-wider transition-colors duration-200">{t.category}</span>
                 </button>
               ))}
             </div>
-            <div className="border-t border-slate-100 dark:border-slate-700/60 p-2.5">
+            <div className="border-t border-slate-100/80 dark:border-slate-700/50 p-2.5">
               <button
                 onClick={() => { void handleSaveAsTemplate(); setActiveModal(null) }}
-                className="w-full text-center px-4 py-2 rounded-lg text-[12px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-colors"
+                className="w-full text-center px-4 py-2 rounded-lg text-[11.5px] font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20 transition-all duration-200"
               >
                 Save current document as template
               </button>
@@ -525,8 +547,8 @@ export function DocumentStudio() {
       {/* Drag overlay */}
       <DragOverlay>
         {dragContent && (
-          <div className="max-w-sm bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-emerald-200 dark:border-emerald-700 p-3 opacity-80">
-            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-3">{dragContent}</p>
+          <div className="max-w-sm bg-white dark:bg-slate-800 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] border border-emerald-200/60 dark:border-emerald-700/50 p-3 opacity-90">
+            <p className="text-xs text-slate-600 dark:text-slate-300 line-clamp-3 leading-relaxed">{dragContent}</p>
           </div>
         )}
       </DragOverlay>

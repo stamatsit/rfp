@@ -1991,7 +1991,7 @@ export const studioApi = {
 export interface FetchSSECallbacks {
   onMetadata?: (data: Record<string, unknown>) => void
   onToken?: (token: string) => void
-  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; metadata?: Record<string, unknown> }) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; photoSuggestions?: Array<{ query: string; placement: string; photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }> }>; metadata?: Record<string, unknown> }) => void
   onError?: (error: string) => void
   onAction?: (actions: Array<{ key: string; value: unknown; label: string }>) => void
 }

@@ -248,6 +248,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
                       chartData: data.chartData as import("@/types/chat").ChartConfig | undefined,
                       svgData: data.svgData ?? undefined,
                       reviewAnnotations: data.reviewAnnotations as import("@/types/chat").ReviewAnnotation[] | undefined,
+                      photoSuggestions: data.photoSuggestions as import("@/types/chat").PhotoSuggestion[] | undefined,
                       metadata: { ...m.metadata, ...data.metadata },
                     }
                   : m

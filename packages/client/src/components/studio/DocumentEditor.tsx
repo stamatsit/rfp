@@ -362,7 +362,7 @@ function PaginatedPageView({
   return (
     <div
       id={`studio-page-${pageNum - 1}`}
-      className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_16px_rgba(0,0,0,0.2)]"
+      className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.05)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_4px_24px_rgba(0,0,0,0.3),0_12px_48px_rgba(0,0,0,0.15)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
       style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
     >
       <PageHeader format={formatSettings} title="Document" />
@@ -751,7 +751,7 @@ export function DocumentEditor({
   const totalPages = paginatedPages.length || 1
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-neutral-100/50 dark:bg-[#0b111e]">
+    <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-b from-neutral-100/60 via-neutral-50/40 to-neutral-100/70 dark:from-[#080e1a] dark:via-[#0b1220] dark:to-[#080e1a]">
       {/* Hidden measurement div */}
       <div
         ref={hiddenMeasureRef}
@@ -767,10 +767,10 @@ export function DocumentEditor({
       />
 
       {/* Document canvas */}
-      <div ref={scrollRef} className="flex-1 overflow-auto py-6">
+      <div ref={scrollRef} className="flex-1 overflow-auto py-8">
         <div
           id="document-preview"
-          className="mx-auto space-y-8"
+          className="mx-auto space-y-6"
           style={{
             width: `${PAGE_WIDTH}px`,
             transform: `scale(${zoom})`,
@@ -782,7 +782,7 @@ export function DocumentEditor({
           {/* Page 0: Live TipTap editor */}
           <div
             id="studio-page-0"
-            className="relative bg-white dark:bg-slate-900 rounded-sm shadow-[0_1px_3px_rgba(0,0,0,0.04),0_4px_12px_rgba(0,0,0,0.03)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_4px_16px_rgba(0,0,0,0.2)]"
+            className="relative bg-white dark:bg-slate-900 rounded-[3px] shadow-[0_1px_2px_rgba(0,0,0,0.04),0_2px_8px_rgba(0,0,0,0.03),0_8px_24px_rgba(0,0,0,0.05)] dark:shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_4px_24px_rgba(0,0,0,0.3),0_12px_48px_rgba(0,0,0,0.15)] ring-1 ring-black/[0.03] dark:ring-white/[0.04]"
             style={{ width: PAGE_WIDTH, height: PAGE_HEIGHT, overflow: "hidden" }}
           >
             <PageHeader format={formatSettings} title="Document" />
@@ -845,40 +845,40 @@ export function DocumentEditor({
         </div>
       </div>
 
-      {/* Bottom status bar — clean inline, bottom-left */}
-      <div className="absolute bottom-0 left-0 right-0 flex items-center h-7 px-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border-t border-slate-200/30 dark:border-slate-800/30">
-        <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 tabular-nums font-medium">
+      {/* Bottom status bar */}
+      <div className="absolute bottom-0 left-0 right-0 flex items-center h-7 px-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200/40 dark:border-slate-800/40">
+        <div className="flex items-center gap-3 text-[10.5px] text-slate-400 dark:text-slate-500 tabular-nums font-medium tracking-wide">
           {wordCount > 0 && (
             <span>{wordCount.toLocaleString()} words</span>
           )}
           {totalPages > 1 && (
             <>
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              <span>Page {currentPage} of {totalPages}</span>
+              <span className="text-slate-200 dark:text-slate-700">|</span>
+              <span>Page {currentPage} / {totalPages}</span>
             </>
           )}
           {zoom !== 1 && (
             <>
-              <span className="text-slate-300 dark:text-slate-600">·</span>
-              <button onClick={zoomReset} className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+              <span className="text-slate-200 dark:text-slate-700">|</span>
+              <button onClick={zoomReset} className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200">
                 {Math.round(zoom * 100)}%
               </button>
             </>
           )}
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-0.5 group">
+        <div className="flex items-center gap-0.5">
           <button
             onClick={zoomOut}
             disabled={zoom <= 0.5}
-            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-150 disabled:opacity-20"
+            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
             title="Zoom out"
           >
             <ZoomOut className="w-3 h-3" />
           </button>
           <button
             onClick={zoomReset}
-            className="px-1 text-[11px] tabular-nums text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors font-medium"
+            className="px-1.5 text-[10.5px] tabular-nums text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200 font-medium"
             title="Reset zoom"
           >
             {Math.round(zoom * 100)}%
@@ -886,7 +886,7 @@ export function DocumentEditor({
           <button
             onClick={zoomIn}
             disabled={zoom >= 2}
-            className="w-5 h-5 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-150 disabled:opacity-20"
+            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
             title="Zoom in"
           >
             <ZoomIn className="w-3 h-3" />

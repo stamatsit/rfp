@@ -15,6 +15,12 @@ export interface ActionData {
   label: string
 }
 
+export interface PhotoSuggestionResult {
+  query: string
+  placement: string
+  photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }>
+}
+
 export interface StreamOptions {
   openai: OpenAI
   messages: OpenAI.ChatCompletionMessageParam[]
@@ -23,6 +29,7 @@ export interface StreamOptions {
   metadata: Record<string, unknown>
   parseFollowUpPrompts: (response: string) => { cleanResponse: string; prompts: string[] }
   parseReviewAnnotations?: (response: string) => { cleanResponse: string; annotations: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }> }
+  resolvePhotoSuggestions?: (suggestions: Array<{ query: string; placement: string }>) => Promise<PhotoSuggestionResult[]>
   res: Response
 }
 
@@ -61,6 +68,7 @@ export async function streamCompletion({
   metadata,
   parseFollowUpPrompts,
   parseReviewAnnotations,
+  resolvePhotoSuggestions,
   res,
 }: StreamOptions): Promise<void> {
   // Set SSE headers
@@ -132,10 +140,24 @@ export async function streamCompletion({
       }
     }
 
-    const { cleanResponse, prompts } = parseFollowUpPrompts(processedResponse)
+    // Parse photo suggestions before follow-ups (appears before FOLLOW_UP_PROMPTS in response)
+    const { cleanResponse: photoClean, suggestions: rawPhotoSuggestions } = parsePhotoSuggestions(processedResponse)
+
+    const { cleanResponse, prompts } = parseFollowUpPrompts(photoClean)
     const { cleanText: chartClean, chartData } = parseChartData(cleanResponse)
     const { cleanText: svgClean, svgData } = parseSVGData(chartClean)
     const { cleanText: finalResponse, actions } = parseActionData(svgClean)
+
+    // Resolve photo suggestions (search library, get URLs)
+    let photoSuggestions: PhotoSuggestionResult[] | undefined
+    if (resolvePhotoSuggestions && rawPhotoSuggestions.length > 0) {
+      try {
+        const resolved = await resolvePhotoSuggestions(rawPhotoSuggestions)
+        if (resolved.length > 0) photoSuggestions = resolved
+      } catch {
+        // Photo resolution failed — skip
+      }
+    }
 
     // Send action event if AI requested settings changes
     if (actions.length > 0) {
@@ -150,6 +172,7 @@ export async function streamCompletion({
         ...(chartData ? { chartData } : {}),
         ...(svgData ? { svgData } : {}),
         ...(reviewAnnotations ? { reviewAnnotations } : {}),
+        ...(photoSuggestions ? { photoSuggestions } : {}),
       })}\n\n`
     )
 
@@ -160,6 +183,24 @@ export async function streamCompletion({
     res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`)
     res.end()
   }
+}
+
+/**
+ * Parse PHOTO_SUGGESTIONS from AI response.
+ * Format: PHOTO_SUGGESTIONS: [{"query":"campus","placement":"after intro"}]
+ */
+export function parsePhotoSuggestions(response: string): { cleanResponse: string; suggestions: Array<{ query: string; placement: string }> } {
+  const match = response.match(/PHOTO_SUGGESTIONS:\s*(\[[\s\S]*?\])\s*$/m)
+  if (match?.[1]) {
+    try {
+      const suggestions = JSON.parse(match[1]) as Array<{ query: string; placement: string }>
+      const cleanResponse = response.replace(/PHOTO_SUGGESTIONS:\s*\[[\s\S]*?\]\s*$/m, "").trim()
+      return { cleanResponse, suggestions }
+    } catch {
+      // Malformed — ignore
+    }
+  }
+  return { cleanResponse: response, suggestions: [] }
 }
 
 /**

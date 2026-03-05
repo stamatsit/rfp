@@ -8,6 +8,12 @@ export interface ReviewAnnotation {
   suggestedFix?: string
 }
 
+export interface PhotoSuggestion {
+  query: string
+  placement: string
+  photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }>
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
@@ -20,6 +26,7 @@ export interface ChatMessage {
   chartData?: ChartConfig | null
   svgData?: { svg: string; title: string } | null
   reviewAnnotations?: ReviewAnnotation[]
+  photoSuggestions?: PhotoSuggestion[]
   metadata?: Record<string, unknown>
 }
 

@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import DOMPurify from "dompurify"
-import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText, ChevronDown, ChevronUp, Copy, Check as CheckIcon, Square, Database, PenLine, Lightbulb, Users, List, Wand2 } from "lucide-react"
+import { ArrowRight, Sparkles, FileSearch, PanelLeftOpen, PanelLeftClose, Clock, MessageSquarePlus, Trash2, Pencil, History, Send, Loader2, Paperclip, X, FileText, ChevronDown, ChevronUp, Copy, Check as CheckIcon, Square, Database, PenLine, Lightbulb, Users, List, Wand2, ImageIcon } from "lucide-react"
 import { useChat } from "@/hooks/useChat"
 import { MarkdownRenderer } from "@/components/chat/MarkdownRenderer"
-import { type ChartConfig } from "@/types/chat"
+import { type ChartConfig, type PhotoSuggestion } from "@/types/chat"
 import type { UseDocumentStoreReturn } from "@/hooks/useDocumentStore"
 import type { ConversationSummary } from "@/lib/api"
 import { markdownToHtml, svgToImg } from "@/lib/markdownToHtml"
@@ -98,6 +98,9 @@ function stripSVGFromContent(content: string): string {
   cleaned = cleaned.replace(/SVG_DATA:\s*(?:```(?:svg|xml|html)?\s*\n?\s*)?<svg[\s\S]*$/g, '')
   // Remove partial code-fenced SVG during streaming
   cleaned = cleaned.replace(/```(?:svg|xml|html)\s*\n?\s*<svg[\s\S]*$/g, '')
+  // Remove PHOTO_SUGGESTIONS markers (complete and partial during streaming)
+  cleaned = cleaned.replace(/PHOTO_SUGGESTIONS:\s*\[[\s\S]*?\]\s*$/m, '')
+  cleaned = cleaned.replace(/PHOTO_SUGGESTIONS:\s*\[[\s\S]*$/g, '')
   return cleaned.trim()
 }
 
@@ -160,6 +163,87 @@ function SVGDiagramCard({ svgData, onInsert }: { svgData: { svg: string; title: 
           <ArrowRight className="w-3 h-3" />
           Insert Diagram
         </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Photo Suggestions Card ──────────────────────────────────
+
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
+
+function PhotoSuggestionsCard({ suggestions, onInsert }: { suggestions: PhotoSuggestion[]; onInsert: (html: string) => void }) {
+  const allPhotos = suggestions.flatMap(s => s.photos.map(p => ({ ...p, placement: s.placement })))
+  if (allPhotos.length === 0) return null
+
+  const handleInsertPhoto = (photo: typeof allPhotos[0]) => {
+    const src = photo.fileUrl || `${API_BASE}/photos/file/${photo.storageKey}`
+    const html = `<img src="${src}" alt="${photo.displayTitle.replace(/"/g, "&quot;")}" />`
+    onInsert(html)
+  }
+
+  const handleInsertAll = () => {
+    const htmlParts = allPhotos.map(p => {
+      const src = p.fileUrl || `${API_BASE}/photos/file/${p.storageKey}`
+      return `<img src="${src}" alt="${p.displayTitle.replace(/"/g, "&quot;")}" />`
+    })
+    onInsert(htmlParts.join(""))
+  }
+
+  return (
+    <div className="rounded-xl border border-cyan-200/60 dark:border-cyan-800/40 bg-white dark:bg-slate-900 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-cyan-50/60 dark:bg-cyan-900/20 border-b border-cyan-200/50 dark:border-cyan-800/30">
+        <div className="w-4 h-4 rounded flex items-center justify-center bg-cyan-100 dark:bg-cyan-800/40">
+          <ImageIcon className="w-2.5 h-2.5 text-cyan-600 dark:text-cyan-400" />
+        </div>
+        <span className="text-[11px] font-semibold text-cyan-700 dark:text-cyan-300 flex-1">
+          Suggested Photos ({allPhotos.length})
+        </span>
+      </div>
+
+      {/* Photo grid */}
+      <div className="p-2 grid grid-cols-3 gap-1.5">
+        {allPhotos.map((photo) => {
+          const src = photo.fileUrl || `${API_BASE}/photos/file/${photo.storageKey}`
+          return (
+            <div key={photo.id} className="group relative rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 aspect-square">
+              <img
+                src={src}
+                alt={photo.displayTitle}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+              {/* Overlay on hover */}
+              <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-1 p-1">
+                <p className="text-[9px] text-white text-center leading-tight line-clamp-2 px-1">{photo.displayTitle}</p>
+                <button
+                  onClick={() => handleInsertPhoto(photo)}
+                  className="flex items-center gap-1 px-2 py-1 text-[9px] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 rounded transition-colors"
+                >
+                  <ArrowRight className="w-2.5 h-2.5" />
+                  Insert
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Placement hints + Insert All */}
+      <div className="px-3 py-2 border-t border-cyan-100/60 dark:border-cyan-800/30 bg-cyan-50/40 dark:bg-cyan-900/10 flex items-center justify-between gap-2">
+        <p className="text-[9px] text-cyan-600/70 dark:text-cyan-400/60 truncate flex-1">
+          {suggestions.map(s => s.placement).join(" · ")}
+        </p>
+        {allPhotos.length > 1 && (
+          <button
+            onClick={handleInsertAll}
+            className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold text-white bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 rounded-lg transition-colors shadow-sm shadow-emerald-500/20 flex-shrink-0"
+          >
+            <ArrowRight className="w-2.5 h-2.5" />
+            Insert All
+          </button>
+        )}
       </div>
     </div>
   )
@@ -437,6 +521,12 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
                         <SVGDiagramCard
                           svgData={message.svgData}
                           onInsert={() => documentStore.insertContent(svgToImg(message.svgData!.svg))}
+                        />
+                      )}
+                      {message.photoSuggestions && message.photoSuggestions.length > 0 && (
+                        <PhotoSuggestionsCard
+                          suggestions={message.photoSuggestions}
+                          onInsert={(html) => documentStore.insertContent(html)}
                         />
                       )}
                       {/* Follow-ups */}

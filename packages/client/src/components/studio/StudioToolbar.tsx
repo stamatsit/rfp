@@ -120,7 +120,7 @@ function DocumentBrowserPopover({
       ref={ref}
       className="absolute top-full left-0 mt-1 z-50 animate-fade-in-up"
     >
-      <div className="w-[340px] bg-white dark:bg-slate-800 rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.08),0_0_0_1px_rgba(0,0,0,0.03)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.3),0_0_0_1px_rgba(255,255,255,0.05)] overflow-hidden">
+      <div className="w-[320px] bg-white dark:bg-slate-800 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.5),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden">
         {/* Search + New */}
         <div className="p-2 border-b border-slate-100 dark:border-slate-700/60">
           <div className="flex items-center gap-1.5">
@@ -284,19 +284,19 @@ export function StudioToolbar({
   const isReview = mode === "review"
 
   return (
-    <div className={`relative z-50 flex items-center h-12 px-4 gap-2 flex-shrink-0 transition-colors duration-150 ${
+    <div className={`relative z-50 flex items-center h-11 px-3 gap-1.5 flex-shrink-0 transition-colors duration-200 ${
       isReview
-        ? "bg-amber-50/60 dark:bg-amber-950/20 border-b border-amber-200/40 dark:border-amber-800/30"
-        : "bg-white/95 dark:bg-slate-900/95 border-b border-slate-200/40 dark:border-slate-800/50"
+        ? "bg-gradient-to-r from-amber-50/80 via-amber-50/60 to-amber-50/80 dark:from-amber-950/30 dark:via-amber-950/20 dark:to-amber-950/30 border-b border-amber-200/50 dark:border-amber-800/40"
+        : "bg-white/90 dark:bg-slate-900/90 border-b border-slate-200/60 dark:border-slate-800/60"
     } backdrop-blur-xl`}>
       {/* Documents browser button */}
       {onToggleBrowser && (
         <div className="relative">
           <button
             onClick={onToggleBrowser}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
+            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150 ${
               browserOpen
-                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm"
                 : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Browse documents (⌘O)"
@@ -317,7 +317,7 @@ export function StudioToolbar({
 
       {/* Divider */}
       {onToggleBrowser && (
-        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40" />
+        <div className="w-px h-4 bg-slate-200/50 dark:bg-slate-700/50 mx-0.5" />
       )}
 
       {/* Document Title — Notion-style inline rename */}
@@ -331,7 +331,7 @@ export function StudioToolbar({
         onKeyDown={(e) => {
           if (e.key === "Enter") (e.target as HTMLInputElement).blur()
         }}
-        className={`min-w-[120px] max-w-[400px] bg-transparent text-[14px] font-medium border-none outline-none focus:ring-0 px-1.5 py-1 rounded-md transition-all duration-150 tracking-[-0.01em] border-b border-transparent hover:border-slate-200 dark:hover:border-slate-700 focus:border-emerald-400/50 dark:focus:border-emerald-500/50 focus:font-semibold ${
+        className={`min-w-[120px] max-w-[360px] bg-transparent text-[13.5px] font-semibold border-none outline-none focus:ring-0 px-1.5 py-0.5 rounded-md transition-all duration-200 tracking-[-0.02em] hover:bg-slate-50/80 dark:hover:bg-slate-800/50 focus:bg-slate-50 dark:focus:bg-slate-800/60 focus:shadow-[0_0_0_1.5px_rgba(16,185,129,0.25)] ${
           isReview
             ? "text-amber-800 dark:text-amber-200"
             : "text-slate-800 dark:text-slate-100"
@@ -361,14 +361,14 @@ export function StudioToolbar({
       <div className="flex-1" />
 
       {/* Right-side actions */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         {/* Review toggle */}
         <button
           onClick={() => onModeChange(isReview ? "editor" : "review")}
-          className={`flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium rounded-lg transition-all duration-150 ${
+          className={`flex items-center gap-1.5 px-2.5 h-7 text-[11.5px] font-medium rounded-md transition-all duration-200 ${
             isReview
-              ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 ring-1 ring-amber-200/60 dark:ring-amber-700/40"
-              : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-300"
+              ? "bg-amber-100/90 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.2),0_1px_2px_rgba(245,158,11,0.1)]"
+              : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-200"
           }`}
           title={isReview ? "Exit review mode" : "Enter review mode (⌘⇧R)"}
         >
@@ -376,12 +376,12 @@ export function StudioToolbar({
           {isReview ? "Reviewing" : "Review"}
         </button>
 
-        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40 mx-0.5" />
+        <div className="w-px h-4 bg-slate-200/50 dark:bg-slate-700/50 mx-1" />
 
         {/* Export */}
         <button
           onClick={onExport}
-          className="flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-100 rounded-lg transition-all duration-150"
+          className="flex items-center gap-1.5 px-2.5 h-7 text-[11.5px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-200 rounded-md transition-all duration-200"
           title="Export document (⌘E)"
         >
           <FileDown className="w-3.5 h-3.5" />
@@ -392,23 +392,23 @@ export function StudioToolbar({
         {hasDocumentId && onShare && (
           <button
             onClick={onShare}
-            className="w-8 h-8 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 rounded-lg transition-all duration-150"
+            className="w-7 h-7 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-md transition-all duration-200"
             title="Share document"
           >
             <Share2 className="w-3.5 h-3.5" />
           </button>
         )}
 
-        <div className="w-px h-5 bg-slate-200/40 dark:bg-slate-700/40 mx-0.5" />
+        <div className="w-px h-4 bg-slate-200/50 dark:bg-slate-700/50 mx-1" />
 
         {/* Humanizer toggle */}
         {onToggleHumanizer && (
           <button
             onClick={onToggleHumanizer}
-            className={`flex items-center gap-1.5 px-3 h-8 text-[12px] font-medium rounded-lg transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-2.5 h-7 text-[11.5px] font-medium rounded-md transition-all duration-200 ${
               humanizerOpen
-                ? "bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 ring-1 ring-violet-200/60 dark:ring-violet-700/40"
-                : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-300"
+                ? "bg-violet-100/90 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 shadow-[0_0_0_1px_rgba(139,92,246,0.2),0_1px_2px_rgba(139,92,246,0.1)]"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 hover:text-slate-700 dark:hover:text-slate-200"
             }`}
             title="Humanize document — detect and reduce AI patterns"
           >
@@ -421,10 +421,10 @@ export function StudioToolbar({
         {onToggleInspector && (
           <button
             onClick={onToggleInspector}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 ${
+            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-200 ${
               inspectorOpen
-                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm"
+                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
             }`}
             title="Inspector — format, outline, checklist"
           >

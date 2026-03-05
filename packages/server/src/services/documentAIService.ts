@@ -12,7 +12,8 @@ import { getAllProposals } from "./proposalSyncService.js"
 import { clientSuccessData } from "../data/clientSuccessData.js"
 import { db } from "../db/index.js"
 import { answerItems } from "../db/schema.js"
-import { eq } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
+import { searchPhotos, withSignedUrls } from "./photoService.js"
 
 // Lazy-initialized OpenAI client
 let openaiClient: OpenAI | null = null
@@ -59,6 +60,39 @@ function parseFollowUpPrompts(response: string): { cleanResponse: string; prompt
     }
   }
   return { cleanResponse: response, prompts: [] }
+}
+
+export interface PhotoSuggestion {
+  query: string
+  placement: string
+  photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }>
+}
+
+async function resolvePhotoSuggestions(
+  suggestions: Array<{ query: string; placement: string }>
+): Promise<PhotoSuggestion[]> {
+  if (suggestions.length === 0) return []
+
+  const results: PhotoSuggestion[] = []
+  for (const s of suggestions.slice(0, 3)) {
+    try {
+      const photos = await searchPhotos(s.query, { status: "Approved", limit: 3 })
+      const withUrls = await withSignedUrls(photos)
+      results.push({
+        query: s.query,
+        placement: s.placement,
+        photos: withUrls.map(p => ({
+          id: p.id,
+          displayTitle: p.displayTitle,
+          storageKey: p.storageKey,
+          fileUrl: p.fileUrl,
+        })),
+      })
+    } catch {
+      // Search failed for this query — skip
+    }
+  }
+  return results.filter(r => r.photos.length > 0)
 }
 
 // ─── RFP Detection ───
@@ -188,6 +222,18 @@ SVG GUIDELINES:
 Wrap the SVG in this marker at the end of your response:
 SVG_DATA: <svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">...</svg>`
 
+const PHOTO_PROMPT = `You have access to Stamats' photo library. When your response would benefit from images (proposals, case studies, marketing materials, campus references), suggest relevant photos.
+When the user explicitly asks for a photo or image of something, always suggest matching photos.
+
+Append photo suggestions AFTER your response text (before FOLLOW_UP_PROMPTS):
+PHOTO_SUGGESTIONS: [{"query": "campus aerial", "placement": "after paragraph about campus"}, {"query": "student recruitment", "placement": "hero image"}]
+
+Rules:
+- "query": search terms to match against photo titles and descriptions in the library
+- "placement": brief description of where the image fits in the document
+- Only suggest when genuinely relevant. Max 3 suggestions per response.
+- Do NOT suggest photos for purely conversational or grammar-related queries.`
+
 const BLOG_WIZARD_PROMPT = `You are a content strategist at Stamats guiding the user through writing a blog post, step by step.
 
 Current wizard step: {WIZARD_STEP}
@@ -275,6 +321,38 @@ async function buildDataContext(): Promise<string> {
     } catch {
       // DB unavailable — skip Q&A
     }
+
+    // Photo library summary
+    try {
+      const photoRows = await db.execute(sql`
+        SELECT t.display_name as topic_name, COUNT(*)::int as count
+        FROM photo_assets p
+        JOIN topics t ON p.topic_id = t.id
+        WHERE p.status = 'Approved'
+        GROUP BY t.display_name
+        ORDER BY count DESC
+      `)
+      const topicCounts = (photoRows as unknown as Array<{ topic_name: string; count: number }>)
+      if (topicCounts.length > 0) {
+        const totalPhotos = topicCounts.reduce((sum, r) => sum + r.count, 0)
+        parts.push(`\nPHOTO LIBRARY: ${totalPhotos} approved photos available.`)
+        parts.push("Topics: " + topicCounts.map(r => `${r.topic_name} (${r.count})`).join(", "))
+
+        // Sample titles for better matching
+        const samplePhotos = await db.execute(sql`
+          SELECT display_title FROM photo_assets
+          WHERE status = 'Approved'
+          ORDER BY usage_count DESC, created_at DESC
+          LIMIT 20
+        `)
+        const titles = (samplePhotos as unknown as Array<{ display_title: string }>).map(r => r.display_title)
+        if (titles.length > 0) {
+          parts.push("Sample photo titles: " + titles.map(t => `"${t}"`).join(", "))
+        }
+      }
+    } catch {
+      // DB unavailable — skip photos
+    }
   }
 
   return parts.join("\n")
@@ -341,6 +419,11 @@ export async function streamDocumentChat(
     systemPrompt += "\n\n" + SVG_PROMPT
   }
 
+  // Append photo suggestions prompt (for editor and blog modes, not review)
+  if (!options?.reviewMode) {
+    systemPrompt += "\n\n" + PHOTO_PROMPT
+  }
+
   // Add data context
   systemPrompt += `\n\n--- STAMATS DATA CONTEXT ---\n${dataContext}`
 
@@ -375,6 +458,7 @@ export async function streamDocumentChat(
     },
     parseFollowUpPrompts,
     parseReviewAnnotations: options?.reviewMode ? parseReviewAnnotations : undefined,
+    resolvePhotoSuggestions,
     res,
   })
 }
