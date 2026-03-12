@@ -146,7 +146,8 @@ export async function streamCompletion({
     const { cleanResponse, prompts } = parseFollowUpPrompts(photoClean)
     const { cleanText: chartClean, chartData } = parseChartData(cleanResponse)
     const { cleanText: svgClean, svgData } = parseSVGData(chartClean)
-    const { cleanText: finalResponse, actions } = parseActionData(svgClean)
+    const { cleanText: deckClean, deckData } = parseDeckData(svgClean)
+    const { cleanText: finalResponse, actions } = parseActionData(deckClean)
 
     // Resolve photo suggestions (search library, get URLs)
     let photoSuggestions: PhotoSuggestionResult[] | undefined
@@ -173,6 +174,7 @@ export async function streamCompletion({
         ...(svgData ? { svgData } : {}),
         ...(reviewAnnotations ? { reviewAnnotations } : {}),
         ...(photoSuggestions ? { photoSuggestions } : {}),
+        ...(deckData ? { deckData } : {}),
       })}\n\n`
     )
 
@@ -257,6 +259,26 @@ export function parseSVGData(response: string): { cleanText: string; svgData: { 
   }
 
   return { cleanText: response, svgData: null }
+}
+
+/**
+ * Parse DECK_DATA from AI response.
+ * Format: DECK_DATA: {"deckTitle":"...","slides":[...]}
+ */
+export function parseDeckData(response: string): { cleanText: string; deckData: Record<string, unknown> | null } {
+  const match = response.match(/DECK_DATA:\s*(\{[\s\S]*\})\s*$/m)
+  if (match?.[1]) {
+    try {
+      const data = JSON.parse(match[1])
+      if (data.deckTitle && Array.isArray(data.slides) && data.slides.length > 0) {
+        const cleanText = response.replace(/DECK_DATA:\s*\{[\s\S]*\}\s*$/m, "").trim()
+        return { cleanText, deckData: data }
+      }
+    } catch {
+      // Malformed — ignore
+    }
+  }
+  return { cleanText: response, deckData: null }
 }
 
 /**

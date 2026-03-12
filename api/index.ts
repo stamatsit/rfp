@@ -765,7 +765,7 @@ export const users = pgTable("users", {
 // Conversations table (AI chat history)
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general"] }).notNull(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general", "pitch-deck"] }).notNull(),
   title: text("title").notNull(),
   messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
   userId: text("user_id"),
@@ -982,6 +982,8 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   if (path.startsWith("/ai/")) return true
   if (path.startsWith("/companion/")) return true
   if (path.startsWith("/humanizer/")) return true
+  if (path.startsWith("/pitch-deck/")) return true
+  if (path.startsWith("/meetings/")) return true
   if (path.startsWith("/unified-ai/")) return true
   if (path.startsWith("/proposals/query") || path.startsWith("/proposals/stream")) return true
   // Studio — all operations allowed (ownership enforced per-route)
@@ -1217,7 +1219,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (typeof email !== "string" || !email.includes("@")) {
           return res.status(400).json({ error: "Valid email is required" })
         }
-        if (!email.toLowerCase().trim().endsWith("@stamats.com")) {
+        const ALLOWED_EMAILS = ["ericyerke@gmail.com"]
+        const normalizedEmail = email.toLowerCase().trim()
+        if (!normalizedEmail.endsWith("@stamats.com") && !ALLOWED_EMAILS.includes(normalizedEmail)) {
           return res.status(403).json({ error: "Registration is restricted to @stamats.com email addresses" })
         }
         if (typeof password !== "string" || password.length < 8) {
@@ -2171,6 +2175,14 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
         }
 
         const { query, topicId, maxSources = 5, conversationHistory, responseLength } = req.body || {}
+
+        if (!query || typeof query !== "string" || query.trim().length < 1) {
+          return res.status(400).json({ error: "Query is required" })
+        }
+
+        if (!db) {
+          return res.status(500).json({ error: "Database not configured" })
+        }
 
         // Step 1: Extract key concepts/keywords from the user's query using AI
         let searchKeywords: string[] = []
@@ -3538,7 +3550,7 @@ ${contextStr}`
             file_size AS "fileSize", mime_type AS "mimeType", summary,
             key_points AS "keyPoints", uploaded_by AS "uploadedBy", created_at AS "createdAt"
           FROM client_documents
-          WHERE client_name = ${clientName}
+          WHERE client_name = ${clientName} AND published = true
           ORDER BY created_at DESC
         `
         return res.json(rows)
@@ -4530,6 +4542,342 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
       }
     }
 
+    // ─── Pitch Deck AI Designer (eric.yerke@stamats.com only) ──────────
+
+    // POST /pitch-deck/stream — SSE streaming chat
+    if (path === "/pitch-deck/stream" && method === "POST") {
+      // Access control
+      if (session?.userEmail !== "eric.yerke@stamats.com") {
+        return res.status(403).json({ error: "Access denied" })
+      }
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured." })}\n\n`)
+        return res.end()
+      }
+
+      const { query: pdQuery, conversationHistory: pdHistory, responseLength: pdLength } = req.body || {}
+      if (!pdQuery || typeof pdQuery !== "string" || pdQuery.trim().length < 3) {
+        return res.status(400).json({ error: "Query must be at least 3 characters" })
+      }
+
+      // Build context from client success data
+      const pdResultLines = clientSuccessData.topLineResults
+        .sort((a: any, b: any) => b.numericValue - a.numericValue)
+        .slice(0, 20)
+        .map((r: any) => `${r.result} ${r.metric} — ${r.client}`)
+      const pdTestimonials = clientSuccessData.testimonials.map(
+        (t: any) => `"${t.quote}" — ${t.attribution}`
+      )
+      const pdAwards = clientSuccessData.awards.map(
+        (a: any) => `${a.name} (${a.year}) — ${a.clientOrProject}`
+      )
+      const pdStats = [
+        ...clientSuccessData.companyStats.map((s: any) => `${s.label}: ${s.value}${s.detail ? ` — ${s.detail}` : ""}`),
+        ...clientSuccessData.externallyVerifiedStats.map((s: any) => `${s.label}: ${s.value} (Source: ${s.source})`),
+      ]
+      const pdContext = [
+        `=== TOP CLIENT RESULTS (${pdResultLines.length}) ===\n${pdResultLines.join("\n")}`,
+        `=== TESTIMONIALS (${pdTestimonials.length}) ===\n${pdTestimonials.join("\n\n")}`,
+        `=== AWARDS (${pdAwards.length}) ===\n${pdAwards.join("\n")}`,
+        `=== COMPANY STATS ===\n${pdStats.join("\n")}`,
+        `=== SERVICE LINES ===\n${clientSuccessData.serviceLines.join(", ")}`,
+      ].join("\n\n")
+
+      const pdSystemPrompt = `You are a Pitch Deck Designer for Stamats, a marketing agency with 100+ years of experience specializing in higher education and healthcare marketing.
+
+Your job: Help users create compelling, branded pitch decks. You have access to Stamats' client success data (results, testimonials, awards, stats) to pull real proof points into slides.
+
+═══ HOW TO RESPOND ═══
+
+1. First, write a brief human-readable OUTLINE of the deck (3-5 sentences describing the narrative arc and key slides). This is what the user sees in chat.
+2. Then append the full structured deck as a DECK_DATA JSON block (see format below).
+3. For REFINEMENT requests (e.g., "change slide 3", "add a competitive slide"), re-output the COMPLETE DECK_DATA with changes applied — not just the changed slide.
+
+═══ DECK_DATA FORMAT ═══
+
+After your outline text, append on a new line:
+
+DECK_DATA: {"deckTitle":"Deck Title","slides":[...]}
+
+Each slide in the array is an object with a "type" and type-specific fields:
+
+SLIDE TYPES:
+- "title": { type, title, subtitle?, speakerNotes? }
+- "content": { type, title, bullets: string[], speakerNotes? }
+- "two-column": { type, title, leftColumn: { title, bullets }, rightColumn: { title, bullets }, speakerNotes? }
+- "image-text": { type, title, bullets: string[], speakerNotes? }
+- "chart": { type, title, chartData: { type: "bar"|"line"|"pie"|"area", labels: string[], values: number[], seriesName? }, speakerNotes? }
+- "comparison": { type, title, comparisonRows: [{ feature, us, them }], speakerNotes? }
+- "quote": { type, title, quote: { text, attribution }, speakerNotes? }
+- "section-divider": { type, title, subtitle?, speakerNotes? }
+- "closing": { type, title, subtitle?, bullets?: string[], speakerNotes? }
+
+═══ DESIGN PRINCIPLES ═══
+
+1. Start with a strong title slide, end with a closing CTA
+2. Use section dividers to break long decks into logical sections
+3. Mix slide types for visual variety — don't make 10 content slides in a row
+4. Keep bullet points concise (5-7 words each, max 6 per slide)
+5. Include speaker notes with talking points on every slide
+6. Pull REAL stats, testimonials, and awards from the database when relevant — never invent data
+7. A typical pitch deck is 8-15 slides
+
+═══ RULES ═══
+1. Only reference real data from the provided database — NEVER fabricate stats or quotes
+2. The DECK_DATA JSON must be valid JSON — double-check your output
+3. Always include speakerNotes on every slide
+4. Keep the outline brief — the deck itself is the deliverable
+
+Always end your response with 3-4 follow-up prompts formatted EXACTLY like this:
+FOLLOW_UP_PROMPTS: ["prompt 1?", "prompt 2?", "prompt 3?"]
+
+Follow-ups should suggest refinements (e.g., "Want to add a competitive comparison slide?", "Should I include more ROI data?", "Want to change the opening to be more bold?").
+
+--- STAMATS CLIENT SUCCESS DATA ---
+${pdContext}`
+
+      const pdTokens: Record<string, number> = { concise: 3000, balanced: 5000, detailed: 8000 }
+      const pdMaxTokens = pdTokens[pdLength as string] || 5000
+
+      // Build messages
+      const pdMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: pdSystemPrompt },
+      ]
+      if (Array.isArray(pdHistory) && pdHistory.length > 0) {
+        const truncated = pdHistory.slice(-10)
+        for (const m of truncated) {
+          if ((m.role === "user" || m.role === "assistant") && m.content) {
+            pdMessages.push({ role: m.role, content: m.content })
+          }
+        }
+      }
+      pdMessages.push({ role: "user", content: pdQuery.trim() })
+
+      // Stream SSE
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      res.write(`event: metadata\ndata: ${JSON.stringify({
+        dataUsed: {
+          totalResults: clientSuccessData.topLineResults.length,
+          totalTestimonials: clientSuccessData.testimonials.length,
+          totalAwards: clientSuccessData.awards.length,
+        },
+      })}\n\n`)
+
+      try {
+        const pdStream = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: pdMessages,
+          temperature: 0.5,
+          max_tokens: pdMaxTokens,
+          stream: true,
+        })
+
+        let pdFullResponse = ""
+        for await (const chunk of pdStream) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            pdFullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        // Parse structured data
+        const pdFollowUpMatch = pdFullResponse.match(/FOLLOW_UP_PROMPTS:\s*\[(.*?)\]/s)
+        let pdClean = pdFullResponse
+        let pdPrompts: string[] = ["Want to add more data-driven slides?", "Should I include a testimonial slide?", "Want to refine the narrative arc?"]
+        if (pdFollowUpMatch?.[1]) {
+          try {
+            pdPrompts = JSON.parse(`[${pdFollowUpMatch[1]}]`)
+            pdClean = pdFullResponse.replace(/FOLLOW_UP_PROMPTS:\s*\[.*?\]/s, "").trim()
+          } catch {}
+        }
+
+        // Parse DECK_DATA
+        let pdDeckData: any = null
+        const pdDeckMatch = pdClean.match(/DECK_DATA:\s*(\{[\s\S]*\})\s*$/m)
+        if (pdDeckMatch?.[1]) {
+          try {
+            const parsed = JSON.parse(pdDeckMatch[1])
+            if (parsed.deckTitle && Array.isArray(parsed.slides) && parsed.slides.length > 0) {
+              pdDeckData = parsed
+              pdClean = pdClean.replace(/DECK_DATA:\s*\{[\s\S]*\}\s*$/m, "").trim()
+            }
+          } catch {}
+        }
+
+        res.write(`event: done\ndata: ${JSON.stringify({
+          cleanResponse: pdClean,
+          followUpPrompts: pdPrompts,
+          ...(pdDeckData ? { deckData: pdDeckData } : {}),
+        })}\n\n`)
+        return res.end()
+      } catch (err: any) {
+        console.error("Pitch deck stream error:", err?.message || err)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: err?.message || "AI streaming failed" })}\n\n`)
+        return res.end()
+      }
+    }
+
+    // POST /pitch-deck/render — Render deck JSON to .pptx buffer, return download ID
+    if (path === "/pitch-deck/render" && method === "POST") {
+      if (session?.userEmail !== "eric.yerke@stamats.com") {
+        return res.status(403).json({ error: "Access denied" })
+      }
+
+      const { deckData: pdRenderData } = req.body || {}
+      if (!pdRenderData?.deckTitle || !Array.isArray(pdRenderData.slides) || pdRenderData.slides.length === 0) {
+        return res.status(400).json({ error: "Invalid deck data" })
+      }
+
+      try {
+        const PptxGenJS = (await import("pptxgenjs")).default
+
+        // Brand constants
+        const B = { navy: "1F4E78", teal: "0D9488", dark: "1E293B", light: "F1F5F9", white: "FFFFFF", muted: "64748B", accent: "3B82F6", font: "Calibri" }
+
+        const pres = new PptxGenJS()
+        pres.layout = "LAYOUT_WIDE"
+        pres.title = pdRenderData.deckTitle
+        pres.author = "Stamats"
+        pres.company = "Stamats"
+
+        // Define master slides
+        pres.defineSlideMaster({ title: "MASTER_TITLE", background: { color: B.navy }, objects: [
+          { rect: { x: 0, y: 6.8, w: "100%", h: 0.7, fill: { color: B.teal } } },
+          { text: { text: "STAMATS", options: { x: 10.5, y: 6.9, w: 2.5, h: 0.4, fontSize: 11, color: B.white, fontFace: B.font, align: "right", bold: true, letterSpacing: 3 } } },
+        ] })
+        pres.defineSlideMaster({ title: "MASTER_CONTENT", background: { color: B.white }, objects: [
+          { rect: { x: 0, y: 0, w: "100%", h: 0.08, fill: { color: B.navy } } },
+          { rect: { x: 0, y: 7.1, w: "100%", h: 0.4, fill: { color: B.light } } },
+          { text: { text: "STAMATS", options: { x: 10.5, y: 7.15, w: 2.5, h: 0.3, fontSize: 9, color: B.muted, fontFace: B.font, align: "right", bold: true, letterSpacing: 2 } } },
+        ] })
+        pres.defineSlideMaster({ title: "MASTER_SECTION", background: { color: B.teal }, objects: [
+          { rect: { x: 0, y: 6.8, w: "100%", h: 0.7, fill: { color: B.navy } } },
+        ] })
+        pres.defineSlideMaster({ title: "MASTER_CLOSING", background: { color: B.navy }, objects: [
+          { rect: { x: 0, y: 5.5, w: "100%", h: 0.04, fill: { color: B.teal } } },
+          { text: { text: "STAMATS", options: { x: 10.5, y: 6.9, w: 2.5, h: 0.4, fontSize: 11, color: B.white, fontFace: B.font, align: "right", bold: true, letterSpacing: 3 } } },
+        ] })
+
+        for (const slide of pdRenderData.slides) {
+          const t = slide.type || "content"
+
+          if (t === "title") {
+            const s = pres.addSlide({ masterName: "MASTER_TITLE" })
+            s.addText(slide.title || "", { x: 0.8, y: 2.0, w: 11.7, h: 1.8, fontSize: 44, bold: true, color: B.white, fontFace: B.font, align: "left", valign: "bottom" })
+            if (slide.subtitle) s.addText(slide.subtitle, { x: 0.8, y: 4.0, w: 11.7, h: 0.8, fontSize: 20, color: B.light, fontFace: B.font })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "section-divider") {
+            const s = pres.addSlide({ masterName: "MASTER_SECTION" })
+            s.addText(slide.title || "", { x: 0.8, y: 2.5, w: 11.7, h: 2.0, fontSize: 40, bold: true, color: B.white, fontFace: B.font, align: "left", valign: "middle" })
+            if (slide.subtitle) s.addText(slide.subtitle, { x: 0.8, y: 4.5, w: 11.7, h: 0.8, fontSize: 18, color: B.white, fontFace: B.font })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "closing") {
+            const s = pres.addSlide({ masterName: "MASTER_CLOSING" })
+            s.addText(slide.title || "", { x: 0.8, y: 1.5, w: 11.7, h: 1.5, fontSize: 36, bold: true, color: B.white, fontFace: B.font, align: "center", valign: "middle" })
+            if (slide.subtitle) s.addText(slide.subtitle, { x: 0.8, y: 3.2, w: 11.7, h: 1.0, fontSize: 20, color: B.light, fontFace: B.font, align: "center" })
+            if (slide.bullets?.length) s.addText(slide.bullets.join("\n"), { x: 2.5, y: 4.2, w: 8.3, h: 1.2, fontSize: 16, color: B.muted, fontFace: B.font, align: "center", lineSpacingMultiple: 1.4 })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "quote") {
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addShape(pres.ShapeType.rect, { x: 0.8, y: 2.0, w: 0.08, h: 3.0, fill: { color: B.teal } })
+            if (slide.quote) {
+              s.addText(`\u201C${slide.quote.text}\u201D`, { x: 1.3, y: 2.0, w: 10.5, h: 2.5, fontSize: 24, italic: true, color: B.dark, fontFace: B.font, valign: "middle", lineSpacingMultiple: 1.4 })
+              s.addText(`\u2014 ${slide.quote.attribution}`, { x: 1.3, y: 4.5, w: 10.5, h: 0.5, fontSize: 16, color: B.muted, fontFace: B.font })
+            }
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "two-column") {
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addText(slide.title || "", { x: 0.8, y: 0.4, w: 11.7, h: 0.8, fontSize: 28, bold: true, color: B.navy, fontFace: B.font })
+            if (slide.leftColumn) {
+              s.addText(slide.leftColumn.title, { x: 0.8, y: 1.5, w: 5.5, h: 0.5, fontSize: 20, bold: true, color: B.teal, fontFace: B.font })
+              if (slide.leftColumn.bullets?.length) s.addText(slide.leftColumn.bullets.map((b: string) => ({ text: b, options: { bullet: true, indentLevel: 0 } })), { x: 0.8, y: 2.2, w: 5.5, h: 4.5, fontSize: 16, color: B.dark, fontFace: B.font, lineSpacingMultiple: 1.3, valign: "top" })
+            }
+            s.addShape(pres.ShapeType.line, { x: 6.6, y: 1.5, w: 0, h: 5.2, line: { color: B.light, width: 1 } })
+            if (slide.rightColumn) {
+              s.addText(slide.rightColumn.title, { x: 7.0, y: 1.5, w: 5.5, h: 0.5, fontSize: 20, bold: true, color: B.teal, fontFace: B.font })
+              if (slide.rightColumn.bullets?.length) s.addText(slide.rightColumn.bullets.map((b: string) => ({ text: b, options: { bullet: true, indentLevel: 0 } })), { x: 7.0, y: 2.2, w: 5.5, h: 4.5, fontSize: 16, color: B.dark, fontFace: B.font, lineSpacingMultiple: 1.3, valign: "top" })
+            }
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "comparison" && slide.comparisonRows?.length) {
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addText(slide.title || "", { x: 0.8, y: 0.4, w: 11.7, h: 0.8, fontSize: 28, bold: true, color: B.navy, fontFace: B.font })
+            const hdr = [
+              { text: "Feature", options: { bold: true, color: B.white, fill: { color: B.navy }, fontSize: 14, fontFace: B.font } },
+              { text: "Stamats", options: { bold: true, color: B.white, fill: { color: B.teal }, fontSize: 14, fontFace: B.font } },
+              { text: "Competitor", options: { bold: true, color: B.white, fill: { color: B.muted }, fontSize: 14, fontFace: B.font } },
+            ]
+            const rows = slide.comparisonRows.map((r: any, i: number) => [
+              { text: r.feature, options: { fontSize: 13, fontFace: B.font, fill: { color: i % 2 === 0 ? B.white : B.light } } },
+              { text: r.us, options: { fontSize: 13, fontFace: B.font, fill: { color: i % 2 === 0 ? B.white : B.light } } },
+              { text: r.them, options: { fontSize: 13, fontFace: B.font, fill: { color: i % 2 === 0 ? B.white : B.light } } },
+            ])
+            s.addTable([hdr, ...rows], { x: 0.8, y: 1.5, w: 11.7, colW: [4.0, 3.85, 3.85], border: { type: "solid", pt: 0.5, color: "E2E8F0" }, rowH: 0.5 })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "chart" && slide.chartData) {
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addText(slide.title || "", { x: 0.8, y: 0.4, w: 11.7, h: 0.8, fontSize: 28, bold: true, color: B.navy, fontFace: B.font })
+            const ctMap: Record<string, any> = { bar: pres.ChartType.bar, line: pres.ChartType.line, pie: pres.ChartType.pie, area: pres.ChartType.area }
+            s.addChart(ctMap[slide.chartData.type] || pres.ChartType.bar, [{ name: slide.chartData.seriesName || "Series 1", labels: slide.chartData.labels, values: slide.chartData.values }], { x: 0.8, y: 1.5, w: 11.7, h: 5.2, showLegend: false, showTitle: false, chartColors: [B.navy, B.teal, B.accent, "F59E0B", "EF4444", "8B5CF6"] })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else if (t === "image-text") {
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addText(slide.title || "", { x: 0.8, y: 0.4, w: 11.7, h: 0.8, fontSize: 28, bold: true, color: B.navy, fontFace: B.font })
+            s.addShape(pres.ShapeType.rect, { x: 0.8, y: 1.5, w: 5.5, h: 5.2, fill: { color: B.light }, line: { color: "CBD5E1", width: 1, dashType: "dash" } })
+            s.addText("Insert Image", { x: 0.8, y: 3.5, w: 5.5, h: 0.8, fontSize: 14, color: B.muted, fontFace: B.font, align: "center" })
+            if (slide.bullets?.length) s.addText(slide.bullets.map((b: string) => ({ text: b, options: { bullet: true, indentLevel: 0 } })), { x: 7.0, y: 1.5, w: 5.5, h: 5.2, fontSize: 16, color: B.dark, fontFace: B.font, lineSpacingMultiple: 1.4, valign: "top" })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          } else {
+            // Default: content slide
+            const s = pres.addSlide({ masterName: "MASTER_CONTENT" })
+            s.addText(slide.title || "", { x: 0.8, y: 0.4, w: 11.7, h: 0.8, fontSize: 28, bold: true, color: B.navy, fontFace: B.font })
+            if (slide.bullets?.length) s.addText(slide.bullets.map((b: string) => ({ text: b, options: { bullet: true, indentLevel: 0 } })), { x: 0.8, y: 1.5, w: 11.7, h: 5.2, fontSize: 18, color: B.dark, fontFace: B.font, lineSpacingMultiple: 1.4, valign: "top" })
+            if (slide.speakerNotes) s.addNotes(slide.speakerNotes)
+          }
+        }
+
+        const buffer = await pres.write({ outputType: "nodebuffer" }) as Buffer
+        const pdId = crypto.randomUUID()
+        // Store in global map for download
+        if (!(globalThis as any).__pitchDeckStore) (globalThis as any).__pitchDeckStore = new Map()
+        ;(globalThis as any).__pitchDeckStore.set(pdId, { buffer, title: pdRenderData.deckTitle, expiresAt: Date.now() + 30 * 60 * 1000 })
+
+        return res.json({ downloadId: pdId, slideCount: pdRenderData.slides.length })
+      } catch (err: any) {
+        console.error("Pitch deck render error:", err?.message || err)
+        return res.status(500).json({ error: "Failed to render pitch deck" })
+      }
+    }
+
+    // GET /pitch-deck/download/:id — Download rendered .pptx
+    if (path.match(/^\/pitch-deck\/download\/[^/]+$/) && method === "GET") {
+      if (session?.userEmail !== "eric.yerke@stamats.com") {
+        return res.status(403).json({ error: "Access denied" })
+      }
+
+      const pdDownloadId = path.replace("/pitch-deck/download/", "")
+      const store = (globalThis as any).__pitchDeckStore as Map<string, { buffer: Buffer; title: string; expiresAt: number }> | undefined
+      const deck = store?.get(pdDownloadId)
+
+      if (!deck || Date.now() > deck.expiresAt) {
+        store?.delete(pdDownloadId)
+        return res.status(404).json({ error: "Deck not found or expired. Try regenerating." })
+      }
+
+      const safeTitle = deck.title.replace(/[^a-zA-Z0-9 -]/g, "").trim() || "Pitch Deck"
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.presentationml.presentation")
+      res.setHeader("Content-Disposition", `attachment; filename="${safeTitle}.pptx"`)
+      return res.send(deck.buffer)
+    }
+
     // ─── AI Companion stream (super-powered with full data access) ──────────
     if (path === "/companion/stream" && method === "POST") {
       if (!openai) {
@@ -4821,33 +5169,40 @@ ${compDataContext}`
 
     // Photos routes
     if (path === "/photos" || path === "/photos/") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
       if (method === "GET") {
-        const statusFilter = req.query?.status as string | undefined
-        const limitVal = parseInt(req.query?.limit as string) || 0
+        try {
+          const statusFilter = req.query?.status as string | undefined
+          const limitVal = parseInt(req.query?.limit as string) || 0
 
-        let query = db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt)) as any
-        if (statusFilter) query = query.where(eq(photoAssets.status, statusFilter))
-        if (limitVal) query = query.limit(limitVal)
-        const allPhotos = await query
+          let query = db.select().from(photoAssets).orderBy(desc(photoAssets.createdAt)) as any
+          if (statusFilter) query = query.where(eq(photoAssets.status, statusFilter))
+          if (limitVal) query = query.limit(limitVal)
+          const allPhotos = await query
 
-        if (supabase && allPhotos.length > 0) {
-          const paths = allPhotos.map((p: any) => {
-            const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
-            return `${p.storageKey}.${ext}`
-          })
-          const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
-          if (signedData) {
-            return res.json(allPhotos.map((p: any, i: number) => ({ ...p, fileUrl: signedData[i]?.signedUrl || null })))
+          if (supabase && allPhotos.length > 0) {
+            const paths = allPhotos.map((p: any) => {
+              const ext = p.originalFilename?.match(/\.([^.]+)$/)?.[1] || "png"
+              return `${p.storageKey}.${ext}`
+            })
+            const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
+            if (signedData) {
+              return res.json(allPhotos.map((p: any, i: number) => ({ ...p, fileUrl: signedData[i]?.signedUrl || null })))
+            }
           }
-        }
 
-        return res.json(allPhotos)
+          return res.json(allPhotos)
+        } catch (err: any) {
+          console.error("[Photos GET] Error:", err?.message || err, err?.stack)
+          return res.status(500).json({ error: "Failed to load photos", detail: err?.message })
+        }
       }
     }
 
     // PUT /photos/:id - update photo metadata
     const photoUpdateMatch = path.match(/^\/photos\/([^/]+)$/)
     if (photoUpdateMatch && method === "PUT") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
       const id = photoUpdateMatch[1]
       const { displayTitle, topicId, status, tags, description } = req.body || {}
 
@@ -4876,6 +5231,7 @@ ${compDataContext}`
 
     // GET /photos/file/:storageKey - redirect to Supabase Storage URL
     if (path.startsWith("/photos/file/") && method === "GET") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
       const storageKey = path.replace("/photos/file/", "")
       if (!storageKey) {
         return res.status(400).json({ error: "Storage key required" })
@@ -6095,6 +6451,75 @@ RULES:
       }
     }
 
+    // ─── Studio Autocomplete (streaming AI text completion) ───
+    if (path === "/studio/autocomplete" && method === "POST") {
+      if (!openai) {
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        res.write(`event: error\ndata: ${JSON.stringify({ error: "AI service is not configured" })}\n\n`)
+        return res.end()
+      }
+
+      const { textBefore, textAfter } = req.body || {}
+      if (!textBefore || typeof textBefore !== "string" || textBefore.trim().length < 10) {
+        return res.status(400).json({ error: "At least 10 characters of context required" })
+      }
+
+      const systemPrompt = `You are an expert writing assistant for Stamats, a marketing agency specializing in higher education and healthcare.
+
+You are completing text inline as the user types. Generate a natural continuation of the text — typically 1-2 sentences.
+
+RULES:
+- Output ONLY the completion text. No quotes, no explanation.
+- Match the style, tone, and voice of the existing text exactly.
+- Be concise — aim for 15-40 words unless the context demands more.
+- If the text ends mid-sentence, complete that sentence first.
+- Do not repeat words from the end of the existing text.
+- Output plain text, no markdown.`
+
+      const userPrompt = textAfter
+        ? `Continue writing from where the cursor is.\n\nText before cursor:\n${textBefore.trim().slice(-1500)}\n\nText after cursor:\n${String(textAfter).slice(0, 500)}`
+        : `Continue writing from where the cursor is.\n\nText before cursor:\n${textBefore.trim().slice(-1500)}`
+
+      res.setHeader("Content-Type", "text/event-stream")
+      res.setHeader("Cache-Control", "no-cache")
+      res.setHeader("Connection", "keep-alive")
+      res.setHeader("X-Accel-Buffering", "no")
+
+      res.write(`event: metadata\ndata: ${JSON.stringify({ type: "autocomplete" })}\n\n`)
+
+      try {
+        const stream = await openai.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.4,
+          max_tokens: 120,
+          stream: true,
+        })
+
+        let fullResponse = ""
+        for await (const chunk of stream) {
+          const token = chunk.choices[0]?.delta?.content
+          if (token) {
+            fullResponse += token
+            res.write(`data: ${JSON.stringify({ token })}\n\n`)
+          }
+        }
+
+        res.write(`event: done\ndata: ${JSON.stringify({ result: fullResponse.trim() })}\n\n`)
+        return res.end()
+      } catch (error: any) {
+        console.error("Autocomplete stream error:", error)
+        res.write(`event: error\ndata: ${JSON.stringify({ error: error?.message || "Streaming failed" })}\n\n`)
+        return res.end()
+      }
+    }
+
     // ─── RFP Routes ───
     if (path.startsWith("/rfp")) {
       // POST /rfp/extract — upload & extract document text
@@ -6380,7 +6805,7 @@ Return ONLY valid JSON, no markdown fencing.`,
     }
 
     // ─── Studio Routes (extract, chat, CRUD) ───
-    if (path.startsWith("/studio") && path !== "/studio/inline-edit") {
+    if (path.startsWith("/studio") && path !== "/studio/inline-edit" && path !== "/studio/autocomplete") {
       const userId = session?.userId
 
       // POST /studio/extract-document — file upload + text extraction
@@ -6802,6 +7227,340 @@ Return ONLY valid JSON, no markdown fencing.`,
           return res.json({ success: true })
         }
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // MEETING INTAKE ENDPOINTS
+    // ═══════════════════════════════════════════════════════════════════
+
+    const MEETING_ANALYSIS_PROMPT = `You are a meeting notes analyst for Stamats, a higher-education and healthcare marketing agency. Analyze the provided meeting transcript and return a structured JSON response.
+
+Context: Stamats helps colleges, universities, and healthcare organizations with enrollment marketing, brand strategy, digital marketing, and communications. When analyzing meetings, pay special attention to:
+- Client enrollment challenges, goals, and timelines
+- Marketing budget and resource constraints
+- Competitive landscape mentions
+- Brand positioning discussions
+- Digital/web project requirements
+- RFP or proposal opportunities
+
+Return valid JSON only with this exact structure:
+{
+  "summary": "2-3 sentence overview of what was discussed and key outcomes",
+  "keyPoints": ["up to 8 key discussion topics or important statements"],
+  "actionItems": [{"text": "specific action to take", "assignee": "person responsible if mentioned", "dueDate": "date if mentioned"}],
+  "decisions": ["any decisions that were made or agreed upon"],
+  "painPoints": ["client challenges, frustrations, or problems mentioned"],
+  "opportunities": ["ways Stamats can help, upsell opportunities, or strategic leverage points"],
+  "attendees": ["names of people who spoke or were mentioned as present"],
+  "pullQuotes": [{"quote": "exact or near-exact words from the client", "speaker": "name of the person who said it", "title": "their job title if mentioned", "context": "brief note on what prompted the quote"}]
+}
+
+If a field has no relevant data, return an empty array []. Always extract attendees from speaker labels or introductions. Be thorough with action items.
+
+For pullQuotes: Look for compelling statements from CLIENT-SIDE participants (not Stamats staff) that could serve as testimonials. Great pull quotes include:
+- Praise for Stamats work, results, or team
+- Statements about positive outcomes or ROI
+- Expressions of trust, satisfaction, or enthusiasm about the partnership
+- Memorable phrases about challenges overcome or goals achieved
+Only include quotes where the client is clearly saying something positive or noteworthy about the work. Use their exact words when possible — do not paraphrase. If no strong pull quotes exist, return an empty array.`
+
+    // Fire-and-forget meeting processing helper
+    async function processMeetingVercel(docId: string, audioStorageKey?: string, transcriptText?: string) {
+      try {
+        let transcript = transcriptText || ""
+
+        // Transcribe audio if needed
+        if (audioStorageKey && !transcript && openai && supabase) {
+          await queryClient!`UPDATE client_documents SET processing_status = 'transcribing', updated_at = NOW() WHERE id = ${docId}`
+          const { data, error: dlErr } = await supabase.storage.from("client-documents").download(audioStorageKey)
+          if (dlErr || !data) throw new Error(`Download failed: ${dlErr?.message}`)
+          const audioBuffer = Buffer.from(await data.arrayBuffer())
+          const ext = audioStorageKey.split(".").pop() || "webm"
+          const mimeMap: Record<string, string> = { webm: "audio/webm", mp3: "audio/mpeg", wav: "audio/wav", m4a: "audio/mp4", mp4: "audio/mp4", ogg: "audio/ogg" }
+          const file = new File([audioBuffer], `recording.${ext}`, { type: mimeMap[ext] || "audio/webm" })
+          const transcription = await openai.audio.transcriptions.create({ model: "whisper-1", file, response_format: "text" })
+          transcript = transcription as unknown as string
+          await queryClient!`UPDATE client_documents SET extracted_text = ${transcript}, updated_at = NOW() WHERE id = ${docId}`
+        }
+
+        if (!transcript?.trim()) {
+          await queryClient!`UPDATE client_documents SET processing_status = 'error', processing_error = 'No transcript text available', updated_at = NOW() WHERE id = ${docId}`
+          return
+        }
+
+        // Analyze transcript
+        await queryClient!`UPDATE client_documents SET processing_status = 'analyzing', updated_at = NOW() WHERE id = ${docId}`
+
+        const completion = await openai!.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: MEETING_ANALYSIS_PROMPT },
+            { role: "user", content: transcript.slice(0, 50000) },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.2,
+          max_tokens: 6000,
+        })
+
+        const raw = completion.choices[0]?.message?.content || "{}"
+        const parsed = JSON.parse(raw)
+        const mSummary = typeof parsed.summary === "string" ? parsed.summary : null
+        const mKeyPoints = Array.isArray(parsed.keyPoints) ? JSON.stringify(parsed.keyPoints) : null
+        const mActionItems = Array.isArray(parsed.actionItems) ? JSON.stringify(parsed.actionItems) : null
+        const mDecisions = Array.isArray(parsed.decisions) ? JSON.stringify(parsed.decisions) : null
+        const mPainPoints = Array.isArray(parsed.painPoints) ? JSON.stringify(parsed.painPoints) : null
+        const mOpportunities = Array.isArray(parsed.opportunities) ? JSON.stringify(parsed.opportunities) : null
+        const mAttendees = Array.isArray(parsed.attendees) ? JSON.stringify(parsed.attendees) : null
+        const mPullQuotes = Array.isArray(parsed.pullQuotes) ? JSON.stringify(parsed.pullQuotes) : null
+
+        await queryClient!`
+          UPDATE client_documents SET
+            summary = ${mSummary},
+            key_points = ${mKeyPoints}::jsonb,
+            meeting_action_items = ${mActionItems}::jsonb,
+            meeting_decisions = ${mDecisions}::jsonb,
+            meeting_pain_points = ${mPainPoints}::jsonb,
+            meeting_opportunities = ${mOpportunities}::jsonb,
+            meeting_pull_quotes = ${mPullQuotes}::jsonb,
+            meeting_attendees = ${mAttendees}::jsonb,
+            processing_status = 'complete',
+            processing_error = NULL,
+            updated_at = NOW()
+          WHERE id = ${docId}
+        `
+
+      } catch (err: any) {
+        console.error("Meeting processing failed:", err)
+        try {
+          await queryClient!`UPDATE client_documents SET processing_status = 'error', processing_error = ${err.message || "Processing failed"}, updated_at = NOW() WHERE id = ${docId}`
+        } catch { /* ignore */ }
+      }
+    }
+
+    // POST /meetings/process-audio
+    if (path === "/meetings/process-audio" && method === "POST") {
+      try {
+        const { buffer, mimetype, filename, fields } = await parseMultipartFormFull(req)
+        const clientName = (fields.clientName || "").trim().toLowerCase()
+        if (!clientName) return res.status(400).json({ error: "Client name is required" })
+
+        const title = (fields.title || "").trim() || `Meeting Recording ${new Date().toLocaleDateString()}`
+        const meetingDate = fields.meetingDate ? new Date(fields.meetingDate).toISOString() : new Date().toISOString()
+        const durationSecs = fields.durationSecs ? parseInt(fields.durationSecs, 10) : null
+
+        const ext = filename.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "webm"
+        const audioStorageKey = `meeting-audio/${clientName}/${crypto.randomBytes(16).toString("hex")}.${ext}`
+
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const { error: uploadErr } = await supabase.storage.from("client-documents").upload(audioStorageKey, buffer, { contentType: mimetype, upsert: true })
+        if (uploadErr) return res.status(500).json({ error: "Failed to upload audio" })
+
+        const uploadedBy = session?.userName || "unknown"
+        const [row] = await queryClient!`
+          INSERT INTO client_documents (client_name, title, doc_type, storage_key, original_filename, file_size, mime_type, audio_storage_key, audio_duration_secs, transcript_source, processing_status, meeting_date, uploaded_by, published)
+          VALUES (${clientName}, ${title}, 'meeting-notes', ${audioStorageKey}, ${filename}, ${buffer.length}, ${mimetype}, ${audioStorageKey}, ${durationSecs}, 'whisper', 'uploading', ${meetingDate}::timestamptz, ${uploadedBy}, false)
+          RETURNING id, processing_status AS "processingStatus"
+        `
+
+        // Fire-and-forget processing
+        processMeetingVercel(row.id, audioStorageKey).catch(() => {})
+
+        return res.json({ id: row.id, processingStatus: row.processingStatus })
+      } catch (err: any) {
+        console.error("Meeting process-audio failed:", err)
+        return res.status(500).json({ error: "Failed to process audio" })
+      }
+    }
+
+    // POST /meetings/analyze-text
+    if ((path === "/meetings/analyze-text" || path === "/meetings/analyze-text/") && method === "POST") {
+      try {
+        let transcriptText = ""
+        let clientName = ""
+        let title = ""
+        let meetingDate = new Date().toISOString()
+        let origFilename = "pasted-transcript.txt"
+
+        const contentType = req.headers["content-type"] || ""
+        if (contentType.includes("multipart/form-data")) {
+          try {
+            const { buffer, filename, fields } = await parseMultipartFormFull(req)
+            clientName = (fields.clientName || "").trim().toLowerCase()
+            title = (fields.title || "").trim()
+            meetingDate = fields.meetingDate ? new Date(fields.meetingDate).toISOString() : meetingDate
+            transcriptText = fields.text || ""
+            if (!transcriptText && buffer) {
+              transcriptText = buffer.toString("utf-8").slice(0, 50000)
+              origFilename = filename
+            }
+          } catch {
+            // Fall back to body parsing
+            const body = req.body || {}
+            clientName = (body.clientName || "").trim().toLowerCase()
+            title = (body.title || "").trim()
+            transcriptText = body.text || ""
+            meetingDate = body.meetingDate ? new Date(body.meetingDate).toISOString() : meetingDate
+          }
+        } else {
+          const body = req.body || {}
+          clientName = (body.clientName || "").trim().toLowerCase()
+          title = (body.title || "").trim()
+          transcriptText = body.text || ""
+          meetingDate = body.meetingDate ? new Date(body.meetingDate).toISOString() : meetingDate
+        }
+
+        if (!clientName) return res.status(400).json({ error: "Client name is required" })
+        if (!transcriptText.trim()) return res.status(400).json({ error: "No transcript text provided" })
+
+        const storageKey = `meeting-text/${clientName}/${crypto.randomBytes(16).toString("hex")}.txt`
+        const uploadedBy = session?.userName || "unknown"
+        const docTitle = title || `Meeting Notes ${new Date().toLocaleDateString()}`
+
+        const [row] = await queryClient!`
+          INSERT INTO client_documents (client_name, title, doc_type, storage_key, original_filename, file_size, mime_type, extracted_text, transcript_source, processing_status, meeting_date, uploaded_by, published)
+          VALUES (${clientName}, ${docTitle}, 'meeting-notes', ${storageKey}, ${origFilename}, ${Buffer.byteLength(transcriptText, "utf-8")}, 'text/plain', ${transcriptText}, 'manual', 'analyzing', ${meetingDate}::timestamptz, ${uploadedBy}, false)
+          RETURNING id, processing_status AS "processingStatus"
+        `
+
+        processMeetingVercel(row.id, undefined, transcriptText).catch(() => {})
+        return res.json({ id: row.id, processingStatus: row.processingStatus })
+      } catch (err: any) {
+        console.error("Meeting analyze-text failed:", err)
+        return res.status(500).json({ error: "Failed to analyze transcript" })
+      }
+    }
+
+    // POST /meetings/:id/reanalyze
+    if (path.match(/^\/meetings\/[^/]+\/reanalyze$/) && method === "POST") {
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`SELECT id, extracted_text, audio_storage_key FROM client_documents WHERE id = ${id}`
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+      if (!row.extracted_text && !row.audio_storage_key) return res.status(400).json({ error: "No transcript or audio to re-analyze" })
+
+      const newStatus = row.extracted_text ? "analyzing" : "transcribing"
+      await queryClient!`UPDATE client_documents SET processing_status = ${newStatus}, processing_error = NULL, updated_at = NOW() WHERE id = ${id}`
+
+      processMeetingVercel(id, !row.extracted_text ? row.audio_storage_key : undefined, row.extracted_text || undefined).catch(() => {})
+      return res.json({ id, processingStatus: newStatus })
+    }
+
+    // PATCH /meetings/:id/publish (admin only)
+    if (path.match(/^\/meetings\/[^/]+\/publish$/) && method === "PATCH") {
+      if (session?.role !== "admin") return res.status(403).json({ error: "Write access requires admin role" })
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`
+        UPDATE client_documents SET published = true, updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING id, published
+      `
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+      return res.json(row)
+    }
+
+    // POST /meetings/:id/diarize — on-demand speaker labeling
+    if (path.match(/^\/meetings\/[^/]+\/diarize$/) && method === "POST") {
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`SELECT id, extracted_text, meeting_attendees FROM client_documents WHERE id = ${id}`
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+      if (!row.extracted_text) return res.status(400).json({ error: "No transcript to diarize" })
+
+      const attendeesList = Array.isArray(row.meeting_attendees) ? row.meeting_attendees : []
+      const speakerList = attendeesList.length > 0
+        ? `Known participants: ${attendeesList.join(", ")}`
+        : "No specific participant names are known — use Speaker 1, Speaker 2, etc."
+
+      const diarCompletion = await openai!.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: `You are a transcript editor. Your job is to add speaker labels to an unlabeled meeting transcript.\n\n${speakerList}\n\nRules:\n- Attribute each segment of dialogue to the most likely speaker based on context, tone, role, and content\n- Use the format "**Speaker Name:** text" for each turn\n- Preserve the original words exactly — do not rephrase, summarize, or omit anything\n- Insert a blank line between speaker turns\n- If you cannot determine who is speaking, use "**Unknown:**"\n- For Stamats staff, you can infer from context (e.g., presenting capabilities, discussing deliverables)\n- For client-side speakers, infer from context (e.g., asking about timelines, discussing their institution)\n- Keep the full transcript — do not truncate or summarize` },
+          { role: "user", content: row.extracted_text.slice(0, 50000) },
+        ],
+        temperature: 0.2,
+        max_tokens: 12000,
+      })
+      const diarized = diarCompletion.choices[0]?.message?.content || ""
+      if (diarized) {
+        await queryClient!`UPDATE client_documents SET diarized_transcript = ${diarized}, updated_at = NOW() WHERE id = ${id}`
+      }
+      return res.json({ id, diarizedTranscript: diarized })
+    }
+
+    // DELETE /meetings/:id
+    if (path.match(/^\/meetings\/[^/]+$/) && !path.includes("/status") && !path.includes("/publish") && !path.includes("/reanalyze") && method === "DELETE") {
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`SELECT id, audio_storage_key FROM client_documents WHERE id = ${id}`
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+
+      // Delete audio from storage if exists
+      if (row.audio_storage_key && supabase) {
+        await supabase.storage.from("client-documents").remove([row.audio_storage_key]).catch(() => {})
+      }
+
+      await queryClient!`DELETE FROM client_documents WHERE id = ${id}`
+      return res.json({ success: true })
+    }
+
+    // GET /meetings/:id/status
+    if (path.match(/^\/meetings\/[^/]+\/status$/) && method === "GET") {
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`SELECT id, processing_status AS "processingStatus", processing_error AS "processingError" FROM client_documents WHERE id = ${id}`
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+      return res.json(row)
+    }
+
+    // GET /meetings/:id — full record
+    if (path.match(/^\/meetings\/[^/]+$/) && !path.includes("/status") && !path.includes("/publish") && !path.includes("/reanalyze") && method === "GET") {
+      const id = path.split("/")[2]
+      const [row] = await queryClient!`
+        SELECT id, client_name AS "clientName", title, summary,
+          key_points AS "keyPoints",
+          meeting_date AS "meetingDate",
+          meeting_attendees AS "meetingAttendees",
+          meeting_action_items AS "meetingActionItems",
+          meeting_decisions AS "meetingDecisions",
+          meeting_pain_points AS "meetingPainPoints",
+          meeting_opportunities AS "meetingOpportunities",
+          meeting_pull_quotes AS "meetingPullQuotes",
+          processing_status AS "processingStatus",
+          processing_error AS "processingError",
+          transcript_source AS "transcriptSource",
+          extracted_text AS "extractedText",
+          diarized_transcript AS "diarizedTranscript",
+          audio_duration_secs AS "audioDurationSecs",
+          uploaded_by AS "uploadedBy",
+          created_at AS "createdAt"
+        FROM client_documents WHERE id = ${id}
+      `
+      if (!row) return res.status(404).json({ error: "Meeting not found" })
+      return res.json(row)
+    }
+
+    // GET /meetings — list meetings
+    if ((path === "/meetings" || path === "/meetings/") && method === "GET") {
+      const filterClient = typeof req.query?.clientName === "string" ? req.query.clientName.toLowerCase() : null
+      let rows
+      if (filterClient) {
+        rows = await queryClient!`
+          SELECT id, client_name AS "clientName", title, summary,
+            meeting_date AS "meetingDate", meeting_attendees AS "meetingAttendees",
+            processing_status AS "processingStatus", transcript_source AS "transcriptSource",
+            audio_duration_secs AS "audioDurationSecs", meeting_action_items AS "meetingActionItems",
+            uploaded_by AS "uploadedBy", created_at AS "createdAt"
+          FROM client_documents WHERE doc_type = 'meeting-notes' AND client_name = ${filterClient}
+          ORDER BY created_at DESC LIMIT 100
+        `
+      } else {
+        rows = await queryClient!`
+          SELECT id, client_name AS "clientName", title, summary,
+            meeting_date AS "meetingDate", meeting_attendees AS "meetingAttendees",
+            processing_status AS "processingStatus", transcript_source AS "transcriptSource",
+            audio_duration_secs AS "audioDurationSecs", meeting_action_items AS "meetingActionItems",
+            uploaded_by AS "uploadedBy", created_at AS "createdAt"
+          FROM client_documents WHERE doc_type = 'meeting-notes'
+          ORDER BY created_at DESC LIMIT 100
+        `
+      }
+      return res.json(rows)
     }
 
     // 404 for unmatched routes

@@ -15,6 +15,8 @@ import conversationsRouter from "./conversations.js"
 import studioRouter from "./studio.js"
 import companionRouter from "./companion.js"
 import humanizerRouter from "./humanizer.js"
+import pitchDeckRouter from "./pitchDeck.js"
+import meetingsRouter from "./meetings.js"
 
 const router = Router()
 
@@ -34,5 +36,7 @@ router.use("/conversations", conversationsRouter)
 router.use("/studio", studioRouter)
 router.use("/companion", companionRouter)
 router.use("/humanizer", humanizerRouter)
+router.use("/pitch-deck", pitchDeckRouter)
+router.use("/meetings", meetingsRouter)
 
 export default router

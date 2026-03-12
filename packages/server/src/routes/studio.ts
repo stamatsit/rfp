@@ -2,7 +2,7 @@ import { Router } from "express"
 import multer from "multer"
 import path from "path"
 import { streamBriefing } from "../services/briefingAIService.js"
-import { streamDocumentChat, queryDocumentChat, detectRFPSignals, generateRFPChecklist, checkRFPCompliance, streamInlineEdit } from "../services/documentAIService.js"
+import { streamDocumentChat, queryDocumentChat, detectRFPSignals, generateRFPChecklist, checkRFPCompliance, streamInlineEdit, streamAutocomplete } from "../services/documentAIService.js"
 import { extractDocumentText } from "../services/rfpService.js"
 import { getCurrentUserId } from "../middleware/getCurrentUser.js"
 import { db } from "../db/index.js"
@@ -126,6 +126,22 @@ router.post("/inline-edit", async (req, res) => {
     console.error("Inline edit error:", error instanceof Error ? error.stack : error)
     if (!res.headersSent) {
       res.status(500).json({ error: "Failed to stream inline edit" })
+    }
+  }
+})
+
+// POST /api/studio/autocomplete (streaming AI text completion)
+router.post("/autocomplete", async (req, res) => {
+  const { textBefore, textAfter } = req.body
+  if (!textBefore || typeof textBefore !== "string" || textBefore.trim().length < 10) {
+    return res.status(400).json({ error: "At least 10 characters of context required" })
+  }
+  try {
+    await streamAutocomplete(textBefore.trim(), textAfter || "", res)
+  } catch (error) {
+    console.error("Autocomplete error:", error instanceof Error ? error.stack : error)
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to stream autocomplete" })
     }
   }
 })

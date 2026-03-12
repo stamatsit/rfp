@@ -1040,7 +1040,7 @@ router.get("/documents/:clientName", async (req: Request, res: Response) => {
         createdAt: clientDocuments.createdAt,
       })
       .from(clientDocuments)
-      .where(eq(clientDocuments.clientName, clientName))
+      .where(and(eq(clientDocuments.clientName, clientName), eq(clientDocuments.published, true)))
       .orderBy(desc(clientDocuments.createdAt))
     res.json(rows)
   } catch (error) {

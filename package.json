@@ -21,12 +21,9 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.39.3",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.17",
-    "react-is": "^18.3.1",
-    "tailwindcss": "^3.4.1",
-    "vite": "^6.0.7",
-    "@supabase/supabase-js": "^2.39.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
@@ -38,7 +35,11 @@
     "openai": "^6.16.0",
     "pdf-parse": "^2.4.5",
     "postgres": "^3.4.3",
+    "pptxgenjs": "^4.0.1",
+    "react-is": "^18.3.1",
+    "tailwindcss": "^3.4.1",
     "uuid": "^9.0.1",
+    "vite": "^6.0.7",
     "xlsx": "^0.18.5",
     "zod": "^3.22.4"
   }

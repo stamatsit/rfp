@@ -22,8 +22,11 @@ import {
   X,
   Building2,
   ImageDown,
+  Presentation,
+  BarChart3,
 } from "lucide-react"
 import { conversationsApi, clientsApi, type ConversationSummary, type ClientResponse } from "@/lib/api"
+import { useAuth } from "@/contexts/AuthContext"
 import { loadSettings } from "./SettingsPanel"
 
 interface CommandPaletteProps {
@@ -58,9 +61,14 @@ const ROUTE_ITEMS: PaletteItem[] = [
   { id: "photos", type: "route", label: "Photo Library", description: "Image assets", icon: Image, href: "/photos" },
   { id: "image-converter", type: "route", label: "Image Converter", description: "Convert images to WebP", icon: ImageDown, href: "/convert" },
   { id: "new", type: "route", label: "New Entry", description: "Create a Q&A entry", icon: PenLine, href: "/new" },
+  { id: "pitch-deck", type: "route", label: "Pitch Deck Designer", description: "AI-powered presentation builder", icon: Presentation, href: "/pitch-deck" },
+  { id: "meetings", type: "route", label: "Meeting Intake", description: "Record, transcribe & analyze meetings", icon: MessageSquare, href: "/meetings" },
+  { id: "analytics", type: "route", label: "Proposal Analytics", description: "Charts & KPIs for win rates", icon: BarChart3, href: "/analytics" },
   { id: "help", type: "route", label: "Help", description: "Documentation & guides", icon: HelpCircle, href: "/help" },
   { id: "support", type: "route", label: "Support", description: "Contact support", icon: LifeBuoy, href: "/support" },
 ]
+
+const ERIC_ONLY_ROUTES = new Set(["pitch-deck"])
 
 const PAGE_ROUTE_MAP: Record<string, string> = {
   "ask-ai": "/ai",
@@ -72,6 +80,7 @@ const PAGE_ROUTE_MAP: Record<string, string> = {
   "studio-review": "/studio",
   "humanizer": "/humanize",
   "general": "/ai",
+  "pitch-deck": "/pitch-deck",
 }
 
 function timeAgo(dateStr: string): string {
@@ -89,6 +98,7 @@ function timeAgo(dateStr: string): string {
 
 export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [query, setQuery] = useState("")
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
@@ -112,9 +122,9 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   // Build filtered items
   const q = query.toLowerCase()
-  const filteredRoutes = ROUTE_ITEMS.filter(
-    item => !q || item.label.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q)
-  )
+  const filteredRoutes = ROUTE_ITEMS
+    .filter(item => !ERIC_ONLY_ROUTES.has(item.id) || user?.email === "eric.yerke@stamats.com")
+    .filter(item => !q || item.label.toLowerCase().includes(q) || item.description?.toLowerCase().includes(q))
   const filteredConvs: PaletteItem[] = conversations
     .filter(c => !q || c.title.toLowerCase().includes(q))
     .map(c => ({

@@ -27,6 +27,7 @@ export interface ChatMessage {
   svgData?: { svg: string; title: string } | null
   reviewAnnotations?: ReviewAnnotation[]
   photoSuggestions?: PhotoSuggestion[]
+  deckData?: { deckTitle: string; slideCount: number; downloadId: string }
   metadata?: Record<string, unknown>
 }
 
@@ -216,5 +217,26 @@ export const CHAT_THEMES = {
     sendButtonHoverGradient: "hover:from-amber-600 hover:to-orange-600",
     sendButtonShadow: "shadow-[0_4px_12px_rgba(245,158,11,0.3)]",
     dotColor: "bg-amber-400",
+  },
+  blue: {
+    name: "Pitch Deck",
+    primary: "blue",
+    botGradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%)",
+    botShadow: "0 4px 12px rgba(59,130,246,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
+    userBubbleBg: "bg-gradient-to-br from-blue-50 to-indigo-100/80",
+    userBubbleBorder: "border-blue-200/60",
+    userBubbleShadow: "shadow-[0_1px_3px_rgba(59,130,246,0.1)]",
+    accentBg: "bg-blue-50",
+    accentBgHover: "hover:bg-blue-100",
+    accentText: "text-blue-700",
+    accentBorder: "border-blue-200",
+    accentBgDark: "dark:bg-blue-900/30",
+    accentBgHoverDark: "dark:hover:bg-blue-900/50",
+    accentTextDark: "dark:text-blue-300",
+    accentBorderDark: "dark:border-blue-700",
+    sendButtonGradient: "bg-gradient-to-r from-blue-500 to-indigo-500",
+    sendButtonHoverGradient: "hover:from-blue-600 hover:to-indigo-600",
+    sendButtonShadow: "shadow-[0_4px_12px_rgba(59,130,246,0.3)]",
+    dotColor: "bg-blue-400",
   },
 } satisfies Record<string, ChatTheme>

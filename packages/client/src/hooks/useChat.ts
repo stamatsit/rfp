@@ -249,7 +249,7 @@ export function useChat({ endpoint, streamEndpoint, page, parseResult, buildBody
                       svgData: data.svgData ?? undefined,
                       reviewAnnotations: data.reviewAnnotations as import("@/types/chat").ReviewAnnotation[] | undefined,
                       photoSuggestions: data.photoSuggestions as import("@/types/chat").PhotoSuggestion[] | undefined,
-                      metadata: { ...m.metadata, ...data.metadata },
+                      metadata: { ...m.metadata, ...data.metadata, ...(data.deckData ? { deckData: data.deckData } : {}) },
                     }
                   : m
               )

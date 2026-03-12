@@ -1776,7 +1776,7 @@ export const unifiedAIApi = {
 
 // ─── Conversations (Chat History) ─────────────────────────────────
 
-export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general" | "companion" | "humanizer"
+export type ConversationPage = "ask-ai" | "case-studies" | "proposal-insights" | "unified-ai" | "studio" | "studio-review" | "general" | "companion" | "humanizer" | "pitch-deck"
 
 export interface ConversationSummary {
   id: string
@@ -1986,12 +1986,112 @@ export const studioApi = {
   },
 }
 
+// ─── Meetings API ─────────────────────────────────────────────
+
+export interface MeetingRecord {
+  id: string
+  clientName: string
+  title: string
+  summary: string | null
+  keyPoints: string[] | null
+  meetingDate: string | null
+  meetingAttendees: string[] | null
+  meetingActionItems: { text: string; assignee?: string; dueDate?: string }[] | null
+  meetingDecisions: string[] | null
+  meetingPainPoints: string[] | null
+  meetingOpportunities: string[] | null
+  meetingPullQuotes: { quote: string; speaker?: string; title?: string; context?: string }[] | null
+  processingStatus: string | null
+  processingError: string | null
+  transcriptSource: string | null
+  extractedText: string | null
+  diarizedTranscript: string | null
+  audioDurationSecs: number | null
+  uploadedBy: string | null
+  createdAt: string
+}
+
+export const meetingsApi = {
+  async processAudio(
+    file: File | Blob,
+    data: { clientName: string; title?: string; meetingDate?: string; durationSecs?: number },
+  ): Promise<{ id: string; processingStatus: string }> {
+    const formData = new FormData()
+    formData.append("audio", file, file instanceof File ? file.name : "recording.webm")
+    formData.append("clientName", data.clientName)
+    if (data.title) formData.append("title", data.title)
+    if (data.meetingDate) formData.append("meetingDate", data.meetingDate)
+    if (data.durationSecs) formData.append("durationSecs", String(data.durationSecs))
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/process-audio`, {
+      method: "POST",
+      body: formData,
+    })
+    return handleResponse(response)
+  },
+
+  async analyzeText(
+    data: { text?: string; clientName: string; title?: string; meetingDate?: string },
+    file?: File,
+  ): Promise<{ id: string; processingStatus: string }> {
+    const formData = new FormData()
+    formData.append("clientName", data.clientName)
+    if (data.title) formData.append("title", data.title)
+    if (data.meetingDate) formData.append("meetingDate", data.meetingDate)
+    if (data.text) formData.append("text", data.text)
+    if (file) formData.append("file", file)
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/analyze-text`, {
+      method: "POST",
+      body: formData,
+    })
+    return handleResponse(response)
+  },
+
+  async getStatus(id: string): Promise<{ id: string; processingStatus: string; processingError: string | null }> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}/status`)
+    return handleResponse(response)
+  },
+
+  async getMeeting(id: string): Promise<MeetingRecord> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}`)
+    return handleResponse(response)
+  },
+
+  async list(clientName?: string): Promise<MeetingRecord[]> {
+    const params = clientName ? `?clientName=${encodeURIComponent(clientName)}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/meetings${params}`)
+    return handleResponse(response)
+  },
+
+  async publish(id: string): Promise<{ id: string; published: boolean }> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}/publish`, { method: "PATCH" })
+    return handleResponse(response)
+  },
+
+  async reanalyze(id: string): Promise<{ id: string; processingStatus: string }> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}/reanalyze`, { method: "POST" })
+    return handleResponse(response)
+  },
+
+  async diarize(id: string): Promise<{ id: string; diarizedTranscript: string }> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}/diarize`, { method: "POST" })
+    return handleResponse(response)
+  },
+
+  async delete(id: string): Promise<void> {
+    const response = await fetchWithCredentials(`${API_BASE}/meetings/${id}`, { method: "DELETE" })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, err.error || "Failed to delete meeting")
+    }
+  },
+}
+
 // ─── SSE Streaming Utility ─────────────────────────────────
 
 export interface FetchSSECallbacks {
   onMetadata?: (data: Record<string, unknown>) => void
   onToken?: (token: string) => void
-  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; photoSuggestions?: Array<{ query: string; placement: string; photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }> }>; metadata?: Record<string, unknown> }) => void
+  onDone?: (data: { cleanResponse: string; followUpPrompts: string[]; chartData?: Record<string, unknown>; svgData?: { svg: string; title: string } | null; reviewAnnotations?: Array<{ id: string; quote: string; comment: string; severity: string; suggestedFix?: string }>; photoSuggestions?: Array<{ query: string; placement: string; photos: Array<{ id: string; displayTitle: string; storageKey: string; fileUrl: string | null }> }>; deckData?: Record<string, unknown>; metadata?: Record<string, unknown> }) => void
   onError?: (error: string) => void
   onAction?: (actions: Array<{ key: string; value: unknown; label: string }>) => void
 }

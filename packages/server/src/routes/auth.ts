@@ -108,7 +108,9 @@ router.post("/register", registerLimiter, async (req: Request, res: Response) =>
     if (typeof email !== "string" || !email.includes("@")) {
       return res.status(400).json({ error: "Valid email is required" })
     }
-    if (!email.toLowerCase().trim().endsWith("@stamats.com")) {
+    const ALLOWED_EMAILS = ["ericyerke@gmail.com"]
+    const normalizedEmail = email.toLowerCase().trim()
+    if (!normalizedEmail.endsWith("@stamats.com") && !ALLOWED_EMAILS.includes(normalizedEmail)) {
       return res.status(403).json({ error: "Registration is restricted to @stamats.com email addresses" })
     }
 

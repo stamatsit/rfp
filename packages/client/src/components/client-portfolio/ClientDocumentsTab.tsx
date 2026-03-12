@@ -11,6 +11,11 @@ import {
   Loader2,
   Image,
   Briefcase,
+  ListChecks,
+  CheckCircle2,
+  AlertTriangle,
+  Lightbulb,
+  Mic,
 } from "lucide-react"
 import { useClientData, useClientSelection } from "./ClientPortfolioContext"
 import { clientDocumentsApi } from "@/lib/api"
@@ -244,9 +249,66 @@ export function ClientDocumentsTab() {
                         ))}
                       </div>
                     )}
+                    {/* Meeting-specific analysis fields */}
+                    {isExpanded && (doc.docType === "meeting-notes") && (
+                      <div className="mt-2 space-y-2">
+                        {(doc as any).meetingActionItems?.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-1 mb-1">
+                              <ListChecks size={10} className="text-blue-500" />
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Action Items</span>
+                            </div>
+                            {(doc as any).meetingActionItems.map((item: any, ai: number) => (
+                              <div key={ai} className="text-[11px] text-slate-600 dark:text-slate-400 pl-3 py-0.5">
+                                • {item.text}{item.assignee ? ` (${item.assignee})` : ""}{item.dueDate ? ` — ${item.dueDate}` : ""}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {(doc as any).meetingDecisions?.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-1 mb-1">
+                              <CheckCircle2 size={10} className="text-emerald-500" />
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Decisions</span>
+                            </div>
+                            {(doc as any).meetingDecisions.map((d: string, di: number) => (
+                              <div key={di} className="text-[11px] text-slate-600 dark:text-slate-400 pl-3 py-0.5">• {d}</div>
+                            ))}
+                          </div>
+                        )}
+                        {(doc as any).meetingPainPoints?.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-1 mb-1">
+                              <AlertTriangle size={10} className="text-amber-500" />
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Pain Points</span>
+                            </div>
+                            {(doc as any).meetingPainPoints.map((p: string, pi: number) => (
+                              <div key={pi} className="text-[11px] text-slate-600 dark:text-slate-400 pl-3 py-0.5">• {p}</div>
+                            ))}
+                          </div>
+                        )}
+                        {(doc as any).meetingOpportunities?.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-1 mb-1">
+                              <Lightbulb size={10} className="text-cyan-500" />
+                              <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Opportunities</span>
+                            </div>
+                            {(doc as any).meetingOpportunities.map((o: string, oi: number) => (
+                              <div key={oi} className="text-[11px] text-slate-600 dark:text-slate-400 pl-3 py-0.5">• {o}</div>
+                            ))}
+                          </div>
+                        )}
+                        {(doc as any).transcriptSource && (
+                          <div className="flex items-center gap-1 pt-1">
+                            <Mic size={9} className="text-slate-400" />
+                            <span className="text-[10px] text-slate-400">Source: {(doc as any).transcriptSource}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {doc.summary && (
                       <button onClick={() => setExpandedDocId(isExpanded ? null : doc.id)} className="text-[10px] text-sky-500 hover:text-sky-600 mt-1 transition-colors">
-                        {isExpanded ? "Collapse" : "Key points"}
+                        {isExpanded ? "Collapse" : doc.docType === "meeting-notes" ? "Meeting details" : "Key points"}
                       </button>
                     )}
                   </div>

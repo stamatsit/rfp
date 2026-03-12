@@ -37,6 +37,9 @@ const pageConfig: Record<string, { title: string }> = {
   "/humanize": { title: "AI Humanizer" },
   "/clients": { title: "Client Portfolio" },
   "/convert": { title: "Image Converter" },
+  "/pitch-deck": { title: "Pitch Deck Designer" },
+  "/meetings": { title: "Meeting Intake" },
+  "/analytics": { title: "Proposal Analytics" },
 }
 
 function ThemeToggle() {

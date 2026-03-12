@@ -303,6 +303,7 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer"])
 
 export function HomePage() {
   const { user, markTourCompleted } = useAuth()
@@ -478,7 +479,12 @@ export function HomePage() {
 
           {/* Action Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">
-            {visibleCards.filter((card) => isAdmin || !ADMIN_ONLY_TILES.has(card.id || "")).map((card) => (
+            {visibleCards.filter((card) => {
+                const id = card.id || ""
+                if (ADMIN_ONLY_TILES.has(id)) return isAdmin
+                if (ERIC_ONLY_TILES.has(id)) return user?.email === "eric.yerke@stamats.com"
+                return true
+              }).map((card) => (
               <Card
                 key={card.id || card.to}
                 {...card}

@@ -31,6 +31,9 @@ const TestimonialManager = lazy(() => import("./pages/TestimonialManager").then(
 const AIHumanizer = lazy(() => import("./pages/AIHumanizer").then(m => ({ default: m.AIHumanizer })))
 const ClientPortfolio = lazy(() => import("./pages/ClientPortfolio").then(m => ({ default: m.ClientPortfolio })))
 const ImageConverter = lazy(() => import("./pages/ImageConverter").then(m => ({ default: m.ImageConverter })))
+const PitchDeckDesigner = lazy(() => import("./pages/PitchDeckDesigner").then(m => ({ default: m.PitchDeckDesigner })))
+const MeetingIntake = lazy(() => import("./pages/MeetingIntake").then(m => ({ default: m.MeetingIntake })))
+const Analytics = lazy(() => import("./pages/Analytics").then(m => ({ default: m.Analytics })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -124,6 +127,9 @@ function AppRoutes() {
             <Route path="/humanize" element={<ProtectedRoute><AIHumanizer /></ProtectedRoute>} />
             <Route path="/clients" element={<ProtectedRoute><ClientPortfolio /></ProtectedRoute>} />
             <Route path="/convert" element={<ProtectedRoute><ImageConverter /></ProtectedRoute>} />
+            <Route path="/pitch-deck" element={<ProtectedRoute><PitchDeckDesigner /></ProtectedRoute>} />
+            <Route path="/meetings" element={<ProtectedRoute><MeetingIntake /></ProtectedRoute>} />
+            <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

@@ -24,6 +24,7 @@ import { InlineAIToolbar } from "./InlineAIToolbar"
 import { EditorBubbleMenu } from "./EditorBubbleMenu"
 import { SlashCommands, createSlashCommandItems } from "./extensions/SlashCommands"
 import { SlashCommandMenu, type SlashCommandMenuRef } from "./SlashCommandMenu"
+import { useAIGhostText } from "./AIGhostText"
 import type { SlashCommandItem } from "./extensions/SlashCommands"
 import type { ReviewAnnotation } from "@/types/chat"
 import type { FormatSettings, LetterheadConfig } from "@/types/studio"
@@ -558,6 +559,9 @@ export function DocumentEditor({
     },
   })
 
+  // AI Ghost Text — inline autocomplete (Tab to accept)
+  const ghostAI = useAIGhostText({ editor })
+
   // Expose editor to parent via ref
   useEffect(() => {
     if (editorRef) {
@@ -863,6 +867,14 @@ export function DocumentEditor({
               <button onClick={zoomReset} className="hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200">
                 {Math.round(zoom * 100)}%
               </button>
+            </>
+          )}
+          {ghostAI.hasGhost && (
+            <>
+              <span className="text-slate-200 dark:text-slate-700">|</span>
+              <span className="text-emerald-500/70 dark:text-emerald-400/60 animate-pulse">
+                Tab ↹ to accept
+              </span>
             </>
           )}
         </div>

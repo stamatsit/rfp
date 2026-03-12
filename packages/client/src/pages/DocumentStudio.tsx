@@ -1,11 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react"
-import { Navigate } from "react-router-dom"
+import { useSearchParams } from "react-router-dom"
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core"
 import type { Editor } from "@tiptap/react"
 import { X, FileText, Sparkles, FilePlus, Upload, LayoutTemplate, PenLine } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { ConfirmDialog } from "@/components/ConfirmDialog"
-import { useIsAdmin } from "@/contexts/AuthContext"
 import {
   StudioToolbar, StudioChatSidebar, DocumentEditor,
   FindReplace, ExportDialog, PhotoPicker, AssetPanel,
@@ -47,8 +46,7 @@ const SEED_TEMPLATES = [
 ]
 
 export function DocumentStudio() {
-  const isAdmin = useIsAdmin()
-  if (!isAdmin) return <Navigate to="/" replace />
+  const [searchParams] = useSearchParams()
   const doc = useDocumentStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
@@ -75,6 +73,14 @@ export function DocumentStudio() {
       setServerTemplates(data as Array<{ id: string; name: string; content: string; category: string }>)
     }).catch(() => {})
   }, [])
+
+  // Load document from ?doc= query param
+  useEffect(() => {
+    const docId = searchParams.get("doc")
+    if (docId && docId !== doc.documentId) {
+      doc.loadDocument(docId)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Resizable divider
   const handleMouseDown = useCallback((e: React.MouseEvent) => {

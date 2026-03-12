@@ -619,6 +619,77 @@ RULES:
   }
 }
 
+// ─── AI Autocomplete (ghost text while typing) ───
+
+export async function streamAutocomplete(
+  textBefore: string,
+  textAfter: string,
+  res: Response,
+): Promise<void> {
+  const openai = getOpenAI()
+  if (!openai) {
+    res.writeHead(200, { "Content-Type": "text/event-stream" })
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "OpenAI API key not configured" })}\n\n`)
+    res.end()
+    return
+  }
+
+  const systemPrompt = `You are an expert writing assistant for Stamats, a marketing agency specializing in higher education and healthcare.
+
+You are completing text inline as the user types. Generate a natural continuation of the text — typically 1-2 sentences.
+
+RULES:
+- Output ONLY the completion text. No quotes, no explanation.
+- Match the style, tone, and voice of the existing text exactly.
+- Be concise — aim for 15-40 words unless the context demands more.
+- If the text ends mid-sentence, complete that sentence first.
+- Do not repeat words from the end of the existing text.
+- Output plain text, no markdown.`
+
+  const userPrompt = textAfter
+    ? `Continue writing from where the cursor is.\n\nText before cursor:\n${textBefore.slice(-1500)}\n\nText after cursor:\n${textAfter.slice(0, 500)}`
+    : `Continue writing from where the cursor is.\n\nText before cursor:\n${textBefore.slice(-1500)}`
+
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  })
+
+  res.write(`event: metadata\ndata: ${JSON.stringify({ type: "autocomplete" })}\n\n`)
+
+  try {
+    const stream = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      temperature: 0.4,
+      max_tokens: 120,
+      stream: true,
+    })
+
+    let fullResponse = ""
+    for await (const chunk of stream) {
+      const token = chunk.choices[0]?.delta?.content
+      if (token) {
+        fullResponse += token
+        res.write(`data: ${JSON.stringify({ token })}\n\n`)
+      }
+    }
+
+    res.write(`event: done\ndata: ${JSON.stringify({ result: fullResponse.trim() })}\n\n`)
+    res.end()
+  } catch (error) {
+    console.error("Autocomplete stream error:", error)
+    const message = error instanceof Error ? error.message : "Streaming failed"
+    res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`)
+    res.end()
+  }
+}
+
 // ─── Document Scanning (Upload → AI Flags) ───
 
 export interface ScanCriterion {

@@ -8,12 +8,17 @@ import {
   Quote,
   Building2,
   ImageDown,
+  Presentation,
+  Mic,
+  BarChart3,
 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface NavItem {
   to: string
   icon: React.ElementType
   label: string
+  emailOnly?: string
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,15 +30,21 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/humanize", icon: Wand2, label: "AI Humanizer" },
   { to: "/testimonials", icon: Quote, label: "Testimonials & Awards" },
   { to: "/convert", icon: ImageDown, label: "Image Converter" },
+  { to: "/meetings", icon: Mic, label: "Meeting Intake" },
+  { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
+  { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },
 ]
 
 export function NavRail() {
   const location = useLocation()
   const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const visibleItems = NAV_ITEMS.filter(item => !item.emailOnly || user?.email === item.emailOnly)
 
   return (
     <aside className="fixed left-0 top-14 bottom-0 w-14 z-[150] flex flex-col pt-2 bg-white dark:bg-slate-900 border-r border-black/[0.06] dark:border-white/[0.06]">
-      {NAV_ITEMS.map(item => {
+      {visibleItems.map(item => {
         const Icon = item.icon
         const isActive = item.to === "/"
           ? location.pathname === "/"

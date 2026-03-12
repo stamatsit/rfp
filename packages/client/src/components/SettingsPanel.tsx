@@ -39,6 +39,8 @@ import {
   Loader2,
   Quote,
   ImageDown,
+  Presentation,
+  Mic,
 } from "lucide-react"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
@@ -153,6 +155,39 @@ const defaultTiles: TileConfig[] = [
     description: "Convert images to WebP — crop & resize to exact dimensions",
     gradient: "linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #0D9488 100%)",
     shadowColor: "rgba(16, 185, 129, 0.15)",
+    enabled: true,
+    badge: "NEW",
+  },
+  {
+    id: "pitch-deck-designer",
+    to: "/pitch-deck",
+    icon: <Presentation size={22} strokeWidth={2} />,
+    title: "Pitch Deck Designer",
+    description: "AI builds branded Stamats pitch decks you can download as PowerPoint",
+    gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%)",
+    shadowColor: "rgba(59, 130, 246, 0.15)",
+    enabled: true,
+    badge: "NEW",
+  },
+  {
+    id: "meeting-intake",
+    to: "/meetings",
+    icon: <Mic size={22} strokeWidth={2} />,
+    title: "Meeting Intake",
+    description: "Record, transcribe, and analyze sales meetings with AI",
+    gradient: "linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)",
+    shadowColor: "rgba(16, 185, 129, 0.15)",
+    enabled: true,
+    badge: "NEW",
+  },
+  {
+    id: "proposal-analytics",
+    to: "/analytics",
+    icon: <BarChart3 size={22} strokeWidth={2} />,
+    title: "Proposal Analytics",
+    description: "Charts and KPIs for win rates, services, trends, and CE performance",
+    gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
+    shadowColor: "rgba(99, 102, 241, 0.15)",
     enabled: true,
     badge: "NEW",
   },
@@ -526,6 +561,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
@@ -703,8 +739,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     setDragOverTile(null)
   }
 
+  const isEricYerke = user?.email === "eric.yerke@stamats.com"
   const orderedTiles = [...defaultTiles]
-    .filter(tile => isAdmin || !ADMIN_ONLY_TILES.has(tile.id))
+    .filter(tile => {
+      if (ADMIN_ONLY_TILES.has(tile.id)) return isAdmin
+      if (ERIC_ONLY_TILES.has(tile.id)) return isEricYerke
+      return true
+    })
     .sort((a, b) => {
       const orderA = settings.tiles.find(t => t.id === a.id)?.order ?? 999
       const orderB = settings.tiles.find(t => t.id === b.id)?.order ?? 999
