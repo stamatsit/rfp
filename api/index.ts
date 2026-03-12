@@ -2184,35 +2184,20 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
           return res.status(500).json({ error: "Database not configured" })
         }
 
-        // Step 1: Extract key concepts/keywords from the user's query using AI
-        let searchKeywords: string[] = []
-        try {
-          const keywordExtraction = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              {
-                role: "system",
-                content: `Extract the key topic keywords from user queries for database searching.
-Return ONLY a JSON array of 1-5 important keywords/phrases, no explanation.
-Focus on nouns, topics, and concepts - ignore filler words like "give me", "describe", "what is", etc.
-Example: "give a description of governance" -> ["governance"]
-Example: "what are our data privacy policies" -> ["data privacy", "privacy policies", "data"]
-Example: "how do we handle customer complaints" -> ["customer complaints", "complaints", "customer service"]`
-              },
-              { role: "user", content: query }
-            ],
-            max_tokens: 100
-          })
-          const extracted = keywordExtraction.choices[0]?.message?.content || "[]"
-          searchKeywords = JSON.parse(extracted.replace(/```json\n?|\n?```/g, "").trim())
-        } catch (err) {
-          console.error("Keyword extraction failed:", err)
-          const stopWords = new Set(["give", "me", "a", "an", "the", "what", "is", "are", "how", "do", "we", "our", "describe", "description", "of", "about", "tell", "explain"])
-          searchKeywords = query.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.has(w))
+        // Step 1: Extract keywords locally (no AI round-trip)
+        const stopWords = new Set(["give", "me", "a", "an", "the", "what", "is", "are", "how", "do", "does", "did", "we", "our", "you", "your", "i", "my", "describe", "description", "of", "about", "tell", "explain", "can", "could", "would", "should", "have", "has", "had", "been", "being", "be", "will", "that", "this", "those", "these", "it", "its", "for", "with", "from", "into", "to", "in", "on", "at", "by", "and", "or", "not", "no", "but", "if", "so", "than", "too", "very", "just", "also", "some", "any", "all", "each", "every", "much", "many", "more", "most", "other", "another", "such", "only", "own", "same", "like", "get", "got", "make", "made", "know", "think", "want", "need", "use", "used", "way", "thing", "things"])
+        const words = query.toLowerCase().replace(/[^\w\s-]/g, "").split(/\s+/).filter((w: string) => w.length > 2 && !stopWords.has(w))
+        // Generate bigrams for multi-word concept matching
+        const allWords = query.toLowerCase().replace(/[^\w\s-]/g, "").split(/\s+/).filter((w: string) => w.length > 1)
+        const bigrams: string[] = []
+        for (let i = 0; i < allWords.length - 1; i++) {
+          if (!stopWords.has(allWords[i]!) || !stopWords.has(allWords[i + 1]!)) {
+            bigrams.push(`${allWords[i]} ${allWords[i + 1]}`)
+          }
         }
-
+        const searchKeywords = [...new Set([...bigrams, ...words])].slice(0, 5)
         if (searchKeywords.length === 0) {
-          searchKeywords = [query]
+          searchKeywords.push(query.trim())
         }
 
         // Step 2: Search with extracted keywords
