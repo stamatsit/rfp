@@ -338,7 +338,7 @@ export const clientSuccessAwards = pgTable("client_success_awards", {
 // AI Conversations (persisted chat history across all AI pages)
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general"] }).notNull(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general", "pitch-deck", "companion"] }).notNull(),
   title: text("title").notNull(), // Auto-generated from first user message
   messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
   userId: text("user_id"), // Owner — null for legacy conversations

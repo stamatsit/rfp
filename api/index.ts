@@ -765,7 +765,7 @@ export const users = pgTable("users", {
 // Conversations table (AI chat history)
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
-  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general", "pitch-deck"] }).notNull(),
+  page: text("page", { enum: ["ask-ai", "case-studies", "proposal-insights", "unified-ai", "studio", "studio-briefing", "studio-review", "general", "pitch-deck", "companion"] }).notNull(),
   title: text("title").notNull(),
   messages: jsonb("messages").$type<{ role: "user" | "assistant"; content: string; timestamp: string }[]>().notNull().default([]),
   userId: text("user_id"),
@@ -1229,7 +1229,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
         if (!db) return res.status(500).json({ error: "Database not configured" })
 
-        const normalizedEmail = email.toLowerCase().trim()
         const name = `${firstName.trim()} ${lastName.trim()}`
 
         // Check if email already exists
