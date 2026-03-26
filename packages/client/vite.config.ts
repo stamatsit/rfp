@@ -26,7 +26,16 @@ export default defineConfig({
         if (warning.code === 'MODULE_LEVEL_DIRECTIVE') return
         warn(warning)
       },
+      external: ['onnxruntime-web/webgpu'],
+      output: {
+        paths: {
+          'onnxruntime-web/webgpu': 'data:text/javascript,export default {}',
+        },
+      },
     },
+  },
+  optimizeDeps: {
+    exclude: ['onnxruntime-web'],
   },
   server: {
     port: 5173,
