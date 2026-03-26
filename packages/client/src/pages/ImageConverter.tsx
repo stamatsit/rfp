@@ -3,6 +3,7 @@ import Cropper from "react-easy-crop"
 import type { Area } from "react-easy-crop"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
+import { removeBackground } from "@imgly/background-removal"
 import {
   ImageDown,
   Upload,
@@ -21,6 +22,24 @@ import {
   GripVertical,
   Archive,
   Pencil,
+  Zap,
+  Layers,
+  Maximize2,
+  Instagram,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Youtube,
+  Globe,
+  FileImage,
+  MonitorSmartphone,
+  TextCursorInput,
+  Hash,
+  RotateCcw,
+  Eye,
+  Sparkles,
+  Loader2,
+  AlertCircle,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { Button } from "@/components/ui/button"
@@ -267,6 +286,9 @@ interface ImageItem {
   cropApplied: boolean
   converted: boolean
   convertedSize?: number
+  bgRemoved: boolean
+  /** Snapshot of src before BG removal, for undo */
+  preBgSrc: string | null
 }
 
 type Mode = "convert" | "crop"
@@ -349,6 +371,8 @@ export function ImageConverter() {
               outputHeight: img.naturalHeight,
               cropApplied: false,
               converted: false,
+              bgRemoved: false,
+              preBgSrc: null,
             }
             setImages((prev) => [...prev, item])
             // Auto-select the first new image
@@ -670,6 +694,107 @@ export function ImageConverter() {
     setEditingName(false)
   }
 
+  // ---- Batch rename ----
+
+  const [batchRenameOpen, setBatchRenameOpen] = useState(false)
+  const [renamePrefix, setRenamePrefix] = useState("")
+  const [renameSeparator, setRenameSeparator] = useState<"-" | "_" | " ">("-")
+  const [renameStartNum, setRenameStartNum] = useState(1)
+  const [renameZeroPad, setRenameZeroPad] = useState(true)
+
+  const batchRenamePreview = images.map((img, i) => {
+    const num = renameStartNum + i
+    const digits = renameZeroPad ? String(num).padStart(String(renameStartNum + images.length - 1).length, "0") : String(num)
+    const ext = img.fileName.substring(img.fileName.lastIndexOf("."))
+    const prefix = renamePrefix.trim()
+    if (!prefix) return img.fileName
+    return `${prefix}${renameSeparator}${digits}${ext}`
+  })
+
+  const handleBatchRenameApply = () => {
+    if (!renamePrefix.trim()) return
+    const previews = [...batchRenamePreview]
+    setImages((prev) =>
+      prev.map((img, i) => ({
+        ...img,
+        fileName: previews[i] ?? img.fileName,
+      }))
+    )
+    setBatchRenameOpen(false)
+  }
+
+  const handleBatchRenameReset = () => {
+    setRenamePrefix("")
+    setRenameStartNum(1)
+    setRenameSeparator("-")
+    setRenameZeroPad(true)
+  }
+
+  // ---- Background removal ----
+
+  const [bgRemoving, setBgRemoving] = useState(false)
+  const [bgProgress, setBgProgress] = useState("")
+  const [bgError, setBgError] = useState<string | null>(null)
+
+  const handleRemoveBg = async () => {
+    if (!selected || bgRemoving) return
+    setBgRemoving(true)
+    setBgError(null)
+    setBgProgress("Loading model...")
+    try {
+      // Convert data URL to blob for the library
+      const response = await fetch(selected.src)
+      const inputBlob = await response.blob()
+
+      const resultBlob = await removeBackground(inputBlob, {
+        progress: (key: string, current: number, total: number) => {
+          if (key === "compute:inference") {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 0
+            setBgProgress(pct > 0 ? `Removing background... ${pct}%` : "Removing background...")
+          } else if (key === "fetch:model") {
+            const pct = total > 0 ? Math.round((current / total) * 100) : 0
+            setBgProgress(pct > 0 ? `Downloading model... ${pct}%` : "Downloading model...")
+          }
+        },
+      })
+
+      // Convert result blob to data URL
+      const reader = new FileReader()
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(resultBlob)
+      })
+
+      updateImage(selected.id, {
+        preBgSrc: selected.src,
+        src: dataUrl,
+        bgRemoved: true,
+        converted: false, // reset converted state since image changed
+      })
+    } catch (err: any) {
+      console.error("Background removal failed:", err)
+      setBgError(err?.message || "Background removal failed")
+    } finally {
+      setBgRemoving(false)
+      setBgProgress("")
+    }
+  }
+
+  const handleUndoBgRemoval = () => {
+    if (!selected || !selected.preBgSrc) return
+    const restoredSrc = selected.preBgSrc
+    updateImage(selected.id, {
+      src: restoredSrc,
+      bgRemoved: false,
+      preBgSrc: null,
+      converted: false,
+    })
+  }
+
+  // If BG is removed, output must support alpha (PNG or WebP, not JPEG)
+  const bgNeedsAlphaWarning = selected?.bgRemoved && selected.originalFormat === "JPG" || selected?.bgRemoved && selected?.originalFormat === "JPEG"
+
   const convertedCount = images.filter((img) => img.converted).length
 
   // ---- Render ----
@@ -696,37 +821,136 @@ export function ImageConverter() {
           </div>
 
           {images.length === 0 ? (
-            /* ================= DROP ZONE ================= */
-            <div
-              onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-              onDragLeave={() => setIsDragging(false)}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              className={`cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-24 gap-4
-                ${isDragging
-                  ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
-                  : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-slate-900/50"
-                }`}
-            >
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <Upload size={28} className="text-slate-400 dark:text-slate-500" strokeWidth={1.5} />
+            /* ================= EMPTY STATE ================= */
+            <div className="space-y-6">
+              {/* Drop zone */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-16 gap-4
+                  ${isDragging
+                    ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 scale-[1.01]"
+                    : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-slate-900/50"
+                  }`}
+              >
+                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
+                  <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
+                </div>
+                <div className="text-center">
+                  <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
+                    Drop images here or click to browse
+                  </p>
+                  <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
+                    PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple files at once
+                  </p>
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
               </div>
-              <div className="text-center">
-                <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
-                  Drop images here or click to browse
-                </p>
-                <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
-                  PNG, JPEG, GIF, BMP, TIFF &rarr; WebP &mdash; select multiple
-                </p>
+
+              {/* Feature cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  {
+                    icon: <Zap size={18} strokeWidth={2} />,
+                    color: "from-amber-500 to-orange-500",
+                    shadow: "shadow-amber-500/15",
+                    title: "Convert to WebP",
+                    desc: "Reduce file size up to 80% with adjustable quality",
+                  },
+                  {
+                    icon: <Crop size={18} strokeWidth={2} />,
+                    color: "from-violet-500 to-purple-500",
+                    shadow: "shadow-violet-500/15",
+                    title: "Crop & Resize",
+                    desc: "Visual cropper with precise dimension controls",
+                  },
+                  {
+                    icon: <Maximize2 size={18} strokeWidth={2} />,
+                    color: "from-sky-500 to-blue-500",
+                    shadow: "shadow-sky-500/15",
+                    title: "Social Presets",
+                    desc: "One-click sizes for Instagram, Facebook, LinkedIn & more",
+                  },
+                  {
+                    icon: <Sparkles size={18} strokeWidth={2} />,
+                    color: "from-purple-500 to-violet-500",
+                    shadow: "shadow-purple-500/15",
+                    title: "Remove Background",
+                    desc: "AI-powered, runs locally — no upload, no API cost",
+                  },
+                  {
+                    icon: <Layers size={18} strokeWidth={2} />,
+                    color: "from-emerald-500 to-teal-500",
+                    shadow: "shadow-emerald-500/15",
+                    title: "Batch Export",
+                    desc: "Convert all images at once and download as ZIP",
+                  },
+                ].map((f) => (
+                  <div
+                    key={f.title}
+                    className="bg-white dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 p-4 flex gap-3 items-start"
+                  >
+                    <div className={`w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br ${f.color} ${f.shadow} shadow-md flex items-center justify-center text-white`}>
+                      {f.icon}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{f.title}</p>
+                      <p className="text-[12px] text-slate-400 dark:text-slate-500 leading-relaxed mt-0.5">{f.desc}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileChange}
-                className="hidden"
-              />
+
+              {/* Platform presets preview */}
+              <div className="bg-white dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 p-5">
+                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-3">
+                  Built-in presets for every platform
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { icon: <Instagram size={14} />, label: "Instagram", sizes: "1080x1080, 1080x1350, 1080x1920" },
+                    { icon: <Facebook size={14} />, label: "Facebook", sizes: "1200x630, 1640x856" },
+                    { icon: <Twitter size={14} />, label: "X / Twitter", sizes: "1600x900, 1500x500" },
+                    { icon: <Linkedin size={14} />, label: "LinkedIn", sizes: "1200x627, 1584x396" },
+                    { icon: <Youtube size={14} />, label: "YouTube", sizes: "1280x720, 2560x1440" },
+                    { icon: <Globe size={14} />, label: "Web", sizes: "OG 1200x630, Favicon 512x512" },
+                    { icon: <MonitorSmartphone size={14} />, label: "Common Ratios", sizes: "16:9, 4:3, 1:1, 9:16" },
+                  ].map((p) => (
+                    <div
+                      key={p.label}
+                      className="group flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
+                    >
+                      <span className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 transition-colors">{p.icon}</span>
+                      <div>
+                        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{p.label}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{p.sizes}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Supported formats */}
+              <div className="flex items-center justify-center gap-6 py-2">
+                <div className="flex items-center gap-1.5 text-[12px] text-slate-400 dark:text-slate-500">
+                  <FileImage size={13} />
+                  <span>Input: PNG, JPEG, GIF, BMP, TIFF</span>
+                </div>
+                <ArrowRightLeft size={13} className="text-slate-300 dark:text-slate-600" />
+                <div className="flex items-center gap-1.5 text-[12px] text-emerald-500 dark:text-emerald-400 font-medium">
+                  <ImageDown size={13} />
+                  <span>Output: WebP, PNG, JPEG</span>
+                </div>
+              </div>
             </div>
           ) : (
             <>
@@ -745,6 +969,11 @@ export function ImageConverter() {
                         <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-mono">
                           {selected.originalFormat}
                         </span>
+                        {selected.bgRemoved && (
+                          <span className="px-1.5 py-0.5 rounded bg-purple-100 dark:bg-purple-900/40 text-[11px] font-medium text-purple-600 dark:text-purple-400">
+                            BG Removed
+                          </span>
+                        )}
                         {selected.cropApplied && (
                           <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                             Cropped
@@ -757,6 +986,15 @@ export function ImageConverter() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
+                        {selected.bgRemoved && (
+                          <button
+                            onClick={handleUndoBgRemoval}
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 transition-colors"
+                          >
+                            <Undo2 size={13} />
+                            Restore BG
+                          </button>
+                        )}
                         {selected.cropApplied && (
                           <button
                             onClick={handleUndoCrop}
@@ -792,11 +1030,19 @@ export function ImageConverter() {
                         />
                       </div>
                     ) : (
-                      <div className="flex items-center justify-center bg-[#f0f0f0] dark:bg-slate-950">
+                      <div
+                        className="relative flex items-center justify-center"
+                        style={selected.bgRemoved ? {
+                          backgroundImage: "repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%)",
+                          backgroundSize: "16px 16px",
+                        } : {
+                          backgroundColor: "#f0f0f0",
+                        }}
+                      >
                         <img
                           src={selected.src}
                           alt="Preview"
-                          className="max-w-full block"
+                          className="max-w-full block relative z-[1]"
                           style={{
                             maxHeight: 500,
                             ...(selected.cropApplied ? {
@@ -804,6 +1050,15 @@ export function ImageConverter() {
                             } : {}),
                           }}
                         />
+                        {/* BG removal processing overlay */}
+                        {bgRemoving && (
+                          <div className="absolute inset-0 z-[2] bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg">
+                            <Loader2 size={28} className="text-white animate-spin" />
+                            <span className="text-[13px] font-medium text-white">
+                              {bgProgress || "Processing..."}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -879,6 +1134,11 @@ export function ImageConverter() {
                               <Crop size={9} className="text-white" strokeWidth={3} />
                             </div>
                           )}
+                          {img.bgRemoved && !img.converted && !img.cropApplied && (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-purple-500 flex items-center justify-center">
+                              <Sparkles size={9} className="text-white" strokeWidth={3} />
+                            </div>
+                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); removeImage(img.id) }}
                             className="absolute top-1 left-1 w-4 h-4 rounded-full bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -921,14 +1181,172 @@ export function ImageConverter() {
                           </span>
                         )}
                       </span>
-                      <button
-                        onClick={handleClearAll}
-                        className="text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1"
-                      >
-                        <Trash2 size={11} />
-                        Clear all
-                      </button>
+                      <div className="flex items-center gap-3">
+                        {images.length > 1 && (
+                          <button
+                            onClick={() => { setBatchRenameOpen(!batchRenameOpen); handleBatchRenameReset() }}
+                            className={`text-[11px] font-medium transition-colors flex items-center gap-1 ${
+                              batchRenameOpen
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400"
+                            }`}
+                          >
+                            <TextCursorInput size={11} />
+                            Batch Rename
+                          </button>
+                        )}
+                        <button
+                          onClick={handleClearAll}
+                          className="text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1"
+                        >
+                          <Trash2 size={11} />
+                          Clear all
+                        </button>
+                      </div>
                     </div>
+
+                    {/* Batch Rename Panel */}
+                    {batchRenameOpen && images.length > 1 && (
+                      <div className="mt-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden animate-in slide-in-from-top-2 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                          <div className="flex items-center gap-2">
+                            <TextCursorInput size={14} className="text-emerald-500" />
+                            <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">
+                              Batch Rename
+                            </span>
+                            <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                              {images.length} files
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => setBatchRenameOpen(false)}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+
+                        <div className="p-4 space-y-4">
+                          {/* Pattern builder */}
+                          <div className="grid grid-cols-[1fr_auto_auto] gap-2 items-end">
+                            <div>
+                              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                                Name
+                              </label>
+                              <input
+                                type="text"
+                                value={renamePrefix}
+                                onChange={(e) => setRenamePrefix(e.target.value)}
+                                placeholder="e.g. campus-tour"
+                                autoFocus
+                                className="w-full h-9 px-3 text-[13px] rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 placeholder:text-slate-300 dark:placeholder:text-slate-600 outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                                Sep
+                              </label>
+                              <div className="flex h-9 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                {(["-", "_", " "] as const).map((sep) => (
+                                  <button
+                                    key={sep}
+                                    onClick={() => setRenameSeparator(sep)}
+                                    className={`w-9 h-full text-[13px] font-mono transition-colors ${
+                                      renameSeparator === sep
+                                        ? "bg-emerald-500 text-white"
+                                        : "bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700"
+                                    }`}
+                                  >
+                                    {sep === " " ? "␣" : sep}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div>
+                              <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1.5 block">
+                                Start
+                              </label>
+                              <input
+                                type="number"
+                                min={0}
+                                value={renameStartNum}
+                                onChange={(e) => setRenameStartNum(Math.max(0, parseInt(e.target.value) || 0))}
+                                className="w-16 h-9 px-2 text-[13px] text-center font-mono rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-400 transition-all"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Options row */}
+                          <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2 cursor-pointer select-none">
+                              <input
+                                type="checkbox"
+                                checked={renameZeroPad}
+                                onChange={(e) => setRenameZeroPad(e.target.checked)}
+                                className="w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500/30"
+                              />
+                              <span className="text-[12px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                                <Hash size={11} />
+                                Zero-pad numbers
+                              </span>
+                            </label>
+                          </div>
+
+                          {/* Live preview */}
+                          <div>
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Eye size={11} className="text-slate-400" />
+                              <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                                Preview
+                              </span>
+                            </div>
+                            <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-100 dark:border-slate-700/50 max-h-[140px] overflow-y-auto">
+                              {images.map((img, i) => (
+                                <div
+                                  key={img.id}
+                                  className={`flex items-center gap-3 px-3 py-1.5 text-[12px] ${
+                                    i !== images.length - 1 ? "border-b border-slate-100 dark:border-slate-700/30" : ""
+                                  }`}
+                                >
+                                  <img src={img.src} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
+                                  <span className="text-slate-400 dark:text-slate-500 truncate flex-1 font-mono">
+                                    {img.fileName}
+                                  </span>
+                                  <ArrowRightLeft size={10} className="text-slate-300 dark:text-slate-600 flex-shrink-0" />
+                                  <span className={`truncate flex-1 font-mono font-medium text-right ${
+                                    renamePrefix.trim()
+                                      ? "text-emerald-600 dark:text-emerald-400"
+                                      : "text-slate-300 dark:text-slate-600"
+                                  }`}>
+                                    {batchRenamePreview[i]}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={handleBatchRenameApply}
+                              disabled={!renamePrefix.trim()}
+                              className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[13px] font-medium bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shadow-sm"
+                            >
+                              <Check size={14} />
+                              Rename {images.length} Files
+                            </button>
+                            <button
+                              onClick={handleBatchRenameReset}
+                              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-[12px] font-medium text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            >
+                              <RotateCcw size={12} />
+                              Reset
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   </div>
 
@@ -981,6 +1399,73 @@ export function ImageConverter() {
                           {selected.cropApplied ? "Re-crop" : "Crop & Convert"}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Background Removal */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Sparkles size={12} />
+                          Background
+                        </Label>
+                        {selected.bgRemoved && (
+                          <span className="text-[10px] font-medium text-purple-500 dark:text-purple-400 flex items-center gap-1">
+                            <Check size={10} />
+                            Removed
+                          </span>
+                        )}
+                      </div>
+                      {selected.bgRemoved ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800/50">
+                            <Check size={13} className="text-purple-500 flex-shrink-0" />
+                            <span className="text-[12px] font-medium text-purple-700 dark:text-purple-300">
+                              Background removed
+                            </span>
+                            <button
+                              onClick={handleUndoBgRemoval}
+                              className="ml-auto text-[11px] font-medium text-purple-500 dark:text-purple-400 hover:underline"
+                            >
+                              Restore
+                            </button>
+                          </div>
+                          {bgNeedsAlphaWarning && (
+                            <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                              <AlertCircle size={11} />
+                              Use WebP or PNG to preserve transparency
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <button
+                            onClick={handleRemoveBg}
+                            disabled={bgRemoving}
+                            className="w-full flex items-center justify-center gap-2 h-9 rounded-xl text-[13px] font-medium bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600 text-white shadow-sm shadow-purple-500/20 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                          >
+                            {bgRemoving ? (
+                              <>
+                                <Loader2 size={14} className="animate-spin" />
+                                {bgProgress || "Processing..."}
+                              </>
+                            ) : (
+                              <>
+                                <Sparkles size={14} />
+                                Remove Background
+                              </>
+                            )}
+                          </button>
+                          {bgError && (
+                            <p className="text-[11px] text-red-500 dark:text-red-400 flex items-center gap-1.5">
+                              <AlertCircle size={11} />
+                              {bgError}
+                            </p>
+                          )}
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
+                            Runs locally — no upload, no API cost
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Crop applied indicator */}
