@@ -304,6 +304,7 @@ export function ImageConverter() {
   const [selectedId, setSelectedId] = useState<number | null>(_initialSession?.selectedId ?? null)
   const [mode, setMode] = useState<Mode>("convert")
   const [quality, setQuality] = useState(_initialSession?.quality ?? 80)
+  const [outputFormat, setOutputFormat] = useState<"webp" | "png" | "jpeg">("webp")
   const [presetKey, setPresetKey] = useState("")
 
   // Crop state (for the currently selected image)
@@ -586,14 +587,30 @@ export function ImageConverter() {
     }
   }
 
-  // ---- Convert single ----
+  // ---- Export helper (supports all formats) ----
 
-  const handleConvertSingle = async () => {
+  const exportImage = async (
+    src: string,
+    width: number,
+    height: number,
+    format: "webp" | "png" | "jpeg",
+    q: number
+  ): Promise<Blob> => {
+    if (format === "webp") return convertToWebP(src, width, height, q)
+    const mimeMap = { png: "PNG", jpeg: "JPEG" } as const
+    return resizeImage(src, width, height, mimeMap[format])
+  }
+
+  const formatExt = { webp: "webp", png: "png", jpeg: "jpg" } as const
+
+  // ---- Download single ----
+
+  const handleDownloadSingle = async () => {
     if (!selected) return
     setConverting(true)
     try {
-      const blob = await convertToWebP(selected.src, selected.outputWidth, selected.outputHeight, quality)
-      saveAs(blob, `${stripExtension(selected.fileName)}.webp`)
+      const blob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
+      saveAs(blob, `${stripExtension(selected.fileName)}.${formatExt[outputFormat]}`)
       updateImage(selected.id, { converted: true, convertedSize: blob.size })
     } catch (err) {
       console.error("Conversion failed:", err)
@@ -602,38 +619,22 @@ export function ImageConverter() {
     }
   }
 
-  // ---- Download resized (original format) ----
+  // ---- Download all (ZIP) ----
 
-  const handleDownloadResized = async () => {
-    if (!selected) return
-    setConverting(true)
-    try {
-      const ext = selected.originalFormat.toLowerCase()
-      const blob = await resizeImage(selected.src, selected.outputWidth, selected.outputHeight, selected.originalFormat)
-      saveAs(blob, `${stripExtension(selected.fileName)}-${selected.outputWidth}x${selected.outputHeight}.${ext}`)
-    } catch (err) {
-      console.error("Resize failed:", err)
-    } finally {
-      setConverting(false)
-    }
-  }
-
-  // ---- Convert all (ZIP) ----
-
-  const handleConvertAll = async () => {
+  const handleDownloadAll = async () => {
     setConverting(true)
     setConvertProgress(0)
     try {
       const zip = new JSZip()
       for (let i = 0; i < images.length; i++) {
-        const img = images[i]
-        const blob = await convertToWebP(img.src, img.outputWidth, img.outputHeight, quality)
-        zip.file(`${stripExtension(img.fileName)}.webp`, blob)
+        const img = images[i]!
+        const blob = await exportImage(img.src, img.outputWidth, img.outputHeight, outputFormat, quality)
+        zip.file(`${stripExtension(img.fileName)}.${formatExt[outputFormat]}`, blob)
         updateImage(img.id, { converted: true, convertedSize: blob.size })
         setConvertProgress(i + 1)
       }
       const zipBlob = await zip.generateAsync({ type: "blob" })
-      saveAs(zipBlob, "converted-images.zip")
+      saveAs(zipBlob, `converted-images-${outputFormat}.zip`)
     } catch (err) {
       console.error("Batch conversion failed:", err)
     } finally {
@@ -778,6 +779,8 @@ export function ImageConverter() {
         bgRemoved: true,
         converted: false, // reset converted state since image changed
       })
+      // Auto-switch to PNG for transparency
+      if (outputFormat === "jpeg") setOutputFormat("png")
     } catch (err: any) {
       console.error("Background removal failed:", err)
       setBgError(err?.message || "Background removal failed")
@@ -1561,29 +1564,59 @@ export function ImageConverter() {
                       </div>
                     </div>
 
-                    {/* Quality */}
+                    {/* Output Format */}
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                          Quality
-                        </Label>
-                        <span className="text-[13px] font-mono font-medium text-slate-700 dark:text-slate-300">
-                          {quality}%
-                        </span>
+                      <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                        Output Format
+                      </Label>
+                      <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                        {(["png", "webp", "jpeg"] as const).map((fmt) => (
+                          <button
+                            key={fmt}
+                            onClick={() => setOutputFormat(fmt)}
+                            className={`flex-1 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                              outputFormat === fmt
+                                ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                                : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                            }`}
+                          >
+                            {fmt.toUpperCase()}
+                          </button>
+                        ))}
                       </div>
-                      <input
-                        type="range" min={1} max={100}
-                        value={quality}
-                        onChange={(e) => setQuality(Number(e.target.value))}
-                        className="w-full h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full appearance-none cursor-pointer
-                                   [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
-                                   [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                        <span>Smaller file</span>
-                        <span>Higher quality</span>
-                      </div>
+                      {selected.bgRemoved && outputFormat === "jpeg" && (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 flex items-center gap-1.5 mt-2">
+                          <AlertCircle size={11} />
+                          JPEG doesn't support transparency
+                        </p>
+                      )}
                     </div>
+
+                    {/* Quality (only for lossy formats) */}
+                    {outputFormat !== "png" && (
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                            Quality
+                          </Label>
+                          <span className="text-[13px] font-mono font-medium text-slate-700 dark:text-slate-300">
+                            {quality}%
+                          </span>
+                        </div>
+                        <input
+                          type="range" min={1} max={100}
+                          value={quality}
+                          onChange={(e) => setQuality(Number(e.target.value))}
+                          className="w-full h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full appearance-none cursor-pointer
+                                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                                     [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500 [&::-webkit-slider-thumb]:cursor-pointer"
+                        />
+                        <div className="flex justify-between text-[10px] text-slate-400 mt-1">
+                          <span>Smaller file</span>
+                          <span>Higher quality</span>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Info card */}
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
@@ -1637,11 +1670,11 @@ export function ImageConverter() {
                         </span>
                         <span className="text-slate-400 dark:text-slate-500">Output format</span>
                         <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
-                          WebP
+                          {outputFormat.toUpperCase()}
                         </span>
                         {selected.converted && selected.convertedSize != null && (
                           <>
-                            <span className="text-slate-400 dark:text-slate-500">WebP size</span>
+                            <span className="text-slate-400 dark:text-slate-500">Output size</span>
                             <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
                               {formatBytes(selected.convertedSize)}
                             </span>
@@ -1654,11 +1687,10 @@ export function ImageConverter() {
                       </div>
                     </div>
 
-                    {/* Action buttons */}
+                    {/* Download */}
                     <div className="space-y-2">
-                      {/* Convert this image */}
                       <Button
-                        onClick={handleConvertSingle}
+                        onClick={handleDownloadSingle}
                         disabled={converting || selected.outputWidth < 1 || selected.outputHeight < 1}
                         className="w-full h-10 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-medium rounded-xl shadow-lg shadow-emerald-500/20 transition-all"
                       >
@@ -1670,33 +1702,14 @@ export function ImageConverter() {
                         ) : (
                           <span className="flex items-center gap-2">
                             <Download size={15} />
-                            {selected.converted ? "Re-download WebP" : "Convert & Download"}
+                            Download as {outputFormat.toUpperCase()}
                           </span>
                         )}
                       </Button>
 
-                      {/* Download resized (original format) */}
-                      <Button
-                        onClick={handleDownloadResized}
-                        disabled={converting || selected.outputWidth < 1 || selected.outputHeight < 1}
-                        variant="outline"
-                        className="w-full h-10 rounded-xl font-medium"
-                      >
-                        <span className="flex items-center gap-2">
-                          <Download size={15} />
-                          Download as {selected.originalFormat}
-                          {(selected.outputWidth !== selected.naturalWidth || selected.outputHeight !== selected.naturalHeight) && (
-                            <span className="text-[11px] text-slate-400">
-                              ({selected.outputWidth}×{selected.outputHeight})
-                            </span>
-                          )}
-                        </span>
-                      </Button>
-
-                      {/* Convert all */}
                       {images.length > 1 && (
                         <Button
-                          onClick={handleConvertAll}
+                          onClick={handleDownloadAll}
                           disabled={converting}
                           variant="outline"
                           className="w-full h-10 rounded-xl font-medium"
@@ -1709,7 +1722,7 @@ export function ImageConverter() {
                           ) : (
                             <span className="flex items-center gap-2">
                               <Archive size={15} />
-                              Convert All as ZIP ({images.length})
+                              Download All as ZIP ({images.length})
                             </span>
                           )}
                         </Button>
