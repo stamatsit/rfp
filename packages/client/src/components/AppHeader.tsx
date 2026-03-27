@@ -36,7 +36,7 @@ const pageConfig: Record<string, { title: string }> = {
   "/studio": { title: "Document Studio" },
   "/humanize": { title: "AI Humanizer" },
   "/clients": { title: "Client Portfolio" },
-  "/convert": { title: "Image Converter" },
+  "/convert": { title: "Image Toolkit" },
   "/pitch-deck": { title: "Pitch Deck Designer" },
   "/meetings": { title: "Meeting Intake" },
   "/analytics": { title: "Proposal Analytics" },

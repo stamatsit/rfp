@@ -4,8 +4,10 @@ import type { Area } from "react-easy-crop"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
 import { removeBackground } from "@imgly/background-removal"
+import { useInpainting } from "@/hooks/useInpainting"
 import {
   ImageDown,
+  Eraser,
   Upload,
   Download,
   ZoomIn,
@@ -23,6 +25,7 @@ import {
   Archive,
   Pencil,
   Zap,
+  Minus,
   Layers,
   Maximize2,
   Instagram,
@@ -248,6 +251,12 @@ function loadSession(): { images: ImageItem[]; selectedId: number | null; qualit
     // Restore nextId to avoid collisions
     const maxId = Math.max(...data.images.map((img: ImageItem) => img.id))
     nextId = maxId + 1
+    // Backfill new fields for sessions saved before these existed
+    data.images = data.images.map((img: ImageItem) => ({
+      bgRemoved: false,
+      preBgSrc: null,
+      ...img,
+    }))
     return data
   } catch {
     return null
@@ -260,9 +269,16 @@ function saveSession(images: ImageItem[], selectedId: number | null, quality: nu
     return
   }
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ images, selectedId, quality }))
+    // Strip preBgSrc (can be huge) to stay within localStorage quota
+    const slim = images.map(({ preBgSrc, ...rest }) => rest)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ images: slim, selectedId, quality }))
   } catch {
-    // localStorage quota exceeded — silently fail
+    // localStorage quota exceeded — clear and retry with just metadata
+    try {
+      localStorage.removeItem(STORAGE_KEY)
+    } catch {
+      // give up
+    }
   }
 }
 
@@ -291,7 +307,7 @@ interface ImageItem {
   preBgSrc: string | null
 }
 
-type Mode = "convert" | "crop"
+type Mode = "convert" | "crop" | "erase"
 
 // ---------------------------------------------------------------------------
 // Component
@@ -804,6 +820,373 @@ export function ImageConverter() {
   // If BG is removed, output must support alpha (PNG or WebP, not JPEG)
   const bgNeedsAlphaWarning = selected?.bgRemoved && selected.originalFormat === "JPG" || selected?.bgRemoved && selected?.originalFormat === "JPEG"
 
+  // ---- Inline Magic Eraser ----
+
+  const {
+    inpaint,
+    inpaintWithTelea,
+    isModelReady: eraserModelReady,
+    isModelLoading: eraserModelLoading,
+    modelProgress: eraserModelProgress,
+    preloadModel: eraserPreloadModel,
+  } = useInpainting()
+
+  const [eraserBrush, setEraserBrush] = useState(40)
+  const [eraserProcessing, setEraserProcessing] = useState(false)
+  const [eraserStatus, setEraserStatus] = useState("")
+  const [eraserHasStrokes, setEraserHasStrokes] = useState(false)
+
+  const eraserDisplayRef = useRef<HTMLCanvasElement>(null)
+  const eraserCursorRef = useRef<HTMLCanvasElement>(null)
+  const eraserMaskRef = useRef<HTMLCanvasElement | null>(null)
+  const eraserSourceRef = useRef<HTMLCanvasElement | null>(null)
+  const eraserNatRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
+  const eraserLastPosRef = useRef<{ x: number; y: number } | null>(null)
+  const eraserUndoRef = useRef<string[]>([])
+  const eraserDrawingRef = useRef(false)
+  const eraserBrushRef = useRef(eraserBrush)
+  eraserBrushRef.current = eraserBrush
+
+  // Init eraser canvases when entering erase mode
+  useEffect(() => {
+    if (mode !== "erase" || !selected) return
+    eraserPreloadModel()
+
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    img.onload = () => {
+      const natW = img.naturalWidth || img.width
+      const natH = img.naturalHeight || img.height
+      eraserNatRef.current = { w: natW, h: natH }
+
+      const srcCanvas = document.createElement("canvas")
+      srcCanvas.width = natW
+      srcCanvas.height = natH
+      const srcCtx = srcCanvas.getContext("2d")
+      if (srcCtx) srcCtx.drawImage(img, 0, 0, natW, natH)
+      eraserSourceRef.current = srcCanvas
+
+      const mask = document.createElement("canvas")
+      mask.width = natW
+      mask.height = natH
+      const mCtx = mask.getContext("2d")
+      if (mCtx) { mCtx.fillStyle = "#000000"; mCtx.fillRect(0, 0, natW, natH) }
+      eraserMaskRef.current = mask
+
+      eraserUndoRef.current = []
+      setEraserHasStrokes(false)
+      requestAnimationFrame(() => eraserRedraw())
+    }
+    img.src = selected.src
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, selected?.id])
+
+  const eraserRedraw = useCallback(() => {
+    const canvas = eraserDisplayRef.current
+    const src = eraserSourceRef.current
+    if (!canvas || !src) return
+    const w = canvas.width
+    const h = canvas.height
+    if (w === 0 || h === 0) return
+
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, w, h)
+    ctx.drawImage(src, 0, 0, w, h)
+
+    const mask = eraserMaskRef.current
+    if (mask) {
+      const tmp = document.createElement("canvas")
+      tmp.width = w; tmp.height = h
+      const tCtx = tmp.getContext("2d")
+      if (!tCtx) return
+      tCtx.drawImage(mask, 0, 0, w, h)
+      const px = tCtx.getImageData(0, 0, w, h)
+      for (let i = 0; i < px.data.length; i += 4) {
+        if (px.data[i] > 128) {
+          px.data[i] = 255; px.data[i + 1] = 56; px.data[i + 2] = 100; px.data[i + 3] = 115
+        } else {
+          px.data[i + 3] = 0
+        }
+      }
+      tCtx.putImageData(px, 0, 0)
+      ctx.drawImage(tmp, 0, 0)
+    }
+
+    const cur = eraserCursorRef.current
+    if (cur && (cur.width !== w || cur.height !== h)) { cur.width = w; cur.height = h }
+  }, [])
+
+  const eraserToMask = useCallback((clientX: number, clientY: number) => {
+    const canvas = eraserDisplayRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    const nat = eraserNatRef.current
+    return { x: ((clientX - rect.left) / rect.width) * nat.w, y: ((clientY - rect.top) / rect.height) * nat.h }
+  }, [])
+
+  const eraserDrawOnMask = useCallback((x: number, y: number) => {
+    const mask = eraserMaskRef.current
+    const canvas = eraserDisplayRef.current
+    if (!mask || !canvas) return
+    const ctx = mask.getContext("2d")
+    if (!ctx) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleFactor = eraserNatRef.current.w / rect.width
+    const r = (eraserBrushRef.current * scaleFactor) / 2
+    ctx.fillStyle = "#ffffff"
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill()
+  }, [])
+
+  const eraserInterpolate = useCallback((fx: number, fy: number, tx: number, ty: number) => {
+    const dx = tx - fx, dy = ty - fy
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const canvas = eraserDisplayRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const scaleFactor = eraserNatRef.current.w / rect.width
+    const step = Math.max((eraserBrushRef.current * scaleFactor) / 4, 1)
+    const steps = Math.ceil(dist / step)
+    for (let i = 0; i <= steps; i++) {
+      const t = steps === 0 ? 0 : i / steps
+      eraserDrawOnMask(fx + dx * t, fy + dy * t)
+    }
+  }, [eraserDrawOnMask])
+
+  const eraserDrawCursor = useCallback((clientX: number, clientY: number) => {
+    const canvas = eraserCursorRef.current
+    if (!canvas) return
+    const rect = canvas.getBoundingClientRect()
+    const ctx = canvas.getContext("2d")
+    if (!ctx) return
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    // Scale from CSS pixels to canvas (natural) pixels
+    const scaleX = canvas.width / rect.width
+    const scaleY = canvas.height / rect.height
+    const x = (clientX - rect.left) * scaleX
+    const y = (clientY - rect.top) * scaleY
+    const bs = eraserBrushRef.current * scaleX
+    const lw = 1.5 * scaleX
+    ctx.strokeStyle = "rgba(255,255,255,0.9)"; ctx.lineWidth = lw
+    ctx.beginPath(); ctx.arc(x, y, bs / 2, 0, Math.PI * 2); ctx.stroke()
+    ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = lw * 1.5
+    ctx.beginPath(); ctx.arc(x, y, bs / 2 + lw, 0, Math.PI * 2); ctx.stroke()
+    const cs = 4 * scaleX
+    ctx.strokeStyle = "rgba(255,255,255,0.7)"; ctx.lineWidth = lw
+    ctx.beginPath(); ctx.moveTo(x - cs, y); ctx.lineTo(x + cs, y); ctx.moveTo(x, y - cs); ctx.lineTo(x, y + cs); ctx.stroke()
+  }, [])
+
+  // Dilate + feather mask for smoother inpainting edges
+  const prepareMask = useCallback((mask: HTMLCanvasElement): HTMLCanvasElement => {
+    const w = mask.width, h = mask.height
+    const srcCtx = mask.getContext("2d", { willReadFrequently: true })
+    if (!srcCtx) return mask
+    const srcData = srcCtx.getImageData(0, 0, w, h).data
+
+    // Step 1: Dilate by 3px — expand mask edges so fill covers boundary artifacts
+    const dilateR = 3
+    const dilated = new Uint8Array(w * h)
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (srcData[(y * w + x) * 4] > 128) {
+          for (let dy = -dilateR; dy <= dilateR; dy++) {
+            for (let dx = -dilateR; dx <= dilateR; dx++) {
+              if (dx * dx + dy * dy <= dilateR * dilateR) {
+                const nx = x + dx, ny = y + dy
+                if (nx >= 0 && nx < w && ny >= 0 && ny < h) dilated[ny * w + nx] = 255
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Step 2: Box blur the dilated mask for soft feathered edges (2 passes)
+    const blurR = 4
+    const temp = new Uint8Array(w * h)
+    const blurred = new Uint8Array(w * h)
+    // Horizontal pass
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sum = 0, count = 0
+        for (let dx = -blurR; dx <= blurR; dx++) {
+          const nx = x + dx
+          if (nx >= 0 && nx < w) { sum += dilated[y * w + nx]; count++ }
+        }
+        temp[y * w + x] = sum / count
+      }
+    }
+    // Vertical pass
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        let sum = 0, count = 0
+        for (let dy = -blurR; dy <= blurR; dy++) {
+          const ny = y + dy
+          if (ny >= 0 && ny < h) { sum += temp[ny * w + x]; count++ }
+        }
+        blurred[y * w + x] = sum / count
+      }
+    }
+
+    // Write back to a new canvas
+    const out = document.createElement("canvas")
+    out.width = w; out.height = h
+    const outCtx = out.getContext("2d")!
+    const outData = outCtx.createImageData(w, h)
+    for (let i = 0; i < w * h; i++) {
+      const v = blurred[i]
+      outData.data[i * 4] = v
+      outData.data[i * 4 + 1] = v
+      outData.data[i * 4 + 2] = v
+      outData.data[i * 4 + 3] = 255
+    }
+    outCtx.putImageData(outData, 0, 0)
+    return out
+  }, [])
+
+  const eraserApply = useCallback(async () => {
+    const src = eraserSourceRef.current
+    const mask = eraserMaskRef.current
+    if (!src || !mask) return
+    const maskCtx = mask.getContext("2d", { willReadFrequently: true })
+    if (!maskCtx) return
+    const mp = maskCtx.getImageData(0, 0, mask.width, mask.height)
+    let hasWhite = false
+    for (let i = 0; i < mp.data.length; i += 4) { if (mp.data[i] > 128) { hasWhite = true; break } }
+    if (!hasWhite) return
+
+    setEraserProcessing(true)
+    eraserUndoRef.current.push(src.toDataURL("image/png"))
+    if (eraserUndoRef.current.length > 20) eraserUndoRef.current.shift()
+
+    // Prepare mask with dilation + feathering for smoother results
+    const processedMask = prepareMask(mask)
+
+    try {
+      let result: string | null = null
+      if (eraserModelReady) {
+        setEraserStatus("AI erasing...")
+        result = await inpaint(src, processedMask)
+      } else {
+        setEraserStatus(eraserModelLoading ? "Erasing (AI loading...)" : "Erasing...")
+        result = inpaintWithTelea(src, processedMask)
+      }
+
+      if (result) {
+        const newImg = new Image()
+        newImg.crossOrigin = "anonymous"
+        await new Promise<void>((resolve) => {
+          newImg.onload = () => {
+            const nat = eraserNatRef.current
+            const newSrc = document.createElement("canvas")
+            newSrc.width = nat.w; newSrc.height = nat.h
+            const ctx = newSrc.getContext("2d")
+            if (ctx) ctx.drawImage(newImg, 0, 0, nat.w, nat.h)
+            eraserSourceRef.current = newSrc
+            const mCtx = mask.getContext("2d")
+            if (mCtx) { mCtx.fillStyle = "#000000"; mCtx.fillRect(0, 0, mask.width, mask.height) }
+            setEraserHasStrokes(false)
+            eraserRedraw()
+            resolve()
+          }
+          newImg.src = result!
+        })
+        setEraserStatus(eraserModelReady ? "AI erase done" : "Erase done")
+        setTimeout(() => setEraserStatus(""), 1200)
+      } else {
+        setEraserStatus("Failed — try again")
+        eraserUndoRef.current.pop()
+        setTimeout(() => setEraserStatus(""), 2000)
+      }
+    } catch {
+      setEraserStatus("Error — try again")
+      eraserUndoRef.current.pop()
+      setTimeout(() => setEraserStatus(""), 3000)
+    } finally {
+      setEraserProcessing(false)
+    }
+  }, [eraserModelReady, eraserModelLoading, inpaint, inpaintWithTelea, eraserRedraw])
+
+  const eraserPointerDown = useCallback((e: React.PointerEvent) => {
+    if (eraserProcessing) return
+    e.preventDefault(); e.stopPropagation()
+    eraserDrawingRef.current = true
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    const pos = eraserToMask(e.clientX, e.clientY)
+    eraserDrawOnMask(pos.x, pos.y)
+    eraserLastPosRef.current = pos
+    setEraserHasStrokes(true)
+    eraserRedraw()
+  }, [eraserProcessing, eraserToMask, eraserDrawOnMask, eraserRedraw])
+
+  const eraserPointerMove = useCallback((e: React.PointerEvent) => {
+    eraserDrawCursor(e.clientX, e.clientY)
+    if (!eraserDrawingRef.current) return
+    e.preventDefault()
+    const pos = eraserToMask(e.clientX, e.clientY)
+    if (eraserLastPosRef.current) {
+      eraserInterpolate(eraserLastPosRef.current.x, eraserLastPosRef.current.y, pos.x, pos.y)
+    } else {
+      eraserDrawOnMask(pos.x, pos.y)
+    }
+    eraserLastPosRef.current = pos
+    eraserRedraw()
+  }, [eraserToMask, eraserDrawOnMask, eraserInterpolate, eraserRedraw, eraserDrawCursor])
+
+  const eraserPointerUp = useCallback(() => {
+    if (!eraserDrawingRef.current) return
+    eraserDrawingRef.current = false
+    eraserLastPosRef.current = null
+    eraserApply()
+  }, [eraserApply])
+
+  const eraserUndo = useCallback(async () => {
+    if (eraserUndoRef.current.length === 0) return
+    const prev = eraserUndoRef.current.pop()!
+    const img = new Image()
+    img.crossOrigin = "anonymous"
+    await new Promise<void>((resolve) => {
+      img.onload = () => {
+        const nat = eraserNatRef.current
+        const c = document.createElement("canvas"); c.width = nat.w; c.height = nat.h
+        const ctx = c.getContext("2d")
+        if (ctx) ctx.drawImage(img, 0, 0, nat.w, nat.h)
+        eraserSourceRef.current = c
+        if (eraserMaskRef.current) {
+          const mCtx = eraserMaskRef.current.getContext("2d")
+          if (mCtx) { mCtx.fillStyle = "#000000"; mCtx.fillRect(0, 0, eraserMaskRef.current.width, eraserMaskRef.current.height) }
+        }
+        setEraserHasStrokes(false)
+        eraserRedraw()
+        resolve()
+      }
+      img.src = prev
+    })
+  }, [eraserRedraw])
+
+  const eraserDone = useCallback(() => {
+    if (eraserProcessing || !selected) return
+    const src = eraserSourceRef.current
+    if (src && eraserUndoRef.current.length > 0) {
+      updateImage(selected.id, { src: src.toDataURL("image/png"), converted: false })
+    }
+    setMode("convert")
+  }, [eraserProcessing, selected, updateImage])
+
+  // Eraser keyboard shortcuts
+  useEffect(() => {
+    if (mode !== "erase") return
+    const handler = (e: KeyboardEvent) => {
+      if (eraserProcessing) return
+      if (e.key === "[") setEraserBrush(s => Math.max(5, s - 8))
+      if (e.key === "]") setEraserBrush(s => Math.min(200, s + 8))
+      if (e.key === "z" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); eraserUndo() }
+      if (e.key === "Escape") { e.preventDefault(); eraserDone() }
+    }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [mode, eraserProcessing, eraserUndo, eraserDone])
+
   const convertedCount = images.filter((img) => img.converted).length
 
   // ---- Render ----
@@ -821,154 +1204,20 @@ export function ImageConverter() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
-                Image Converter
+                Image Toolkit
               </h1>
               <p className="text-[13px] text-slate-500 dark:text-slate-400">
-                Convert images to WebP &mdash; crop & resize to exact dimensions
+                Convert, crop, resize, erase &amp; remove backgrounds
               </p>
             </div>
           </div>
 
-          {images.length === 0 ? (
-            /* ================= EMPTY STATE ================= */
-            <div className="space-y-6">
-              {/* Drop zone */}
-              <div
-                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                className={`cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-16 gap-4
-                  ${isDragging
-                    ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 scale-[1.01]"
-                    : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 bg-white dark:bg-slate-900/50"
-                  }`}
-              >
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
-                  <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
-                </div>
-                <div className="text-center">
-                  <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
-                    Drop images here or click to browse
-                  </p>
-                  <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
-                    PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple files at once
-                  </p>
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-              </div>
-
-              {/* Feature cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {[
-                  {
-                    icon: <Zap size={18} strokeWidth={2} />,
-                    color: "from-amber-500 to-orange-500",
-                    shadow: "shadow-amber-500/15",
-                    title: "Convert to WebP",
-                    desc: "Reduce file size up to 80% with adjustable quality",
-                  },
-                  {
-                    icon: <Crop size={18} strokeWidth={2} />,
-                    color: "from-violet-500 to-purple-500",
-                    shadow: "shadow-violet-500/15",
-                    title: "Crop & Resize",
-                    desc: "Visual cropper with precise dimension controls",
-                  },
-                  {
-                    icon: <Maximize2 size={18} strokeWidth={2} />,
-                    color: "from-sky-500 to-blue-500",
-                    shadow: "shadow-sky-500/15",
-                    title: "Social Presets",
-                    desc: "One-click sizes for Instagram, Facebook, LinkedIn & more",
-                  },
-                  {
-                    icon: <Sparkles size={18} strokeWidth={2} />,
-                    color: "from-purple-500 to-violet-500",
-                    shadow: "shadow-purple-500/15",
-                    title: "Remove Background",
-                    desc: "AI-powered, runs locally — no upload, no API cost",
-                  },
-                  {
-                    icon: <Layers size={18} strokeWidth={2} />,
-                    color: "from-emerald-500 to-teal-500",
-                    shadow: "shadow-emerald-500/15",
-                    title: "Batch Export",
-                    desc: "Convert all images at once and download as ZIP",
-                  },
-                ].map((f) => (
-                  <div
-                    key={f.title}
-                    className="bg-white dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 p-4 flex gap-3 items-start"
-                  >
-                    <div className={`w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br ${f.color} ${f.shadow} shadow-md flex items-center justify-center text-white`}>
-                      {f.icon}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[13px] font-semibold text-slate-800 dark:text-slate-200">{f.title}</p>
-                      <p className="text-[12px] text-slate-400 dark:text-slate-500 leading-relaxed mt-0.5">{f.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Platform presets preview */}
-              <div className="bg-white dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 p-5">
-                <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-3">
-                  Built-in presets for every platform
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { icon: <Instagram size={14} />, label: "Instagram", sizes: "1080x1080, 1080x1350, 1080x1920" },
-                    { icon: <Facebook size={14} />, label: "Facebook", sizes: "1200x630, 1640x856" },
-                    { icon: <Twitter size={14} />, label: "X / Twitter", sizes: "1600x900, 1500x500" },
-                    { icon: <Linkedin size={14} />, label: "LinkedIn", sizes: "1200x627, 1584x396" },
-                    { icon: <Youtube size={14} />, label: "YouTube", sizes: "1280x720, 2560x1440" },
-                    { icon: <Globe size={14} />, label: "Web", sizes: "OG 1200x630, Favicon 512x512" },
-                    { icon: <MonitorSmartphone size={14} />, label: "Common Ratios", sizes: "16:9, 4:3, 1:1, 9:16" },
-                  ].map((p) => (
-                    <div
-                      key={p.label}
-                      className="group flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/50 hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors"
-                    >
-                      <span className="text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 transition-colors">{p.icon}</span>
-                      <div>
-                        <p className="text-[12px] font-medium text-slate-600 dark:text-slate-300">{p.label}</p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{p.sizes}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Supported formats */}
-              <div className="flex items-center justify-center gap-6 py-2">
-                <div className="flex items-center gap-1.5 text-[12px] text-slate-400 dark:text-slate-500">
-                  <FileImage size={13} />
-                  <span>Input: PNG, JPEG, GIF, BMP, TIFF</span>
-                </div>
-                <ArrowRightLeft size={13} className="text-slate-300 dark:text-slate-600" />
-                <div className="flex items-center gap-1.5 text-[12px] text-emerald-500 dark:text-emerald-400 font-medium">
-                  <ImageDown size={13} />
-                  <span>Output: WebP, PNG, JPEG</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* ================= EDITOR ================= */}
-              {selected && (
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
-                  {/* LEFT — Preview / Cropper + Filmstrip */}
-                  <div>
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
+            {/* LEFT — Preview / Drop zone + Filmstrip */}
+            <div>
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                {selected ? (
+                  <>
                     {/* Preview toolbar */}
                     <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                       <div className="flex items-center gap-2 text-[13px] text-slate-500 dark:text-slate-400">
@@ -1038,6 +1287,52 @@ export function ImageConverter() {
                           onCropComplete={onCropComplete}
                         />
                       </div>
+                    ) : mode === "erase" ? (
+                      <div
+                        className="relative flex items-center justify-center bg-[#f0f0f0] dark:bg-slate-950"
+                        style={{ maxHeight: 520 }}
+                      >
+                        <div
+                          className="relative"
+                          style={{
+                            aspectRatio: `${selected.naturalWidth} / ${selected.naturalHeight}`,
+                            maxHeight: 500,
+                            maxWidth: "100%",
+                            boxShadow: "0 0 0 2px rgba(236, 72, 153, 0.4)",
+                            borderRadius: 4,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <canvas
+                            ref={eraserDisplayRef}
+                            width={selected.naturalWidth}
+                            height={selected.naturalHeight}
+                            className="w-full h-full block pointer-events-none"
+                          />
+                          <canvas
+                            ref={eraserCursorRef}
+                            width={selected.naturalWidth}
+                            height={selected.naturalHeight}
+                            onPointerDown={eraserPointerDown}
+                            onPointerMove={eraserPointerMove}
+                            onPointerUp={eraserPointerUp}
+                            onPointerLeave={() => {
+                              const c = eraserCursorRef.current
+                              if (c) { const ctx = c.getContext("2d"); if (ctx) ctx.clearRect(0, 0, c.width, c.height) }
+                            }}
+                            className="absolute inset-0 w-full h-full touch-none"
+                            style={{ cursor: eraserProcessing ? "wait" : "none", pointerEvents: eraserProcessing ? "none" : "auto" }}
+                          />
+                          {/* Eraser processing overlay */}
+                          {eraserProcessing && (
+                            <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center gap-2 pointer-events-none">
+                              <Loader2 size={20} className="text-pink-500 animate-spin" />
+                              <span className="text-[11px] font-medium text-white">{eraserStatus}</span>
+                            </div>
+                          )}
+                          {/* No overlays — hints moved to right panel */}
+                        </div>
+                      </div>
                     ) : (
                       <div
                         className="relative flex items-center justify-center"
@@ -1059,13 +1354,44 @@ export function ImageConverter() {
                             } : {}),
                           }}
                         />
-                        {/* BG removal processing overlay */}
+                        {/* BG removal processing overlay — GPU-composited shimmer */}
                         {bgRemoving && (
-                          <div className="absolute inset-0 z-[2] bg-black/50 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg">
-                            <Loader2 size={28} className="text-white animate-spin" />
-                            <span className="text-[13px] font-medium text-white">
-                              {bgProgress || "Processing..."}
-                            </span>
+                          <div className="absolute inset-0 z-[2] overflow-hidden rounded-lg" style={{ isolation: "isolate" }}>
+                            {/* Frosted base — separate layer */}
+                            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" style={{ willChange: "auto" }} />
+                            {/* Shimmer sweep — GPU layer, uses transform not background-position */}
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                willChange: "transform",
+                                top: 0,
+                                bottom: 0,
+                                left: "-50%",
+                                width: "50%",
+                                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent 100%)",
+                                animation: "shimmer-sweep 1.8s ease-in-out infinite",
+                              }}
+                            />
+                            {/* Scanning line — GPU layer */}
+                            <div
+                              className="absolute top-0 bottom-0 w-[2px] pointer-events-none"
+                              style={{
+                                willChange: "transform",
+                                transform: "translateZ(0)",
+                                background: "linear-gradient(180deg, transparent 0%, rgba(168,85,247,0.6) 30%, rgba(168,85,247,0.9) 50%, rgba(168,85,247,0.6) 70%, transparent 100%)",
+                                boxShadow: "0 0 12px 4px rgba(168,85,247,0.3)",
+                                animation: "scan-line 2.2s ease-in-out infinite",
+                              }}
+                            />
+                            {/* Status — separate compositing layer */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none" style={{ willChange: "transform", transform: "translateZ(0)" }}>
+                              <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20" style={{ animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+                                <Sparkles size={16} className="text-white" />
+                              </div>
+                              <span className="text-[13px] font-medium text-white drop-shadow-lg">
+                                {bgProgress || "Removing background..."}
+                              </span>
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1104,9 +1430,44 @@ export function ImageConverter() {
                         </button>
                       </div>
                     )}
+                  </>
+                ) : (
+                  /* Drop zone when no image selected */
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
+                      ${isDragging
+                        ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
+                        : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
+                      }`}
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
+                      <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
+                        Drop images here or click to browse
+                      </p>
+                      <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
+                        PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
+                      </p>
+                    </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
                   </div>
+                )}
 
                   {/* Filmstrip — inside left column so it hugs the image */}
+                  {images.length > 0 && (
                   <div className="mt-3">
                     <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
                       {images.map((img) => (
@@ -1357,9 +1718,12 @@ export function ImageConverter() {
                       </div>
                     )}
                   </div>
-                  </div>
+                  )}
+              </div>
+            </div>
 
-                  {/* RIGHT — Controls */}
+              {/* RIGHT — Controls or Features */}
+              {selected ? (
                   <div className="space-y-4">
                     {/* Mode toggle */}
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
@@ -1405,7 +1769,18 @@ export function ImageConverter() {
                             }`}
                         >
                           <Crop size={14} />
-                          {selected.cropApplied ? "Re-crop" : "Crop & Convert"}
+                          {selected.cropApplied ? "Re-crop" : "Crop"}
+                        </button>
+                        <button
+                          onClick={() => setMode("erase")}
+                          className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
+                            ${mode === "erase"
+                              ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                              : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                            }`}
+                        >
+                          <Eraser size={14} />
+                          Erase
                         </button>
                       </div>
                     </div>
@@ -1476,6 +1851,75 @@ export function ImageConverter() {
                         </div>
                       )}
                     </div>
+
+                    {/* Eraser controls (shown in erase mode) */}
+                    {mode === "erase" && (
+                      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-pink-200 dark:border-pink-800/50 shadow-sm p-4 space-y-3">
+                        <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Eraser size={12} />
+                          Brush Size
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => setEraserBrush(s => Math.max(5, s - 8))} className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                            <Minus size={13} />
+                          </button>
+                          <input
+                            type="range" min={5} max={200} value={eraserBrush}
+                            onChange={(e) => setEraserBrush(parseInt(e.target.value, 10))}
+                            className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-600 rounded-full appearance-none cursor-pointer
+                              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4
+                              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-pink-500 [&::-webkit-slider-thumb]:cursor-pointer"
+                          />
+                          <span className="text-[12px] font-mono text-slate-500 w-8 text-right">{eraserBrush}</span>
+                          <button onClick={() => setEraserBrush(s => Math.min(200, s + 8))} className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                            <Plus size={13} />
+                          </button>
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={eraserUndo}
+                            disabled={eraserUndoRef.current.length === 0}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 bg-slate-100 dark:bg-slate-800 disabled:opacity-40 transition-colors"
+                          >
+                            <Undo2 size={13} />
+                            Undo
+                          </button>
+                          <button
+                            onClick={eraserDone}
+                            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium bg-pink-500 text-white hover:bg-pink-600 transition-colors"
+                          >
+                            <Check size={13} />
+                            Done Erasing
+                          </button>
+                        </div>
+
+                        {/* AI status */}
+                        {eraserModelLoading && (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                            <Loader2 size={12} className="text-pink-500 animate-spin" />
+                            <span className="text-[11px] text-slate-500 dark:text-slate-400">Downloading AI model... {eraserModelProgress}%</span>
+                          </div>
+                        )}
+                        {eraserModelReady && !eraserModelLoading && (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800/50">
+                            <Zap size={12} className="text-green-500" />
+                            <span className="text-[11px] font-medium text-green-700 dark:text-green-400">AI Ready</span>
+                          </div>
+                        )}
+
+                        {/* Status toast */}
+                        {eraserStatus && (
+                          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-pink-50 dark:bg-pink-950/30">
+                            <span className="text-[11px] text-pink-600 dark:text-pink-400">{eraserStatus}</span>
+                          </div>
+                        )}
+
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center">
+                          Paint on image to erase &middot; <kbd className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px]">[</kbd> <kbd className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px]">]</kbd> brush size &middot; <kbd className="px-1 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px]">Esc</kbd> done
+                        </p>
+                      </div>
+                    )}
 
                     {/* Crop applied indicator */}
                     {selected.cropApplied && (
@@ -1729,13 +2173,48 @@ export function ImageConverter() {
                       )}
                     </div>
                   </div>
+              ) : (
+                /* Right panel — empty state features */
+                <div className="space-y-3">
+                  {[
+                    { icon: <Zap size={16} />, color: "text-amber-500", title: "Convert", desc: "PNG, JPEG, WebP output with quality control" },
+                    { icon: <Crop size={16} />, color: "text-violet-500", title: "Crop & Resize", desc: "Visual cropper + social media presets" },
+                    { icon: <Eraser size={16} />, color: "text-pink-500", title: "Magic Eraser", desc: "AI-powered object removal — paint to erase" },
+                    { icon: <Sparkles size={16} />, color: "text-purple-500", title: "Remove Background", desc: "One-click, runs locally — no API cost" },
+                    { icon: <Layers size={16} />, color: "text-emerald-500", title: "Batch Export", desc: "Convert all images at once as ZIP" },
+                    { icon: <TextCursorInput size={16} />, color: "text-sky-500", title: "Batch Rename", desc: "Pattern-based naming with live preview" },
+                  ].map((f) => (
+                    <div key={f.title} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-start gap-3">
+                      <span className={`mt-0.5 ${f.color}`}>{f.icon}</span>
+                      <div>
+                        <p className="text-[13px] font-semibold text-slate-700 dark:text-slate-200">{f.title}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500">{f.desc}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-
-            </>
-          )}
+          </div>
         </div>
       </main>
+
+      {/* Shimmer animation keyframes */}
+      <style>{`
+        @keyframes shimmer-sweep {
+          0% { transform: translateX(-100%) translateZ(0); }
+          100% { transform: translateX(400%) translateZ(0); }
+        }
+        @keyframes scan-line {
+          0% { transform: translateX(-50vw) translateZ(0); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(100vw) translateZ(0); opacity: 0; }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `}</style>
     </div>
   )
 }

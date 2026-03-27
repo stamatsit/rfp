@@ -29,7 +29,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/studio", icon: FileEdit, label: "Document Studio" },
   { to: "/humanize", icon: Wand2, label: "AI Humanizer" },
   { to: "/testimonials", icon: Quote, label: "Testimonials & Awards" },
-  { to: "/convert", icon: ImageDown, label: "Image Converter" },
+  { to: "/convert", icon: ImageDown, label: "Image Toolkit" },
   { to: "/meetings", icon: Mic, label: "Meeting Intake" },
   { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },

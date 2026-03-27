@@ -59,7 +59,7 @@ const ROUTE_ITEMS: PaletteItem[] = [
   { id: "analyze", type: "route", label: "Document Scanner", description: "Scan RFPs for red flags", icon: FileSearch, href: "/analyze" },
   { id: "import", type: "route", label: "Import Data", description: "Bulk Excel import", icon: FileSpreadsheet, href: "/import" },
   { id: "photos", type: "route", label: "Photo Library", description: "Image assets", icon: Image, href: "/photos" },
-  { id: "image-converter", type: "route", label: "Image Converter", description: "Convert images to WebP", icon: ImageDown, href: "/convert" },
+  { id: "image-toolkit", type: "route", label: "Image Toolkit", description: "Convert, crop, erase & remove backgrounds", icon: ImageDown, href: "/convert" },
   { id: "new", type: "route", label: "New Entry", description: "Create a Q&A entry", icon: PenLine, href: "/new" },
   { id: "pitch-deck", type: "route", label: "Pitch Deck Designer", description: "AI-powered presentation builder", icon: Presentation, href: "/pitch-deck" },
   { id: "meetings", type: "route", label: "Meeting Intake", description: "Record, transcribe & analyze meetings", icon: MessageSquare, href: "/meetings" },

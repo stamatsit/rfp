@@ -46,7 +46,7 @@ const PAGE_NAMES: Record<string, string> = {
   "/case-studies": "Case Studies",
   "/unified-ai": "Unified AI",
   "/studio": "Document Studio",
-  "/convert": "Image Converter",
+  "/convert": "Image Toolkit",
   "/help": "Help",
   "/support": "Support",
   "/settings": "Settings",
