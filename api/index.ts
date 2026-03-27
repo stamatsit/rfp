@@ -1984,6 +1984,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
       }
 
+      // AI alt text generation (Image Toolkit)
+      if (path === "/ai/alt-text" && method === "POST") {
+        if (!openai) return res.status(503).json({ error: "OpenAI not configured" })
+        const { image } = req.body || {}
+        if (!image || typeof image !== "string") return res.status(400).json({ error: "Base64 image required" })
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  { type: "text", text: "Write a concise, descriptive alt text for this image. Focus on what's visually important — people, actions, objects, setting. Keep it under 125 characters for web accessibility best practices. Return only the alt text, no quotes or explanation." },
+                  { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image}`, detail: "low" } },
+                ],
+              },
+            ],
+            max_tokens: 100,
+          })
+          const altText = completion.choices[0]?.message?.content?.trim() || ""
+          return res.json({ altText })
+        } catch (err: any) {
+          console.error("Alt text generation failed:", err?.message)
+          return res.status(500).json({ error: "Alt text generation failed" })
+        }
+      }
+
       // AI query
       if (path === "/ai/query" && method === "POST") {
         if (!openai) {

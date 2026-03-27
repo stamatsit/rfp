@@ -325,4 +325,40 @@ router.get("/status", async (_req: Request, res: Response) => {
   })
 })
 
+/**
+ * POST /api/ai/alt-text
+ * Generate alt text for an image using GPT-4o Vision
+ */
+router.post("/alt-text", async (req: Request, res: Response) => {
+  try {
+    const { image } = req.body
+    if (!image || typeof image !== "string") {
+      return res.status(400).json({ error: "Base64 image required" })
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      return res.status(503).json({ error: "OpenAI not configured" })
+    }
+    const { default: OpenAI } = await import("openai")
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Write a concise, descriptive alt text for this image. Focus on what's visually important — people, actions, objects, setting. Keep it under 125 characters for web accessibility best practices. Return only the alt text, no quotes or explanation." },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${image}`, detail: "low" } },
+          ],
+        },
+      ],
+      max_tokens: 100,
+    })
+    const altText = completion.choices[0]?.message?.content?.trim() || ""
+    return res.json({ altText })
+  } catch (err: any) {
+    console.error("Alt text generation failed:", err?.message)
+    return res.status(500).json({ error: "Alt text generation failed" })
+  }
+})
+
 export default router

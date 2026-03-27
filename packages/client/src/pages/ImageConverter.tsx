@@ -255,6 +255,7 @@ function loadSession(): { images: ImageItem[]; selectedId: number | null; qualit
     data.images = data.images.map((img: ImageItem) => ({
       bgRemoved: false,
       preBgSrc: null,
+      altText: "",
       ...img,
     }))
     return data
@@ -305,6 +306,8 @@ interface ImageItem {
   bgRemoved: boolean
   /** Snapshot of src before BG removal, for undo */
   preBgSrc: string | null
+  altText: string
+  altTextGenerating?: boolean
 }
 
 type Mode = "convert" | "crop" | "erase"
@@ -390,6 +393,7 @@ export function ImageConverter() {
               converted: false,
               bgRemoved: false,
               preBgSrc: null,
+              altText: "",
             }
             setImages((prev) => [...prev, item])
             // Auto-select the first new image
@@ -648,6 +652,17 @@ export function ImageConverter() {
         zip.file(`${stripExtension(img.fileName)}.${formatExt[outputFormat]}`, blob)
         updateImage(img.id, { converted: true, convertedSize: blob.size })
         setConvertProgress(i + 1)
+      }
+      // Add metadata CSV if any images have alt text
+      const hasAnyAlt = images.some((img) => img.altText.trim())
+      if (hasAnyAlt) {
+        const csvRows = ["Filename,Alt Text,Width,Height,Format"]
+        for (const img of images) {
+          const fn = `${stripExtension(img.fileName)}.${formatExt[outputFormat]}`
+          const escaped = img.altText.replace(/"/g, '""')
+          csvRows.push(`"${fn}","${escaped}",${img.outputWidth},${img.outputHeight},${outputFormat.toUpperCase()}`)
+        }
+        zip.file("metadata.csv", csvRows.join("\n"))
       }
       const zipBlob = await zip.generateAsync({ type: "blob" })
       saveAs(zipBlob, `converted-images-${outputFormat}.zip`)
@@ -1186,6 +1201,41 @@ export function ImageConverter() {
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
   }, [mode, eraserProcessing, eraserUndo, eraserDone])
+
+  // ---- Alt text ----
+
+  const generateAltText = useCallback(async (imageId: number) => {
+    const img = images.find((i) => i.id === imageId)
+    if (!img) return
+    updateImage(imageId, { altTextGenerating: true })
+    try {
+      // Resize to max 512px for faster API call
+      const imgEl = new Image()
+      imgEl.crossOrigin = "anonymous"
+      await new Promise<void>((resolve) => { imgEl.onload = () => resolve(); imgEl.src = img.src })
+      const maxDim = 512
+      const scale = Math.min(maxDim / imgEl.naturalWidth, maxDim / imgEl.naturalHeight, 1)
+      const w = Math.round(imgEl.naturalWidth * scale)
+      const h = Math.round(imgEl.naturalHeight * scale)
+      const canvas = document.createElement("canvas")
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext("2d")!
+      ctx.drawImage(imgEl, 0, 0, w, h)
+      const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1]
+
+      const res = await fetch("/api/ai/alt-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-CSRF-Token": document.cookie.match(/csrf-token=([^;]+)/)?.[1] || "" },
+        body: JSON.stringify({ image: base64 }),
+      })
+      if (!res.ok) throw new Error("Failed to generate alt text")
+      const data = await res.json()
+      updateImage(imageId, { altText: data.altText || "", altTextGenerating: false })
+    } catch (err) {
+      console.error("Alt text generation failed:", err)
+      updateImage(imageId, { altTextGenerating: false })
+    }
+  }, [images, updateImage])
 
   const convertedCount = images.filter((img) => img.converted).length
 
@@ -2061,6 +2111,37 @@ export function ImageConverter() {
                         </div>
                       </div>
                     )}
+
+                    {/* Alt Text */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <FileImage size={12} />
+                          Alt Text
+                        </Label>
+                        <button
+                          onClick={() => generateAltText(selected.id)}
+                          disabled={selected.altTextGenerating}
+                          className="text-[11px] font-medium text-purple-500 hover:text-purple-600 dark:text-purple-400 dark:hover:text-purple-300 disabled:opacity-50 flex items-center gap-1 transition-colors"
+                        >
+                          {selected.altTextGenerating ? (
+                            <><Loader2 size={10} className="animate-spin" /> Generating...</>
+                          ) : (
+                            <><Sparkles size={10} /> AI Generate</>
+                          )}
+                        </button>
+                      </div>
+                      <textarea
+                        value={selected.altText}
+                        onChange={(e) => updateImage(selected.id, { altText: e.target.value })}
+                        placeholder="Describe this image for accessibility..."
+                        rows={2}
+                        className="w-full text-[12px] text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-purple-500/30 focus:border-purple-400 resize-none placeholder:text-slate-300 dark:placeholder:text-slate-600 transition-all"
+                      />
+                      {selected.altText && (
+                        <p className="text-[10px] text-slate-400 mt-1">{selected.altText.length} characters</p>
+                      )}
+                    </div>
 
                     {/* Info card */}
                     <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 space-y-2">
