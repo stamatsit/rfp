@@ -742,9 +742,15 @@ export function ImageConverter() {
     setBgError(null)
     setBgProgress("Loading model...")
     try {
-      // Convert data URL to blob for the library
-      const response = await fetch(selected.src)
-      const inputBlob = await response.blob()
+      // Convert data URL to blob without fetch (avoids CSP connect-src restrictions)
+      const dataUrl = selected.src
+      const [header, base64] = dataUrl.split(",")
+      const mimeMatch = header.match(/:(.*?);/)
+      const mime = mimeMatch ? mimeMatch[1] : "image/png"
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+      const inputBlob = new Blob([bytes], { type: mime })
 
       const resultBlob = await removeBackground(inputBlob, {
         progress: (key: string, current: number, total: number) => {
