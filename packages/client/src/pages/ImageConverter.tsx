@@ -766,7 +766,7 @@ export function ImageConverter() {
 
       // Convert result blob to data URL
       const reader = new FileReader()
-      const dataUrl: string = await new Promise((resolve, reject) => {
+      const resultDataUrl: string = await new Promise((resolve, reject) => {
         reader.onload = () => resolve(reader.result as string)
         reader.onerror = reject
         reader.readAsDataURL(resultBlob)
@@ -774,7 +774,7 @@ export function ImageConverter() {
 
       updateImage(selected.id, {
         preBgSrc: selected.src,
-        src: dataUrl,
+        src: resultDataUrl,
         bgRemoved: true,
         converted: false, // reset converted state since image changed
       })
