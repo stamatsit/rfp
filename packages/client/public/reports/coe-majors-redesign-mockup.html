@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Majors & Areas of Study | Coe College — Redesign Mockup</title>
+<meta name="description" content="Explore 60+ majors, minors, and pre-professional programs at Coe College. Search by interest, filter by department, and discover your path.">
+
+<!-- OG Tags (gap fix) -->
+<meta property="og:title" content="Majors & Areas of Study | Coe College">
+<meta property="og:description" content="Explore 60+ majors, minors, and pre-professional programs at Coe College in Cedar Rapids, Iowa.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.coe.edu/academics/majors-areas-study">
+<link rel="canonical" href="https://www.coe.edu/academics/majors-areas-study">
+
+<!-- Schema.org (gap fix) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Coe College Majors & Areas of Study",
+  "description": "Complete list of undergraduate programs at Coe College",
+  "numberOfItems": 60,
+  "url": "https://www.coe.edu/academics/majors-areas-study",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "item": {"@type": "EducationalOccupationalProgram", "name": "Biology", "provider": {"@type": "CollegeOrUniversity", "name": "Coe College"}}}
+  ]
+}
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --crimson:#9b1b30;
+  --crimson-light:#b92240;
+  --crimson-bg:rgba(155,27,48,.04);
+  --crimson-border:rgba(155,27,48,.12);
+  --gold:#c8a951;
+  --bg:#fff;
+  --bg-warm:#fafaf8;
+  --bg-card:#fff;
+  --surface:#f5f5f3;
+  --border:#e8e6e1;
+  --border-hover:#d4d1cb;
+  --text:#1a1a1a;
+  --text-secondary:#555;
+  --text-muted:#888;
+  --accent:#2563eb;
+  --radius:12px;
+  --radius-sm:8px;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+
+html{scroll-behavior:smooth}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:var(--bg);color:var(--text);
+  line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+a{color:var(--crimson);text-decoration:none}
+a:hover{color:var(--crimson-light)}
+img{max-width:100%;display:block}
+
+/* ── Mockup banner ─────────────────────────────── */
+.mockup-banner{
+  position:sticky;top:0;z-index:100;
+  background:#1a1a1a;color:#fff;
+  text-align:center;padding:10px 20px;
+  font-size:.75rem;font-weight:500;letter-spacing:.04em;
+}
+.mockup-banner strong{color:var(--gold);font-weight:600}
+
+/* ── Header ────────────────────────────────────── */
+.site-header{
+  background:#fff;border-bottom:1px solid var(--border);
+  position:sticky;top:36px;z-index:90;
+}
+.header-inner{
+  max-width:1200px;margin:0 auto;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  height:64px;
+}
+.logo{display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.1rem;color:var(--crimson)}
+.logo-mark{
+  width:36px;height:36px;background:var(--crimson);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:700;font-size:1rem;
+}
+.header-nav{display:flex;gap:4px}
+.header-nav a{
+  padding:8px 14px;border-radius:var(--radius-sm);
+  font-size:.84rem;font-weight:500;color:var(--text-secondary);
+  transition:all .2s;
+}
+.header-nav a:hover{background:var(--surface);color:var(--text)}
+.header-nav a.active{background:var(--crimson-bg);color:var(--crimson)}
+.header-cta{
+  padding:8px 20px;border-radius:var(--radius-sm);
+  background:var(--crimson);color:#fff;font-size:.84rem;font-weight:600;
+  border:none;cursor:pointer;transition:background .2s;
+}
+.header-cta:hover{background:var(--crimson-light);color:#fff}
+@media(max-width:768px){
+  .header-nav{display:none}
+  .header-inner{height:56px}
+}
+
+/* ── Container ─────────────────────────────────── */
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+/* ── Trust bar ─────────────────────────────────── */
+.trust-bar{
+  background:var(--bg-warm);border-bottom:1px solid var(--border);
+  padding:16px 0;
+}
+.trust-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:32px;flex-wrap:wrap;
+}
+.trust-item{
+  display:flex;align-items:center;gap:8px;
+  font-size:.82rem;color:var(--text-secondary);font-weight:500;
+}
+.trust-item strong{color:var(--text);font-weight:600}
+.trust-dot{width:4px;height:4px;border-radius:50%;background:var(--border)}
+@media(max-width:600px){.trust-dot{display:none}.trust-row{gap:16px}}
+
+/* ── Hero ──────────────────────────────────────── */
+.hero{
+  padding:64px 0 48px;
+  background:linear-gradient(180deg,var(--bg-warm) 0%,var(--bg) 100%);
+}
+.hero-content{max-width:680px}
+.breadcrumb{
+  font-size:.78rem;color:var(--text-muted);margin-bottom:20px;
+  display:flex;align-items:center;gap:6px;
+}
+.breadcrumb a{color:var(--text-muted)}
+.breadcrumb a:hover{color:var(--text)}
+.hero h1{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:700;letter-spacing:-.02em;margin-bottom:12px;line-height:1.15}
+.hero p{font-size:1.05rem;color:var(--text-secondary);line-height:1.7;max-width:560px}
+
+/* ── Search ────────────────────────────────────── */
+.search-section{margin-top:32px}
+.search-box{
+  display:flex;align-items:center;gap:12px;
+  background:#fff;border:2px solid var(--border);
+  border-radius:var(--radius);padding:6px 8px 6px 20px;
+  transition:border-color .2s;max-width:560px;
+}
+.search-box:focus-within{border-color:var(--crimson)}
+.search-icon{color:var(--text-muted);flex-shrink:0}
+.search-input{
+  flex:1;border:none;outline:none;font-size:.95rem;
+  font-family:inherit;background:none;color:var(--text);
+  padding:10px 0;
+}
+.search-input::placeholder{color:var(--text-muted)}
+.search-btn{
+  padding:10px 20px;border-radius:var(--radius-sm);
+  background:var(--crimson);color:#fff;border:none;
+  font-size:.84rem;font-weight:600;cursor:pointer;
+  font-family:inherit;transition:background .2s;
+}
+.search-btn:hover{background:var(--crimson-light)}
+
+/* ── Filters ───────────────────────────────────── */
+.filters{
+  display:flex;align-items:center;gap:8px;margin-top:20px;
+  flex-wrap:wrap;
+}
+.filter-chip{
+  padding:7px 16px;border-radius:100px;
+  background:var(--bg);border:1px solid var(--border);
+  font-size:.8rem;font-weight:500;color:var(--text-secondary);
+  cursor:pointer;transition:all .2s;font-family:inherit;
+}
+.filter-chip:hover{border-color:var(--border-hover);color:var(--text)}
+.filter-chip.active{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.filter-count{
+  font-size:.78rem;color:var(--text-muted);font-weight:500;
+  margin-left:auto;
+}
+@media(max-width:600px){.filter-count{margin-left:0;width:100%}}
+
+/* ── Quick stats row ───────────────────────────── */
+.quick-stats{
+  display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;
+}
+.quick-stat{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 14px;border-radius:100px;
+  background:var(--surface);
+  font-size:.78rem;font-weight:500;color:var(--text-secondary);
+}
+.quick-stat strong{color:var(--crimson);font-weight:600}
+
+/* ── Program grid ──────────────────────────────── */
+.programs-section{padding:48px 0 80px}
+.section-header{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin-bottom:24px;
+}
+.section-header h2{font-size:1.3rem;font-weight:600;letter-spacing:-.01em}
+.view-toggle{
+  display:flex;gap:4px;
+}
+.view-btn{
+  padding:6px 14px;border-radius:var(--radius-sm);
+  background:none;border:1px solid var(--border);
+  font-size:.78rem;font-weight:500;color:var(--text-muted);
+  cursor:pointer;font-family:inherit;transition:all .2s;
+}
+.view-btn.active{background:var(--text);border-color:var(--text);color:#fff}
+
+.program-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));
+  gap:16px;
+}
+
+.program-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:24px;
+  transition:all .25s var(--ease);
+  cursor:pointer;
+  position:relative;
+}
+.program-card:hover{
+  border-color:var(--border-hover);
+  box-shadow:0 8px 24px -8px rgba(0,0,0,.08);
+  transform:translateY(-2px);
+}
+.program-card-top{
+  display:flex;align-items:start;justify-content:space-between;
+  margin-bottom:12px;gap:12px;
+}
+.program-dept{
+  font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--crimson);
+}
+.program-badges{display:flex;gap:6px}
+.program-badge{
+  padding:3px 8px;border-radius:4px;
+  font-size:.65rem;font-weight:600;
+}
+.badge-major{background:var(--crimson-bg);color:var(--crimson)}
+.badge-minor{background:rgba(37,99,235,.06);color:var(--accent)}
+.badge-new{background:rgba(22,163,74,.06);color:#16a34a}
+
+.program-card h3{font-size:1.05rem;font-weight:600;margin-bottom:8px;letter-spacing:-.01em;color:var(--text)}
+.program-card .desc{font-size:.84rem;color:var(--text-secondary);line-height:1.65;margin-bottom:16px}
+.program-card .meta-row{
+  display:flex;align-items:center;gap:16px;
+  padding-top:14px;border-top:1px solid var(--border);
+  font-size:.76rem;color:var(--text-muted);font-weight:500;
+}
+.meta-item{display:flex;align-items:center;gap:5px}
+.card-arrow{
+  position:absolute;top:24px;right:24px;
+  color:var(--border);transition:color .2s;
+}
+.program-card:hover .card-arrow{color:var(--crimson)}
+
+/* ── Quiz CTA ──────────────────────────────────── */
+.quiz-section{
+  padding:64px 0;
+  background:var(--bg-warm);
+  border-top:1px solid var(--border);
+  border-bottom:1px solid var(--border);
+}
+.quiz-card{
+  display:grid;grid-template-columns:1fr 1fr;gap:48px;
+  align-items:center;
+}
+@media(max-width:768px){.quiz-card{grid-template-columns:1fr}}
+.quiz-card h2{font-size:clamp(1.4rem,3vw,1.8rem);font-weight:600;margin-bottom:12px;letter-spacing:-.02em}
+.quiz-card p{color:var(--text-secondary);font-size:.95rem;line-height:1.7;margin-bottom:24px}
+.quiz-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 28px;border-radius:var(--radius);
+  background:var(--crimson);color:#fff;font-size:.92rem;font-weight:600;
+  border:none;cursor:pointer;font-family:inherit;
+  transition:all .2s;
+}
+.quiz-btn:hover{background:var(--crimson-light);transform:translateY(-1px);color:#fff}
+.quiz-visual{
+  display:flex;gap:12px;justify-content:center;
+}
+.quiz-pill{
+  padding:12px 20px;border-radius:100px;
+  background:#fff;border:1px solid var(--border);
+  font-size:.84rem;font-weight:500;color:var(--text-secondary);
+  box-shadow:0 2px 8px rgba(0,0,0,.04);
+}
+.quiz-pill.highlight{background:var(--crimson);border-color:var(--crimson);color:#fff}
+
+/* ── Outcomes section ──────────────────────────── */
+.outcomes-section{padding:64px 0}
+.outcomes-grid{
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:16px;margin-top:28px;
+}
+@media(max-width:768px){.outcomes-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:420px){.outcomes-grid{grid-template-columns:1fr}}
+.outcome-card{
+  text-align:center;padding:28px 20px;
+  background:var(--bg-warm);border:1px solid var(--border);
+  border-radius:var(--radius);
+}
+.outcome-val{font-size:2rem;font-weight:700;color:var(--crimson);margin-bottom:4px;letter-spacing:-.03em}
+.outcome-label{font-size:.78rem;color:var(--text-secondary);font-weight:500;line-height:1.4}
+
+/* ── Pre-professional & Minors ─────────────────── */
+.minor-section{padding:48px 0;border-top:1px solid var(--border)}
+.minor-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));
+  gap:10px;margin-top:20px;
+}
+.minor-item{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 18px;background:var(--bg-warm);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  font-size:.86rem;font-weight:500;color:var(--text);
+  transition:all .2s;cursor:pointer;
+}
+.minor-item:hover{border-color:var(--border-hover);background:#fff}
+.minor-icon{
+  width:32px;height:32px;border-radius:8px;
+  background:var(--crimson-bg);color:var(--crimson);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.85rem;flex-shrink:0;
+}
+
+/* ── Footer ────────────────────────────────────── */
+.site-footer{
+  background:var(--text);color:rgba(255,255,255,.6);
+  padding:48px 0;
+}
+.footer-inner{
+  display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:40px;
+}
+@media(max-width:768px){.footer-inner{grid-template-columns:1fr}}
+.footer-brand{color:#fff;font-weight:700;font-size:1.1rem;margin-bottom:12px;display:flex;align-items:center;gap:10px}
+.footer-desc{font-size:.84rem;line-height:1.7;margin-bottom:16px}
+.footer-contact{font-size:.82rem;line-height:1.8}
+.footer-col h4{color:rgba(255,255,255,.9);font-size:.78rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px}
+.footer-col a{display:block;color:rgba(255,255,255,.5);font-size:.84rem;padding:4px 0;transition:color .2s}
+.footer-col a:hover{color:#fff}
+.footer-bottom{
+  margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,.08);
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:.75rem;flex-wrap:wrap;gap:12px;
+}
+
+/* ── Accreditation bar ─────────────────────────── */
+.accreditation{
+  padding:32px 0;border-top:1px solid var(--border);background:var(--bg-warm);
+}
+.accred-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:24px;flex-wrap:wrap;
+}
+.accred-item{
+  display:flex;align-items:center;gap:8px;
+  font-size:.78rem;color:var(--text-muted);font-weight:500;
+}
+.accred-badge{
+  width:28px;height:28px;border-radius:6px;
+  background:var(--surface);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:.7rem;font-weight:700;color:var(--text-secondary);
+}
+
+/* ── Stamats badge ─────────────────────────────── */
+.stamats-credit{
+  position:fixed;bottom:20px;left:20px;z-index:90;
+  display:flex;align-items:center;gap:8px;
+  padding:8px 16px 8px 10px;
+  background:rgba(26,26,26,.9);color:rgba(255,255,255,.7);
+  border-radius:100px;font-size:.7rem;font-weight:500;
+  box-shadow:0 4px 16px rgba(0,0,0,.15);
+}
+.stamats-credit img{width:20px;height:20px;border-radius:4px}
+.stamats-credit strong{color:#fff;font-weight:600}
+
+/* ── Animations ────────────────────────────────── */
+.fade-in{
+  opacity:0;transform:translateY(20px);
+  transition:opacity .6s var(--ease),transform .6s var(--ease);
+}
+.fade-in.visible{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+
+<!-- Mockup indicator -->
+<div class="mockup-banner">
+  <strong>REDESIGN MOCKUP</strong> &nbsp;—&nbsp; This is a proposed redesign of coe.edu/academics/majors-areas-study &nbsp;|&nbsp; Prepared by Stamats, March 2026
+</div>
+
+<!-- Header -->
+<header class="site-header">
+  <div class="header-inner">
+    <a href="#" class="logo">
+      <div class="logo-mark">C</div>
+      Coe College
+    </a>
+    <nav class="header-nav" aria-label="Main navigation">
+      <a href="#">Admission</a>
+      <a href="#" class="active">Academics</a>
+      <a href="#">Student Life</a>
+      <a href="#">Why Coe</a>
+      <a href="#">Athletics</a>
+      <a href="#">Alumni</a>
+    </nav>
+    <a href="#" class="header-cta">Apply Now</a>
+  </div>
+</header>
+
+<!-- Trust bar (gap fix: trust signals) -->
+<div class="trust-bar">
+  <div class="container">
+    <div class="trust-row">
+      <div class="trust-item"><strong>11:1</strong> Student-Faculty Ratio</div>
+      <div class="trust-dot"></div>
+      <div class="trust-item"><strong>92%</strong> First-Year Retention</div>
+      <div class="trust-dot"></div>
+      <div class="trust-item"><strong>97%</strong> Employed Within 6 Months</div>
+      <div class="trust-dot"></div>
+      <div class="trust-item"><strong>Top 15%</strong> U.S. News Liberal Arts</div>
+      <div class="trust-dot"></div>
+      <div class="trust-item">&#127941; HLC Accredited</div>
+    </div>
+  </div>
+</div>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <div class="hero-content fade-in">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        <a href="#">Coe</a>
+        <span>/</span>
+        <a href="#">Academics</a>
+        <span>/</span>
+        <span>Majors & Areas of Study</span>
+      </nav>
+      <h1>Find your path at Coe</h1>
+      <p>Explore 60+ majors, minors, and pre-professional programs. Small classes, hands-on research, and faculty who know your name.</p>
+    </div>
+
+    <!-- Search (gap fix: no search/filter) -->
+    <div class="search-section fade-in">
+      <label for="program-search" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search programs</label>
+      <div class="search-box">
+        <svg class="search-icon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input class="search-input" id="program-search" type="text" placeholder="Search majors, minors, or interests..." autocomplete="off">
+        <button class="search-btn">Search</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="filters">
+        <button class="filter-chip active">All Programs</button>
+        <button class="filter-chip">Majors</button>
+        <button class="filter-chip">Minors</button>
+        <button class="filter-chip">Pre-Professional</button>
+        <button class="filter-chip">STEM</button>
+        <button class="filter-chip">Business</button>
+        <button class="filter-chip">Arts & Humanities</button>
+        <button class="filter-chip">Social Sciences</button>
+        <span class="filter-count">Showing 60 programs</span>
+      </div>
+
+      <div class="quick-stats">
+        <div class="quick-stat"><strong>60</strong> Majors</div>
+        <div class="quick-stat"><strong>27</strong> Minors</div>
+        <div class="quick-stat"><strong>14</strong> Pre-Professional</div>
+        <div class="quick-stat"><strong>19</strong> Also available as minors</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Program grid (gap fix: descriptions, cards, department tags) -->
+<section class="programs-section">
+  <div class="container">
+    <div class="section-header fade-in">
+      <h2>Majors & Areas of Study</h2>
+      <div class="view-toggle">
+        <button class="view-btn active">Cards</button>
+        <button class="view-btn">List</button>
+        <button class="view-btn">By Department</button>
+      </div>
+    </div>
+
+    <div class="program-grid">
+      <!-- Biology -->
+      <article class="program-card fade-in" tabindex="0" role="link" aria-label="Biology major">
+        <div class="program-card-top">
+          <span class="program-dept">Biology Department</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Biology</h3>
+        <p class="desc">Study living organisms from molecules to ecosystems. Prepare for medical school, research careers, or graduate study with hands-on lab experience starting freshman year.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 128 credits</span>
+          <span class="meta-item">&#128101; 12:1 ratio</span>
+          <span class="meta-item">&#128300; Research from Year 1</span>
+        </div>
+      </article>
+
+      <!-- Computer Science -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Math & Computer Science</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span><span class="program-badge badge-minor">Minor</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Computer Science</h3>
+        <p class="desc">Build software, analyze data, and solve complex problems. Our CS program emphasizes both theory and application through project-based courses and industry partnerships.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 124 credits</span>
+          <span class="meta-item">&#128101; 10:1 ratio</span>
+          <span class="meta-item">&#128188; 100% placement</span>
+        </div>
+      </article>
+
+      <!-- Data Science -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Interdisciplinary</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span><span class="program-badge badge-new">New</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Data Science</h3>
+        <p class="desc">Combine statistics, computer science, and domain expertise. Learn to extract insights from data and make evidence-based decisions across industries.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 120 credits</span>
+          <span class="meta-item">&#128200; High demand field</span>
+        </div>
+      </article>
+
+      <!-- Nursing -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Nursing</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Nursing</h3>
+        <p class="desc">Prepare for a rewarding career in healthcare with our CCNE-accredited nursing program. Clinical placements begin sophomore year at regional healthcare partners.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 132 credits</span>
+          <span class="meta-item">&#127941; CCNE Accredited</span>
+          <span class="meta-item">&#128188; 98% NCLEX pass</span>
+        </div>
+      </article>
+
+      <!-- Business Administration -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Business & Economics</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Business Administration</h3>
+        <p class="desc">Develop leadership, analytical, and strategic thinking skills. Choose from 8 specializations including Finance, Marketing, Management, and Aviation Management.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 124 credits</span>
+          <span class="meta-item">&#128101; 8 specializations</span>
+        </div>
+      </article>
+
+      <!-- Psychology -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Psychology</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Psychology</h3>
+        <p class="desc">Understand human behavior and mental processes. Engage in original research, gain clinical experience, and prepare for graduate programs or careers in counseling, HR, and more.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 120 credits</span>
+          <span class="meta-item">&#128300; Faculty-led research</span>
+        </div>
+      </article>
+
+      <!-- Neuroscience -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Interdisciplinary</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span><span class="program-badge badge-new">New</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Neuroscience</h3>
+        <p class="desc">Explore the brain and nervous system at the intersection of biology, psychology, and chemistry. One of the fastest-growing fields in science.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 128 credits</span>
+          <span class="meta-item">&#128300; Lab-intensive</span>
+        </div>
+      </article>
+
+      <!-- Engineering Physics -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Physics</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Engineering Physics</h3>
+        <p class="desc">Combine physics fundamentals with engineering applications. Small cohorts, dedicated lab space, and direct faculty mentorship prepare you for industry or graduate school.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 132 credits</span>
+          <span class="meta-item">&#128101; 8:1 ratio</span>
+        </div>
+      </article>
+
+      <!-- Education -->
+      <article class="program-card fade-in" tabindex="0">
+        <div class="program-card-top">
+          <span class="program-dept">Education</span>
+          <div class="program-badges"><span class="program-badge badge-major">Major</span></div>
+        </div>
+        <svg class="card-arrow" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M7 17L17 7M17 7H7M17 7V17"/></svg>
+        <h3>Education</h3>
+        <p class="desc">Become a teacher who makes a difference. Classroom experience from your first year, leading to Iowa teaching licensure. Our graduates have a 100% licensure pass rate.</p>
+        <div class="meta-row">
+          <span class="meta-item">&#127891; 128 credits</span>
+          <span class="meta-item">&#128188; 100% licensure</span>
+          <span class="meta-item">&#127941; CAEP Accredited</span>
+        </div>
+      </article>
+    </div>
+
+    <div style="text-align:center;margin-top:40px" class="fade-in">
+      <button style="padding:14px 36px;border-radius:var(--radius);background:none;border:2px solid var(--border);font-size:.9rem;font-weight:600;color:var(--text);cursor:pointer;font-family:inherit;transition:all .2s" onmouseover="this.style.borderColor='var(--crimson)';this.style.color='var(--crimson)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">View all 60 majors &rarr;</button>
+    </div>
+  </div>
+</section>
+
+<!-- Quiz CTA (gap fix: Find Your Major) -->
+<section class="quiz-section">
+  <div class="container">
+    <div class="quiz-card fade-in">
+      <div>
+        <h2>Not sure what to study?</h2>
+        <p>Take our 3-minute quiz to discover majors that match your interests, strengths, and career goals. Over 2,000 students have found their path this way.</p>
+        <button class="quiz-btn">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+          Find Your Major
+        </button>
+      </div>
+      <div class="quiz-visual" aria-hidden="true">
+        <div style="display:flex;flex-direction:column;gap:10px;padding-top:20px">
+          <div class="quiz-pill">I love solving problems</div>
+          <div class="quiz-pill highlight">I want to help people</div>
+          <div class="quiz-pill">I'm curious about nature</div>
+          <div class="quiz-pill">I want to lead a team</div>
+          <div class="quiz-pill">I'm creative and visual</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Student outcomes (gap fix: outcomes data) -->
+<section class="outcomes-section">
+  <div class="container">
+    <h2 class="fade-in" style="font-size:1.3rem;font-weight:600;letter-spacing:-.01em">What happens after Coe</h2>
+    <p class="fade-in" style="color:var(--text-secondary);font-size:.92rem;margin-top:8px;max-width:480px">Our graduates don't just find jobs — they launch careers.</p>
+    <div class="outcomes-grid">
+      <div class="outcome-card fade-in"><div class="outcome-val">97%</div><div class="outcome-label">Employed or in grad school within 6 months</div></div>
+      <div class="outcome-card fade-in"><div class="outcome-val">$48K</div><div class="outcome-label">Average starting salary</div></div>
+      <div class="outcome-card fade-in"><div class="outcome-val">85%</div><div class="outcome-label">Completed internship or research</div></div>
+      <div class="outcome-card fade-in"><div class="outcome-val">15K+</div><div class="outcome-label">Active alumni network</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Pre-Professional (cleaner presentation) -->
+<section class="minor-section">
+  <div class="container">
+    <h2 class="fade-in" style="font-size:1.3rem;font-weight:600;letter-spacing:-.01em">Pre-Professional Programs</h2>
+    <p class="fade-in" style="color:var(--text-secondary);font-size:.92rem;margin-top:8px;max-width:520px;margin-bottom:4px">Structured pathways to graduate and professional schools, with dedicated advisors and proven track records.</p>
+    <div class="minor-grid">
+      <div class="minor-item fade-in"><div class="minor-icon">&#9764;&#65039;</div>Pre-Med</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#9878;&#65039;</div>Pre-Law</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#129463;</div>Pre-Dental</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#128137;</div>Pre-Pharmacy</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#9881;&#65039;</div>Pre-Engineering</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#127932;</div>Pre-Music Therapy</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#129657;</div>Pre-Physical Therapy</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#128202;</div>Pre-Actuarial Science</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#127970;</div>Pre-Architecture</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#128153;</div>Pre-Veterinary</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#129658;</div>Pre-Athletic Training</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#129656;</div>Pre-Physician Assistant</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#128144;</div>Pre-Public Health</div>
+      <div class="minor-item fade-in"><div class="minor-icon">&#129462;</div>Pre-Podiatry</div>
+    </div>
+  </div>
+</section>
+
+<!-- Accreditation (gap fix) -->
+<section class="accreditation">
+  <div class="container">
+    <div class="accred-row fade-in">
+      <div class="accred-item"><div class="accred-badge">HLC</div> Higher Learning Commission</div>
+      <div class="accred-item"><div class="accred-badge">CCNE</div> Nursing Accredited</div>
+      <div class="accred-item"><div class="accred-badge">CAEP</div> Education Accredited</div>
+      <div class="accred-item"><div class="accred-badge">NASM</div> Music Accredited</div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">
+          <div class="logo-mark" style="width:30px;height:30px;font-size:.85rem;border-radius:7px">C</div>
+          Coe College
+        </div>
+        <div class="footer-desc">A selective, private, nationally recognized liberal arts college providing superior educational experiences since 1851.</div>
+        <div class="footer-contact">
+          1220 First Avenue NE, Cedar Rapids, IA 52402<br>
+          877.Call.Coe (877-225-5263)<br>
+          admission@coe.edu
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Quick Links</h4>
+        <a href="#">Apply & Enroll</a>
+        <a href="#">Plan a Visit</a>
+        <a href="#">Request Information</a>
+        <a href="#">Financial Aid</a>
+        <a href="#">Academic Calendar</a>
+        <a href="#">Student Portal</a>
+      </div>
+      <div class="footer-col">
+        <h4>Resources</h4>
+        <a href="#">Faculty Directory</a>
+        <a href="#">Academic Catalog</a>
+        <a href="#">Library</a>
+        <a href="#">Consumer Information</a>
+        <a href="#">Accessibility</a>
+        <a href="#">Privacy Policy</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Coe College. All rights reserved.</span>
+      <span>Go Kohawks!</span>
+    </div>
+  </div>
+</footer>
+
+<!-- Stamats credit -->
+<div class="stamats-credit">
+  <img src="screenshots/stamats-logo.png" alt="Stamats">
+  Mockup by <strong>Stamats</strong>
+</div>
+
+<script>
+// Scroll reveal
+const obs=new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if(e.isIntersecting){e.target.classList.add('visible');obs.unobserve(e.target)}
+  });
+},{threshold:.08,rootMargin:'0px 0px -20px 0px'});
+document.querySelectorAll('.fade-in').forEach(el=>obs.observe(el));
+
+// Filter chip toggle (demo)
+document.querySelectorAll('.filter-chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-chip').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active');
+  });
+});
+</script>
+
+</body>
+</html>
