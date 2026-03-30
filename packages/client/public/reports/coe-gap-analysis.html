@@ -24,10 +24,7 @@
 }
 </script>
 
-<!-- Premium Font -->
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<!-- System font stack (matches app design language) -->
 
 <style>
 /* ═══════════════════════════════════════════════════════════════
@@ -42,7 +39,7 @@
   --bg-card-solid:#0e1324;
   --bg-card-hover:rgba(22,29,53,.8);
   --bg-glass:rgba(14,19,36,.45);
-  --border:rgba(255,255,255,.06);
+  --border:rgba(255,255,255,.07);
   --border-hover:rgba(255,255,255,.12);
   --border-glow:rgba(129,140,248,.15);
   --text:#f1f5f9;
@@ -63,6 +60,7 @@
   --low:#34d399;
   --low-bg:rgba(52,211,153,.06);
   --low-border:rgba(52,211,153,.12);
+  --purple:#a78bfa;--purple-bg:rgba(167,139,250,.06);--purple-border:rgba(167,139,250,.12);
   --grad-hero:linear-gradient(135deg,#818cf8 0%,#c084fc 40%,#f472b6 100%);
   --grad-critical:linear-gradient(135deg,#dc2626,#f87171);
   --grad-high:linear-gradient(135deg,#d97706,#fbbf24);
@@ -77,14 +75,16 @@
   --shadow-glow:0 0 80px -20px rgba(129,140,248,.15);
 }
 
-html{scroll-behavior:smooth;scroll-padding-top:110px}
+html{scroll-behavior:smooth;scroll-padding-top:100px}
+@media(min-width:1081px){html{scroll-padding-top:60px}}
 body{
-  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  font-family:-apple-system,'system-ui','SF Pro Display','SF Pro Text',Inter,'Segoe UI',sans-serif;
   background:var(--bg);color:var(--text);
   line-height:1.65;-webkit-font-smoothing:antialiased;
   overflow-x:hidden;
 }
 ::selection{background:rgba(129,140,248,.3);color:#fff}
+*:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:var(--r-sm)}
 a{color:var(--accent);text-decoration:none;transition:color .2s}
 a:hover{color:var(--accent-bright)}
 
@@ -108,9 +108,9 @@ a:hover{color:var(--accent-bright)}
 .hero-mesh::before{
   content:'';position:absolute;width:140%;height:140%;top:-20%;left:-20%;
   background:
-    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(99,102,241,.08) 0%, transparent 70%),
-    radial-gradient(ellipse 50% 60% at 80% 30%, rgba(168,85,247,.06) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 50% at 60% 80%, rgba(244,114,182,.04) 0%, transparent 70%);
+    radial-gradient(ellipse 60% 50% at 20% 50%, rgba(99,102,241,.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 80% 30%, rgba(168,85,247,.09) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 50% at 60% 80%, rgba(244,114,182,.06) 0%, transparent 70%);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -127,7 +127,8 @@ a:hover{color:var(--accent-bright)}
    ═══════════════════════════════════════════════════════════════ */
 .sticky-nav{
   position:fixed;top:0;left:0;right:0;z-index:1000;
-  background:rgba(5,8,16,.92);
+  background:rgba(5,8,16,.85);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-bottom:1px solid var(--border);
   transform:translateY(-100%);transition:transform .45s var(--ease);
   will-change:transform;
@@ -149,7 +150,7 @@ a:hover{color:var(--accent-bright)}
   .sticky-nav.show{transform:translateX(0)}
   .sticky-nav-inner{
     flex-direction:column;align-items:stretch;height:auto;
-    padding:20px 14px;gap:2px;overflow-y:auto;overflow-x:hidden;
+    padding:20px 14px;gap:3px;overflow-y:auto;overflow-x:hidden;
     max-height:calc(100vh - 44px);
   }
   .nav-brand{
@@ -161,11 +162,13 @@ a:hover{color:var(--accent-bright)}
     -webkit-text-fill-color:transparent;background-clip:text;
   }
   .sticky-nav a{
-    color:var(--text-muted);font-size:.72rem;font-weight:500;
+    color:var(--text-muted);font-size:.74rem;font-weight:500;
     white-space:nowrap;padding:7px 10px;border-radius:6px;
-    transition:all .2s;letter-spacing:.01em;display:block;
+    transition:all .2s;letter-spacing:.01em;display:block;position:relative;
   }
   .sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
+  .sticky-nav a.active{color:var(--accent-bright);background:rgba(129,140,248,.08)}
+  .sticky-nav a.active::before{content:'';position:absolute;left:0;top:6px;bottom:6px;width:2px;background:var(--grad-hero);border-radius:2px}
   body.nav-open{margin-left:200px}
 }
 /* Mobile/tablet: top bar nav */
@@ -179,8 +182,8 @@ a:hover{color:var(--accent-bright)}
     -webkit-text-fill-color:transparent;background-clip:text;
   }
   .sticky-nav a{
-    color:var(--text-muted);font-size:.7rem;font-weight:500;
-    white-space:nowrap;padding:5px 10px;border-radius:6px;
+    color:var(--text-muted);font-size:.72rem;font-weight:500;
+    white-space:nowrap;padding:6px 12px;border-radius:6px;
     transition:all .2s;letter-spacing:.01em;
   }
   .sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
@@ -190,6 +193,7 @@ a:hover{color:var(--accent-bright)}
    LAYOUT
    ═══════════════════════════════════════════════════════════════ */
 .container{max-width:1320px;margin:0 auto;padding:0 28px}
+@media(max-width:640px){.container{padding:0 20px}}
 @media(max-width:500px){.container{padding:0 16px}}
 section{padding:100px 0}
 @media(max-width:768px){section{padding:64px 0}}
@@ -199,7 +203,7 @@ section{padding:100px 0}
    REVEAL SYSTEM
    ═══════════════════════════════════════════════════════════════ */
 .reveal{
-  opacity:0;transform:translateY(40px);
+  opacity:0;transform:translateY(28px);
   transition:opacity .9s var(--ease),transform .9s var(--ease);
 }
 .reveal.visible{opacity:1;transform:translateY(0)}
@@ -219,14 +223,14 @@ section{padding:100px 0}
 /* ═══════════════════════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════════════════════ */
-h1,h2,h3,h4{font-weight:600;letter-spacing:-.025em;line-height:1.15}
-h1{font-size:clamp(2.4rem,5.5vw,4rem);font-weight:700}
+h1,h2,h3,h4{font-weight:600;letter-spacing:-.025em;line-height:1.2}
+h1{font-size:clamp(2rem,5.5vw,4rem);font-weight:700}
 h2{font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:600}
 h3{font-size:1.1rem;font-weight:600}
 
 .section-label{
   display:inline-flex;align-items:center;gap:10px;
-  font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.16em;
+  font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.2em;
   color:var(--accent);margin-bottom:20px;
 }
 .section-label::before{
@@ -298,6 +302,7 @@ h3{font-size:1.1rem;font-weight:600}
   background-clip:text;color:transparent;
   background-size:200% 200%;
   animation:gradient-shift 6s ease-in-out infinite;
+  filter:drop-shadow(0 0 30px rgba(129,140,248,.15));
 }
 @keyframes gradient-shift{
   0%,100%{background-position:0% 50%}
@@ -330,7 +335,7 @@ h3{font-size:1.1rem;font-weight:600}
 
 /* Decorative rings */
 .deco-ring{
-  position:absolute;border:1.5px solid rgba(129,140,248,.06);
+  position:absolute;border:1.5px solid rgba(129,140,248,.08);
   border-radius:50%;pointer-events:none;
 }
 .deco-ring:nth-child(1){width:420px;height:420px;top:-80px;right:-120px}
@@ -353,10 +358,10 @@ h3{font-size:1.1rem;font-weight:600}
 .stat-card{
   background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
-  padding:32px 24px;text-align:center;position:relative;overflow:hidden;
+  padding:32px 28px;text-align:center;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
 }
-.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
+.stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:3px 3px 0 0}
 .stat-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:var(--shadow-lg)}
 
 .stat-number{font-size:2.8rem;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:8px}
@@ -374,7 +379,7 @@ h3{font-size:1.1rem;font-weight:600}
 /* ═══════════════════════════════════════════════════════════════
    HEALTH SCORE
    ═══════════════════════════════════════════════════════════════ */
-.health-section{padding-top:20px}
+.health-section{padding:80px 0}
 .health-grid{display:grid;grid-template-columns:280px 1fr;gap:56px;align-items:center}
 @media(max-width:768px){.health-grid{grid-template-columns:1fr;justify-items:center;text-align:center}}
 
@@ -431,10 +436,12 @@ h3{font-size:1.1rem;font-weight:600}
 
 .exec-card{
   background:var(--bg-card);
-  border:1px solid var(--border);border-radius:var(--r-lg);
+  border:1px solid var(--border);border-radius:var(--r-xl);
   padding:32px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-sm);
   transition:all .4s var(--ease);
 }
+.exec-card:active,.opp-card:active,.stat-card:active{transform:translateY(-2px);transition-duration:.1s}
 .exec-card::after{
   content:'';position:absolute;top:-40px;right:-40px;width:140px;height:140px;
   background:radial-gradient(circle,rgba(129,140,248,.04),transparent 70%);
@@ -508,7 +515,7 @@ h3{font-size:1.1rem;font-weight:600}
 }
 .cat-score-card{
   background:var(--bg-card);
-  border:1px solid var(--border);border-radius:var(--r-lg);
+  border:1px solid var(--border);border-top:2px solid rgba(255,255,255,.04);border-radius:var(--r-lg);
   padding:24px;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
 }
@@ -582,8 +589,9 @@ h3{font-size:1.1rem;font-weight:600}
 
 .opp-card{
   background:var(--bg-card);
-  border:1px solid var(--border);border-radius:var(--r-lg);
+  border:1px solid var(--border);border-radius:var(--r-xl);
   padding:32px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-sm);
   transition:all .4s var(--ease);
 }
 .opp-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
@@ -624,14 +632,14 @@ h3{font-size:1.1rem;font-weight:600}
   border:1px solid var(--border);background:var(--bg-surface);color:var(--text-muted);
 }
 
-.issue-list{display:flex;flex-direction:column;gap:8px;margin-top:24px}
+.issue-list{display:flex;flex-direction:column;gap:10px;margin-top:28px}
 .issue-card{
   display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;
   background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-md);
   padding:18px 22px;transition:all .25s ease;
 }
-.issue-card:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateX(3px)}
+.issue-card:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateX(4px);box-shadow:var(--shadow-sm)}
 .sev{
   padding:4px 10px;border-radius:6px;
   font-size:.62rem;font-weight:500;text-transform:uppercase;letter-spacing:.08em;
@@ -653,7 +661,7 @@ h3{font-size:1.1rem;font-weight:600}
   background:var(--bg-card);
 }
 table{width:100%;border-collapse:collapse;font-size:.86rem}
-thead{background:rgba(129,140,248,.04)}
+thead{background:rgba(14,19,36,.95);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);position:sticky;top:0;z-index:2}
 th{
   padding:16px 22px;text-align:left;
   font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
@@ -662,14 +670,16 @@ th{
 td{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.03)}
 tr:last-child td{border-bottom:none}
 tbody tr{transition:all .15s ease}
-tbody tr:hover{background:rgba(129,140,248,.03)}
-.ck{color:var(--low);font-weight:600;font-size:1.1rem}
-.cx{color:var(--critical);font-weight:600;font-size:1.1rem}
+tbody tr:hover{background:rgba(129,140,248,.05)}
+td:nth-child(2),th:nth-child(2){background:rgba(248,113,113,.025)}
+tbody tr:nth-child(even){background:rgba(255,255,255,.01)}
+.ck{color:var(--low);font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--low-bg)}
+.cx{color:var(--critical);font-weight:600;font-size:1rem;display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--critical-bg)}
 
 /* ═══════════════════════════════════════════════════════════════
    PRIORITIES
    ═══════════════════════════════════════════════════════════════ */
-.priority-list{display:flex;flex-direction:column;gap:6px;margin-top:40px;position:relative}
+.priority-list{display:flex;flex-direction:column;gap:10px;margin-top:40px;position:relative}
 @media(max-width:500px){
   .priority-item{grid-template-columns:40px 1fr;gap:12px;padding:12px 16px}
   .priority-item .sev{display:none}
@@ -687,15 +697,16 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   border:1px solid var(--border);border-radius:var(--r-md);
   transition:all .3s var(--ease);position:relative;z-index:1;
 }
-.priority-item:hover{transform:translateX(8px);background:var(--bg-card-hover);border-color:var(--border-hover)}
+.priority-item:hover{transform:translateX(6px);background:var(--bg-card-hover);border-color:var(--border-hover);box-shadow:var(--shadow-sm)}
 .p-rank{
   width:36px;height:36px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  font-size:.9rem;font-weight:600;
+  font-size:.95rem;font-weight:600;font-variant-numeric:tabular-nums;
 }
 .priority-item:nth-child(-n+5) .p-rank{background:var(--critical-bg);color:var(--critical)}
 .priority-item:nth-child(n+6):nth-child(-n+11) .p-rank{background:var(--high-bg);color:var(--high)}
 .priority-item:nth-child(n+12) .p-rank{background:var(--accent-dim);color:var(--accent)}
+.priority-item:nth-child(-n+5){border-left:3px solid rgba(248,113,113,.2)}
 .p-name{font-weight:500;font-size:.88rem}
 
 /* ═══════════════════════════════════════════════════════════════
@@ -755,10 +766,33 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 .prepared-by strong{color:var(--text);font-weight:700}
 
 /* ═══════════════════════════════════════════════════════════════
+   HERO CTA
+   ═══════════════════════════════════════════════════════════════ */
+.hero-ctas{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap}
+.hero-cta-primary{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 28px;border-radius:100px;
+  background:var(--grad-hero);color:#fff;
+  font-size:.86rem;font-weight:600;
+  box-shadow:0 8px 32px -6px rgba(129,140,248,.35);
+  transition:all .3s var(--ease);
+}
+.hero-cta-primary:hover{color:#fff;transform:translateY(-2px);box-shadow:0 12px 40px -6px rgba(129,140,248,.5)}
+.hero-cta-secondary{
+  display:inline-flex;align-items:center;
+  padding:12px 28px;border-radius:100px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  color:var(--text-secondary);font-size:.86rem;font-weight:500;
+  transition:all .3s var(--ease);
+}
+.hero-cta-secondary:hover{background:rgba(255,255,255,.07);border-color:var(--border-hover);color:var(--text)}
+
+/* ═══════════════════════════════════════════════════════════════
    FOOTER
    ═══════════════════════════════════════════════════════════════ */
-.report-footer{text-align:center;padding:64px 28px;border-top:1px solid var(--border)}
-.footer-logo{height:36px;width:36px;object-fit:contain;border-radius:8px;margin:0 auto 16px;display:block;opacity:.7}
+.report-footer{text-align:center;padding:80px 28px;border-top:none;background-image:linear-gradient(90deg,transparent,rgba(129,140,248,.12),transparent);background-size:100% 1px;background-repeat:no-repeat;background-position:top}
+.footer-logo{height:36px;width:36px;object-fit:contain;border-radius:8px;margin:0 auto 16px;display:block;opacity:.85;transition:opacity .3s ease}
+.footer-logo:hover{opacity:1}
 .report-footer .brand{
   font-weight:700;font-size:.95rem;margin-bottom:10px;
   background:var(--grad-hero);-webkit-background-clip:text;
@@ -767,7 +801,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 .report-footer p{color:var(--text-muted);font-size:.8rem}
 .report-footer .prepared{margin-top:14px;font-size:.78rem;color:var(--text-secondary)}
 .report-footer .prepared strong{color:var(--text);font-weight:700}
-.report-footer .conf{margin-top:16px;color:rgba(255,255,255,.15);font-size:.68rem;text-transform:uppercase;letter-spacing:.14em}
+.report-footer .conf{margin-top:16px;color:rgba(255,255,255,.2);font-size:.68rem;text-transform:uppercase;letter-spacing:.14em}
 
 /* ═══════════════════════════════════════════════════════════════
    DIVIDER
@@ -794,7 +828,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   transition:all .2s;position:relative;bottom:-1px;
 }
 .tab-btn:hover{color:var(--text-secondary)}
-.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);border-bottom-width:3px}
 
 .tab-panel{display:none;padding:28px 0}
 .tab-panel.active{display:block}
@@ -803,7 +837,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   background:var(--bg-surface);border:1px solid var(--border);
   border-radius:var(--r-md);padding:24px;overflow-x:auto;
   font-family:'SF Mono',Consolas,'Liberation Mono',monospace;
-  font-size:.78rem;line-height:1.8;color:var(--text-secondary);
+  font-size:.82rem;line-height:1.8;color:var(--text-secondary);
   white-space:pre;tab-size:2;
 }
 .code-block .key{color:var(--accent)}
@@ -854,13 +888,28 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
    PRINT
    ═══════════════════════════════════════════════════════════════ */
 @media print{
+  @page{margin:1.5cm 2cm}
   body{background:#fff;color:#111}
-  .ambient,.scroll-progress,.sticky-nav,body::after,.hero-mesh,.deco-ring,.float-tag{display:none!important}
+  body.nav-open{margin-left:0}
+  .ambient,.scroll-progress,.sticky-nav,body::after,.hero-mesh,.deco-ring,.float-tag,
+  .chat-fab,.chat-panel,.ai-intro-overlay,.brand-bar{display:none!important}
+  .gradient-text{-webkit-text-fill-color:initial!important;background:none!important;color:#111!important}
   .glass,.stat-card,.exec-card,.issue-card,.opp-card,.cat-score-card,.prog-card,.priority-item,.screenshot-card{
     break-inside:avoid;border-color:#e2e8f0;background:#fff;backdrop-filter:none;
   }
-  section{padding:40px 0}
+  .bar{transform:scaleY(1)!important}
+  .donut-seg{stroke-dasharray:var(--seg) 565!important}
+  .score-ring-fill{stroke-dasharray:var(--fill) 754!important}
+  .gauge-fill{transform:scaleX(1)!important}
+  .sev-c{color:#dc2626!important;border-color:#dc2626!important}
+  .sev-h{color:#d97706!important;border-color:#d97706!important}
+  .sev-m{color:#2563eb!important;border-color:#2563eb!important}
+  .sev-l{color:#059669!important;border-color:#059669!important}
+  section{padding:40px 0;page-break-inside:avoid}
+  .issue-card{page-break-inside:avoid}
   .hero{min-height:auto}
+  img{max-width:100%;height:auto}
+  svg{print-color-adjust:exact;-webkit-print-color-adjust:exact}
 }
 </style>
 </head>
@@ -916,6 +965,10 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
         <div class="prepared-by">
           <img src="screenshots/stamats-logo.png" alt="Stamats">
           <span>Prepared by <strong>Stamats</strong> &nbsp;&bull;&nbsp; March 30, 2026</span>
+        </div>
+        <div class="hero-ctas">
+          <a href="#priorities" class="hero-cta-primary">Jump to priorities <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></a>
+          <a href="#health-score" class="hero-cta-secondary">View score</a>
         </div>
       </div>
       <div class="hero-visual">
@@ -974,12 +1027,12 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Executive Summary</div><h2>The page works. Nothing else does.</h2><p class="subtitle">Coe's Majors page is the primary gateway for prospective students. Despite 82 program listings, it provides almost zero information about any of them.</p></div>
     <div class="exec-grid stagger">
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128269;</div><h3>No Way to Search or Filter</h3><p>82 programs in one flat list. No keyword search, no category filters, no department grouping. Students who don't know what they want have zero way to explore.</p></div>
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128196;</div><h3>Zero Program Descriptions</h3><p>Every major is a name and a link. Not one sentence about what students will study, what careers it leads to, or why Coe's program stands out.</p></div>
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#9855;</div><h3>Accessibility Failures</h3><p>Zero alt text. No ARIA labels. Inaccessible symbols. Missing semantic HTML. Fails WCAG 2.1 Level A &mdash; the bare minimum &mdash; with potential ADA legal exposure.</p></div>
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128200;</div><h3>Invisible to Search & Social</h3><p>No meta description, OG tags, Twitter Cards, Schema.org, or canonical URL. Social previews are blank. Google gets zero structured information.</p></div>
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128274;</div><h3>Privacy Violations</h3><p>5 tracking scripts fire before consent. Hotjar records session replays. No cookie banner. Likely violates GDPR, CCPA, and emerging state privacy laws.</p></div>
-      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--high-bg)">&#127942;</div><h3>No Trust Signals</h3><p>No rankings, accreditation badges, graduation rates, employment data, class sizes, or student-faculty ratio. Zero proof of value from a quality institution.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div><h3>No Way to Search or Filter</h3><p>82 programs in one flat list. No keyword search, no category filters, no department grouping. Students who don't know what they want have zero way to explore.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><h3>Zero Program Descriptions</h3><p>Every major is a name and a link. Not one sentence about what students will study, what careers it leads to, or why Coe's program stands out.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div><h3>Accessibility Failures</h3><p>Zero alt text. No ARIA labels. Inaccessible symbols. Missing semantic HTML. Fails WCAG 2.1 Level A &mdash; the bare minimum &mdash; with potential ADA legal exposure.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div><h3>Invisible to Search & Social</h3><p>No meta description, OG tags, Twitter Cards, Schema.org, or canonical URL. Social previews are blank. Google gets zero structured information.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><h3>Privacy Violations</h3><p>5 tracking scripts fire before consent. Hotjar records session replays. No cookie banner. Likely violates GDPR, CCPA, and emerging state privacy laws.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg></div><h3>No Trust Signals</h3><p>No rankings, accreditation badges, graduation rates, employment data, class sizes, or student-faculty ratio. Zero proof of value from a quality institution.</p></div>
     </div>
   </div>
 </section>
@@ -1022,16 +1075,16 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Category Scores</div><h2>Performance by category</h2><p class="subtitle">Each scored on a 100-point scale. Red means failing. Yellow means far below standard.</p></div>
     <div class="cat-scores-grid stagger">
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9855;</div><div class="cat-score-num" style="color:var(--critical)">8</div></div><h4>Accessibility</h4><div class="gauge"><div class="gauge-fill" style="width:8%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>WCAG 2.2 AA</span><span>9 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128270;</div><div class="cat-score-num" style="color:var(--critical)">12</div></div><h4>SEO & Markup</h4><div class="gauge"><div class="gauge-fill" style="width:12%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Search visibility</span><span>12 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128196;</div><div class="cat-score-num" style="color:var(--critical)">5</div></div><h4>Content</h4><div class="gauge"><div class="gauge-fill" style="width:5%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Information depth</span><span>14 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:rgba(168,85,247,.08)">&#127912;</div><div class="cat-score-num" style="color:var(--critical)">15</div></div><h4>UX & Interface</h4><div class="gauge"><div class="gauge-fill" style="width:15%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Usability</span><span>10 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--medium-bg)">&#129302;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Modern Features</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Innovation</span><span>11 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--low-bg)">&#127942;</div><div class="cat-score-num" style="color:var(--critical)">3</div></div><h4>Trust Signals</h4><div class="gauge"><div class="gauge-fill" style="width:3%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Social proof</span><span>10 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128274;</div><div class="cat-score-num" style="color:var(--critical)">10</div></div><h4>Privacy & Legal</h4><div class="gauge"><div class="gauge-fill" style="width:10%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Compliance</span><span>6 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#9889;</div><div class="cat-score-num" style="color:var(--high)">35</div></div><h4>Performance</h4><div class="gauge"><div class="gauge-fill" style="width:35%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Speed & tech debt</span><span>7 issues</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9878;&#65039;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Competitive</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>0/17 peer features</span><span>17 gaps</span></div></div>
-      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128221;</div><div class="cat-score-num" style="color:var(--high)">25</div></div><h4>Naming</h4><div class="gauge"><div class="gauge-fill" style="width:25%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Consistency</span><span>4 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div><div class="cat-score-num" style="color:var(--critical)">8</div></div><h4>Accessibility</h4><div class="gauge"><div class="gauge-fill" style="width:8%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>WCAG 2.2 AA</span><span>9 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div><div class="cat-score-num" style="color:var(--critical)">12</div></div><h4>SEO & Markup</h4><div class="gauge"><div class="gauge-fill" style="width:12%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Search visibility</span><span>12 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><div class="cat-score-num" style="color:var(--critical)">5</div></div><h4>Content</h4><div class="gauge"><div class="gauge-fill" style="width:5%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Information depth</span><span>14 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:rgba(168,85,247,.08);color:#a78bfa"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div><div class="cat-score-num" style="color:var(--critical)">15</div></div><h4>UX & Interface</h4><div class="gauge"><div class="gauge-fill" style="width:15%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Usability</span><span>10 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--medium-bg);color:var(--medium)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Modern Features</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Innovation</span><span>11 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--low-bg);color:var(--low)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg></div><div class="cat-score-num" style="color:var(--critical)">3</div></div><h4>Trust Signals</h4><div class="gauge"><div class="gauge-fill" style="width:3%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Social proof</span><span>10 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><div class="cat-score-num" style="color:var(--critical)">10</div></div><h4>Privacy & Legal</h4><div class="gauge"><div class="gauge-fill" style="width:10%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Compliance</span><span>6 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div><div class="cat-score-num" style="color:var(--high)">35</div></div><h4>Performance</h4><div class="gauge"><div class="gauge-fill" style="width:35%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Speed & tech debt</span><span>7 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg></div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Competitive</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>0/17 peer features</span><span>17 gaps</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg></div><div class="cat-score-num" style="color:var(--high)">25</div></div><h4>Naming</h4><div class="gauge"><div class="gauge-fill" style="width:25%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Consistency</span><span>4 issues</span></div></div>
     </div>
   </div>
 </section>
@@ -1044,7 +1097,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
       <div class="screenshot-card"><img src="screenshots/coe-viewport.png" alt="Coe majors page desktop" loading="lazy"><div class="screenshot-cap"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>Desktop &mdash; 1440&times;900</div></div>
       <div class="screenshot-card"><img src="screenshots/coe-mobile.png" alt="Coe majors page mobile" loading="lazy" style="max-height:600px;object-fit:cover;object-position:top"><div class="screenshot-cap"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><circle cx="12" cy="18" r="1"/></svg>Mobile &mdash; 375&times;812</div></div>
     </div>
-    <div class="callout reveal"><h3>Full-page capture</h3><p>The page is an extremely long vertical scroll of plain-text links. <a href="screenshots/coe-fullpage.png" target="_blank">View full-page screenshot &rarr;</a></p></div>
+    <div class="callout reveal"><h3>Full-page capture</h3><p>The page is an extremely long vertical scroll of plain-text links. <a href="screenshots/coe-majors-fullpage.png" target="_blank" download="coe-majors-fullpage.png">Download full-page screenshot &rarr;</a></p></div>
   </div>
 </section>
 
@@ -1053,9 +1106,9 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Programs Snapshot</div><h2>82 listings, 3 categories, 8 discontinued</h2></div>
     <div class="prog-grid stagger">
-      <div class="prog-card reveal"><h3>&#127891; Majors</h3><div class="prog-big" style="color:var(--accent)">60</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">On-campus areas of study. 19 also offered as minors.</p><div class="tags"><span class="tag">Accounting</span><span class="tag">Biology</span><span class="tag">Business Admin</span><span class="tag">Chemistry</span><span class="tag">Computer Science</span><span class="tag">Data Science</span><span class="tag">Neuroscience</span><span class="tag">Nursing</span><span class="tag muted">+52 more</span></div></div>
-      <div class="prog-card reveal"><h3>&#128218; Minors</h3><div class="prog-big" style="color:var(--medium)">8</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Standalone minors plus 19 majors that double as minors.</p><div class="tags"><span class="tag minor">Anthropology</span><span class="tag minor">Applied Math</span><span class="tag minor">Art History</span><span class="tag minor">Classical Studies</span><span class="tag minor">Health & Society</span><span class="tag minor">Museum Studies</span><span class="tag minor">Religion</span><span class="tag minor">Secondary Ed</span></div></div>
-      <div class="prog-card reveal"><h3>&#9878;&#65039; Pre-Professional</h3><div class="prog-big" style="color:var(--high)">14</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Preparatory tracks for graduate & professional schools.</p><div class="tags"><span class="tag">Pre-Med</span><span class="tag">Pre-Law</span><span class="tag">Pre-Dental</span><span class="tag">Pre-Engineering</span><span class="tag">Pre-Pharmacy</span><span class="tag muted">+9 more</span></div></div>
+      <div class="prog-card reveal"><h3><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg> Majors</h3><div class="prog-big" style="color:var(--accent)">60</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">On-campus areas of study. 19 also offered as minors.</p><div class="tags"><span class="tag">Accounting</span><span class="tag">Biology</span><span class="tag">Business Admin</span><span class="tag">Chemistry</span><span class="tag">Computer Science</span><span class="tag">Data Science</span><span class="tag">Neuroscience</span><span class="tag">Nursing</span><span class="tag muted">+52 more</span></div></div>
+      <div class="prog-card reveal"><h3><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg> Minors</h3><div class="prog-big" style="color:var(--medium)">8</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Standalone minors plus 19 majors that double as minors.</p><div class="tags"><span class="tag minor">Anthropology</span><span class="tag minor">Applied Math</span><span class="tag minor">Art History</span><span class="tag minor">Classical Studies</span><span class="tag minor">Health & Society</span><span class="tag minor">Museum Studies</span><span class="tag minor">Religion</span><span class="tag minor">Secondary Ed</span></div></div>
+      <div class="prog-card reveal"><h3><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/></svg> Pre-Professional</h3><div class="prog-big" style="color:var(--high)">14</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Preparatory tracks for graduate & professional schools.</p><div class="tags"><span class="tag">Pre-Med</span><span class="tag">Pre-Law</span><span class="tag">Pre-Dental</span><span class="tag">Pre-Engineering</span><span class="tag">Pre-Pharmacy</span><span class="tag muted">+9 more</span></div></div>
     </div>
     <div class="callout warn reveal"><h3>8 discontinued programs still listed alongside active ones</h3><p style="margin-bottom:12px">Differentiated only by tiny <code style="background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;font-size:.8rem">*</code> symbols with the legend buried at the bottom.</p><div class="tags"><span class="tag closed">Environmental Science</span><span class="tag closed">Film Studies</span><span class="tag closed">French & Francophone</span><span class="tag closed">Molecular Biology</span><span class="tag closed">Writing</span><span class="tag closed">Anthropology</span><span class="tag closed">Art History</span><span class="tag closed">Religion</span></div></div>
   </div>
@@ -1079,7 +1132,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 <!-- ════════════ CATEGORY DETAILS ════════════ -->
 
 <!-- A11Y -->
-<section id="cat-a11y" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--critical-bg);color:var(--critical)">&#9855;</div><div><h2 style="margin-bottom:2px">Accessibility</h2><p style="color:var(--text-muted);font-size:.84rem">WCAG 2.2 / ADA compliance</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">8/100</div><div class="cat-count">9 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-a11y" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></div><div><h2 style="margin-bottom:2px">Accessibility</h2><p style="color:var(--text-muted);font-size:.84rem">WCAG 2.2 / ADA compliance</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">8/100</div><div class="cat-count">9 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No alt text on any image</div><div class="issue-desc">All 8 images have zero alt text. Violates WCAG 2.1 Level A (1.1.1). ADA Title III liability.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No ARIA labels on navigation</div><div class="issue-desc">Dropdowns lack aria-expanded, aria-haspopup. Keyboard users can't determine menu state.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">Search field has no label element</div><div class="issue-desc">Placeholder text only, not a proper &lt;label&gt;. Violates WCAG 2.1 Level A (1.3.1).</div></div></div>
@@ -1092,7 +1145,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- SEO -->
-<section id="cat-seo" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)">&#128270;</div><div><h2 style="margin-bottom:2px">SEO & Technical Markup</h2><p style="color:var(--text-muted);font-size:.84rem">Search visibility & social sharing</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">12/100</div><div class="cat-count">12 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-seo" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div><div><h2 style="margin-bottom:2px">SEO & Technical Markup</h2><p style="color:var(--text-muted);font-size:.84rem">Search visibility & social sharing</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">12/100</div><div class="cat-count">12 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No meta description</div><div class="issue-desc">Google auto-generates snippets unpredictably. Competitors get higher CTR.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No Open Graph tags</div><div class="issue-desc">Facebook, LinkedIn, messaging previews are blank.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No Twitter/X Cards</div><div class="issue-desc">Blank previews on X/Twitter sharing.</div></div></div>
@@ -1231,7 +1284,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 &lt;/script&gt;</div>
 
       <div class="impact-bar reveal">
-        <div class="impact-icon" style="background:var(--accent-dim);color:var(--accent)">&#127919;</div>
+        <div class="impact-icon" style="background:var(--accent-dim);color:var(--accent)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></div>
         <p><strong>What this enables:</strong> Google Knowledge Panel for "Coe College" searches, rich institution cards, correct attribution when programs appear in search, and proper social profile linking.</p>
       </div>
     </div>
@@ -1286,7 +1339,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 &lt;/script&gt;</div>
 
       <div class="impact-bar reveal">
-        <div class="impact-icon" style="background:var(--low-bg);color:var(--low)">&#128200;</div>
+        <div class="impact-icon" style="background:var(--low-bg);color:var(--low)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></div>
         <p><strong>What this enables:</strong> Google can display program names as a list/carousel in search results for queries like "Coe College majors" or "nursing programs in Iowa." Each program links back to the institution entity.</p>
       </div>
     </div>
@@ -1322,7 +1375,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 &lt;/script&gt;</div>
 
       <div class="impact-bar reveal">
-        <div class="impact-icon" style="background:var(--high-bg);color:var(--high)">&#128279;</div>
+        <div class="impact-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
         <p><strong>What this enables:</strong> Google displays <strong>Coe College &rsaquo; Academics &rsaquo; Majors & Areas of Study</strong> in search results instead of the raw URL. Improves CTR by making results look more navigable and trustworthy.</p>
       </div>
     </div>
@@ -1362,7 +1415,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </section>
 
 <!-- CONTENT -->
-<section id="cat-content" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--accent-dim);color:var(--accent)">&#128196;</div><div><h2 style="margin-bottom:2px">Content Gaps</h2><p style="color:var(--text-muted);font-size:.84rem">What prospective students can't find</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">5/100</div><div class="cat-count">14 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-content" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--accent-dim);color:var(--accent)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg></div><div><h2 style="margin-bottom:2px">Content Gaps</h2><p style="color:var(--text-muted);font-size:.84rem">What prospective students can't find</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">5/100</div><div class="cat-count">14 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">Zero program descriptions</div><div class="issue-desc">Every major is a name + link. Students must click each one individually.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No student outcomes</div><div class="issue-desc">No employment rate, salary, grad school data. The #1 thing Gen Z looks for.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No accreditation info</div><div class="issue-desc">No HLC, AACSB, CCNE, ABET badges. Top trust signal for families &mdash; absent.</div></div></div>
@@ -1376,7 +1429,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- UX -->
-<section id="cat-ux" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:rgba(168,85,247,.08);color:#a78bfa">&#127912;</div><div><h2 style="margin-bottom:2px">User Experience</h2><p style="color:var(--text-muted);font-size:.84rem">Navigation, layout & interaction</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">15/100</div><div class="cat-count">10 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-ux" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:rgba(168,85,247,.08);color:#a78bfa"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg></div><div><h2 style="margin-bottom:2px">User Experience</h2><p style="color:var(--text-muted);font-size:.84rem">Navigation, layout & interaction</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">15/100</div><div class="cat-count">10 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No search or filter</div><div class="issue-desc">82 programs, no search, no filters, no grouping. Users scroll the entire list.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No department grouping</div><div class="issue-desc">All 60 majors in one flat alphabetical list.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">Confusing symbol notation</div><div class="issue-desc">^, *, ** symbols with legend at BOTTOM. Users see symbols before meaning.</div></div></div>
@@ -1388,7 +1441,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- MODERN FEATURES -->
-<section id="cat-modern" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--medium-bg);color:var(--medium)">&#129302;</div><div><h2 style="margin-bottom:2px">Modern Features Absent</h2><p style="color:var(--text-muted);font-size:.84rem">Tools peer institutions already offer</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">0/100</div><div class="cat-count">11 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-modern" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--medium-bg);color:var(--medium)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/><path d="M4 17v2"/><path d="M5 18H3"/></svg></div><div><h2 style="margin-bottom:2px">Modern Features Absent</h2><p style="color:var(--text-muted);font-size:.84rem">Tools peer institutions already offer</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">0/100</div><div class="cat-count">11 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No AI chatbot / virtual advisor</div><div class="issue-desc">"What major is right for me?" &mdash; #1 question. Competitors deploying rapidly.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No "Find Your Major" quiz</div><div class="issue-desc">No interest inventory or career-to-major matching.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No interactive explorer</div><div class="issue-desc">No visual map of program relationships or interest areas.</div></div></div>
@@ -1400,7 +1453,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- TRUST -->
-<section id="cat-trust" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--low-bg);color:var(--low)">&#127942;</div><div><h2 style="margin-bottom:2px">Trust Signals</h2><p style="color:var(--text-muted);font-size:.84rem">Credibility for students & parents</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">3/100</div><div class="cat-count">10 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-trust" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--low-bg);color:var(--low)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526"/><circle cx="12" cy="8" r="6"/></svg></div><div><h2 style="margin-bottom:2px">Trust Signals</h2><p style="color:var(--text-muted);font-size:.84rem">Credibility for students & parents</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">3/100</div><div class="cat-count">10 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No rankings displayed</div><div class="issue-desc">No U.S. News, Forbes, Niche, or "Best Value" badges.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No graduation/retention rates</div><div class="issue-desc">IPEDS data is public but not shown here.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No employment stats</div><div class="issue-desc">No "X% employed within 6 months" or employer partnerships.</div></div></div>
@@ -1411,7 +1464,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- PRIVACY -->
-<section id="cat-privacy" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--critical-bg);color:var(--critical)">&#128274;</div><div><h2 style="margin-bottom:2px">Privacy & Compliance</h2><p style="color:var(--text-muted);font-size:.84rem">GDPR, CCPA, cookie consent</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">10/100</div><div class="cat-count">6 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-privacy" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--critical-bg);color:var(--critical)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg></div><div><h2 style="margin-bottom:2px">Privacy & Compliance</h2><p style="color:var(--text-muted);font-size:.84rem">GDPR, CCPA, cookie consent</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">10/100</div><div class="cat-count">6 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-c">Critical</span><div><div class="issue-title">No cookie consent banner</div><div class="issue-desc">Hotjar (session replays), GA, GTM, Ads, Mautic all fire before consent. Violates GDPR, CCPA, CPRA.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No WCAG conformance claim</div><div class="issue-desc">No accessibility statement or accommodation contact.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">No contextual privacy link</div><div class="issue-desc">Privacy policy only in footer, not near forms/CTAs.</div></div></div>
@@ -1419,7 +1472,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- PERFORMANCE -->
-<section id="cat-perf" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)">&#9889;</div><div><h2 style="margin-bottom:2px">Performance</h2><p style="color:var(--text-muted);font-size:.84rem">Speed, code quality & tech debt</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--high)">35/100</div><div class="cat-count">7 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-perf" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg></div><div><h2 style="margin-bottom:2px">Performance</h2><p style="color:var(--text-muted);font-size:.84rem">Speed, code quality & tech debt</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--high)">35/100</div><div class="cat-count">7 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">Render-blocking scripts</div><div class="issue-desc">5 tracking scripts in &lt;head&gt; without async/defer.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">Dead UA analytics code</div><div class="issue-desc">Sunset July 2023. Still loaded, still slowing the page.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-m">Medium</span><div><div class="issue-title">No image lazy loading</div><div class="issue-desc">All images load eagerly regardless of viewport position.</div></div></div>
@@ -1428,7 +1481,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 </div></div></section>
 
 <!-- NAMING -->
-<section id="cat-naming" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)">&#128221;</div><div><h2 style="margin-bottom:2px">Naming & Consistency</h2><p style="color:var(--text-muted);font-size:.84rem">Duplicates, ambiguity & URL mismatches</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--high)">25/100</div><div class="cat-count">4 issues</div></div></div></div><div class="issue-list stagger">
+<section id="cat-naming" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--high-bg);color:var(--high)"><svg width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z"/></svg></div><div><h2 style="margin-bottom:2px">Naming & Consistency</h2><p style="color:var(--text-muted);font-size:.84rem">Duplicates, ambiguity & URL mismatches</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--high)">25/100</div><div class="cat-count">4 issues</div></div></div></div><div class="issue-list stagger">
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">Duplicate/ambiguous listings</div><div class="issue-desc">"Molecular Biology" (closed) AND "Molecular Biology - Biology" (active). "Spanish" AND "Spanish Studies" both link to /foreign-language.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-h">High</span><div><div class="issue-title">Inconsistent naming</div><div class="issue-desc">"Finance - Business Administration" vs "Media Production - Art" vs "Accounting" (no suffix).</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-m">Medium</span><div><div class="issue-title">"Pre-Music Therapy" &rarr; Music page</div><div class="issue-desc">Every other pre-professional program has its own page.</div></div></div>
@@ -1522,7 +1575,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Try it now
     </button>
-    <button class="ai-intro-dismiss" id="aiIntroDismiss">Maybe later</button>
+    <button class="ai-intro-dismiss" id="aiIntroDismiss">Not now</button>
   </div>
 </div>
 
@@ -1677,6 +1730,9 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   transition:transform .3s var(--ease),box-shadow .3s ease;
 }
 .chat-fab:hover{transform:scale(1.08);box-shadow:0 12px 40px rgba(129,140,248,.4)}
+.chat-fab:not(.hidden){animation:fab-breathe 3s ease-in-out infinite}
+.chat-fab:hover{animation:none}
+@keyframes fab-breathe{0%,100%{box-shadow:0 8px 32px rgba(129,140,248,.3)}50%{box-shadow:0 8px 40px rgba(129,140,248,.5)}}
 .chat-fab.hidden{transform:scale(0);pointer-events:none}
 
 .chat-panel{
@@ -1755,6 +1811,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
     <div class="brand">Coe College Majors Page &mdash; Gap Analysis Report</div>
     <p>Source: <a href="https://www.coe.edu/academics/majors-areas-study" target="_blank" rel="noopener">coe.edu/academics/majors-areas-study</a></p>
     <div class="prepared">Prepared by <strong>Stamats</strong> &nbsp;&bull;&nbsp; March 30, 2026</div>
+    <a href="#" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;" style="display:inline-flex;align-items:center;gap:6px;margin-top:20px;font-size:.78rem;font-weight:500;color:var(--text-muted);transition:color .2s">Back to top <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg></a>
     <div class="conf">Confidential &mdash; internal review only</div>
   </div>
 </footer>
@@ -1815,7 +1872,7 @@ const aiIntroCta=document.getElementById('aiIntroCta');
 const aiIntroDismiss=document.getElementById('aiIntroDismiss');
 // Show after 3 seconds — only once per visitor
 if(!localStorage.getItem('coe-report-intro-seen')){
-  setTimeout(()=>{aiIntro.classList.add('show')},3000);
+  setTimeout(()=>{aiIntro.classList.add('show')},8000);
 }
 
 function closeIntro(openChat){
@@ -1838,6 +1895,17 @@ document.querySelectorAll('.ai-intro-chip').forEach(c=>{
     },600);
   });
 });
+
+// ── Escape/overlay dismiss for AI intro ──
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&aiIntro.classList.contains('show'))closeIntro(false)});
+aiIntro.addEventListener('click',e=>{if(e.target===aiIntro)closeIntro(false)});
+
+// ── Active nav section tracking ──
+const navLinks=document.querySelectorAll('.sticky-nav a[href^="#"]');
+const trackedSections=[];
+navLinks.forEach(a=>{const id=a.getAttribute('href')?.replace('#','');if(id){const s=document.getElementById(id);if(s)trackedSections.push({el:s,link:a})}});
+const nio=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){navLinks.forEach(a=>a.classList.remove('active'));const m=trackedSections.find(s=>s.el===x.target);if(m)m.link.classList.add('active')}})},{threshold:0,rootMargin:'-20% 0px -70% 0px'});
+trackedSections.forEach(s=>nio.observe(s.el));
 
 // ── Chatbot ──────────────────────────────────────────
 const chatFab=document.getElementById('chatFab');
