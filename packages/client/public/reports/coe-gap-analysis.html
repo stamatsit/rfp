@@ -778,6 +778,79 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   SCHEMA TABS
+   ═══════════════════════════════════════════════════════════════ */
+.schema-section{padding:80px 0;border-top:1px solid var(--border)}
+.tab-bar{
+  display:flex;gap:4px;margin-top:32px;margin-bottom:0;
+  border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;
+}
+.tab-bar::-webkit-scrollbar{display:none}
+.tab-btn{
+  padding:12px 20px;border:none;background:none;
+  font-size:.82rem;font-weight:500;color:var(--text-muted);
+  cursor:pointer;font-family:inherit;white-space:nowrap;
+  border-bottom:2px solid transparent;
+  transition:all .2s;position:relative;bottom:-1px;
+}
+.tab-btn:hover{color:var(--text-secondary)}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.tab-panel{display:none;padding:28px 0}
+.tab-panel.active{display:block}
+
+.code-block{
+  background:var(--bg-surface);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:24px;overflow-x:auto;
+  font-family:'SF Mono',Consolas,'Liberation Mono',monospace;
+  font-size:.78rem;line-height:1.8;color:var(--text-secondary);
+  white-space:pre;tab-size:2;
+}
+.code-block .key{color:var(--accent)}
+.code-block .str{color:var(--low)}
+.code-block .cmt{color:var(--text-muted);font-style:italic}
+
+.schema-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+@media(max-width:768px){.schema-grid{grid-template-columns:1fr}}
+
+.schema-card{
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-md);padding:24px;
+  transition:all .3s var(--ease);
+}
+.schema-card:hover{border-color:var(--border-hover);transform:translateY(-2px)}
+.schema-card h4{font-size:.9rem;font-weight:600;margin-bottom:6px}
+.schema-card p{font-size:.82rem;color:var(--text-secondary);line-height:1.65}
+.schema-card .schema-type{
+  display:inline-block;padding:3px 10px;border-radius:4px;
+  font-size:.68rem;font-weight:500;margin-bottom:12px;
+  background:var(--accent-dim);color:var(--accent);
+}
+.schema-status{
+  display:inline-flex;align-items:center;gap:6px;
+  margin-top:12px;font-size:.72rem;font-weight:500;
+}
+.schema-status.missing{color:var(--critical)}
+.schema-status.present{color:var(--low)}
+.status-dot{width:6px;height:6px;border-radius:50%}
+.status-dot.red{background:var(--critical)}
+.status-dot.green{background:var(--low)}
+
+.impact-bar{
+  display:flex;align-items:center;gap:16px;
+  margin-top:24px;padding:20px 24px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-md);
+}
+.impact-bar .impact-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;flex-shrink:0;
+}
+.impact-bar p{font-size:.84rem;color:var(--text-secondary);line-height:1.6}
+.impact-bar strong{color:var(--text);font-weight:600}
+
+/* ═══════════════════════════════════════════════════════════════
    PRINT
    ═══════════════════════════════════════════════════════════════ */
 @media print{
@@ -820,6 +893,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
     <a href="#opportunities">Opportunities</a>
     <a href="#cat-a11y">A11y</a>
     <a href="#cat-seo">SEO</a>
+    <a href="#schema-deep-dive">Schema</a>
     <a href="#cat-content">Content</a>
     <a href="#cat-ux">UX</a>
     <a href="#cat-modern">Features</a>
@@ -1030,6 +1104,262 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 <div class="issue-card reveal"><span class="sev sev-m">Medium</span><div><div class="issue-title">No hreflang tags</div><div class="issue-desc">Translate widget present but no hreflang for engines.</div></div></div>
 <div class="issue-card reveal"><span class="sev sev-m">Medium</span><div><div class="issue-title">No lazy loading</div><div class="issue-desc">All images load eagerly regardless of viewport.</div></div></div>
 </div></div></section>
+
+<!-- SCHEMA DEEP DIVE -->
+<section id="schema-deep-dive" class="schema-section">
+  <div class="container">
+    <div class="reveal">
+      <div class="section-label">Schema Markup Deep Dive</div>
+      <h2>Structured data: completely absent</h2>
+      <p class="subtitle">Schema.org markup tells Google what your page is about in machine-readable format. Coe's majors page has zero structured data. Here's what's missing and exactly what should be added.</p>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tab-bar reveal" role="tablist">
+      <button class="tab-btn active" role="tab" data-tab="current">Current State</button>
+      <button class="tab-btn" role="tab" data-tab="needed">What's Needed</button>
+      <button class="tab-btn" role="tab" data-tab="institution">CollegeOrUniversity</button>
+      <button class="tab-btn" role="tab" data-tab="programs">Program List</button>
+      <button class="tab-btn" role="tab" data-tab="breadcrumb">BreadcrumbList</button>
+      <button class="tab-btn" role="tab" data-tab="impact">Impact</button>
+    </div>
+
+    <!-- Tab: Current State -->
+    <div class="tab-panel active" id="tab-current">
+      <div class="callout warn reveal">
+        <h3>Zero structured data found</h3>
+        <p>The page source contains no <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">&lt;script type="application/ld+json"&gt;</code> blocks, no microdata attributes, and no RDFa markup. Google receives no machine-readable information about this page.</p>
+      </div>
+
+      <div class="schema-grid reveal">
+        <div class="schema-card">
+          <div class="schema-type">CollegeOrUniversity</div>
+          <h4>Institution Identity</h4>
+          <p>Google doesn't know this is a college, where it's located, its accreditation status, or how to display it in knowledge panels.</p>
+          <div class="schema-status missing"><span class="status-dot red"></span> Not present</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">EducationalOccupationalProgram</div>
+          <h4>Individual Programs</h4>
+          <p>None of the 82 programs are marked up. Google can't show program names, types, or provider info in rich results.</p>
+          <div class="schema-status missing"><span class="status-dot red"></span> Not present</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">ItemList</div>
+          <h4>Program Listing</h4>
+          <p>The list of majors isn't identified as a structured list. Can't appear as a carousel or list snippet in search results.</p>
+          <div class="schema-status missing"><span class="status-dot red"></span> Not present</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">BreadcrumbList</div>
+          <h4>Navigation Path</h4>
+          <p>Breadcrumbs exist visually (Coe > Academics > Majors) but aren't in markup. Google shows raw URLs instead of clean paths.</p>
+          <div class="schema-status missing"><span class="status-dot red"></span> Not present</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: What's Needed -->
+    <div class="tab-panel" id="tab-needed">
+      <p class="reveal" style="color:var(--text-secondary);font-size:.9rem;line-height:1.7;margin-bottom:24px;">The page needs 3 JSON-LD blocks injected into the <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">&lt;head&gt;</code>. Each uses the <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">@id</code> pattern so Google links them as a connected graph.</p>
+
+      <div class="schema-grid reveal">
+        <div class="schema-card">
+          <div class="schema-type">Block 1</div>
+          <h4>CollegeOrUniversity</h4>
+          <p>Institution identity with name, address, geo coordinates, phone, email, founding date, social profiles, logo, and accreditation credentials. Uses <code style="font-size:.75rem">@id</code> so programs can reference it.</p>
+          <div class="schema-status present"><span class="status-dot green"></span> Shown in "CollegeOrUniversity" tab</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">Block 2</div>
+          <h4>ItemList + Programs</h4>
+          <p>Wraps all 82 programs as <code style="font-size:.75rem">EducationalOccupationalProgram</code> entries inside an <code style="font-size:.75rem">ItemList</code>. Each program has name, URL, type (Major/Minor/Pre-Professional), and provider reference.</p>
+          <div class="schema-status present"><span class="status-dot green"></span> Shown in "Program List" tab</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">Block 3</div>
+          <h4>BreadcrumbList</h4>
+          <p>Three-level navigation: Coe College &rarr; Academics &rarr; Majors & Areas of Study. Enables clean breadcrumb display in Google search results.</p>
+          <div class="schema-status present"><span class="status-dot green"></span> Shown in "BreadcrumbList" tab</div>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type">Also Recommended</div>
+          <h4>Open Graph + Twitter Cards</h4>
+          <p>Not Schema.org but equally critical: <code style="font-size:.75rem">og:title</code>, <code style="font-size:.75rem">og:description</code>, <code style="font-size:.75rem">og:image</code>, <code style="font-size:.75rem">twitter:card</code>. These control how links appear when shared on social media.</p>
+          <div class="schema-status missing"><span class="status-dot red"></span> Also missing from page</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab: CollegeOrUniversity -->
+    <div class="tab-panel" id="tab-institution">
+      <p class="reveal" style="color:var(--text-secondary);font-size:.88rem;margin-bottom:16px;">This block establishes Coe College as a recognized entity in Google's Knowledge Graph. Copy-paste ready.</p>
+      <div class="code-block reveal"><span class="cmt">// Place in &lt;head&gt; of every page</span>
+&lt;script type=<span class="str">"application/ld+json"</span>&gt;
+{
+  <span class="key">"@context"</span>: <span class="str">"https://schema.org"</span>,
+  <span class="key">"@type"</span>: <span class="str">"CollegeOrUniversity"</span>,
+  <span class="key">"@id"</span>: <span class="str">"https://www.coe.edu/#institution"</span>,
+  <span class="key">"name"</span>: <span class="str">"Coe College"</span>,
+  <span class="key">"url"</span>: <span class="str">"https://www.coe.edu"</span>,
+  <span class="key">"logo"</span>: <span class="str">"https://www.coe.edu/application/themes/coecollege/img/logo.png"</span>,
+  <span class="key">"description"</span>: <span class="str">"A selective, private, nationally recognized four-year
+    coeducational liberal arts institution since 1851."</span>,
+  <span class="key">"foundingDate"</span>: <span class="str">"1851"</span>,
+  <span class="key">"telephone"</span>: <span class="str">"+1-877-225-5263"</span>,
+  <span class="key">"email"</span>: <span class="str">"admission@coe.edu"</span>,
+  <span class="key">"address"</span>: {
+    <span class="key">"@type"</span>: <span class="str">"PostalAddress"</span>,
+    <span class="key">"streetAddress"</span>: <span class="str">"1220 First Avenue NE"</span>,
+    <span class="key">"addressLocality"</span>: <span class="str">"Cedar Rapids"</span>,
+    <span class="key">"addressRegion"</span>: <span class="str">"IA"</span>,
+    <span class="key">"postalCode"</span>: <span class="str">"52402"</span>
+  },
+  <span class="key">"geo"</span>: {
+    <span class="key">"@type"</span>: <span class="str">"GeoCoordinates"</span>,
+    <span class="key">"latitude"</span>: 41.9984,
+    <span class="key">"longitude"</span>: -91.6553
+  },
+  <span class="key">"sameAs"</span>: [
+    <span class="str">"https://www.facebook.com/CoeCollege"</span>,
+    <span class="str">"https://www.instagram.com/coecollege/"</span>,
+    <span class="str">"https://twitter.com/CoeCollege"</span>,
+    <span class="str">"https://www.linkedin.com/school/coe-college/"</span>,
+    <span class="str">"https://www.youtube.com/coecollege"</span>
+  ]
+}
+&lt;/script&gt;</div>
+
+      <div class="impact-bar reveal">
+        <div class="impact-icon" style="background:var(--accent-dim);color:var(--accent)">&#127919;</div>
+        <p><strong>What this enables:</strong> Google Knowledge Panel for "Coe College" searches, rich institution cards, correct attribution when programs appear in search, and proper social profile linking.</p>
+      </div>
+    </div>
+
+    <!-- Tab: Program List -->
+    <div class="tab-panel" id="tab-programs">
+      <p class="reveal" style="color:var(--text-secondary);font-size:.88rem;margin-bottom:16px;">Each program is typed as <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">EducationalOccupationalProgram</code> and references the institution via <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">@id</code>. Showing 3 of 82.</p>
+      <div class="code-block reveal">&lt;script type=<span class="str">"application/ld+json"</span>&gt;
+{
+  <span class="key">"@context"</span>: <span class="str">"https://schema.org"</span>,
+  <span class="key">"@type"</span>: <span class="str">"ItemList"</span>,
+  <span class="key">"name"</span>: <span class="str">"Coe College Majors & Areas of Study"</span>,
+  <span class="key">"numberOfItems"</span>: 82,
+  <span class="key">"itemListElement"</span>: [
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 1,
+      <span class="key">"item"</span>: {
+        <span class="key">"@type"</span>: <span class="str">"EducationalOccupationalProgram"</span>,
+        <span class="key">"name"</span>: <span class="str">"Biology"</span>,
+        <span class="key">"url"</span>: <span class="str">"https://www.coe.edu/academics/.../biology"</span>,
+        <span class="key">"provider"</span>: { <span class="key">"@id"</span>: <span class="str">"https://www.coe.edu/#institution"</span> },
+        <span class="key">"educationalProgramMode"</span>: <span class="str">"In-person"</span>,
+        <span class="key">"programType"</span>: <span class="str">"Major"</span>
+      }
+    },
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 2,
+      <span class="key">"item"</span>: {
+        <span class="key">"@type"</span>: <span class="str">"EducationalOccupationalProgram"</span>,
+        <span class="key">"name"</span>: <span class="str">"Nursing"</span>,
+        <span class="key">"url"</span>: <span class="str">"https://www.coe.edu/academics/.../nursing"</span>,
+        <span class="key">"provider"</span>: { <span class="key">"@id"</span>: <span class="str">"https://www.coe.edu/#institution"</span> },
+        <span class="key">"programType"</span>: <span class="str">"Major"</span>
+      }
+    },
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 3,
+      <span class="key">"item"</span>: {
+        <span class="key">"@type"</span>: <span class="str">"EducationalOccupationalProgram"</span>,
+        <span class="key">"name"</span>: <span class="str">"Pre-Med"</span>,
+        <span class="key">"url"</span>: <span class="str">"https://www.coe.edu/academics/.../pre-med"</span>,
+        <span class="key">"provider"</span>: { <span class="key">"@id"</span>: <span class="str">"https://www.coe.edu/#institution"</span> },
+        <span class="key">"programType"</span>: <span class="str">"Pre-Professional"</span>
+      }
+    }
+    <span class="cmt">// ... repeat for all 82 programs</span>
+  ]
+}
+&lt;/script&gt;</div>
+
+      <div class="impact-bar reveal">
+        <div class="impact-icon" style="background:var(--low-bg);color:var(--low)">&#128200;</div>
+        <p><strong>What this enables:</strong> Google can display program names as a list/carousel in search results for queries like "Coe College majors" or "nursing programs in Iowa." Each program links back to the institution entity.</p>
+      </div>
+    </div>
+
+    <!-- Tab: BreadcrumbList -->
+    <div class="tab-panel" id="tab-breadcrumb">
+      <p class="reveal" style="color:var(--text-secondary);font-size:.88rem;margin-bottom:16px;">Breadcrumbs exist visually on the page but aren't in structured markup, so Google shows raw URLs in search results instead of clean navigation paths.</p>
+      <div class="code-block reveal">&lt;script type=<span class="str">"application/ld+json"</span>&gt;
+{
+  <span class="key">"@context"</span>: <span class="str">"https://schema.org"</span>,
+  <span class="key">"@type"</span>: <span class="str">"BreadcrumbList"</span>,
+  <span class="key">"itemListElement"</span>: [
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 1,
+      <span class="key">"name"</span>: <span class="str">"Coe College"</span>,
+      <span class="key">"item"</span>: <span class="str">"https://www.coe.edu"</span>
+    },
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 2,
+      <span class="key">"name"</span>: <span class="str">"Academics"</span>,
+      <span class="key">"item"</span>: <span class="str">"https://www.coe.edu/academics"</span>
+    },
+    {
+      <span class="key">"@type"</span>: <span class="str">"ListItem"</span>,
+      <span class="key">"position"</span>: 3,
+      <span class="key">"name"</span>: <span class="str">"Majors & Areas of Study"</span>,
+      <span class="key">"item"</span>: <span class="str">"https://www.coe.edu/academics/majors-areas-study"</span>
+    }
+  ]
+}
+&lt;/script&gt;</div>
+
+      <div class="impact-bar reveal">
+        <div class="impact-icon" style="background:var(--high-bg);color:var(--high)">&#128279;</div>
+        <p><strong>What this enables:</strong> Google displays <strong>Coe College &rsaquo; Academics &rsaquo; Majors & Areas of Study</strong> in search results instead of the raw URL. Improves CTR by making results look more navigable and trustworthy.</p>
+      </div>
+    </div>
+
+    <!-- Tab: Impact -->
+    <div class="tab-panel" id="tab-impact">
+      <div class="schema-grid reveal">
+        <div class="schema-card">
+          <div class="schema-type" style="background:var(--low-bg);color:var(--low)">Search Results</div>
+          <h4>Rich snippets in Google</h4>
+          <p>Programs can appear as expandable lists, knowledge panels, or carousel results. Competitors with structured data get visually richer, higher-CTR listings.</p>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type" style="background:var(--high-bg);color:var(--high)">Voice Search</div>
+          <h4>Google Assistant & Siri answers</h4>
+          <p>"What majors does Coe College offer?" &mdash; without Schema, voice assistants can't answer. With it, your programs are in the answer graph.</p>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type" style="background:var(--accent-dim);color:var(--accent)">AI Overviews</div>
+          <h4>Google AI-generated summaries</h4>
+          <p>Google's AI Overviews pull from structured data to generate summary answers. Without Schema, Coe is invisible in these new result types.</p>
+        </div>
+        <div class="schema-card">
+          <div class="schema-type" style="background:var(--critical-bg);color:var(--critical)">Competitive Edge</div>
+          <h4>Peer institutions have this</h4>
+          <p>Many comparable liberal arts colleges already have Schema.org markup. Every day without it, Coe loses search visibility to institutions that do.</p>
+        </div>
+      </div>
+
+      <div class="callout reveal" style="margin-top:24px">
+        <h3>Implementation effort: Low</h3>
+        <p>These are 3 static JSON-LD blocks in the page's <code style="background:rgba(255,255,255,.06);padding:2px 6px;border-radius:4px">&lt;head&gt;</code>. No CMS plugin required. A developer can implement all three in under 2 hours. The program list can be generated dynamically from the existing CMS data. Zero risk &mdash; structured data is invisible to users, only read by search engines.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
 
 <!-- CONTENT -->
 <section id="cat-content" class="cat-section"><div class="container"><div class="reveal"><div class="cat-head"><div class="cat-icon" style="background:var(--accent-dim);color:var(--accent)">&#128196;</div><div><h2 style="margin-bottom:2px">Content Gaps</h2><p style="color:var(--text-muted);font-size:.84rem">What prospective students can't find</p></div><div class="cat-right"><div class="cat-inline-score" style="color:var(--critical)">5/100</div><div class="cat-count">14 issues</div></div></div></div><div class="issue-list stagger">
@@ -1465,6 +1795,16 @@ window.addEventListener('scroll',()=>{
 // Count up
 const cio=new IntersectionObserver(e=>{e.forEach(x=>{if(!x.isIntersecting)return;const el=x.target,t=+el.dataset.target;let c=0;const s=Math.max(1,Math.ceil(t/50));const id=setInterval(()=>{c=Math.min(c+s,t);el.textContent=c;if(c>=t)clearInterval(id)},20);cio.unobserve(el)})},{threshold:.5});
 document.querySelectorAll('.count-up').forEach(el=>cio.observe(el));
+
+// Schema tabs
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+  });
+});
 
 // Smooth scroll nav
 document.querySelectorAll('.sticky-nav a').forEach(a=>{a.addEventListener('click',e=>{e.preventDefault();document.querySelector(a.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'})})});
