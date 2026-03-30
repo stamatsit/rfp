@@ -154,26 +154,61 @@ body::after{
   overflow-x:auto;scrollbar-width:none;
 }
 .sticky-nav-inner::-webkit-scrollbar{display:none}
-.nav-brand{
-  font-weight:900;font-size:.8rem;color:var(--text);
-  margin-right:16px;padding-right:20px;
-  border-right:1px solid var(--border);
-  white-space:nowrap;flex-shrink:0;
-  background:var(--grad-hero);-webkit-background-clip:text;
-  -webkit-text-fill-color:transparent;background-clip:text;
+/* Desktop: sidebar nav */
+@media(min-width:1081px){
+  .sticky-nav{
+    top:44px;left:0;right:auto;bottom:0;width:200px;
+    border-bottom:none;border-right:1px solid var(--border);
+    transform:translateX(-100%);
+  }
+  .sticky-nav.show{transform:translateX(0)}
+  .sticky-nav-inner{
+    flex-direction:column;align-items:stretch;height:auto;
+    padding:20px 14px;gap:2px;overflow-y:auto;overflow-x:hidden;
+    max-height:calc(100vh - 44px);
+  }
+  .nav-brand{
+    font-weight:700;font-size:.78rem;color:var(--text);
+    margin:0 0 14px;padding:0 0 14px;
+    border-right:none;border-bottom:1px solid var(--border);
+    white-space:nowrap;
+    background:var(--grad-hero);-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .sticky-nav a{
+    color:var(--text-muted);font-size:.72rem;font-weight:500;
+    white-space:nowrap;padding:7px 10px;border-radius:6px;
+    transition:all .2s;letter-spacing:.01em;display:block;
+  }
+  .sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
+  body.nav-open{padding-left:200px;transition:padding-left .45s var(--ease)}
 }
-.sticky-nav a{
-  color:var(--text-muted);font-size:.7rem;font-weight:600;
-  white-space:nowrap;padding:5px 10px;border-radius:6px;
-  transition:all .2s;letter-spacing:.01em;
+/* Mobile/tablet: top bar nav */
+@media(max-width:1080px){
+  .nav-brand{
+    font-weight:700;font-size:.78rem;color:var(--text);
+    margin-right:16px;padding-right:20px;
+    border-right:1px solid var(--border);
+    white-space:nowrap;flex-shrink:0;
+    background:var(--grad-hero);-webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;background-clip:text;
+  }
+  .sticky-nav a{
+    color:var(--text-muted);font-size:.7rem;font-weight:500;
+    white-space:nowrap;padding:5px 10px;border-radius:6px;
+    transition:all .2s;letter-spacing:.01em;
+  }
+  .sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
 }
-.sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
 
 /* ═══════════════════════════════════════════════════════════════
    LAYOUT
    ═══════════════════════════════════════════════════════════════ */
 .container{max-width:1320px;margin:0 auto;padding:0 28px}
-section{padding:110px 0}
+@media(max-width:500px){.container{padding:0 16px}}
+section{padding:100px 0}
+@media(max-width:768px){section{padding:64px 0}}
+@media(max-width:500px){section{padding:48px 0}}
 
 /* ═══════════════════════════════════════════════════════════════
    REVEAL SYSTEM
@@ -199,14 +234,14 @@ section{padding:110px 0}
 /* ═══════════════════════════════════════════════════════════════
    TYPOGRAPHY
    ═══════════════════════════════════════════════════════════════ */
-h1,h2,h3,h4{font-weight:700;letter-spacing:-.03em;line-height:1.1}
-h1{font-size:clamp(2.8rem,6.5vw,5rem);font-weight:900}
-h2{font-size:clamp(1.7rem,3.8vw,2.8rem);font-weight:800}
-h3{font-size:1.15rem;font-weight:700}
+h1,h2,h3,h4{font-weight:600;letter-spacing:-.025em;line-height:1.15}
+h1{font-size:clamp(2.4rem,5.5vw,4rem);font-weight:700}
+h2{font-size:clamp(1.5rem,3.2vw,2.2rem);font-weight:600}
+h3{font-size:1.1rem;font-weight:600}
 
 .section-label{
   display:inline-flex;align-items:center;gap:10px;
-  font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.18em;
+  font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.16em;
   color:var(--accent);margin-bottom:20px;
 }
 .section-label::before{
@@ -214,7 +249,7 @@ h3{font-size:1.15rem;font-weight:700}
   background:var(--grad-hero);border-radius:2px;
 }
 .subtitle{
-  font-size:clamp(1rem,1.8vw,1.15rem);
+  font-size:clamp(1rem,1.8vw,1.12rem);
   color:var(--text-secondary);max-width:720px;line-height:1.8;
   font-weight:400;
 }
@@ -267,7 +302,7 @@ h3{font-size:1.15rem;font-weight:700}
   background:rgba(248,113,113,.05);
   border:1px solid rgba(248,113,113,.15);
   border-radius:100px;
-  font-size:.76rem;font-weight:700;color:var(--critical);
+  font-size:.76rem;font-weight:600;color:var(--critical);
   margin-bottom:32px;
   box-shadow:0 0 30px -10px rgba(248,113,113,.15);
 }
@@ -311,7 +346,7 @@ h3{font-size:1.15rem;font-weight:700}
   background:rgba(10,14,26,.85);
   backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
   border:1px solid var(--border);border-radius:var(--r-md);
-  font-size:.75rem;font-weight:700;
+  font-size:.75rem;font-weight:600;
   box-shadow:var(--shadow-lg);
   animation:tag-bob 5s ease-in-out infinite;z-index:2;
   letter-spacing:.01em;
@@ -361,8 +396,8 @@ h3{font-size:1.15rem;font-weight:700}
 .stat-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:var(--shadow-lg)}
 .stat-card:hover::after{opacity:1}
 
-.stat-number{font-size:3.2rem;font-weight:900;letter-spacing:-.05em;line-height:1;margin-bottom:8px}
-.stat-label{font-size:.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.stat-number{font-size:2.8rem;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:8px}
+.stat-label{font-size:.72rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
 
 .sc-critical::before{background:var(--grad-critical)}
 .sc-critical .stat-number{color:var(--critical)}
@@ -398,14 +433,14 @@ h3{font-size:1.15rem;font-weight:700}
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
 }
-.score-val{font-size:5rem;font-weight:900;letter-spacing:-.06em;line-height:1}
-.score-of{font-size:1.6rem;font-weight:700;color:var(--text-muted)}
-.score-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:var(--text-muted);margin-top:4px}
+.score-val{font-size:4.2rem;font-weight:700;letter-spacing:-.05em;line-height:1}
+.score-of{font-size:1.4rem;font-weight:500;color:var(--text-muted)}
+.score-lbl{font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:var(--text-muted);margin-top:4px}
 
 .grade-badge{
   display:inline-flex;align-items:center;gap:8px;
   padding:8px 20px;border-radius:100px;
-  font-size:.82rem;font-weight:800;margin-bottom:24px;
+  font-size:.82rem;font-weight:500;margin-bottom:24px;
   background:var(--critical-bg);color:var(--critical);
   border:1px solid var(--critical-border);
   box-shadow:0 0 20px -6px rgba(248,113,113,.15);
@@ -423,19 +458,18 @@ h3{font-size:1.15rem;font-weight:700}
 .grade-letter{
   width:34px;height:34px;border-radius:9px;
   display:flex;align-items:center;justify-content:center;
-  font-weight:900;font-size:.78rem;flex-shrink:0;
+  font-weight:600;font-size:.78rem;flex-shrink:0;
 }
-.grade-name{font-size:.8rem;color:var(--text-secondary);font-weight:500}
-.grade-score{font-size:.72rem;font-weight:700;color:var(--text-muted)}
+.grade-name{font-size:.8rem;color:var(--text-secondary);font-weight:400}
+.grade-score{font-size:.72rem;font-weight:600;color:var(--text-muted)}
 
 /* ═══════════════════════════════════════════════════════════════
    EXECUTIVE SUMMARY
    ═══════════════════════════════════════════════════════════════ */
 .exec-grid{
-  display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));
   gap:16px;margin-top:40px;
 }
-@media(max-width:420px){.exec-grid{grid-template-columns:1fr}}
 
 .exec-card{
   background:var(--bg-card);backdrop-filter:blur(12px);
@@ -458,8 +492,8 @@ h3{font-size:1.15rem;font-weight:700}
   display:flex;align-items:center;justify-content:center;
   font-size:1.3rem;margin-bottom:20px;
 }
-.exec-card h3{margin-bottom:10px;font-size:1.05rem}
-.exec-card p{color:var(--text-secondary);font-size:.88rem;line-height:1.75}
+.exec-card h3{margin-bottom:10px;font-size:1rem}
+.exec-card p{color:var(--text-secondary);font-size:.86rem;line-height:1.75}
 
 /* ═══════════════════════════════════════════════════════════════
    SEVERITY CHARTS
@@ -477,9 +511,9 @@ h3{font-size:1.15rem;font-weight:700}
 @keyframes bar-grow{to{transform:scaleY(1)}}
 .bar .bar-val{
   position:absolute;top:-36px;left:50%;transform:translateX(-50%);
-  font-size:1.5rem;font-weight:900;letter-spacing:-.02em;
+  font-size:1.4rem;font-weight:600;letter-spacing:-.02em;
 }
-.bar-label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em}
+.bar-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em}
 .bg-critical .bar{background:var(--grad-critical);animation-delay:.3s;box-shadow:0 8px 24px -6px rgba(248,113,113,.2)}
 .bg-critical .bar-val,.bg-critical .bar-label{color:var(--critical)}
 .bg-high .bar{background:var(--grad-high);animation-delay:.5s;box-shadow:0 8px 24px -6px rgba(251,191,36,.15)}
@@ -501,17 +535,17 @@ h3{font-size:1.15rem;font-weight:700}
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
 }
-.donut-center .big{font-size:3rem;font-weight:900;letter-spacing:-.04em}
-.donut-center .small{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--text-muted)}
+.donut-center .big{font-size:2.6rem;font-weight:700;letter-spacing:-.03em}
+.donut-center .small{font-size:.62rem;font-weight:500;text-transform:uppercase;letter-spacing:.12em;color:var(--text-muted)}
 .donut-legend{display:flex;flex-direction:column;gap:10px}
-.legend-row{display:flex;align-items:center;gap:10px;font-size:.82rem;font-weight:600}
+.legend-row{display:flex;align-items:center;gap:10px;font-size:.82rem;font-weight:500}
 .legend-dot{width:12px;height:12px;border-radius:4px;flex-shrink:0}
 
 /* ═══════════════════════════════════════════════════════════════
    CATEGORY SCORE CARDS
    ═══════════════════════════════════════════════════════════════ */
 .cat-scores-grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));
   gap:14px;margin-top:40px;
 }
 .cat-score-card{
@@ -529,8 +563,8 @@ h3{font-size:1.15rem;font-weight:700}
   width:40px;height:40px;border-radius:11px;
   display:flex;align-items:center;justify-content:center;font-size:1.15rem;
 }
-.cat-score-num{font-size:1.7rem;font-weight:900;letter-spacing:-.03em}
-.cat-score-card h4{font-size:.88rem;font-weight:700;margin-bottom:10px}
+.cat-score-num{font-size:1.5rem;font-weight:700;letter-spacing:-.02em}
+.cat-score-card h4{font-size:.86rem;font-weight:600;margin-bottom:10px}
 
 /* Animated gauge */
 .gauge{width:100%;height:4px;background:rgba(255,255,255,.03);border-radius:2px;overflow:hidden;margin-bottom:10px}
@@ -540,7 +574,7 @@ h3{font-size:1.15rem;font-weight:700}
   transition:transform 1.4s var(--ease);
 }
 .gauge-visible .gauge-fill{transform:scaleX(1)!important}
-.cat-score-meta{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-muted);font-weight:600}
+.cat-score-meta{display:flex;justify-content:space-between;font-size:.68rem;color:var(--text-muted);font-weight:500}
 
 /* ═══════════════════════════════════════════════════════════════
    SCREENSHOTS
@@ -580,11 +614,11 @@ h3{font-size:1.15rem;font-weight:700}
 }
 .prog-card:hover{transform:translateY(-4px);border-color:var(--border-hover)}
 .prog-card h3{display:flex;align-items:center;gap:10px;margin-bottom:14px;font-size:1rem}
-.prog-big{font-size:2.6rem;font-weight:900;line-height:1;margin-bottom:6px;letter-spacing:-.04em}
+.prog-big{font-size:2.2rem;font-weight:700;line-height:1;margin-bottom:6px;letter-spacing:-.03em}
 .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
 .tag{
   display:inline-block;padding:4px 10px;border-radius:6px;
-  font-size:.68rem;font-weight:700;
+  font-size:.68rem;font-weight:600;
   background:var(--accent-dim);border:1px solid rgba(129,140,248,.12);color:var(--accent);
 }
 .tag.closed{background:var(--critical-bg);border-color:var(--critical-border);color:var(--critical)}
@@ -594,8 +628,7 @@ h3{font-size:1.15rem;font-weight:700}
 /* ═══════════════════════════════════════════════════════════════
    OPPORTUNITIES
    ═══════════════════════════════════════════════════════════════ */
-.opp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px;margin-top:40px}
-@media(max-width:420px){.opp-grid{grid-template-columns:1fr}}
+.opp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;margin-top:40px}
 
 .opp-card{
   background:var(--bg-card);backdrop-filter:blur(12px);
@@ -607,7 +640,7 @@ h3{font-size:1.15rem;font-weight:700}
 .opp-card:hover{transform:translateY(-5px);border-color:var(--border-hover);box-shadow:var(--shadow-md)}
 .opp-impact{
   display:inline-block;padding:4px 12px;border-radius:100px;
-  font-size:.64rem;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;
+  font-size:.64rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;
 }
 .opp-card h3{margin-bottom:10px;font-size:1.02rem}
 .opp-card>p{color:var(--text-secondary);font-size:.86rem;line-height:1.7}
@@ -615,24 +648,29 @@ h3{font-size:1.15rem;font-weight:700}
   margin-top:20px;padding-top:20px;border-top:1px solid var(--border);
   display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
 }
+@media(max-width:400px){.opp-metrics{grid-template-columns:1fr;gap:8px}}
 .opp-metric{text-align:center}
-.opp-metric-val{font-size:1.3rem;font-weight:900;line-height:1.2}
-.opp-metric-lbl{font-size:.62rem;color:var(--text-muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.opp-metric-val{font-size:1.2rem;font-weight:600;line-height:1.2}
+.opp-metric-lbl{font-size:.62rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
 
 /* ═══════════════════════════════════════════════════════════════
    CATEGORY DETAIL SECTIONS
    ═══════════════════════════════════════════════════════════════ */
 .cat-section{padding:80px 0;border-top:1px solid var(--border)}
 .cat-head{display:flex;align-items:center;gap:16px;margin-bottom:10px;flex-wrap:wrap}
+@media(max-width:600px){
+  .cat-right{margin-left:0;width:100%;margin-top:4px}
+  .cat-icon{width:42px;height:42px}
+}
 .cat-icon{
   width:52px;height:52px;border-radius:14px;
   display:flex;align-items:center;justify-content:center;font-size:1.35rem;flex-shrink:0;
 }
 .cat-right{margin-left:auto;display:flex;align-items:center;gap:14px}
-.cat-inline-score{font-size:1.7rem;font-weight:900;letter-spacing:-.02em}
+.cat-inline-score{font-size:1.4rem;font-weight:700;letter-spacing:-.02em}
 .cat-count{
   padding:6px 14px;border-radius:100px;
-  font-size:.68rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+  font-size:.68rem;font-weight:500;text-transform:uppercase;letter-spacing:.08em;
   border:1px solid var(--border);background:var(--bg-surface);color:var(--text-muted);
 }
 
@@ -646,14 +684,14 @@ h3{font-size:1.15rem;font-weight:700}
 .issue-card:hover{background:var(--bg-card-hover);border-color:var(--border-hover);transform:translateX(3px)}
 .sev{
   padding:4px 10px;border-radius:6px;
-  font-size:.62rem;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+  font-size:.62rem;font-weight:500;text-transform:uppercase;letter-spacing:.08em;
   white-space:nowrap;margin-top:2px;
 }
 .sev-c{background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical-border)}
 .sev-h{background:var(--high-bg);color:var(--high);border:1px solid var(--high-border)}
 .sev-m{background:var(--medium-bg);color:var(--medium);border:1px solid var(--medium-border)}
 .sev-l{background:var(--low-bg);color:var(--low);border:1px solid var(--low-border)}
-.issue-title{font-weight:700;font-size:.9rem;margin-bottom:4px}
+.issue-title{font-weight:600;font-size:.9rem;margin-bottom:4px}
 .issue-desc{color:var(--text-secondary);font-size:.82rem;line-height:1.7}
 
 /* ═══════════════════════════════════════════════════════════════
@@ -675,13 +713,18 @@ td{padding:14px 22px;border-bottom:1px solid rgba(255,255,255,.03)}
 tr:last-child td{border-bottom:none}
 tbody tr{transition:all .15s ease}
 tbody tr:hover{background:rgba(129,140,248,.03)}
-.ck{color:var(--low);font-weight:800;font-size:1.1rem}
-.cx{color:var(--critical);font-weight:800;font-size:1.1rem}
+.ck{color:var(--low);font-weight:600;font-size:1.1rem}
+.cx{color:var(--critical);font-weight:600;font-size:1.1rem}
 
 /* ═══════════════════════════════════════════════════════════════
    PRIORITIES
    ═══════════════════════════════════════════════════════════════ */
 .priority-list{display:flex;flex-direction:column;gap:6px;margin-top:40px;position:relative}
+@media(max-width:500px){
+  .priority-item{grid-template-columns:40px 1fr;gap:12px;padding:12px 16px}
+  .priority-item .sev{display:none}
+  .priority-list::before{left:43px}
+}
 /* Connecting line */
 .priority-list::before{
   content:'';position:absolute;left:51px;top:24px;bottom:24px;
@@ -698,12 +741,12 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 .p-rank{
   width:36px;height:36px;border-radius:10px;
   display:flex;align-items:center;justify-content:center;
-  font-size:1rem;font-weight:900;
+  font-size:.9rem;font-weight:600;
 }
 .priority-item:nth-child(-n+5) .p-rank{background:var(--critical-bg);color:var(--critical)}
 .priority-item:nth-child(n+6):nth-child(-n+11) .p-rank{background:var(--high-bg);color:var(--high)}
 .priority-item:nth-child(n+12) .p-rank{background:var(--accent-dim);color:var(--accent)}
-.p-name{font-weight:700;font-size:.88rem}
+.p-name{font-weight:500;font-size:.88rem}
 
 /* ═══════════════════════════════════════════════════════════════
    CALLOUT
@@ -737,7 +780,11 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 .brand-bar.hide{opacity:0;transform:translateY(-100%);pointer-events:none}
 .brand-bar-left{display:flex;align-items:center;gap:12px}
 .brand-bar-logo{height:26px;width:26px;object-fit:contain;border-radius:6px}
-.brand-bar-name{font-size:.78rem;font-weight:800;color:var(--text);letter-spacing:.02em}
+.brand-bar-name{font-size:.78rem;font-weight:600;color:var(--text);letter-spacing:.02em}
+@media(max-width:600px){
+  .brand-bar-right{display:none}
+  .brand-bar{padding:10px 16px}
+}
 .brand-bar-sep{width:1px;height:16px;background:var(--border)}
 .brand-bar-tag{font-size:.68rem;font-weight:600;color:var(--text-muted)}
 .brand-bar-right{font-size:.65rem;color:var(--text-muted);font-weight:600;letter-spacing:.04em}
@@ -764,7 +811,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 .report-footer{text-align:center;padding:64px 28px;border-top:1px solid var(--border)}
 .footer-logo{height:36px;width:36px;object-fit:contain;border-radius:8px;margin:0 auto 16px;display:block;opacity:.7}
 .report-footer .brand{
-  font-weight:900;font-size:.95rem;margin-bottom:10px;
+  font-weight:700;font-size:.95rem;margin-bottom:10px;
   background:var(--grad-hero);-webkit-background-clip:text;
   -webkit-text-fill-color:transparent;background-clip:text;
 }
@@ -1170,6 +1217,263 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   </div>
 </section>
 
+<!-- ════════════ AI INTRO POPUP ════════════ -->
+<div class="ai-intro-overlay" id="aiIntro">
+  <div class="ai-intro-card">
+    <div class="ai-intro-glow"></div>
+    <div class="ai-intro-sparkle s1"></div>
+    <div class="ai-intro-sparkle s2"></div>
+    <div class="ai-intro-sparkle s3"></div>
+    <div class="ai-intro-icon-wrap">
+      <div class="ai-intro-icon">
+        <svg width="28" height="28" fill="none" stroke="#fff" stroke-width="1.5" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/><path d="M8 10h.01M12 10h.01M16 10h.01" stroke-width="2.5" stroke-linecap="round"/></svg>
+      </div>
+      <div class="ai-intro-pulse-ring"></div>
+      <div class="ai-intro-pulse-ring r2"></div>
+    </div>
+    <div class="ai-intro-badge">AI-Powered</div>
+    <h3 class="ai-intro-title">This report has a brain</h3>
+    <p class="ai-intro-desc">Ask our <strong>Report Assistant</strong> anything about this gap analysis. It knows every score, issue, priority, and opportunity in detail.</p>
+    <div class="ai-intro-examples">
+      <button class="ai-intro-chip" data-q="What's the overall score?">What's the overall score?</button>
+      <button class="ai-intro-chip" data-q="What are the top priorities?">Top priorities?</button>
+      <button class="ai-intro-chip" data-q="What are the quick wins?">Quick wins?</button>
+    </div>
+    <button class="ai-intro-cta" id="aiIntroCta">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Try it now
+    </button>
+    <button class="ai-intro-dismiss" id="aiIntroDismiss">Maybe later</button>
+  </div>
+</div>
+
+<style>
+.ai-intro-overlay{
+  position:fixed;inset:0;z-index:10000;
+  background:rgba(3,5,10,.7);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity .5s ease;
+  padding:20px;
+}
+.ai-intro-overlay.show{opacity:1;pointer-events:all}
+
+.ai-intro-card{
+  position:relative;
+  max-width:420px;width:100%;
+  background:linear-gradient(165deg,rgba(17,22,40,.95),rgba(10,14,26,.98));
+  border:1px solid rgba(129,140,248,.15);
+  border-radius:28px;padding:48px 36px 36px;
+  text-align:center;
+  box-shadow:0 40px 120px -20px rgba(0,0,0,.7),0 0 80px -20px rgba(129,140,248,.12);
+  transform:scale(.88) translateY(30px);
+  transition:transform .6s cubic-bezier(.16,1,.3,1),opacity .6s ease;
+  opacity:0;overflow:hidden;
+}
+.ai-intro-overlay.show .ai-intro-card{transform:scale(1) translateY(0);opacity:1;transition-delay:.15s}
+
+.ai-intro-glow{
+  position:absolute;top:-60px;left:50%;transform:translateX(-50%);
+  width:300px;height:200px;
+  background:radial-gradient(ellipse,rgba(129,140,248,.12),transparent 70%);
+  pointer-events:none;
+}
+
+.ai-intro-sparkle{
+  position:absolute;width:4px;height:4px;border-radius:50%;
+  background:#818cf8;
+  animation:sparkle 2.5s ease-in-out infinite;
+}
+.s1{top:18%;left:15%;animation-delay:0s}
+.s2{top:12%;right:20%;animation-delay:.8s}
+.s3{bottom:25%;right:12%;animation-delay:1.6s}
+@keyframes sparkle{
+  0%,100%{opacity:0;transform:scale(0)}
+  50%{opacity:.7;transform:scale(1)}
+}
+
+.ai-intro-icon-wrap{
+  position:relative;width:72px;height:72px;
+  margin:0 auto 24px;
+}
+.ai-intro-icon{
+  width:72px;height:72px;border-radius:22px;
+  background:var(--grad-hero);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;z-index:1;
+  box-shadow:0 12px 40px -8px rgba(129,140,248,.35);
+}
+.ai-intro-pulse-ring{
+  position:absolute;inset:-8px;border-radius:28px;
+  border:2px solid rgba(129,140,248,.2);
+  animation:intro-pulse 2.5s ease-in-out infinite;
+}
+.ai-intro-pulse-ring.r2{inset:-18px;border-radius:34px;animation-delay:.5s;border-color:rgba(129,140,248,.1)}
+@keyframes intro-pulse{
+  0%,100%{transform:scale(1);opacity:.5}
+  50%{transform:scale(1.08);opacity:.15}
+}
+
+.ai-intro-badge{
+  display:inline-block;
+  padding:4px 14px;border-radius:100px;
+  font-size:.65rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;
+  background:rgba(129,140,248,.1);border:1px solid rgba(129,140,248,.2);
+  color:var(--accent);margin-bottom:16px;
+}
+
+.ai-intro-title{
+  font-size:1.5rem;font-weight:600;letter-spacing:-.02em;
+  margin-bottom:12px;color:var(--text);line-height:1.2;
+}
+
+.ai-intro-desc{
+  font-size:.88rem;color:var(--text-secondary);line-height:1.7;
+  margin-bottom:24px;
+}
+.ai-intro-desc strong{color:var(--accent-bright);font-weight:600}
+
+.ai-intro-examples{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;
+  margin-bottom:28px;
+}
+.ai-intro-chip{
+  padding:7px 16px;border-radius:100px;
+  background:rgba(255,255,255,.04);border:1px solid var(--border);
+  color:var(--text-secondary);font-size:.78rem;font-weight:500;
+  cursor:pointer;transition:all .2s;font-family:inherit;
+}
+.ai-intro-chip:hover{background:rgba(129,140,248,.08);border-color:rgba(129,140,248,.2);color:var(--text)}
+
+.ai-intro-cta{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 32px;border-radius:14px;
+  background:var(--grad-hero);border:none;
+  color:#fff;font-size:.88rem;font-weight:600;
+  cursor:pointer;font-family:inherit;
+  box-shadow:0 8px 32px -6px rgba(129,140,248,.35);
+  transition:all .3s var(--ease);
+}
+.ai-intro-cta:hover{transform:translateY(-2px);box-shadow:0 12px 40px -6px rgba(129,140,248,.45)}
+
+.ai-intro-dismiss{
+  display:block;width:100%;margin-top:14px;
+  background:none;border:none;
+  color:var(--text-muted);font-size:.78rem;font-weight:500;
+  cursor:pointer;font-family:inherit;
+  transition:color .2s;padding:8px;
+}
+.ai-intro-dismiss:hover{color:var(--text-secondary)}
+
+@media(max-width:460px){
+  .ai-intro-card{padding:40px 24px 28px;border-radius:22px}
+  .ai-intro-title{font-size:1.3rem}
+}
+</style>
+
+<!-- ════════════ CHATBOT ════════════ -->
+<div class="chat-fab" id="chatFab" title="Ask about this report">
+  <svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+</div>
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <div class="chat-header-left">
+      <img src="screenshots/stamats-logo.png" alt="Stamats" style="width:22px;height:22px;border-radius:5px">
+      <span>Report Assistant</span>
+    </div>
+    <button class="chat-close" id="chatClose">&times;</button>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="chat-msg bot">Hi! I can answer questions about this Coe College gap analysis. Try asking about specific categories, scores, priorities, or opportunities.</div>
+  </div>
+  <form class="chat-input-row" id="chatForm">
+    <input class="chat-input" id="chatInput" type="text" placeholder="Ask about the report..." autocomplete="off">
+    <button class="chat-send" type="submit"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg></button>
+  </form>
+</div>
+
+<style>
+.chat-fab{
+  position:fixed;bottom:28px;right:28px;z-index:999;
+  width:56px;height:56px;border-radius:50%;
+  background:var(--grad-hero);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 32px rgba(129,140,248,.3);
+  transition:transform .3s var(--ease),box-shadow .3s ease;
+}
+.chat-fab:hover{transform:scale(1.08);box-shadow:0 12px 40px rgba(129,140,248,.4)}
+.chat-fab.hidden{transform:scale(0);pointer-events:none}
+
+.chat-panel{
+  position:fixed;bottom:96px;right:28px;z-index:999;
+  width:380px;max-height:520px;
+  background:var(--bg-surface);border:1px solid var(--border);
+  border-radius:var(--r-xl);overflow:hidden;
+  display:flex;flex-direction:column;
+  box-shadow:var(--shadow-xl);
+  transform:scale(.9) translateY(20px);opacity:0;pointer-events:none;
+  transition:all .35s var(--ease);
+}
+.chat-panel.open{transform:scale(1) translateY(0);opacity:1;pointer-events:all}
+@media(max-width:500px){
+  .chat-panel{right:8px;left:8px;width:auto;bottom:80px;max-height:70vh}
+  .chat-fab{bottom:16px;right:16px;width:48px;height:48px}
+}
+
+.chat-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:14px 18px;border-bottom:1px solid var(--border);
+  background:rgba(14,19,36,.8);
+}
+.chat-header-left{display:flex;align-items:center;gap:10px;font-size:.82rem;font-weight:600;color:var(--text)}
+.chat-close{
+  background:none;border:none;color:var(--text-muted);font-size:1.3rem;
+  cursor:pointer;width:28px;height:28px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .2s;
+}
+.chat-close:hover{background:rgba(255,255,255,.06);color:var(--text)}
+
+.chat-messages{
+  flex:1;overflow-y:auto;padding:16px;
+  display:flex;flex-direction:column;gap:12px;
+  min-height:200px;max-height:360px;
+}
+.chat-msg{
+  padding:12px 16px;border-radius:var(--r-md);
+  font-size:.84rem;line-height:1.65;max-width:90%;
+}
+.chat-msg.bot{
+  background:var(--bg-card);border:1px solid var(--border);
+  color:var(--text-secondary);align-self:flex-start;
+}
+.chat-msg.user{
+  background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.15);
+  color:var(--text);align-self:flex-end;
+}
+.chat-msg.typing{color:var(--text-muted);font-style:italic}
+
+.chat-input-row{
+  display:flex;gap:8px;padding:12px 14px;
+  border-top:1px solid var(--border);background:rgba(14,19,36,.6);
+}
+.chat-input{
+  flex:1;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:10px 14px;
+  color:var(--text);font-size:.84rem;font-family:inherit;
+  outline:none;transition:border-color .2s;
+}
+.chat-input:focus{border-color:rgba(129,140,248,.3)}
+.chat-input::placeholder{color:var(--text-muted)}
+.chat-send{
+  background:var(--grad-hero);border:none;border-radius:var(--r-sm);
+  width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#fff;flex-shrink:0;transition:transform .2s;
+}
+.chat-send:hover{transform:scale(1.06)}
+</style>
+
 <!-- FOOTER -->
 <footer class="report-footer">
   <div class="container">
@@ -1195,9 +1499,17 @@ document.querySelectorAll('.cat-score-card').forEach(el=>gio.observe(el));
 const sp=document.getElementById('scrollProgress');
 window.addEventListener('scroll',()=>{sp.style.width=(scrollY/(document.documentElement.scrollHeight-innerHeight)*100)+'%'},{passive:true});
 
-// Sticky nav
+// Sticky nav (sidebar on desktop, top bar on mobile)
 const sn=document.getElementById('stickyNav');
-window.addEventListener('scroll',()=>{sn.classList.toggle('show',scrollY>innerHeight*.55)},{passive:true});
+const isDesktop=()=>window.innerWidth>1080;
+function updateNav(){
+  const show=scrollY>innerHeight*.55;
+  sn.classList.toggle('show',show);
+  if(isDesktop()){document.body.classList.toggle('nav-open',show)}
+  else{document.body.classList.remove('nav-open')}
+}
+window.addEventListener('scroll',updateNav,{passive:true});
+window.addEventListener('resize',updateNav,{passive:true});
 
 // Count up
 const cio=new IntersectionObserver(e=>{e.forEach(x=>{if(!x.isIntersecting)return;const el=x.target,t=+el.dataset.target;let c=0;const s=Math.max(1,Math.ceil(t/50));const id=setInterval(()=>{c=Math.min(c+s,t);el.textContent=c;if(c>=t)clearInterval(id)},20);cio.unobserve(el)})},{threshold:.5});
@@ -1205,6 +1517,138 @@ document.querySelectorAll('.count-up').forEach(el=>cio.observe(el));
 
 // Smooth scroll nav
 document.querySelectorAll('.sticky-nav a').forEach(a=>{a.addEventListener('click',e=>{e.preventDefault();document.querySelector(a.getAttribute('href'))?.scrollIntoView({behavior:'smooth',block:'start'})})});
+
+// ── AI Intro Popup ───────────────────────────────────
+const aiIntro=document.getElementById('aiIntro');
+const aiIntroCta=document.getElementById('aiIntroCta');
+const aiIntroDismiss=document.getElementById('aiIntroDismiss');
+// Show after 3 seconds
+setTimeout(()=>{aiIntro.classList.add('show')},3000);
+
+function closeIntro(openChat){
+  aiIntro.classList.remove('show');
+  if(openChat){
+    setTimeout(()=>{chatPanel.classList.add('open');chatFab.classList.add('hidden');chatInput.focus()},400);
+  }
+}
+aiIntroCta.addEventListener('click',()=>closeIntro(true));
+aiIntroDismiss.addEventListener('click',()=>closeIntro(false));
+aiIntro.addEventListener('click',e=>{if(e.target===aiIntro)closeIntro(false)});
+// Chip clicks open chat with that question
+document.querySelectorAll('.ai-intro-chip').forEach(c=>{
+  c.addEventListener('click',()=>{
+    closeIntro(true);
+    const q=c.dataset.q;
+    setTimeout(()=>{
+      chatInput.value=q;
+      chatForm.dispatchEvent(new Event('submit'));
+    },600);
+  });
+});
+
+// ── Chatbot ──────────────────────────────────────────
+const chatFab=document.getElementById('chatFab');
+const chatPanel=document.getElementById('chatPanel');
+const chatClose=document.getElementById('chatClose');
+const chatForm=document.getElementById('chatForm');
+const chatInput=document.getElementById('chatInput');
+const chatMessages=document.getElementById('chatMessages');
+
+chatFab.addEventListener('click',()=>{chatPanel.classList.add('open');chatFab.classList.add('hidden');chatInput.focus()});
+chatClose.addEventListener('click',()=>{chatPanel.classList.remove('open');chatFab.classList.remove('hidden')});
+
+const reportData={
+  overall:{score:18,grade:'F',total_issues:87},
+  categories:{
+    accessibility:{score:8,issues:9,critical:['No alt text on any image','No ARIA labels on navigation','Search field has no label','Symbol legend inaccessible'],high:['No focus indicators','Missing semantic landmarks','No lang attribute'],medium:['No skip-to-section links','No high-contrast mode']},
+    seo:{score:12,issues:12,critical:['No meta description','No Open Graph tags','No Twitter/X Cards','No Schema.org structured data','No canonical URL'],high:['Legacy Universal Analytics (UA sunset July 2023)','Heading hierarchy broken'],medium:['No sitemap reference','No hreflang','No lazy loading']},
+    content:{score:5,issues:14,critical:['Zero program descriptions','No student outcomes data','No accreditation info'],high:['No faculty info','No degree requirements','No testimonials','No video content','Discontinued programs unexplained'],medium:['No cost/ROI data','No research/internship info']},
+    ux:{score:15,issues:10,critical:['No search or filter for 82 programs'],high:['No department grouping','Confusing symbol notation','No mobile cards','Discontinued mixed with active'],medium:['No undecided pathway','Redundant entries','No page anchoring']},
+    modern_features:{score:0,issues:11,high:['No AI chatbot','No Find Your Major quiz','No interactive explorer'],medium:['No pathway visualizer','No cost/ROI calculator','No bookmarking','No virtual tours','No event tie-ins']},
+    trust:{score:3,issues:10,critical:['No rankings displayed','No graduation/retention rates'],high:['No employment stats','No student-faculty ratio','No class size data','No alumni data'],medium:['No program accreditations']},
+    privacy:{score:10,issues:6,critical:['No cookie consent banner - 5 trackers fire before consent including Hotjar session replays'],high:['No WCAG conformance claim','No contextual privacy link'],medium:['No data retention disclosure']},
+    performance:{score:35,issues:7,high:['Render-blocking scripts','Dead UA analytics code'],medium:['No image lazy loading','No CSP','Concrete5 legacy CMS']},
+    competitive:{score:0,gaps:17,detail:'Coe has 0 of 17 features peers commonly offer including: search/filter, descriptions, outcome data, quiz tools, video, faculty highlights, Schema.org, OG tags, cookie consent, mobile cards, chatbot, cost info, accreditation badges, rankings, pathway visualizer, accessibility statement, GA4'},
+    naming:{score:25,issues:4,high:['Duplicate/ambiguous listings','Inconsistent naming conventions'],medium:['Pre-Music Therapy links to Music page','URL/name mismatch']}
+  },
+  programs:{majors:60,minors:8,pre_professional:14,total:82,discontinued:8,also_minors:19},
+  top5_priorities:['Search and filter for programs','Brief description for each program','Schema.org structured data','Open Graph + Twitter Card meta tags','Meta description tag'],
+  opportunities:['SEO quick wins (meta desc, OG, Schema) - 1-2 days, +30% CTR','Program search & descriptions - 2-4 weeks, 3-5x time on page','Trust signals & outcomes - 1-3 weeks, major parent trust boost','A11y & privacy compliance - 1-2 weeks, legal risk eliminated','AI advisor & quiz - 4-8 weeks, lead gen differentiator','Remove dead UA code - <1 day, faster page load'],
+  trackers:['Hotjar (session replays)','Google Tag Manager','Google Analytics (legacy UA)','Google Ads','Mautic marketing automation'],
+  cms:'Concrete5 (ConcreteCMS)',
+  page_url:'https://www.coe.edu/academics/majors-areas-study'
+};
+
+function botReply(q){
+  const ql=q.toLowerCase();
+  // Overall score
+  if(ql.match(/overall|total score|health|grade|how.*score|how.*do|how.*bad/))
+    return `The page scores **18 out of 100** overall — Grade F. There are 87 total issues: 27 Critical, 30 High, 22 Medium, 8 Low. The lowest categories are Modern Features (0/100), Competitive (0/100), and Trust Signals (3/100). Performance is the "best" at 35/100.`;
+  // Specific categories
+  if(ql.match(/access|a11y|wcag|ada|screen reader|alt text|aria/))
+    return `**Accessibility scores 8/100** with 9 issues. Critical: ${reportData.categories.accessibility.critical.join(', ')}. Key concern: zero alt text on any image and no ARIA labels — fails WCAG 2.1 Level A with potential ADA Title III liability.`;
+  if(ql.match(/seo|search engine|meta|schema|open graph|og tag|twitter card|canonical/))
+    return `**SEO scores 12/100** with 12 issues. The page has no meta description, no OG tags, no Twitter Cards, no Schema.org JSON-LD, and no canonical URL. Social link previews are completely blank. Still running dead Universal Analytics code (sunset July 2023).`;
+  if(ql.match(/content(?! security)|description|program info|faculty|video|testimonial|outcome/))
+    return `**Content scores 5/100** — the worst category with 14 issues. Every major is just a name and a link. Zero descriptions, zero student outcome data, zero accreditation info, zero faculty info, zero video content, zero testimonials.`;
+  if(ql.match(/ux|user experience|search|filter|navigation|mobile|interface|design/))
+    return `**UX scores 15/100** with 10 issues. The biggest failure: 82 programs in one flat alphabetical list with no search, no filters, no category grouping. Discontinued programs are mixed in with active ones, differentiated only by tiny symbols.`;
+  if(ql.match(/modern|feature|chatbot|quiz|find.*major|interactive|pathway/))
+    return `**Modern Features scores 0/100** — Coe has none. No AI chatbot, no "Find Your Major" quiz, no interactive explorer, no pathway visualizer, no cost calculator, no bookmarking, no virtual tours on this page. Peers are adopting these rapidly.`;
+  if(ql.match(/trust|ranking|graduation|retention|employment|alumni|class size|faculty ratio/))
+    return `**Trust Signals scores 3/100** with 10 issues. No rankings displayed, no graduation/retention rates, no employment stats, no student-faculty ratio, no class sizes, no alumni data. Zero proof of value despite being a quality institution.`;
+  if(ql.match(/privacy|cookie|consent|gdpr|ccpa|tracking|hotjar|mautic/))
+    return `**Privacy scores 10/100** with 6 issues. Critical: 5 tracking scripts fire before any consent — Hotjar (session replays!), GA, GTM, Google Ads, and Mautic. No cookie banner exists. Likely violates GDPR, CCPA, CPRA, and other state privacy laws.`;
+  if(ql.match(/performance|speed|load|technical|debt|cms|concrete/))
+    return `**Performance scores 35/100** — the "best" category. Issues: render-blocking tracking scripts in <head>, dead UA analytics code still loading, no image lazy loading, no CSP headers, and a legacy Concrete5 CMS.`;
+  if(ql.match(/competitive|peer|comparison|vs|versus|other college/))
+    return `**Competitive scores 0/100** — Coe has 0 of 17 features that peer liberal arts colleges commonly offer. This includes search/filter, descriptions, outcome data, quiz tools, video, Schema.org, OG tags, cookie consent, mobile cards, chatbot, and more. This isn't about innovation — it's about catching up.`;
+  if(ql.match(/naming|inconsist|duplicate|ambiguous|url mismatch/))
+    return `**Naming scores 25/100** with 4 issues. "Molecular Biology" (closed) AND "Molecular Biology - Biology" (active) both listed. "Spanish" and "Spanish Studies" both link to /foreign-language. Naming format inconsistent across programs.`;
+  // Priorities
+  if(ql.match(/prior|top|first|most important|what should|where.*start|action|plan/))
+    return `**Top 5 priorities:** 1) Search and filter for programs, 2) Brief description for each program, 3) Schema.org structured data, 4) Open Graph + Twitter Cards, 5) Meta description tag. Just the top 5 would dramatically transform the page.`;
+  // Opportunities
+  if(ql.match(/opportunit|gain|benefit|upside|roi|what.*fix|improve/))
+    return `Key opportunities: SEO quick wins (+30% CTR, 1-2 days), program search & descriptions (3-5x time on page, 2-4 weeks), trust signals (parent trust boost, 1-3 weeks), a11y/privacy compliance (legal risk eliminated, 1-2 weeks), AI quiz (lead gen differentiator, 4-8 weeks).`;
+  // Programs
+  if(ql.match(/program|major|minor|pre-professional|how many|discontinued|closed/))
+    return `The page lists **82 programs**: 60 majors, 8 standalone minors, and 14 pre-professional tracks. 19 majors also available as minors. **8 programs are discontinued** but still listed alongside active ones with only tiny symbols to differentiate them.`;
+  // Trackers
+  if(ql.match(/tracker|analytics|script|ga4|universal/))
+    return `5 tracking scripts load without consent: ${reportData.trackers.join(', ')}. The GA property (UA-3745152-31) is a legacy Universal Analytics ID that stopped processing data in July 2023 — it's dead code still slowing the page.`;
+  // Quick wins
+  if(ql.match(/quick win|easy|fast|low.*effort|simple/))
+    return `Quickest wins: 1) Add meta description tag (<5 min), 2) Add OG + Twitter Card tags (<30 min), 3) Add alt text to all 8 images (<1 hr), 4) Remove dead UA analytics code (<5 min), 5) Add canonical URL (<5 min). These alone would improve SEO, social sharing, and accessibility significantly.`;
+  // Catch-all
+  return `I can answer questions about any of the 10 audit categories (accessibility, SEO, content, UX, modern features, trust signals, privacy, performance, competitive, naming), the overall score, priorities, opportunities, programs, or quick wins. What would you like to know?`;
+}
+
+chatForm.addEventListener('submit',e=>{
+  e.preventDefault();
+  const q=chatInput.value.trim();
+  if(!q)return;
+  // User message
+  const um=document.createElement('div');
+  um.className='chat-msg user';um.textContent=q;
+  chatMessages.appendChild(um);
+  chatInput.value='';
+  chatMessages.scrollTop=chatMessages.scrollHeight;
+  // Typing indicator
+  const ti=document.createElement('div');
+  ti.className='chat-msg bot typing';ti.textContent='Thinking...';
+  chatMessages.appendChild(ti);
+  chatMessages.scrollTop=chatMessages.scrollHeight;
+  // Bot reply after brief delay
+  setTimeout(()=>{
+    ti.remove();
+    const bm=document.createElement('div');
+    bm.className='chat-msg bot';
+    bm.innerHTML=botReply(q).replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
+    chatMessages.appendChild(bm);
+    chatMessages.scrollTop=chatMessages.scrollHeight;
+  },600+Math.random()*400);
+});
 </script>
 </body>
 </html>
