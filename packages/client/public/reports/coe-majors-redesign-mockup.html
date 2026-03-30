@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Majors & Areas of Study | Coe College — Redesign Mockup</title>
+<title>Majors & Areas of Study | Coe College — Redesign Mockup v2</title>
 <meta name="description" content="Explore 60+ majors, minors, and pre-professional programs at Coe College in Cedar Rapids, Iowa.">
 <meta property="og:title" content="Majors & Areas of Study | Coe College">
 <meta property="og:description" content="Explore 60+ majors, minors, and pre-professional programs at Coe College in Cedar Rapids, Iowa.">
@@ -21,237 +21,388 @@
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 <style>
+
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --crimson:#9b1b30;--crimson-hover:#b22438;
-  --cream:#faf9f7;--sand:#f0eeea;
-  --border:#e4e2dd;--border-hover:#ccc9c2;
-  --text:#1c1917;--text-2:#57534e;--text-3:#a8a29e;
-  --r:14px;--r-sm:10px;
+  --crimson:#8A1B2D;
+  --crimson-hover:#A62237;
+  --crimson-light:rgba(138,27,45,.04);
+  --crimson-glow:rgba(138,27,45,.15);
+  
+  --bg:#fbfaf9;
+  --cream:#f3f1ed;
+  --sand:#e8e5e0;
+  --border:rgba(0,0,0,.08);
+  --border-hover:rgba(0,0,0,.15);
+  
+  --text:#1c1918;
+  --text-2:#4a4645;
+  --text-3:#827c7a;
+  
+  --green:#108a3d;
+  --blue:#1d4ed8;
+  --amber:#b45309;
+  
+  --r:16px;
+  --r-sm:10px;
+  --serif:'Libre Baskerville',Georgia,serif;
+  --sans:'Outfit','Inter',system-ui,sans-serif;
+  
+  --shadow-sm:0 2px 8px rgba(0,0,0,.04);
+  --shadow-md:0 12px 32px -8px rgba(0,0,0,.08);
+  --shadow-lg:0 24px 64px -12px rgba(0,0,0,.12);
 }
 html{scroll-behavior:smooth}
-body{font-family:'Inter',system-ui,sans-serif;background:#fff;color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);line-height:1.6;-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 img{max-width:100%;display:block}
 
-/* ── Mockup bar ── */
+.fi { opacity: 1; transform: none; transition: none; }
+.card { opacity: 1; transform: none; }
+
 .mock-bar{
   position:sticky;top:0;z-index:100;
-  background:var(--text);color:var(--text-3);
+  background:#111;color:#a0a0a0;
   text-align:center;padding:10px 20px;
-  font-size:.72rem;font-weight:500;letter-spacing:.03em;
+  font-size:.72rem;font-weight:500;letter-spacing:.05em;
+  border-bottom:1px solid rgba(255,255,255,.1);
 }
-.mock-bar strong{color:#c8a951}
+.mock-bar strong{color:#d4af37}
 
-/* ── Header ── */
 header{
-  position:sticky;top:36px;z-index:90;
-  background:#fff;border-bottom:1px solid var(--border);
+  position:sticky;top:37px;z-index:90;
+  background:rgba(251,250,249,.85);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 1px 20px rgba(0,0,0,.02);
 }
 .header-inner{
-  max-width:1100px;margin:0 auto;padding:0 24px;
-  display:flex;align-items:center;justify-content:space-between;height:60px;
+  max-width:1180px;margin:0 auto;padding:0 32px;
+  display:flex;align-items:center;justify-content:space-between;height:70px;
 }
-.logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:1rem;color:var(--crimson)}
-.logo-mark{
-  width:32px;height:32px;background:var(--crimson);border-radius:8px;
-  display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:.9rem;
-}
-.nav{display:flex;gap:2px}
-.nav a{padding:7px 13px;border-radius:var(--r-sm);font-size:.82rem;font-weight:500;color:var(--text-2);transition:all .15s}
+.logo{display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.1rem;color:var(--crimson);font-family:var(--serif);letter-spacing:-.01em}
+.nav{display:flex;gap:4px}
+.nav a{padding:8px 16px;border-radius:100px;font-size:.85rem;font-weight:500;color:var(--text-2);transition:all .2s;font-family:'Inter',sans-serif}
 .nav a:hover{background:var(--cream);color:var(--text)}
-.nav a.on{color:var(--crimson);background:rgba(155,27,48,.04)}
-.apply-btn{
-  padding:8px 18px;border-radius:var(--r-sm);background:var(--crimson);
-  color:#fff;font-size:.82rem;font-weight:500;transition:background .15s;
+.nav a.on{color:var(--crimson);background:var(--crimson-light);font-weight:600}
+.header-actions{display:flex;align-items:center;gap:12px}
+.info-btn{
+  padding:10px 20px;border-radius:100px;border:1px solid var(--border);
+  background:transparent;color:var(--text-2);font-size:.85rem;font-weight:500;transition:all .2s;
 }
-.apply-btn:hover{background:var(--crimson-hover)}
-@media(max-width:768px){.nav{display:none}}
+.info-btn:hover{background:#fff;border-color:var(--border-hover);color:var(--text);box-shadow:var(--shadow-sm)}
+.apply-btn{
+  padding:10px 24px;border-radius:100px;background:var(--crimson);
+  color:#fff;font-size:.85rem;font-weight:600;transition:all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 4px 14px var(--crimson-glow);
+}
+.apply-btn:hover{background:var(--crimson-hover);transform:translateY(-1px);box-shadow:0 6px 20px rgba(138,27,45,.25)}
+@media(max-width:768px){.nav{display:none}.info-btn{display:none}}
 
-/* ── Container ── */
-.wrap{max-width:1100px;margin:0 auto;padding:0 24px}
+/* Container */
+.wrap{max-width:1180px;margin:0 auto;padding:0 32px}
+@media(max-width:768px){.wrap{padding:0 24px}}
 
-/* ── Trust strip ── */
-.trust{border-bottom:1px solid var(--border);padding:14px 0;background:var(--cream)}
+.trust{border-bottom:1px solid var(--border);padding:14px 0;background:#fff}
 .trust-inner{
-  display:flex;align-items:center;justify-content:center;gap:28px;flex-wrap:wrap;
-  font-size:.78rem;color:var(--text-2);font-weight:500;
+  display:flex;align-items:center;justify-content:center;gap:36px;flex-wrap:wrap;
+  font-size:.78rem;color:var(--text-3);font-weight:500;font-family:'Inter',sans-serif;
 }
 .trust-inner strong{color:var(--text);font-weight:600}
-.trust-sep{width:3px;height:3px;border-radius:50%;background:var(--border)}
+.trust-sep{width:4px;height:4px;border-radius:50%;background:var(--sand)}
 @media(max-width:600px){.trust-sep{display:none}.trust-inner{gap:14px;font-size:.74rem}}
 
-/* ── Hero ── */
-.hero{padding:72px 0 56px;background:linear-gradient(180deg,var(--cream),#fff 80%)}
-.crumb{font-size:.76rem;color:var(--text-3);margin-bottom:24px}
-.crumb a{color:var(--text-3);transition:color .15s}
-.crumb a:hover{color:var(--text-2)}
-.hero h1{font-size:clamp(2rem,4.5vw,3rem);font-weight:600;letter-spacing:-.03em;line-height:1.1;margin-bottom:14px}
-.hero .sub{font-size:clamp(.95rem,1.6vw,1.08rem);color:var(--text-2);line-height:1.7;max-width:520px}
+.hero{
+  padding:90px 0 40px;
+  background:radial-gradient(ellipse at top, #fff 0%, var(--bg) 100%);
+  position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;top:-20%;left:25%;width:50%;height:100%;
+  background:radial-gradient(circle, var(--crimson-light) 0%, transparent 60%);
+  filter:blur(60px);z-index:0;pointer-events:none;
+}
+.hero-panel{
+  max-width:760px;margin:0 auto;text-align:center;
+  padding:0 32px 56px;position:relative;z-index:1;
+}
+.crumb{font-size:.8rem;color:var(--text-3);margin-bottom:32px;font-family:'Inter',sans-serif;font-weight:500}
+.crumb a{color:var(--text-3);transition:color .2s}
+.crumb a:hover{color:var(--text)}
+.hero h1{
+  font-family:var(--serif);font-size:clamp(2.4rem,5.5vw,3.6rem);font-weight:700;
+  letter-spacing:-.03em;line-height:1.1;margin-bottom:20px;color:var(--text);
+}
+.hero .sub{
+  font-family:'Inter',sans-serif;font-size:clamp(1rem,1.5vw,1.1rem);color:var(--text-2);
+  line-height:1.7;max-width:540px;margin:0 auto 40px;
+}
 
-/* ── Search ── */
-.search-wrap{margin-top:36px;max-width:520px}
+.search-wrap{max-width:600px;margin:0 auto;position:relative}
 .search{
   display:flex;align-items:center;
-  border:1.5px solid var(--border);border-radius:var(--r);
-  padding:4px 5px 4px 18px;background:#fff;transition:border-color .2s;
+  border:1px solid var(--border);border-radius:100px;
+  padding:6px 6px 6px 24px;background:rgba(255,255,255,.9);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  transition:all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:var(--shadow-md);
 }
-.search:focus-within{border-color:var(--crimson)}
-.search svg{color:var(--text-3);flex-shrink:0}
+.search:focus-within{
+  border-color:var(--crimson);background:#fff;
+  box-shadow:0 0 0 4px var(--crimson-light), var(--shadow-lg);
+  transform:translateY(-1px);
+}
+.search svg{color:var(--text-3);flex-shrink:0;transition:color .3s}
+.search:focus-within svg{color:var(--crimson)}
 .search input{
-  flex:1;border:none;outline:none;font-size:.9rem;font-family:inherit;
-  padding:10px 12px;background:none;color:var(--text);
+  flex:1;border:none;outline:none;font-size:.95rem;font-family:'Inter',sans-serif;
+  padding:14px 16px;background:none;color:var(--text);font-weight:500;
 }
-.search input::placeholder{color:var(--text-3)}
+.search input::placeholder{color:var(--text-3);font-weight:400}
 .search button{
-  padding:9px 18px;border-radius:var(--r-sm);background:var(--crimson);
-  color:#fff;border:none;font-size:.82rem;font-weight:500;cursor:pointer;
-  font-family:inherit;transition:background .15s;flex-shrink:0;
+  padding:14px 28px;border-radius:100px;background:var(--crimson);
+  color:#fff;border:none;font-size:.9rem;font-weight:600;cursor:pointer;
+  font-family:'Inter',sans-serif;transition:all .3s ease;flex-shrink:0;
+  box-shadow:0 4px 12px var(--crimson-glow);
 }
-.search button:hover{background:var(--crimson-hover)}
+.search button:hover{background:var(--crimson-hover);box-shadow:0 6px 20px rgba(138,27,45,.25)}
 
-/* ── Filters ── */
-.pills{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap}
+.pills{display:flex;gap:8px;margin-top:24px;flex-wrap:wrap;justify-content:center}
 .pill{
-  padding:6px 14px;border-radius:100px;border:1px solid var(--border);
-  background:#fff;font-size:.78rem;font-weight:500;color:var(--text-2);
-  cursor:pointer;transition:all .15s;font-family:inherit;
+  padding:8px 18px;border-radius:100px;border:1px solid transparent;
+  background:rgba(0,0,0,.03);font-size:.82rem;font-weight:500;color:var(--text-2);
+  cursor:pointer;transition:all .2s;font-family:'Inter',sans-serif;
 }
-.pill:hover{border-color:var(--border-hover);color:var(--text)}
-.pill.on{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.pill:hover{background:rgba(0,0,0,.06);color:var(--text)}
+.pill.on{background:var(--text);color:#fff;box-shadow:0 4px 12px rgba(0,0,0,.15);border-color:var(--text)}
+.results-count{margin-top:16px;font-size:.8rem;color:var(--text-3);font-weight:500;min-height:20px;text-align:center;font-family:'Inter',sans-serif}
 
-/* ── Programs ── */
-.programs{padding:56px 0 72px}
-.programs h2{font-size:1.15rem;font-weight:600;margin-bottom:24px;letter-spacing:-.01em}
+.programs{padding:40px 0 100px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:12px}
+.section-head h2{font-family:var(--serif);font-size:1.6rem;font-weight:700;letter-spacing:-.02em;color:var(--text)}
+.view-toggle{display:flex;gap:4px;background:var(--cream);border-radius:var(--r-sm);padding:4px;border:1px solid var(--border)}
+.view-toggle button{
+  padding:8px 14px;border:none;background:none;border-radius:8px;
+  cursor:pointer;color:var(--text-3);font-size:.8rem;font-family:'Inter',sans-serif;font-weight:600;transition:all .2s;
+}
+.view-toggle button:hover{color:var(--text)}
+.view-toggle button.on{background:#fff;color:var(--text);box-shadow:var(--shadow-sm)}
+
 .grid{
-  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:14px;
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,340px),1fr));gap:24px;
 }
+
 .card{
-  border:1px solid var(--border);border-radius:var(--r);padding:24px;
-  transition:all .2s ease;cursor:pointer;position:relative;
+  border:1px solid var(--border);border-radius:var(--r);
+  background:#fff;overflow:hidden;transition:all .4s cubic-bezier(.4,0,.2,1);
+  cursor:pointer;position:relative;display:flex;flex-direction:column;
+  box-shadow:0 2px 8px rgba(0,0,0,.02);
 }
-.card:hover{border-color:var(--border-hover);box-shadow:0 4px 20px rgba(0,0,0,.05);transform:translateY(-2px)}
-.card-dept{font-size:.66rem;font-weight:500;text-transform:uppercase;letter-spacing:.08em;color:var(--crimson);margin-bottom:10px}
-.card h3{font-size:1rem;font-weight:600;margin-bottom:6px;letter-spacing:-.01em}
-.card p{font-size:.84rem;color:var(--text-2);line-height:1.65}
+.card:hover{
+  border-color:var(--border-hover);
+  box-shadow:var(--shadow-md);
+  transform:translateY(-4px);
+}
+
+.card-illust{
+  height:5px;position:relative;overflow:hidden;
+  background:var(--sand);
+}
+.card-illust .illust-bg{
+  position:absolute;inset:0;opacity:.6;
+  transition:opacity .4s ease;
+}
+.card:hover .card-illust .illust-bg{opacity:1}
+.card-illust svg{display:none}
+
+.card-body{padding:32px;flex:1;display:flex;flex-direction:column;position:relative}
+.card-dept{font-size:.7rem;font-weight:600;text-transform:uppercase;letter-spacing:.12em;color:var(--text-3);margin-bottom:12px;font-family:'Inter',sans-serif}
+.card h3{font-size:1.25rem;font-weight:700;margin-bottom:12px;letter-spacing:-.02em;line-height:1.25;color:var(--text)}
+.card p{font-size:.9rem;color:var(--text-2);line-height:1.7;flex:1;font-family:'Inter',sans-serif}
 .card-foot{
-  display:flex;gap:14px;margin-top:14px;padding-top:12px;border-top:1px solid var(--sand);
-  font-size:.72rem;color:var(--text-3);font-weight:500;
+  display:flex;gap:16px;margin-top:24px;padding-top:20px;border-top:1px solid var(--cream);
+  font-size:.76rem;color:var(--text-3);font-weight:500;font-family:'Inter',sans-serif;
 }
-.card-tags{display:flex;gap:5px;position:absolute;top:22px;right:22px}
-.tag{padding:3px 8px;border-radius:4px;font-size:.62rem;font-weight:500}
-.tag-m{background:rgba(155,27,48,.05);color:var(--crimson)}
-.tag-n{background:rgba(155,27,48,.05);color:var(--crimson)}
-.tag-also{background:rgba(37,99,235,.05);color:#2563eb}
-.tag-new{background:rgba(22,163,74,.05);color:#16a34a}
+.card-tags{display:flex;gap:6px;position:absolute;top:28px;right:28px;z-index:2}
+.tag{
+  padding:5px 12px;border-radius:100px;font-size:.65rem;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;font-family:'Inter',sans-serif;
+}
+.tag-m{color:var(--crimson);background:var(--crimson-light);border:1px solid rgba(138,27,45,.08)}
+.tag-n{color:var(--text);background:rgba(0,0,0,.04);border:1px solid var(--border)}
+.tag-also{color:var(--blue);background:rgba(29,78,216,.05);border:1px solid rgba(29,78,216,.1)}
+.tag-new{background:rgba(16,138,61,.06);color:var(--green);border:1px solid rgba(16,138,61,.1)}
+
+.card-detail{
+  max-height:0;overflow:hidden;transition:max-height .5s cubic-bezier(.4,0,.2,1), padding .4s ease;
+  padding:0 32px;background:var(--bg);
+}
+.card.expanded .card-detail{
+  max-height:300px;padding:24px 32px;border-top:1px solid var(--cream);
+}
+.card-detail h4{font-size:.82rem;font-weight:600;color:var(--text);margin-bottom:12px;font-family:'Inter',sans-serif}
+.detail-links{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.detail-link{
+  padding:8px 16px;border-radius:100px;border:1px solid var(--border);
+  font-size:.78rem;font-weight:500;color:var(--text-2);background:#fff;
+  transition:all .2s;display:flex;align-items:center;gap:8px;font-family:'Inter',sans-serif;
+}
+.detail-link:hover{border-color:var(--crimson);color:var(--crimson);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+.detail-link svg{width:14px;height:14px}
+.detail-related{font-size:.8rem;color:var(--text-3);font-family:'Inter',sans-serif}
+.detail-related a{color:var(--text);font-weight:500;transition:color .2s}
+.detail-related a:hover{color:var(--crimson)}
+
+.list{display:none;flex-direction:column;gap:8px}
+.list-item{
+  display:grid;grid-template-columns:1fr auto auto;align-items:center;gap:20px;
+  padding:20px 24px;border-radius:var(--r-sm);border:1px solid var(--border);
+  background:#fff;cursor:pointer;transition:all .2s;box-shadow:0 2px 6px rgba(0,0,0,.01);
+}
+.list-item:hover{background:var(--bg);border-color:var(--border-hover);box-shadow:var(--shadow-sm);transform:translateY(-1px)}
+.list-left{display:flex;align-items:center;gap:16px}
+.list-icon{
+  width:44px;height:44px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.list-icon svg{width:20px;height:20px}
+.list-name{font-size:1rem;font-weight:600;color:var(--text);font-family:var(--sans)}
+.list-dept{font-size:.75rem;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-top:2px;font-family:'Inter',sans-serif}
+.list-tags{display:flex;gap:6px}
+.list-arrow{color:var(--text-3);transition:transform .3s}
+.list-item.expanded .list-arrow{transform:rotate(180deg)}
+
+.list-detail{
+  max-height:0;overflow:hidden;transition:max-height .5s cubic-bezier(.4,0,.2,1);
+  padding:0 24px 0 84px;
+}
+.list-item.expanded+.list-detail{max-height:240px;padding:12px 24px 24px 84px}
+.list-detail p{font-size:.9rem;color:var(--text-2);line-height:1.7;margin-bottom:16px;font-family:'Inter',sans-serif}
 
 .more-btn{
-  display:block;width:fit-content;margin:36px auto 0;
-  padding:12px 32px;border-radius:var(--r);
-  border:1.5px solid var(--border);background:none;
-  font-size:.88rem;font-weight:500;color:var(--text);
-  cursor:pointer;font-family:inherit;transition:all .15s;
+  display:block;width:fit-content;margin:56px auto 0;
+  padding:14px 40px;border-radius:100px;
+  border:1px solid var(--border);background:#fff;
+  font-size:.9rem;font-weight:600;color:var(--text);
+  cursor:pointer;font-family:'Inter',sans-serif;transition:all .3s ease;
+  box-shadow:0 2px 8px rgba(0,0,0,.03);
 }
-.more-btn:hover{border-color:var(--crimson);color:var(--crimson)}
+.more-btn:hover{border-color:var(--crimson);color:var(--crimson);box-shadow:0 4px 16px rgba(138,27,45,.1);transform:translateY(-2px)}
 
-/* ── Quiz ── */
-.quiz{padding:72px 0;background:var(--cream);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
-.quiz-inner{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
-@media(max-width:768px){.quiz-inner{grid-template-columns:1fr}}
-.quiz h2{font-size:clamp(1.3rem,2.8vw,1.7rem);font-weight:600;letter-spacing:-.02em;margin-bottom:10px}
-.quiz .sub{color:var(--text-2);font-size:.92rem;line-height:1.7;margin-bottom:28px}
+.quiz{
+  padding:100px 0;
+  background:linear-gradient(135deg, #181514 0%, #2a1a1e 100%);
+  color:#fff;position:relative;overflow:hidden;
+}
+.quiz::before{
+  content:'';position:absolute;top:0;right:0;width:50%;height:100%;
+  background:radial-gradient(ellipse at right, rgba(138,27,45,.15) 0%, transparent 70%);
+  pointer-events:none;
+}
+.quiz-inner{display:grid;grid-template-columns:1.2fr 1fr;gap:80px;align-items:center;position:relative;z-index:2}
+@media(max-width:768px){.quiz-inner{grid-template-columns:1fr;gap:40px}}
+.quiz h2{font-family:var(--serif);font-size:clamp(1.8rem,4vw,2.4rem);font-weight:700;letter-spacing:-.02em;margin-bottom:16px;color:#fff}
+.quiz .sub{color:rgba(255,255,255,.7);font-size:.95rem;line-height:1.7;margin-bottom:36px;font-family:'Inter',sans-serif;max-width:480px}
 .quiz-cta{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:12px 26px;border-radius:var(--r);background:var(--crimson);
-  color:#fff;font-size:.88rem;font-weight:500;border:none;cursor:pointer;
-  font-family:inherit;transition:all .15s;
+  display:inline-flex;align-items:center;gap:10px;
+  padding:16px 36px;border-radius:100px;background:#fff;
+  color:var(--text);font-size:.95rem;font-weight:600;border:none;cursor:pointer;
+  font-family:'Inter',sans-serif;transition:all .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 8px 24px rgba(0,0,0,.2);
 }
-.quiz-cta:hover{background:var(--crimson-hover);transform:translateY(-1px)}
-.quiz-right{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.quiz-cta:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(255,255,255,.15);color:var(--crimson)}
+.quiz-right{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
 .q-pill{
-  padding:10px 20px;border-radius:100px;background:#fff;
-  border:1px solid var(--border);font-size:.84rem;font-weight:500;color:var(--text-2);
+  padding:14px 28px;border-radius:100px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.1);font-size:.9rem;font-weight:500;color:rgba(255,255,255,.6);
+  transition:all .3s ease;cursor:pointer;font-family:'Inter',sans-serif;
 }
-.q-pill.hi{background:var(--crimson);border-color:var(--crimson);color:#fff}
+.q-pill:hover{border-color:rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.1);transform:translateX(5px)}
+.q-pill.hi{background:var(--crimson);border-color:var(--crimson);color:#fff;box-shadow:0 4px 16px var(--crimson-glow)}
 
-/* ── Outcomes ── */
-.outcomes{padding:72px 0}
-.outcomes h2{font-size:1.15rem;font-weight:600;margin-bottom:6px}
-.outcomes .sub{color:var(--text-2);font-size:.9rem;margin-bottom:32px}
-.o-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.outcomes{padding:100px 0;background:var(--bg)}
+.outcomes h2{font-family:var(--serif);font-size:clamp(1.6rem,3vw,2.2rem);font-weight:700;margin-bottom:8px;letter-spacing:-.02em}
+.outcomes .sub{color:var(--text-2);font-size:1.05rem;margin-bottom:48px;font-family:'Inter',sans-serif}
+.o-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:24px}
 @media(max-width:768px){.o-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:420px){.o-grid{grid-template-columns:1fr}}
 .o-card{
-  text-align:center;padding:32px 20px;
-  background:var(--cream);border:1px solid var(--border);border-radius:var(--r);
+  text-align:center;padding:48px 24px;
+  background:#fff;border:1px solid var(--border);border-radius:var(--r);
+  transition:all .3s ease;box-shadow:0 2px 12px rgba(0,0,0,.02);
 }
-.o-card .val{font-size:2.2rem;font-weight:600;color:var(--crimson);letter-spacing:-.03em;margin-bottom:4px}
-.o-card .lbl{font-size:.76rem;color:var(--text-2);font-weight:400;line-height:1.4}
+.o-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-md);border-color:var(--border-hover)}
+.o-card .val{font-family:var(--serif);font-size:3.2rem;font-weight:700;color:var(--crimson);letter-spacing:-.03em;margin-bottom:12px;line-height:1}
+.o-card .lbl{font-size:.85rem;color:var(--text-2);font-weight:500;line-height:1.6;font-family:'Inter',sans-serif}
 
-/* ── Pre-Pro ── */
-.prepro{padding:56px 0;border-top:1px solid var(--border)}
-.prepro h2{font-size:1.15rem;font-weight:600;margin-bottom:6px}
-.prepro .sub{color:var(--text-2);font-size:.9rem;margin-bottom:24px}
-.pp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr));gap:8px}
+.prepro{padding:80px 0;border-top:1px solid var(--border);background:#fff}
+.prepro h2{font-family:var(--serif);font-size:1.8rem;font-weight:700;margin-bottom:8px;letter-spacing:-.02em}
+.prepro .sub{color:var(--text-2);font-size:1.05rem;margin-bottom:40px;font-family:'Inter',sans-serif}
+.pp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,190px),1fr));gap:16px}
 .pp-item{
-  padding:12px 16px;border:1px solid var(--border);border-radius:var(--r-sm);
-  font-size:.84rem;font-weight:500;color:var(--text);
-  transition:all .15s;cursor:pointer;
+  padding:18px 20px;border:1px solid var(--border);border-radius:var(--r-sm);
+  font-size:.9rem;font-weight:600;color:var(--text);font-family:'Inter',sans-serif;
+  transition:all .2s ease;cursor:pointer;display:flex;align-items:center;gap:14px;
+  background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.02);
 }
-.pp-item:hover{border-color:var(--border-hover);background:var(--cream)}
+.pp-item:hover{
+  border-color:var(--crimson);color:var(--crimson);
+  background:var(--bg);transform:translateY(-2px);box-shadow:var(--shadow-sm);
+}
+.pp-icon{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pp-icon svg{width:16px;height:16px}
 
-/* ── Accred ── */
-.accred{padding:28px 0;border-top:1px solid var(--border);background:var(--cream)}
+.accred{padding:40px 0;border-top:1px solid var(--border);background:var(--cream)}
 .accred-row{
-  display:flex;align-items:center;justify-content:center;gap:24px;flex-wrap:wrap;
-  font-size:.76rem;color:var(--text-3);font-weight:500;
+  display:flex;align-items:center;justify-content:center;gap:36px;flex-wrap:wrap;
+  font-size:.8rem;color:var(--text-3);font-weight:500;font-family:'Inter',sans-serif;
 }
 .accred-tag{
-  padding:4px 10px;border-radius:4px;background:var(--sand);
-  font-size:.68rem;font-weight:600;color:var(--text-2);
+  padding:6px 14px;border-radius:8px;background:#fff;border:1px solid var(--border);
+  font-size:.7rem;font-weight:700;color:var(--text-2);letter-spacing:.05em;margin-right:8px;
 }
 
-/* ── Footer ── */
-footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
-.f-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:40px}
-@media(max-width:768px){.f-grid{grid-template-columns:1fr}}
-.f-brand{color:#fff;font-weight:600;font-size:1rem;margin-bottom:10px;display:flex;align-items:center;gap:10px}
-.f-desc{font-size:.82rem;line-height:1.7;margin-bottom:14px}
-.f-contact{font-size:.8rem;line-height:1.8}
-.f-col h4{color:rgba(255,255,255,.8);font-size:.72rem;font-weight:500;text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
-.f-col a{display:block;color:rgba(255,255,255,.4);font-size:.82rem;padding:3px 0;transition:color .15s}
-.f-col a:hover{color:#fff}
+footer{background:#111;color:rgba(255,255,255,.5);padding:72px 0 40px;font-family:'Inter',sans-serif}
+.f-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:64px}
+@media(max-width:768px){.f-grid{grid-template-columns:1fr;gap:40px}}
+.f-brand{color:#fff;font-family:var(--serif);font-weight:700;font-size:1.2rem;margin-bottom:16px;display:flex;align-items:center;gap:12px;letter-spacing:-.01em}
+.f-desc{font-size:.9rem;line-height:1.7;margin-bottom:20px;max-width:320px}
+.f-contact{font-size:.85rem;line-height:1.8}
+.f-col h4{color:#fff;font-size:.75rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;margin-bottom:20px}
+.f-col a{display:block;color:rgba(255,255,255,.6);font-size:.9rem;padding:6px 0;transition:all .2s;font-weight:400}
+.f-col a:hover{color:#fff;transform:translateX(2px)}
 .f-bottom{
-  margin-top:36px;padding-top:20px;border-top:1px solid rgba(255,255,255,.06);
-  display:flex;justify-content:space-between;font-size:.72rem;flex-wrap:wrap;gap:10px;
+  margin-top:56px;padding-top:28px;border-top:1px solid rgba(255,255,255,.1);
+  display:flex;justify-content:space-between;font-size:.8rem;flex-wrap:wrap;gap:12px;
 }
 
-/* ── Stamats ── */
 .stamats{
-  position:fixed;bottom:20px;left:20px;z-index:90;
-  display:flex;align-items:center;gap:8px;
-  padding:7px 14px 7px 9px;background:rgba(28,25,23,.88);
-  color:rgba(255,255,255,.6);border-radius:100px;font-size:.68rem;font-weight:500;
-  box-shadow:0 4px 12px rgba(0,0,0,.12);
+  position:fixed;bottom:24px;left:24px;z-index:90;
+  display:flex;align-items:center;gap:10px;
+  padding:8px 16px 8px 10px;background:rgba(17,17,17,.95);
+  color:rgba(255,255,255,.6);border-radius:100px;font-size:.7rem;font-weight:500;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.1);font-family:'Inter',sans-serif;
 }
-.stamats img{width:18px;height:18px;border-radius:4px}
+.stamats img{width:20px;height:20px;border-radius:6px}
 .stamats strong{color:#fff;font-weight:600}
 
-/* ── Fade in ── */
-.fi{opacity:0;transform:translateY(16px);transition:opacity .5s ease,transform .5s ease}
-.fi.v{opacity:1;transform:translateY(0)}
+.no-results{text-align:center;padding:80px 20px;color:var(--text-3);display:none}
+.no-results h3{font-family:var(--serif);font-size:1.4rem;font-weight:700;color:var(--text);margin-bottom:10px}
+.no-results p{font-size:.95rem;font-family:'Inter',sans-serif}
+
 </style>
 </head>
 <body>
 
-<div class="mock-bar"><strong>REDESIGN MOCKUP</strong> &mdash; Proposed redesign of coe.edu/academics/majors-areas-study &nbsp;|&nbsp; Stamats, March 2026</div>
+<div class="mock-bar"><strong>REDESIGN MOCKUP v2</strong> &mdash; Proposed redesign of coe.edu/academics/majors-areas-study &nbsp;|&nbsp; Stamats, March 2026</div>
 
 <header>
   <div class="header-inner">
-    <a href="#" class="logo"><div class="logo-mark">C</div>Coe College</a>
+    <a href="#" class="logo"><img src="coe-logo.png" alt="Coe College" style="height:32px;width:auto"></a>
     <nav class="nav" aria-label="Main navigation">
       <a href="#">Admission</a>
       <a href="#" class="on">Academics</a>
@@ -259,7 +410,10 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
       <a href="#">Why Coe</a>
       <a href="#">Athletics</a>
     </nav>
-    <a href="#" class="apply-btn">Apply Now</a>
+    <div class="header-actions">
+      <a href="#" class="info-btn">Request Info</a>
+      <a href="#" class="apply-btn">Apply Now</a>
+    </div>
   </div>
 </header>
 
@@ -279,87 +433,327 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
 
 <section class="hero">
   <div class="wrap">
-    <nav class="crumb fi" aria-label="Breadcrumb">
-      <a href="#">Coe</a> &nbsp;/&nbsp; <a href="#">Academics</a> &nbsp;/&nbsp; Majors & Areas of Study
-    </nav>
-    <h1 class="fi">Find your path at Coe</h1>
-    <p class="sub fi">Explore 60+ majors, minors, and pre-professional programs. Small classes, hands-on research, and faculty who know your name.</p>
+    <div class="hero-panel fi">
+      <nav class="crumb" aria-label="Breadcrumb">
+        <a href="#">Coe</a> &nbsp;/&nbsp; <a href="#">Academics</a> &nbsp;/&nbsp; Majors & Areas of Study
+      </nav>
+      <h1>Find your path at Coe</h1>
+      <p class="sub">Explore 60+ majors, minors, and pre-professional programs. Small classes, hands-on research, and faculty who know your name.</p>
 
-    <div class="search-wrap fi">
-      <label for="ps" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search programs</label>
-      <div class="search">
-        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input id="ps" type="text" placeholder="Search by major, interest, or career..." autocomplete="off">
-        <button>Search</button>
-      </div>
-      <div class="pills">
-        <button class="pill on">All</button>
-        <button class="pill">Majors</button>
-        <button class="pill">Minors</button>
-        <button class="pill">Pre-Professional</button>
-        <button class="pill">STEM</button>
-        <button class="pill">Business</button>
-        <button class="pill">Arts & Humanities</button>
+      <div class="search-wrap">
+        <label for="ps" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Search programs</label>
+        <div class="search">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          <input id="ps" type="text" placeholder="Search by major, interest, or career..." autocomplete="off">
+          <button type="button" onclick="filterPrograms()">Search</button>
+        </div>
+        <div class="pills" role="tablist" aria-label="Filter by category">
+          <button class="pill on" data-filter="all">All</button>
+          <button class="pill" data-filter="major">Majors</button>
+          <button class="pill" data-filter="minor">Minors</button>
+          <button class="pill" data-filter="prepro">Pre-Professional</button>
+          <button class="pill" data-filter="stem">STEM</button>
+          <button class="pill" data-filter="business">Business</button>
+          <button class="pill" data-filter="arts">Arts & Humanities</button>
+        </div>
+        <div class="results-count" id="results-count"></div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="programs">
+<section class="programs" id="programs-section">
   <div class="wrap">
-    <h2 class="fi">60 programs to explore</h2>
-    <div class="grid">
+    <div class="section-head fi">
+      <h2 id="programs-heading">60 programs to explore</h2>
+      <div class="view-toggle">
+        <button class="on" data-view="grid" title="Grid view">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </button>
+        <button data-view="list" title="List view">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+        </button>
+      </div>
+    </div>
 
-      <article class="card fi">
-        <div class="card-dept">Biology</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span></div>
-        <h3>Biology</h3>
-        <p>Study living organisms from molecules to ecosystems. Hands-on lab experience from freshman year prepares you for medical school, research, or graduate study.</p>
-        <div class="card-foot"><span>128 credits</span><span>12:1 ratio</span><span>Research from Year 1</span></div>
+    <div class="grid" id="card-grid">
+
+      <!-- Biology -->
+      <article class="card fi" data-types="major" data-cats="stem" data-name="biology" data-dept="biology" data-keywords="organisms lab medical research ecosystem molecular pre-med">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 30% 50%,#78a67e,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <path d="M24 6c-2 8-8 12-8 20a8 8 0 0016 0c0-8-6-12-8-20z" stroke="#8faa8f" stroke-width="1.5" fill="rgba(143,170,143,.06)"/>
+            <circle cx="24" cy="28" r="3" stroke="#8faa8f" stroke-width="1.5" fill="rgba(143,170,143,.08)"/>
+            <path d="M24 6v16" stroke="#8faa8f" stroke-width="1.5" stroke-dasharray="2 2"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Biology</div>
+          <h3>Biology</h3>
+          <p>Study living organisms from molecules to ecosystems. Hands-on lab experience from freshman year prepares you for medical school, research, or graduate study.</p>
+          <div class="card-foot"><span>128 credits</span><span>12:1 ratio</span><span>Research from Year 1</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Biochemistry</a>, <a href="#">Environmental Science</a>, <a href="#">Pre-Med</a></div>
+        </div>
       </article>
 
-      <article class="card fi">
-        <div class="card-dept">Math & Computer Science</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-also">Minor</span></div>
-        <h3>Computer Science</h3>
-        <p>Build software, analyze data, and solve complex problems. Project-based courses and industry partnerships give you real-world experience before graduation.</p>
-        <div class="card-foot"><span>124 credits</span><span>10:1 ratio</span><span>100% placement</span></div>
+      <!-- Computer Science -->
+      <article class="card fi" data-types="major minor" data-cats="stem" data-name="computer science" data-dept="math & computer science" data-keywords="software data code programming AI machine learning technology engineering">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 70% 40%,#8098b0,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <rect x="8" y="12" width="32" height="22" rx="3" stroke="#8a9bb0" stroke-width="1.5" fill="rgba(138,155,176,.04)"/>
+            <path d="M8 34h32" stroke="#8a9bb0" stroke-width="1.5"/>
+            <path d="M18 20l-4 4 4 4" stroke="#8a9bb0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M30 20l4 4-4 4" stroke="#8a9bb0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M26 18l-4 12" stroke="#8a9bb0" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-also">Minor</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Math & Computer Science</div>
+          <h3>Computer Science</h3>
+          <p>Build software, analyze data, and solve complex problems. Project-based courses and industry partnerships give you real-world experience before graduation.</p>
+          <div class="card-foot"><span>124 credits</span><span>10:1 ratio</span><span>100% placement</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Data Science</a>, <a href="#">Mathematics</a>, <a href="#">Physics</a></div>
+        </div>
       </article>
 
-      <article class="card fi">
-        <div class="card-dept">Interdisciplinary</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-new">New</span></div>
-        <h3>Data Science</h3>
-        <p>Combine statistics, computer science, and domain expertise. Learn to extract insights from data and make evidence-based decisions across industries.</p>
-        <div class="card-foot"><span>120 credits</span><span>High-demand field</span></div>
+      <!-- Data Science -->
+      <article class="card fi" data-types="major" data-cats="stem" data-name="data science" data-dept="interdisciplinary" data-keywords="statistics analytics machine learning AI visualization python">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 50% 60%,#9a8aad,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <rect x="10" y="28" width="6" height="10" rx="1" stroke="#9a8faa" stroke-width="1.5" fill="rgba(154,143,170,.05)"/>
+            <rect x="21" y="20" width="6" height="18" rx="1" stroke="#9a8faa" stroke-width="1.5" fill="rgba(154,143,170,.06)"/>
+            <rect x="32" y="14" width="6" height="24" rx="1" stroke="#9a8faa" stroke-width="1.5" fill="rgba(154,143,170,.07)"/>
+            <path d="M10 24c6-4 12-8 18-14" stroke="#9a8faa" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="38" cy="10" r="2.5" stroke="#9a8faa" stroke-width="1.5" fill="rgba(154,143,170,.08)"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-new">New</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Interdisciplinary</div>
+          <h3>Data Science</h3>
+          <p>Combine statistics, computer science, and domain expertise. Learn to extract insights from data and make evidence-based decisions across industries.</p>
+          <div class="card-foot"><span>120 credits</span><span>High-demand field</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Computer Science</a>, <a href="#">Mathematics</a>, <a href="#">Business Analytics</a></div>
+        </div>
       </article>
 
-      <article class="card fi">
-        <div class="card-dept">Nursing</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span></div>
-        <h3>Nursing</h3>
-        <p>CCNE-accredited program with clinical placements starting sophomore year. Our graduates achieve a 98% NCLEX pass rate at regional healthcare partners.</p>
-        <div class="card-foot"><span>132 credits</span><span>CCNE Accredited</span><span>98% NCLEX</span></div>
+      <!-- Nursing -->
+      <article class="card fi" data-types="major" data-cats="stem" data-name="nursing" data-dept="nursing" data-keywords="healthcare clinical NCLEX patient care hospital RN BSN medical">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 40% 50%,#b09098,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <path d="M24 8v32M16 16h16" stroke="#aa8f96" stroke-width="2" stroke-linecap="round"/>
+            <rect x="14" y="14" width="20" height="20" rx="10" stroke="#aa8f96" stroke-width="1.5" fill="rgba(170,143,150,.04)"/>
+            <circle cx="24" cy="24" r="14" stroke="#aa8f96" stroke-width="1" stroke-dasharray="3 3" opacity=".2"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Nursing</div>
+          <h3>Nursing</h3>
+          <p>CCNE-accredited program with clinical placements starting sophomore year. Our graduates achieve a 98% NCLEX pass rate at regional healthcare partners.</p>
+          <div class="card-foot"><span>132 credits</span><span>CCNE Accredited</span><span>98% NCLEX</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Pre-Med</a>, <a href="#">Pre-Physician Assistant</a>, <a href="#">Biology</a></div>
+        </div>
       </article>
 
-      <article class="card fi">
-        <div class="card-dept">Business & Economics</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span></div>
-        <h3>Business Administration</h3>
-        <p>Develop leadership and strategic thinking across 8 specializations including Finance, Marketing, Management, and Aviation Management.</p>
-        <div class="card-foot"><span>124 credits</span><span>8 specializations</span></div>
+      <!-- Business Administration -->
+      <article class="card fi" data-types="major" data-cats="business" data-name="business administration" data-dept="business & economics" data-keywords="finance marketing management leadership MBA accounting aviation strategy">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 60% 40%,#b0a08a,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <path d="M8 38h32" stroke="#a89a88" stroke-width="1.5" stroke-linecap="round"/>
+            <path d="M14 38V22l10-10 10 10v16" stroke="#a89a88" stroke-width="1.5" fill="rgba(168,154,136,.04)"/>
+            <path d="M20 38v-8h8v8" stroke="#a89a88" stroke-width="1.5"/>
+            <rect x="18" y="20" width="4" height="4" rx=".5" stroke="#a89a88" stroke-width="1" fill="rgba(168,154,136,.06)"/>
+            <rect x="26" y="20" width="4" height="4" rx=".5" stroke="#a89a88" stroke-width="1" fill="rgba(168,154,136,.06)"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Business & Economics</div>
+          <h3>Business Administration</h3>
+          <p>Develop leadership and strategic thinking across 8 specializations including Finance, Marketing, Management, and Aviation Management.</p>
+          <div class="card-foot"><span>124 credits</span><span>8 specializations</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Accounting</a>, <a href="#">Economics</a>, <a href="#">Marketing</a></div>
+        </div>
       </article>
 
-      <article class="card fi">
-        <div class="card-dept">Psychology</div>
-        <div class="card-tags"><span class="tag tag-m">Major</span></div>
-        <h3>Psychology</h3>
-        <p>Understand human behavior through original research and clinical experience. Prepare for graduate programs or careers in counseling, HR, and beyond.</p>
-        <div class="card-foot"><span>120 credits</span><span>Faculty-led research</span></div>
+      <!-- Psychology -->
+      <article class="card fi" data-types="major" data-cats="stem" data-name="psychology" data-dept="psychology" data-keywords="behavior research counseling therapy mental health cognitive neuroscience social">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 50% 50%,#8aa8a4,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <circle cx="24" cy="20" r="10" stroke="#8ea8a4" stroke-width="1.5" fill="rgba(142,168,164,.04)"/>
+            <path d="M18 28c-4 2-6 6-6 10h24c0-4-2-8-6-10" stroke="#8ea8a4" stroke-width="1.5" fill="rgba(142,168,164,.03)"/>
+            <path d="M20 18c0-2 2-4 4-4s4 2 4 4" stroke="#8ea8a4" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="21" cy="20" r="1" fill="#8ea8a4" opacity=".5"/>
+            <circle cx="27" cy="20" r="1" fill="#8ea8a4" opacity=".5"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Psychology</div>
+          <h3>Psychology</h3>
+          <p>Understand human behavior through original research and clinical experience. Prepare for graduate programs or careers in counseling, HR, and beyond.</p>
+          <div class="card-foot"><span>120 credits</span><span>Faculty-led research</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Sociology</a>, <a href="#">Neuroscience</a>, <a href="#">Social Work</a></div>
+        </div>
+      </article>
+
+      <!-- English / Creative Writing -->
+      <article class="card fi" data-types="major minor" data-cats="arts" data-name="english creative writing" data-dept="english" data-keywords="literature writing poetry fiction publishing journalism editing">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 35% 55%,#a89888,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <path d="M12 8h20c2 0 4 2 4 4v24c0 2-2 4-4 4H12V8z" stroke="#a89a8a" stroke-width="1.5" fill="rgba(168,154,138,.04)"/>
+            <path d="M12 8c-2 0-4 2-4 4v24c0 2 2 4 4 4" stroke="#a89a8a" stroke-width="1.5"/>
+            <path d="M18 16h12M18 22h12M18 28h8" stroke="#a89a8a" stroke-width="1.5" stroke-linecap="round" opacity=".35"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-also">Minor</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">English</div>
+          <h3>English & Creative Writing</h3>
+          <p>Develop analytical thinking and compelling writing skills. Study literature, craft original works, and build a portfolio through workshops and literary publications.</p>
+          <div class="card-foot"><span>120 credits</span><span>Literary magazine</span><span>Small workshops</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Communication</a>, <a href="#">Theatre</a>, <a href="#">Film Studies</a></div>
+        </div>
+      </article>
+
+      <!-- Chemistry -->
+      <article class="card fi" data-types="major" data-cats="stem" data-name="chemistry" data-dept="chemistry" data-keywords="lab molecules organic analytical research pharmaceutical ACS certified">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 60% 45%,#9a90a8,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <path d="M20 8v14l-8 14a2 2 0 001.7 3h20.6a2 2 0 001.7-3l-8-14V8" stroke="#9a90a8" stroke-width="1.5" fill="rgba(154,144,168,.03)"/>
+            <path d="M18 8h12" stroke="#9a90a8" stroke-width="1.5" stroke-linecap="round"/>
+            <ellipse cx="24" cy="32" rx="8" ry="3" fill="rgba(154,144,168,.05)" stroke="#9a90a8" stroke-width="1"/>
+            <circle cx="22" cy="30" r="1.5" fill="rgba(154,144,168,.1)"/>
+            <circle cx="27" cy="31" r="1" fill="rgba(154,144,168,.12)"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Chemistry</div>
+          <h3>Chemistry</h3>
+          <p>ACS-certified program with access to modern instrumentation. Research alongside faculty from day one in our recently renovated Peterson Science Hall.</p>
+          <div class="card-foot"><span>128 credits</span><span>ACS Certified</span><span>Renovated labs</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Biochemistry</a>, <a href="#">Biology</a>, <a href="#">Pre-Pharmacy</a></div>
+        </div>
+      </article>
+
+      <!-- Music -->
+      <article class="card fi" data-types="major minor" data-cats="arts" data-name="music" data-dept="music" data-keywords="performance composition education choir band orchestra instrument vocal theory">
+        <div class="card-illust">
+          <div class="illust-bg" style="background:radial-gradient(circle at 45% 50%,#a8909a,transparent 70%)"></div>
+          <svg width="44" height="44" fill="none" viewBox="0 0 48 48">
+            <circle cx="16" cy="34" r="5" stroke="#a8909a" stroke-width="1.5" fill="rgba(168,144,154,.04)"/>
+            <circle cx="34" cy="30" r="5" stroke="#a8909a" stroke-width="1.5" fill="rgba(168,144,154,.04)"/>
+            <path d="M21 34V12l18-4v22" stroke="#a8909a" stroke-width="1.5"/>
+            <path d="M21 12l18-4" stroke="#a8909a" stroke-width="1.5"/>
+          </svg>
+          <div class="card-tags"><span class="tag tag-m">Major</span><span class="tag tag-also">Minor</span></div>
+        </div>
+        <div class="card-body">
+          <div class="card-dept">Music</div>
+          <h3>Music</h3>
+          <p>NASM-accredited program offering performance, composition, and education tracks. Join ensembles, perform at Marquis Hall, and study with nationally recognized faculty.</p>
+          <div class="card-foot"><span>130 credits</span><span>NASM Accredited</span><span>20+ ensembles</span></div>
+        </div>
+        <div class="card-detail">
+          <h4>Quick links</h4>
+          <div class="detail-links">
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>Requirements</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Faculty</a>
+            <a href="#" class="detail-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Advising</a>
+          </div>
+          <div class="detail-related">Related: <a href="#">Theatre</a>, <a href="#">Art</a>, <a href="#">Communication</a></div>
+        </div>
       </article>
 
     </div>
-    <button class="more-btn fi">View all 60 programs</button>
+
+    <!-- List view -->
+    <div class="list" id="list-view">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="no-results" id="no-results">
+      <h3>No programs match your search</h3>
+      <p>Try different keywords or clear your filters.</p>
+    </div>
+
+    <button class="more-btn fi" id="more-btn">View all 60 programs</button>
   </div>
 </section>
 
@@ -369,7 +763,10 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
       <div class="fi">
         <h2>Not sure what to study?</h2>
         <p class="sub">Take our 3-minute quiz to discover majors that match your interests, strengths, and career goals.</p>
-        <button class="quiz-cta">Find Your Major</button>
+        <button class="quiz-cta">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+          Find Your Major
+        </button>
       </div>
       <div class="quiz-right fi" aria-hidden="true">
         <div class="q-pill">I love solving problems</div>
@@ -400,20 +797,54 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
     <h2 class="fi">Pre-Professional Programs</h2>
     <p class="sub fi">Structured pathways to graduate and professional schools with dedicated advisors.</p>
     <div class="pp-grid">
-      <div class="pp-item fi">Pre-Med</div>
-      <div class="pp-item fi">Pre-Law</div>
-      <div class="pp-item fi">Pre-Dental</div>
-      <div class="pp-item fi">Pre-Pharmacy</div>
-      <div class="pp-item fi">Pre-Engineering</div>
-      <div class="pp-item fi">Pre-Physical Therapy</div>
-      <div class="pp-item fi">Pre-Veterinary</div>
-      <div class="pp-item fi">Pre-Actuarial Science</div>
-      <div class="pp-item fi">Pre-Architecture</div>
-      <div class="pp-item fi">Pre-Athletic Training</div>
-      <div class="pp-item fi">Pre-Physician Assistant</div>
-      <div class="pp-item fi">Pre-Public Health</div>
-      <div class="pp-item fi">Pre-Music Therapy</div>
-      <div class="pp-item fi">Pre-Podiatry</div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-med">
+        <div class="pp-icon" style="background:rgba(155,27,48,.06)"><svg width="14" height="14" fill="none" stroke="#9b1b30" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></div>
+        Pre-Med
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="arts" data-name="pre-law">
+        <div class="pp-icon" style="background:rgba(37,99,235,.06)"><svg width="14" height="14" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M12 3l9 7H3z"/></svg></div>
+        Pre-Law
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-dental">
+        <div class="pp-icon" style="background:rgba(13,148,136,.06)"><svg width="14" height="14" fill="none" stroke="#0d9488" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></div>
+        Pre-Dental
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-pharmacy">
+        <div class="pp-icon" style="background:rgba(124,58,237,.06)"><svg width="14" height="14" fill="none" stroke="#7c3aed" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></div>
+        Pre-Pharmacy
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-engineering">
+        <div class="pp-icon" style="background:rgba(217,119,6,.06)"><svg width="14" height="14" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg></div>
+        Pre-Engineering
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-physical therapy">
+        <div class="pp-icon" style="background:rgba(22,163,74,.06)"><svg width="14" height="14" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20a6 6 0 00-12 0"/><circle cx="12" cy="10" r="3"/></svg></div>
+        Pre-Physical Therapy
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-veterinary">
+        <div class="pp-icon" style="background:rgba(155,27,48,.06)"><svg width="14" height="14" fill="none" stroke="#9b1b30" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></div>
+        Pre-Veterinary
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem business" data-name="pre-actuarial science">
+        <div class="pp-icon" style="background:rgba(37,99,235,.06)"><svg width="14" height="14" fill="none" stroke="#2563eb" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+        Pre-Actuarial Science
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="arts" data-name="pre-architecture">
+        <div class="pp-icon" style="background:rgba(217,119,6,.06)"><svg width="14" height="14" fill="none" stroke="#d97706" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21h18M9 21V9l3-3 3 3v12"/></svg></div>
+        Pre-Architecture
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-athletic training">
+        <div class="pp-icon" style="background:rgba(13,148,136,.06)"><svg width="14" height="14" fill="none" stroke="#0d9488" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20a6 6 0 00-12 0"/><circle cx="12" cy="10" r="3"/></svg></div>
+        Pre-Athletic Training
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-physician assistant">
+        <div class="pp-icon" style="background:rgba(124,58,237,.06)"><svg width="14" height="14" fill="none" stroke="#7c3aed" stroke-width="2" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></svg></div>
+        Pre-Physician Assistant
+      </div>
+      <div class="pp-item fi" data-types="prepro" data-cats="stem" data-name="pre-public health">
+        <div class="pp-icon" style="background:rgba(22,163,74,.06)"><svg width="14" height="14" fill="none" stroke="#16a34a" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        Pre-Public Health
+      </div>
     </div>
   </div>
 </section>
@@ -433,7 +864,7 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
   <div class="wrap">
     <div class="f-grid">
       <div>
-        <div class="f-brand"><div class="logo-mark" style="width:28px;height:28px;font-size:.8rem;border-radius:6px">C</div>Coe College</div>
+        <div class="f-brand"><img src="coe-logo.png" alt="Coe College" style="height:28px;width:auto"></div>
         <div class="f-desc">A selective, private, nationally recognized liberal arts college since 1851.</div>
         <div class="f-contact">1220 First Avenue NE, Cedar Rapids, IA 52402<br>877.Call.Coe &nbsp;|&nbsp; admission@coe.edu</div>
       </div>
@@ -453,9 +884,205 @@ footer{background:var(--text);color:rgba(255,255,255,.5);padding:48px 0}
 <div class="stamats"><img src="screenshots/stamats-logo.png" alt="Stamats">Mockup by <strong>Stamats</strong></div>
 
 <script>
-const o=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('v');o.unobserve(x.target)}})},{threshold:.1});
-document.querySelectorAll('.fi').forEach(el=>o.observe(el));
-document.querySelectorAll('.pill').forEach(p=>{p.addEventListener('click',()=>{document.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));p.classList.add('on')})});
+// ── Data ──
+const cards = document.querySelectorAll('.card');
+const searchInput = document.getElementById('ps');
+const resultsCount = document.getElementById('results-count');
+const noResults = document.getElementById('no-results');
+const grid = document.getElementById('card-grid');
+const heading = document.getElementById('programs-heading');
+const moreBtn = document.getElementById('more-btn');
+
+
+// ── GSAP Aesthetics ──
+gsap.registerPlugin(ScrollTrigger);
+
+gsap.fromTo('.hero-panel', { opacity: 0, y: 30 }, { opacity: 1, y: 0, duration: 1.2, ease: 'power3.out' });
+
+gsap.utils.toArray('.card').forEach(card => {
+  gsap.fromTo(card, { opacity: 0, y: 40 }, { 
+    opacity: 1, y: 0, duration: 0.8, ease: 'power3.out', 
+    scrollTrigger: { trigger: card, start: 'top 85%' }
+  });
+});
+
+gsap.utils.toArray('.o-card').forEach((card, i) => {
+  gsap.fromTo(card, { opacity: 0, y: 30 }, { 
+    opacity: 1, y: 0, duration: 0.8, delay: i * 0.1, ease: 'power2.out',
+    scrollTrigger: { trigger: '.outcomes', start: 'top 80%' }
+  });
+});
+
+gsap.utils.toArray('.pp-item').forEach((item, i) => {
+  gsap.fromTo(item, { opacity: 0, y: 20 }, { 
+    opacity: 1, y: 0, duration: 0.5, delay: (i % 4) * 0.05, ease: 'power2.out',
+    scrollTrigger: { trigger: item, start: 'top 85%' }
+  });
+});
+
+// ── Fade in observer ──
+/*
+const obs = new IntersectionObserver(e => {
+  e.forEach(x => { if (x.isIntersecting) { x.target.classList.add('v'); obs.unobserve(x.target); } });
+}, { threshold: .1 });
+document.querySelectorAll('.fi').forEach(el => obs.observe(el));
+*/
+
+// ── Pill filters ──
+let activeFilter = 'all';
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.pill').forEach(x => x.classList.remove('on'));
+    p.classList.add('on');
+    activeFilter = p.dataset.filter;
+    filterPrograms();
+  });
+});
+
+// ── Search + filter ──
+searchInput.addEventListener('input', filterPrograms);
+
+function filterPrograms() {
+  const q = searchInput.value.toLowerCase().trim();
+  let visible = 0;
+
+  cards.forEach(card => {
+    const name = card.dataset.name || '';
+    const dept = card.dataset.dept || '';
+    const keywords = card.dataset.keywords || '';
+    const types = card.dataset.types || '';
+    const cats = card.dataset.cats || '';
+    const text = `${name} ${dept} ${keywords}`.toLowerCase();
+
+    let matchFilter = activeFilter === 'all';
+    if (!matchFilter) {
+      if (activeFilter === 'major' || activeFilter === 'minor' || activeFilter === 'prepro') {
+        matchFilter = types.includes(activeFilter);
+      } else {
+        matchFilter = cats.includes(activeFilter);
+      }
+    }
+
+    const matchSearch = !q || text.includes(q);
+
+    if (matchFilter && matchSearch) {
+      card.style.display = '';
+      visible++;
+    } else {
+      card.style.display = 'none';
+    }
+  });
+
+  // Also filter pre-pro items
+  document.querySelectorAll('.pp-item').forEach(item => {
+    const name = item.dataset.name || '';
+    const types = item.dataset.types || '';
+    const cats = item.dataset.cats || '';
+
+    let matchFilter = activeFilter === 'all' || activeFilter === 'prepro';
+    if (!matchFilter) {
+      matchFilter = cats.includes(activeFilter);
+    }
+    const matchSearch = !q || name.includes(q);
+
+    if (activeFilter === 'prepro' || (activeFilter === 'all' && !q)) {
+      item.style.display = '';
+    } else if (matchFilter && matchSearch) {
+      item.style.display = '';
+    } else if (q && name.includes(q)) {
+      item.style.display = '';
+    } else {
+      item.style.display = 'none';
+    }
+  });
+
+  if (q || activeFilter !== 'all') {
+    resultsCount.textContent = `Showing ${visible} program${visible !== 1 ? 's' : ''}`;
+    heading.textContent = visible ? `${visible} program${visible !== 1 ? 's' : ''} found` : '60 programs to explore';
+  } else {
+    resultsCount.textContent = '';
+    heading.textContent = '60 programs to explore';
+  }
+
+  noResults.style.display = visible === 0 ? 'block' : 'none';
+  grid.style.display = visible === 0 ? 'none' : '';
+}
+
+// ── Card expand/collapse (Michigan-style inline detail) ──
+cards.forEach(card => {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.detail-link')) return; // let links work
+    const wasExpanded = card.classList.contains('expanded');
+    cards.forEach(c => c.classList.remove('expanded'));
+    if (!wasExpanded) card.classList.add('expanded');
+  });
+});
+
+// ── View toggle (grid / list) ──
+const viewBtns = document.querySelectorAll('.view-toggle button');
+const listView = document.getElementById('list-view');
+
+viewBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    viewBtns.forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    const mode = btn.dataset.view;
+    if (mode === 'list') {
+      grid.style.display = 'none';
+      listView.style.display = 'flex';
+      buildListView();
+    } else {
+      grid.style.display = '';
+      listView.style.display = 'none';
+    }
+  });
+});
+
+function buildListView() {
+  if (listView.children.length > 0) return;
+  cards.forEach(card => {
+    const name = card.querySelector('h3').textContent;
+    const dept = card.querySelector('.card-dept').textContent;
+    const desc = card.querySelector('p').textContent;
+    const color = card.querySelector('.card-illust').style.background;
+    const tags = card.querySelector('.card-tags').innerHTML;
+
+    const item = document.createElement('div');
+    item.className = 'list-item';
+    item.innerHTML = `
+      <div class="list-left">
+        <div class="list-icon" style="${color};border-radius:8px">
+          ${card.querySelector('.card-illust svg').outerHTML.replace(/width="48"/g,'width="18"').replace(/height="48"/g,'height="18"')}
+        </div>
+        <div><div class="list-name">${name}</div><div class="list-dept">${dept}</div></div>
+      </div>
+      <div class="list-tags">${tags}</div>
+      <div class="list-arrow"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></div>
+    `;
+
+    const detail = document.createElement('div');
+    detail.className = 'list-detail';
+    detail.innerHTML = `<p>${desc}</p>${card.querySelector('.card-detail').innerHTML}`;
+
+    item.addEventListener('click', (e) => {
+      if (e.target.closest('.detail-link')) return;
+      const wasOpen = item.classList.contains('expanded');
+      listView.querySelectorAll('.list-item').forEach(i => i.classList.remove('expanded'));
+      if (!wasOpen) item.classList.add('expanded');
+    });
+
+    listView.appendChild(item);
+    listView.appendChild(detail);
+  });
+}
+
+// ── Quiz pill interaction ──
+document.querySelectorAll('.q-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    document.querySelectorAll('.q-pill').forEach(x => x.classList.remove('hi'));
+    p.classList.add('hi');
+  });
+});
 </script>
 </body>
 </html>
