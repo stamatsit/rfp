@@ -91,24 +91,15 @@ a:hover{color:var(--accent-bright)}
 /* ═══════════════════════════════════════════════════════════════
    AMBIENT CANVAS
    ═══════════════════════════════════════════════════════════════ */
-.ambient{position:fixed;inset:0;z-index:-1;pointer-events:none;overflow:hidden}
-.ambient-orb{position:absolute;border-radius:50%;filter:blur(160px);animation:drift 25s ease-in-out infinite alternate}
-.ambient-orb:nth-child(1){width:800px;height:800px;background:rgba(99,102,241,.07);top:-250px;right:-200px}
-.ambient-orb:nth-child(2){width:600px;height:600px;background:rgba(168,85,247,.05);bottom:5%;left:-180px;animation-delay:-8s}
-.ambient-orb:nth-child(3){width:500px;height:500px;background:rgba(244,114,182,.03);top:35%;right:0;animation-delay:-16s}
-@keyframes drift{
-  0%{transform:translate(0,0) scale(1)}
-  25%{transform:translate(40px,-30px) scale(1.06)}
-  50%{transform:translate(-30px,40px) scale(.94)}
-  75%{transform:translate(20px,20px) scale(1.03)}
-  100%{transform:translate(-10px,-20px) scale(1)}
+/* Ambient glow — uses radial-gradient instead of filter:blur for zero GPU cost */
+.ambient{position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 50% 45% at 85% 10%, rgba(99,102,241,.06) 0%, transparent 70%),
+    radial-gradient(ellipse 45% 50% at 10% 70%, rgba(168,85,247,.04) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 60% 45%, rgba(244,114,182,.025) 0%, transparent 70%);
 }
 
-/* Grain */
-body::after{
-  content:'';position:fixed;inset:0;z-index:9999;pointer-events:none;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.015'/%3E%3C/svg%3E");
-}
+/* Grain — removed for performance (full-viewport SVG filter was causing compositing on every frame) */
 
 /* Mesh gradient for hero background */
 .hero-mesh{
@@ -120,11 +111,6 @@ body::after{
     radial-gradient(ellipse 60% 50% at 20% 50%, rgba(99,102,241,.08) 0%, transparent 70%),
     radial-gradient(ellipse 50% 60% at 80% 30%, rgba(168,85,247,.06) 0%, transparent 70%),
     radial-gradient(ellipse 40% 50% at 60% 80%, rgba(244,114,182,.04) 0%, transparent 70%);
-  animation:mesh-shift 20s ease-in-out infinite alternate;
-}
-@keyframes mesh-shift{
-  0%{transform:translate(0,0) rotate(0deg)}
-  100%{transform:translate(-30px,20px) rotate(2deg)}
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -141,11 +127,10 @@ body::after{
    ═══════════════════════════════════════════════════════════════ */
 .sticky-nav{
   position:fixed;top:0;left:0;right:0;z-index:1000;
-  background:rgba(5,8,16,.75);
-  backdrop-filter:blur(24px) saturate(1.6);
-  -webkit-backdrop-filter:blur(24px) saturate(1.6);
+  background:rgba(5,8,16,.92);
   border-bottom:1px solid var(--border);
   transform:translateY(-100%);transition:transform .45s var(--ease);
+  will-change:transform;
 }
 .sticky-nav.show{transform:translateY(0)}
 .sticky-nav-inner{
@@ -181,7 +166,7 @@ body::after{
     transition:all .2s;letter-spacing:.01em;display:block;
   }
   .sticky-nav a:hover{color:var(--text);background:rgba(255,255,255,.06)}
-  body.nav-open{padding-left:200px;transition:padding-left .45s var(--ease)}
+  body.nav-open{margin-left:200px}
 }
 /* Mobile/tablet: top bar nav */
 @media(max-width:1080px){
@@ -259,9 +244,7 @@ h3{font-size:1.1rem;font-weight:600}
    ═══════════════════════════════════════════════════════════════ */
 .glass{
   background:var(--bg-card);
-  backdrop-filter:blur(16px) saturate(1.3);
-  -webkit-backdrop-filter:blur(16px) saturate(1.3);
-  border:1px solid var(--border);
+    border:1px solid var(--border);
   border-radius:var(--r-lg);
   transition:all .4s var(--ease);
 }
@@ -272,17 +255,7 @@ h3{font-size:1.1rem;font-weight:600}
   box-shadow:var(--shadow-md);
 }
 
-/* Glow border on hover */
-.glow-hover{position:relative;overflow:hidden}
-.glow-hover::before{
-  content:'';position:absolute;inset:-1px;
-  border-radius:inherit;padding:1px;
-  background:linear-gradient(135deg,rgba(129,140,248,.2),rgba(192,132,252,.15),rgba(244,114,182,.1));
-  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;
-  opacity:0;transition:opacity .4s ease;pointer-events:none;
-}
-.glow-hover:hover::before{opacity:1}
+/* Glow hover — removed mask-composite, using simple border-color transition instead */
 
 /* ═══════════════════════════════════════════════════════════════
    HERO
@@ -344,8 +317,7 @@ h3{font-size:1.1rem;font-weight:600}
 .float-tag{
   position:absolute;padding:10px 18px;
   background:rgba(10,14,26,.85);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
-  border:1px solid var(--border);border-radius:var(--r-md);
+    border:1px solid var(--border);border-radius:var(--r-md);
   font-size:.75rem;font-weight:600;
   box-shadow:var(--shadow-lg);
   animation:tag-bob 5s ease-in-out infinite;z-index:2;
@@ -360,12 +332,10 @@ h3{font-size:1.1rem;font-weight:600}
 .deco-ring{
   position:absolute;border:1.5px solid rgba(129,140,248,.06);
   border-radius:50%;pointer-events:none;
-  animation:ring-pulse 8s ease-in-out infinite;
 }
 .deco-ring:nth-child(1){width:420px;height:420px;top:-80px;right:-120px}
-.deco-ring:nth-child(2){width:260px;height:260px;bottom:-40px;left:-60px;animation-delay:3s}
-.deco-ring:nth-child(3){width:160px;height:160px;top:30%;right:20%;animation-delay:5s;border-color:rgba(244,114,182,.04)}
-@keyframes ring-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(1.05)}}
+.deco-ring:nth-child(2){width:260px;height:260px;bottom:-40px;left:-60px;opacity:.6}
+.deco-ring:nth-child(3){width:160px;height:160px;top:30%;right:20%;border-color:rgba(244,114,182,.04);opacity:.5}
 
 @media(max-width:960px){
   .hero-grid{grid-template-columns:1fr;gap:48px}
@@ -381,36 +351,25 @@ h3{font-size:1.1rem;font-weight:600}
 @media(max-width:420px){.stats-row{grid-template-columns:1fr}}
 
 .stat-card{
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
   padding:32px 24px;text-align:center;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
 }
 .stat-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:2px 2px 0 0}
-.stat-card::after{
-  content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-  width:80%;height:60%;
-  border-radius:50%;filter:blur(50px);opacity:0;
-  transition:opacity .4s ease;pointer-events:none;
-}
 .stat-card:hover{transform:translateY(-6px);border-color:var(--border-hover);box-shadow:var(--shadow-lg)}
-.stat-card:hover::after{opacity:1}
 
 .stat-number{font-size:2.8rem;font-weight:700;letter-spacing:-.04em;line-height:1;margin-bottom:8px}
 .stat-label{font-size:.72rem;color:var(--text-muted);font-weight:500;text-transform:uppercase;letter-spacing:.06em}
 
 .sc-critical::before{background:var(--grad-critical)}
 .sc-critical .stat-number{color:var(--critical)}
-.sc-critical::after{background:rgba(248,113,113,.06)}
 .sc-high::before{background:var(--grad-high)}
 .sc-high .stat-number{color:var(--high)}
-.sc-high::after{background:rgba(251,191,36,.06)}
 .sc-medium::before{background:var(--grad-medium)}
 .sc-medium .stat-number{color:var(--medium)}
-.sc-medium::after{background:rgba(96,165,250,.06)}
 .sc-accent::before{background:var(--grad-hero)}
 .sc-accent .stat-number{color:var(--accent)}
-.sc-accent::after{background:rgba(129,140,248,.06)}
 
 /* ═══════════════════════════════════════════════════════════════
    HEALTH SCORE
@@ -426,7 +385,6 @@ h3{font-size:1.1rem;font-weight:600}
   fill:none;stroke-width:10;stroke-linecap:round;
   stroke-dasharray:0 754;
   animation:ring-draw 2.5s var(--ease) forwards;animation-delay:.8s;
-  filter:drop-shadow(0 0 8px rgba(248,113,113,.3));
 }
 @keyframes ring-draw{to{stroke-dasharray:var(--fill) 754}}
 .score-center{
@@ -472,7 +430,7 @@ h3{font-size:1.1rem;font-weight:600}
 }
 
 .exec-card{
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
   padding:32px;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
@@ -514,13 +472,13 @@ h3{font-size:1.1rem;font-weight:600}
   font-size:1.4rem;font-weight:600;letter-spacing:-.02em;
 }
 .bar-label{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em}
-.bg-critical .bar{background:var(--grad-critical);animation-delay:.3s;box-shadow:0 8px 24px -6px rgba(248,113,113,.2)}
+.bg-critical .bar{background:var(--grad-critical);animation-delay:.3s}
 .bg-critical .bar-val,.bg-critical .bar-label{color:var(--critical)}
-.bg-high .bar{background:var(--grad-high);animation-delay:.5s;box-shadow:0 8px 24px -6px rgba(251,191,36,.15)}
+.bg-high .bar{background:var(--grad-high);animation-delay:.5s}
 .bg-high .bar-val,.bg-high .bar-label{color:var(--high)}
-.bg-medium .bar{background:var(--grad-medium);animation-delay:.7s;box-shadow:0 8px 24px -6px rgba(96,165,250,.15)}
+.bg-medium .bar{background:var(--grad-medium);animation-delay:.7s}
 .bg-medium .bar-val,.bg-medium .bar-label{color:var(--medium)}
-.bg-low .bar{background:var(--grad-low);animation-delay:.9s;box-shadow:0 8px 24px -6px rgba(52,211,153,.15)}
+.bg-low .bar{background:var(--grad-low);animation-delay:.9s}
 .bg-low .bar-val,.bg-low .bar-label{color:var(--low)}
 
 /* Donut */
@@ -549,7 +507,7 @@ h3{font-size:1.1rem;font-weight:600}
   gap:14px;margin-top:40px;
 }
 .cat-score-card{
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
   padding:24px;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
@@ -586,15 +544,7 @@ h3{font-size:1.1rem;font-weight:600}
   border:1px solid var(--border);background:var(--bg-card-solid);
   transition:all .4s var(--ease);position:relative;
 }
-.screenshot-card::before{
-  content:'';position:absolute;inset:-1px;border-radius:inherit;padding:1px;
-  background:linear-gradient(135deg,rgba(129,140,248,.1),transparent 40%,transparent 60%,rgba(244,114,182,.08));
-  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
-  -webkit-mask-composite:xor;mask-composite:exclude;
-  opacity:0;transition:opacity .4s ease;pointer-events:none;z-index:1;
-}
 .screenshot-card:hover{transform:translateY(-6px);box-shadow:var(--shadow-xl)}
-.screenshot-card:hover::before{opacity:1}
 .screenshot-card img{width:100%;display:block;transition:transform .5s var(--ease)}
 .screenshot-card:hover img{transform:scale(1.03)}
 .screenshot-cap{
@@ -608,7 +558,7 @@ h3{font-size:1.1rem;font-weight:600}
 .prog-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
 @media(max-width:768px){.prog-grid{grid-template-columns:1fr}}
 .prog-card{
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
   padding:28px;transition:all .4s var(--ease);
 }
@@ -631,7 +581,7 @@ h3{font-size:1.1rem;font-weight:600}
 .opp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;margin-top:40px}
 
 .opp-card{
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-lg);
   padding:32px;position:relative;overflow:hidden;
   transition:all .4s var(--ease);
@@ -677,7 +627,7 @@ h3{font-size:1.1rem;font-weight:600}
 .issue-list{display:flex;flex-direction:column;gap:8px;margin-top:24px}
 .issue-card{
   display:grid;grid-template-columns:auto 1fr;gap:16px;align-items:start;
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-md);
   padding:18px 22px;transition:all .25s ease;
 }
@@ -700,7 +650,7 @@ h3{font-size:1.1rem;font-weight:600}
 .table-wrap{
   overflow-x:auto;margin-top:40px;
   border-radius:var(--r-lg);border:1px solid var(--border);
-  background:var(--bg-card);backdrop-filter:blur(12px);
+  background:var(--bg-card);
 }
 table{width:100%;border-collapse:collapse;font-size:.86rem}
 thead{background:rgba(129,140,248,.04)}
@@ -733,7 +683,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 }
 .priority-item{
   display:grid;grid-template-columns:52px 1fr auto;align-items:center;gap:16px;
-  padding:14px 24px;background:var(--bg-card);backdrop-filter:blur(12px);
+  padding:14px 24px;background:var(--bg-card);
   border:1px solid var(--border);border-radius:var(--r-md);
   transition:all .3s var(--ease);position:relative;z-index:1;
 }
@@ -755,7 +705,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   background:linear-gradient(135deg,rgba(129,140,248,.05),rgba(192,132,252,.03));
   border:1px solid rgba(129,140,248,.12);
   border-radius:var(--r-lg);padding:32px;margin-top:32px;
-  backdrop-filter:blur(12px);
+  
 }
 .callout h3{color:var(--accent);margin-bottom:10px;font-size:1.05rem}
 .callout p{color:var(--text-secondary);font-size:.88rem;line-height:1.7}
@@ -770,8 +720,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
    ═══════════════════════════════════════════════════════════════ */
 .brand-bar{
   position:fixed;top:0;left:0;right:0;z-index:1002;
-  background:rgba(5,8,16,.92);backdrop-filter:blur(20px);
-  -webkit-backdrop-filter:blur(20px);
+  background:rgba(5,8,16,.95);
   border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between;
   padding:10px 28px;height:44px;
@@ -855,7 +804,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="brand-bar-right">PREPARED FOR COE COLLEGE &bull; MARCH 2026</div>
 </div>
 
-<div class="ambient"><div class="ambient-orb"></div><div class="ambient-orb"></div><div class="ambient-orb"></div></div>
+<div class="ambient"></div>
 
 <div class="scroll-progress" id="scrollProgress"></div>
 
@@ -951,12 +900,12 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Executive Summary</div><h2>The page works. Nothing else does.</h2><p class="subtitle">Coe's Majors page is the primary gateway for prospective students. Despite 82 program listings, it provides almost zero information about any of them.</p></div>
     <div class="exec-grid stagger">
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--critical-bg)">&#128269;</div><h3>No Way to Search or Filter</h3><p>82 programs in one flat list. No keyword search, no category filters, no department grouping. Students who don't know what they want have zero way to explore.</p></div>
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--critical-bg)">&#128196;</div><h3>Zero Program Descriptions</h3><p>Every major is a name and a link. Not one sentence about what students will study, what careers it leads to, or why Coe's program stands out.</p></div>
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--critical-bg)">&#9855;</div><h3>Accessibility Failures</h3><p>Zero alt text. No ARIA labels. Inaccessible symbols. Missing semantic HTML. Fails WCAG 2.1 Level A &mdash; the bare minimum &mdash; with potential ADA legal exposure.</p></div>
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--critical-bg)">&#128200;</div><h3>Invisible to Search & Social</h3><p>No meta description, OG tags, Twitter Cards, Schema.org, or canonical URL. Social previews are blank. Google gets zero structured information.</p></div>
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--critical-bg)">&#128274;</div><h3>Privacy Violations</h3><p>5 tracking scripts fire before consent. Hotjar records session replays. No cookie banner. Likely violates GDPR, CCPA, and emerging state privacy laws.</p></div>
-      <div class="exec-card reveal glow-hover"><div class="exec-icon" style="background:var(--high-bg)">&#127942;</div><h3>No Trust Signals</h3><p>No rankings, accreditation badges, graduation rates, employment data, class sizes, or student-faculty ratio. Zero proof of value from a quality institution.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128269;</div><h3>No Way to Search or Filter</h3><p>82 programs in one flat list. No keyword search, no category filters, no department grouping. Students who don't know what they want have zero way to explore.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128196;</div><h3>Zero Program Descriptions</h3><p>Every major is a name and a link. Not one sentence about what students will study, what careers it leads to, or why Coe's program stands out.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#9855;</div><h3>Accessibility Failures</h3><p>Zero alt text. No ARIA labels. Inaccessible symbols. Missing semantic HTML. Fails WCAG 2.1 Level A &mdash; the bare minimum &mdash; with potential ADA legal exposure.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128200;</div><h3>Invisible to Search & Social</h3><p>No meta description, OG tags, Twitter Cards, Schema.org, or canonical URL. Social previews are blank. Google gets zero structured information.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--critical-bg)">&#128274;</div><h3>Privacy Violations</h3><p>5 tracking scripts fire before consent. Hotjar records session replays. No cookie banner. Likely violates GDPR, CCPA, and emerging state privacy laws.</p></div>
+      <div class="exec-card reveal"><div class="exec-icon" style="background:var(--high-bg)">&#127942;</div><h3>No Trust Signals</h3><p>No rankings, accreditation badges, graduation rates, employment data, class sizes, or student-faculty ratio. Zero proof of value from a quality institution.</p></div>
     </div>
   </div>
 </section>
@@ -999,16 +948,16 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Category Scores</div><h2>Performance by category</h2><p class="subtitle">Each scored on a 100-point scale. Red means failing. Yellow means far below standard.</p></div>
     <div class="cat-scores-grid stagger">
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9855;</div><div class="cat-score-num" style="color:var(--critical)">8</div></div><h4>Accessibility</h4><div class="gauge"><div class="gauge-fill" style="width:8%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>WCAG 2.2 AA</span><span>9 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128270;</div><div class="cat-score-num" style="color:var(--critical)">12</div></div><h4>SEO & Markup</h4><div class="gauge"><div class="gauge-fill" style="width:12%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Search visibility</span><span>12 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128196;</div><div class="cat-score-num" style="color:var(--critical)">5</div></div><h4>Content</h4><div class="gauge"><div class="gauge-fill" style="width:5%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Information depth</span><span>14 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:rgba(168,85,247,.08)">&#127912;</div><div class="cat-score-num" style="color:var(--critical)">15</div></div><h4>UX & Interface</h4><div class="gauge"><div class="gauge-fill" style="width:15%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Usability</span><span>10 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--medium-bg)">&#129302;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Modern Features</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Innovation</span><span>11 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--low-bg)">&#127942;</div><div class="cat-score-num" style="color:var(--critical)">3</div></div><h4>Trust Signals</h4><div class="gauge"><div class="gauge-fill" style="width:3%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Social proof</span><span>10 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128274;</div><div class="cat-score-num" style="color:var(--critical)">10</div></div><h4>Privacy & Legal</h4><div class="gauge"><div class="gauge-fill" style="width:10%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Compliance</span><span>6 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#9889;</div><div class="cat-score-num" style="color:var(--high)">35</div></div><h4>Performance</h4><div class="gauge"><div class="gauge-fill" style="width:35%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Speed & tech debt</span><span>7 issues</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9878;&#65039;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Competitive</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>0/17 peer features</span><span>17 gaps</span></div></div>
-      <div class="cat-score-card reveal glow-hover"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128221;</div><div class="cat-score-num" style="color:var(--high)">25</div></div><h4>Naming</h4><div class="gauge"><div class="gauge-fill" style="width:25%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Consistency</span><span>4 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9855;</div><div class="cat-score-num" style="color:var(--critical)">8</div></div><h4>Accessibility</h4><div class="gauge"><div class="gauge-fill" style="width:8%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>WCAG 2.2 AA</span><span>9 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128270;</div><div class="cat-score-num" style="color:var(--critical)">12</div></div><h4>SEO & Markup</h4><div class="gauge"><div class="gauge-fill" style="width:12%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Search visibility</span><span>12 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128196;</div><div class="cat-score-num" style="color:var(--critical)">5</div></div><h4>Content</h4><div class="gauge"><div class="gauge-fill" style="width:5%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Information depth</span><span>14 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:rgba(168,85,247,.08)">&#127912;</div><div class="cat-score-num" style="color:var(--critical)">15</div></div><h4>UX & Interface</h4><div class="gauge"><div class="gauge-fill" style="width:15%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Usability</span><span>10 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--medium-bg)">&#129302;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Modern Features</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Innovation</span><span>11 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--low-bg)">&#127942;</div><div class="cat-score-num" style="color:var(--critical)">3</div></div><h4>Trust Signals</h4><div class="gauge"><div class="gauge-fill" style="width:3%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Social proof</span><span>10 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#128274;</div><div class="cat-score-num" style="color:var(--critical)">10</div></div><h4>Privacy & Legal</h4><div class="gauge"><div class="gauge-fill" style="width:10%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>Compliance</span><span>6 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#9889;</div><div class="cat-score-num" style="color:var(--high)">35</div></div><h4>Performance</h4><div class="gauge"><div class="gauge-fill" style="width:35%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Speed & tech debt</span><span>7 issues</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--critical-bg)">&#9878;&#65039;</div><div class="cat-score-num" style="color:var(--critical)">0</div></div><h4>Competitive</h4><div class="gauge"><div class="gauge-fill" style="width:1%;background:var(--grad-critical)"></div></div><div class="cat-score-meta"><span>0/17 peer features</span><span>17 gaps</span></div></div>
+      <div class="cat-score-card reveal"><div class="cat-score-top"><div class="cat-score-icon" style="background:var(--high-bg)">&#128221;</div><div class="cat-score-num" style="color:var(--high)">25</div></div><h4>Naming</h4><div class="gauge"><div class="gauge-fill" style="width:25%;background:var(--grad-high)"></div></div><div class="cat-score-meta"><span>Consistency</span><span>4 issues</span></div></div>
     </div>
   </div>
 </section>
@@ -1030,9 +979,9 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Programs Snapshot</div><h2>82 listings, 3 categories, 8 discontinued</h2></div>
     <div class="prog-grid stagger">
-      <div class="prog-card reveal glow-hover"><h3>&#127891; Majors</h3><div class="prog-big" style="color:var(--accent)">60</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">On-campus areas of study. 19 also offered as minors.</p><div class="tags"><span class="tag">Accounting</span><span class="tag">Biology</span><span class="tag">Business Admin</span><span class="tag">Chemistry</span><span class="tag">Computer Science</span><span class="tag">Data Science</span><span class="tag">Neuroscience</span><span class="tag">Nursing</span><span class="tag muted">+52 more</span></div></div>
-      <div class="prog-card reveal glow-hover"><h3>&#128218; Minors</h3><div class="prog-big" style="color:var(--medium)">8</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Standalone minors plus 19 majors that double as minors.</p><div class="tags"><span class="tag minor">Anthropology</span><span class="tag minor">Applied Math</span><span class="tag minor">Art History</span><span class="tag minor">Classical Studies</span><span class="tag minor">Health & Society</span><span class="tag minor">Museum Studies</span><span class="tag minor">Religion</span><span class="tag minor">Secondary Ed</span></div></div>
-      <div class="prog-card reveal glow-hover"><h3>&#9878;&#65039; Pre-Professional</h3><div class="prog-big" style="color:var(--high)">14</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Preparatory tracks for graduate & professional schools.</p><div class="tags"><span class="tag">Pre-Med</span><span class="tag">Pre-Law</span><span class="tag">Pre-Dental</span><span class="tag">Pre-Engineering</span><span class="tag">Pre-Pharmacy</span><span class="tag muted">+9 more</span></div></div>
+      <div class="prog-card reveal"><h3>&#127891; Majors</h3><div class="prog-big" style="color:var(--accent)">60</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">On-campus areas of study. 19 also offered as minors.</p><div class="tags"><span class="tag">Accounting</span><span class="tag">Biology</span><span class="tag">Business Admin</span><span class="tag">Chemistry</span><span class="tag">Computer Science</span><span class="tag">Data Science</span><span class="tag">Neuroscience</span><span class="tag">Nursing</span><span class="tag muted">+52 more</span></div></div>
+      <div class="prog-card reveal"><h3>&#128218; Minors</h3><div class="prog-big" style="color:var(--medium)">8</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Standalone minors plus 19 majors that double as minors.</p><div class="tags"><span class="tag minor">Anthropology</span><span class="tag minor">Applied Math</span><span class="tag minor">Art History</span><span class="tag minor">Classical Studies</span><span class="tag minor">Health & Society</span><span class="tag minor">Museum Studies</span><span class="tag minor">Religion</span><span class="tag minor">Secondary Ed</span></div></div>
+      <div class="prog-card reveal"><h3>&#9878;&#65039; Pre-Professional</h3><div class="prog-big" style="color:var(--high)">14</div><p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Preparatory tracks for graduate & professional schools.</p><div class="tags"><span class="tag">Pre-Med</span><span class="tag">Pre-Law</span><span class="tag">Pre-Dental</span><span class="tag">Pre-Engineering</span><span class="tag">Pre-Pharmacy</span><span class="tag muted">+9 more</span></div></div>
     </div>
     <div class="callout warn reveal"><h3>8 discontinued programs still listed alongside active ones</h3><p style="margin-bottom:12px">Differentiated only by tiny <code style="background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;font-size:.8rem">*</code> symbols with the legend buried at the bottom.</p><div class="tags"><span class="tag closed">Environmental Science</span><span class="tag closed">Film Studies</span><span class="tag closed">French & Francophone</span><span class="tag closed">Molecular Biology</span><span class="tag closed">Writing</span><span class="tag closed">Anthropology</span><span class="tag closed">Art History</span><span class="tag closed">Religion</span></div></div>
   </div>
@@ -1043,12 +992,12 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
   <div class="container">
     <div class="reveal"><div class="section-label">Opportunities</div><h2>What Coe stands to gain</h2><p class="subtitle">Fixing these gaps isn't about compliance alone &mdash; it's about enrollment, trust, and competitive positioning.</p></div>
     <div class="opp-grid stagger">
-      <div class="opp-card reveal glow-hover" style="--c:var(--low)"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-low)"></div><div class="opp-impact" style="background:var(--low-bg);color:var(--low);border:1px solid var(--low-border)">High Impact</div><h3>Boost search visibility & CTR</h3><p>Meta descriptions, Schema.org, OG tags, and canonical URLs could lift organic CTR 20-40% and unlock Google rich snippets.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">+30%</div><div class="opp-metric-lbl">CTR lift</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">5</div><div class="opp-metric-lbl">Quick wins</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">1-2d</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
-      <div class="opp-card reveal glow-hover"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-hero)"></div><div class="opp-impact" style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(129,140,248,.15)">Enrollment Driver</div><h3>Program search & descriptions</h3><p>Search/filter and brief descriptions transform a link directory into an exploration tool. Students engage longer and convert at higher rates.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">3-5x</div><div class="opp-metric-lbl">Time on page</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">+25%</div><div class="opp-metric-lbl">Engagement</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">2-4w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
-      <div class="opp-card reveal glow-hover"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-high)"></div><div class="opp-impact" style="background:var(--high-bg);color:var(--high);border:1px solid var(--high-border)">Trust Builder</div><h3>Outcome data & trust signals</h3><p>Graduation rates, employment stats, accreditation badges, and rankings directly address families' #1 concern: "Is this worth the investment?"</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">&#8593;&#8593;</div><div class="opp-metric-lbl">Parent trust</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">&#8593;&#8593;</div><div class="opp-metric-lbl">Counselor refs</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">1-3w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
-      <div class="opp-card reveal glow-hover"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-critical)"></div><div class="opp-impact" style="background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical-border)">Risk Mitigation</div><h3>Accessibility & privacy compliance</h3><p>WCAG fixes and cookie consent eliminate ADA lawsuit risk and privacy regulation exposure. Higher-ed is increasingly targeted in a11y litigation.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">$$$</div><div class="opp-metric-lbl">Risk avoided</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">&#8593;&#8593;</div><div class="opp-metric-lbl">Inclusivity</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">1-2w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
-      <div class="opp-card reveal glow-hover"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-medium)"></div><div class="opp-impact" style="background:var(--medium-bg);color:var(--medium);border:1px solid var(--medium-border)">Differentiator</div><h3>AI advisor & "Find Your Major" quiz</h3><p>An interactive "What should I study?" tool becomes a lead gen engine. Peers are adopting fast &mdash; early movers capture undecided students.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">&#8593;&#8593;&#8593;</div><div class="opp-metric-lbl">Lead gen</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">Unique</div><div class="opp-metric-lbl">Among IA peers</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">4-8w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
-      <div class="opp-card reveal glow-hover"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-hero)"></div><div class="opp-impact" style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(129,140,248,.15)">Quick Win</div><h3>Remove dead code & upgrade analytics</h3><p>Removing legacy UA and adding async attributes improves load time with zero risk. GA4 upgrade restores lost data collection.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">Faster</div><div class="opp-metric-lbl">Page load</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">Data</div><div class="opp-metric-lbl">Restored</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">&lt;1d</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal" style="--c:var(--low)"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-low)"></div><div class="opp-impact" style="background:var(--low-bg);color:var(--low);border:1px solid var(--low-border)">High Impact</div><h3>Boost search visibility & CTR</h3><p>Meta descriptions, Schema.org, OG tags, and canonical URLs could lift organic CTR 20-40% and unlock Google rich snippets.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">+30%</div><div class="opp-metric-lbl">CTR lift</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">5</div><div class="opp-metric-lbl">Quick wins</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--low)">1-2d</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-hero)"></div><div class="opp-impact" style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(129,140,248,.15)">Enrollment Driver</div><h3>Program search & descriptions</h3><p>Search/filter and brief descriptions transform a link directory into an exploration tool. Students engage longer and convert at higher rates.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">3-5x</div><div class="opp-metric-lbl">Time on page</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">+25%</div><div class="opp-metric-lbl">Engagement</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">2-4w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-high)"></div><div class="opp-impact" style="background:var(--high-bg);color:var(--high);border:1px solid var(--high-border)">Trust Builder</div><h3>Outcome data & trust signals</h3><p>Graduation rates, employment stats, accreditation badges, and rankings directly address families' #1 concern: "Is this worth the investment?"</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">&#8593;&#8593;</div><div class="opp-metric-lbl">Parent trust</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">&#8593;&#8593;</div><div class="opp-metric-lbl">Counselor refs</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--high)">1-3w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-critical)"></div><div class="opp-impact" style="background:var(--critical-bg);color:var(--critical);border:1px solid var(--critical-border)">Risk Mitigation</div><h3>Accessibility & privacy compliance</h3><p>WCAG fixes and cookie consent eliminate ADA lawsuit risk and privacy regulation exposure. Higher-ed is increasingly targeted in a11y litigation.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">$$$</div><div class="opp-metric-lbl">Risk avoided</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">&#8593;&#8593;</div><div class="opp-metric-lbl">Inclusivity</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--critical)">1-2w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-medium)"></div><div class="opp-impact" style="background:var(--medium-bg);color:var(--medium);border:1px solid var(--medium-border)">Differentiator</div><h3>AI advisor & "Find Your Major" quiz</h3><p>An interactive "What should I study?" tool becomes a lead gen engine. Peers are adopting fast &mdash; early movers capture undecided students.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">&#8593;&#8593;&#8593;</div><div class="opp-metric-lbl">Lead gen</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">Unique</div><div class="opp-metric-lbl">Among IA peers</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--medium)">4-8w</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
+      <div class="opp-card reveal"><div style="position:absolute;top:0;left:0;right:0;height:2px;background:var(--grad-hero)"></div><div class="opp-impact" style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(129,140,248,.15)">Quick Win</div><h3>Remove dead code & upgrade analytics</h3><p>Removing legacy UA and adding async attributes improves load time with zero risk. GA4 upgrade restores lost data collection.</p><div class="opp-metrics"><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">Faster</div><div class="opp-metric-lbl">Page load</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">Data</div><div class="opp-metric-lbl">Restored</div></div><div class="opp-metric"><div class="opp-metric-val" style="color:var(--accent)">&lt;1d</div><div class="opp-metric-lbl">Timeline</div></div></div></div>
     </div>
   </div>
 </section>
@@ -1250,8 +1199,7 @@ tbody tr:hover{background:rgba(129,140,248,.03)}
 <style>
 .ai-intro-overlay{
   position:fixed;inset:0;z-index:10000;
-  background:rgba(3,5,10,.7);
-  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  background:rgba(3,5,10,.85);
   display:flex;align-items:center;justify-content:center;
   opacity:0;pointer-events:none;
   transition:opacity .5s ease;
@@ -1495,21 +1443,28 @@ document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
 const gio=new IntersectionObserver(e=>{e.forEach(x=>{if(x.isIntersecting){x.target.classList.add('gauge-visible');gio.unobserve(x.target)}})},{threshold:.25});
 document.querySelectorAll('.cat-score-card').forEach(el=>gio.observe(el));
 
-// Scroll progress
+// ── Single scroll handler via rAF (no jank) ─────────
 const sp=document.getElementById('scrollProgress');
-window.addEventListener('scroll',()=>{sp.style.width=(scrollY/(document.documentElement.scrollHeight-innerHeight)*100)+'%'},{passive:true});
-
-// Sticky nav (sidebar on desktop, top bar on mobile)
 const sn=document.getElementById('stickyNav');
-const isDesktop=()=>window.innerWidth>1080;
-function updateNav(){
-  const show=scrollY>innerHeight*.55;
+let ticking=false;
+let cachedWidth=window.innerWidth;
+window.addEventListener('resize',()=>{cachedWidth=window.innerWidth},{passive:true});
+
+function onScroll(){
+  const sy=window.scrollY;
+  const docH=document.documentElement.scrollHeight-window.innerHeight;
+  // Progress bar
+  sp.style.width=(sy/docH*100)+'%';
+  // Nav visibility
+  const show=sy>window.innerHeight*.55;
   sn.classList.toggle('show',show);
-  if(isDesktop()){document.body.classList.toggle('nav-open',show)}
+  if(cachedWidth>1080){document.body.classList.toggle('nav-open',show)}
   else{document.body.classList.remove('nav-open')}
+  ticking=false;
 }
-window.addEventListener('scroll',updateNav,{passive:true});
-window.addEventListener('resize',updateNav,{passive:true});
+window.addEventListener('scroll',()=>{
+  if(!ticking){requestAnimationFrame(onScroll);ticking=true}
+},{passive:true});
 
 // Count up
 const cio=new IntersectionObserver(e=>{e.forEach(x=>{if(!x.isIntersecting)return;const el=x.target,t=+el.dataset.target;let c=0;const s=Math.max(1,Math.ceil(t/50));const id=setInterval(()=>{c=Math.min(c+s,t);el.textContent=c;if(c>=t)clearInterval(id)},20);cio.unobserve(el)})},{threshold:.5});
