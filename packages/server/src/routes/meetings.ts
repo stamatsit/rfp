@@ -8,12 +8,44 @@
 import { Router, type Request, type Response } from "express"
 import multer from "multer"
 import crypto from "crypto"
+import path from "path"
+import os from "os"
+import fs from "fs/promises"
+import { execFile } from "child_process"
+import { promisify } from "util"
 import { db, supabaseAdmin } from "../db/index.js"
 import { clientDocuments } from "../db/schema.js"
 import { eq, desc, and, sql } from "drizzle-orm"
 import { processMeetingIntake, diarizeTranscript } from "../services/meetingAIService.js"
 import { requireWriteAccess } from "../middleware/auth.js"
 import mammoth from "mammoth"
+
+const execFileAsync = promisify(execFile)
+
+/**
+ * Extract audio from a video file using ffmpeg.
+ * Returns the path to a compressed MP3 file suitable for Whisper (< 25MB).
+ */
+async function extractAudioFromVideo(inputPath: string): Promise<string> {
+  const outputPath = inputPath.replace(/\.[^.]+$/, ".mp3")
+  await execFileAsync("ffmpeg", [
+    "-i", inputPath,
+    "-vn",              // no video
+    "-ac", "1",         // mono
+    "-ar", "16000",     // 16kHz sample rate (Whisper optimal)
+    "-b:a", "64k",      // 64kbps bitrate — keeps file small
+    "-y",               // overwrite
+    outputPath,
+  ], { timeout: 300000 }) // 5 min timeout for long videos
+  return outputPath
+}
+
+/**
+ * Check if a mime type or extension is a video format.
+ */
+function isVideoFile(mimeType: string, filename: string): boolean {
+  return mimeType.startsWith("video/") || /\.(mp4|mov|avi|mkv|webm)$/i.test(filename)
+}
 
 // Text extraction for uploaded transcript files
 async function extractTranscriptText(buffer: Buffer, mimeType: string): Promise<string | null> {
@@ -33,8 +65,14 @@ async function extractTranscriptText(buffer: Buffer, mimeType: string): Promise<
 }
 
 const audioUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 25 * 1024 * 1024 }, // 25MB — Whisper API limit
+  storage: multer.diskStorage({
+    destination: os.tmpdir(),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname) || ".tmp"
+      cb(null, `meeting-${crypto.randomBytes(16).toString("hex")}${ext}`)
+    },
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB — large video files, audio extracted server-side
   fileFilter: (_req, file, cb) => {
     const allowed = [
       "audio/webm", "audio/mpeg", "audio/mp3", "audio/wav", "audio/wave",
@@ -68,8 +106,10 @@ const transcriptUpload = multer({
 
 const router = Router()
 
-// ─── Upload audio and process ────────────────────────────────────────────────
+// ─── Upload audio/video and process ─────────────────────────────────────────
 router.post("/process-audio", audioUpload.single("audio"), async (req: Request, res: Response) => {
+  const tempFiles: string[] = [] // track temp files for cleanup
+
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
     if (!supabaseAdmin) return res.status(503).json({ error: "Storage unavailable" })
@@ -80,14 +120,49 @@ router.post("/process-audio", audioUpload.single("audio"), async (req: Request, 
     const { clientName, title, meetingDate } = req.body
     if (!clientName?.trim()) return res.status(400).json({ error: "Client name is required" })
 
+    tempFiles.push(file.path) // multer disk file
+
+    let uploadBuffer: Buffer
+    let uploadMimeType: string
+    let uploadExt: string
+
+    // If it's a video file, extract audio with ffmpeg
+    if (isVideoFile(file.mimetype, file.originalname)) {
+      console.log(`[Meetings] Video detected (${(file.size / (1024 * 1024)).toFixed(1)}MB) — extracting audio with ffmpeg...`)
+      try {
+        const audioPath = await extractAudioFromVideo(file.path)
+        tempFiles.push(audioPath)
+        uploadBuffer = await fs.readFile(audioPath)
+        uploadMimeType = "audio/mpeg"
+        uploadExt = "mp3"
+        console.log(`[Meetings] Audio extracted: ${(uploadBuffer.length / (1024 * 1024)).toFixed(1)}MB MP3`)
+      } catch (ffmpegErr) {
+        console.error("[Meetings] ffmpeg audio extraction failed:", ffmpegErr)
+        return res.status(422).json({
+          error: "Failed to extract audio from video. The file may be corrupted or in an unsupported codec.",
+        })
+      }
+    } else {
+      // Regular audio file — read from disk
+      uploadBuffer = await fs.readFile(file.path)
+      uploadMimeType = file.mimetype
+      uploadExt = file.originalname.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "webm"
+    }
+
+    // Check extracted audio is within Whisper's 25MB limit
+    if (uploadBuffer.length > 25 * 1024 * 1024) {
+      return res.status(413).json({
+        error: `Audio is ${(uploadBuffer.length / (1024 * 1024)).toFixed(1)}MB which exceeds the 25MB transcription limit. Try a shorter recording.`,
+      })
+    }
+
     const normalizedClient = clientName.trim().toLowerCase()
-    const ext = file.originalname.match(/\.([^.]+)$/)?.[1]?.toLowerCase() || "webm"
-    const audioStorageKey = `meeting-audio/${normalizedClient}/${crypto.randomBytes(16).toString("hex")}.${ext}`
+    const audioStorageKey = `meeting-audio/${normalizedClient}/${crypto.randomBytes(16).toString("hex")}.${uploadExt}`
 
     // Upload audio to Supabase
     const { error: uploadError } = await supabaseAdmin.storage
       .from("client-documents")
-      .upload(audioStorageKey, file.buffer, { contentType: file.mimetype, upsert: true })
+      .upload(audioStorageKey, uploadBuffer, { contentType: uploadMimeType, upsert: true })
 
     if (uploadError) {
       console.error("Audio upload error:", uploadError)
@@ -125,6 +200,11 @@ router.post("/process-audio", audioUpload.single("audio"), async (req: Request, 
   } catch (error) {
     console.error("Process audio failed:", error)
     res.status(500).json({ error: "Failed to process audio" })
+  } finally {
+    // Clean up temp files
+    for (const tmpFile of tempFiles) {
+      fs.unlink(tmpFile).catch(() => {})
+    }
   }
 })
 

@@ -43,7 +43,7 @@ type WizardStep = "input" | "details" | "processing" | "results"
 
 const INPUT_MODES: Array<{ id: InputMode; label: string; description: string; icon: typeof Mic }> = [
   { id: "record", label: "Record Audio", description: "Record live from your microphone", icon: Mic },
-  { id: "upload", label: "Upload Audio", description: "Upload an MP3, WAV, M4A, or WebM file", icon: Upload },
+  { id: "upload", label: "Upload Audio / Video", description: "Upload an audio or video file (MP3, WAV, M4A, MP4, MOV, WebM)", icon: Upload },
   { id: "paste", label: "Paste Transcript", description: "Paste or upload meeting transcript text", icon: FileText },
 ]
 
@@ -600,7 +600,7 @@ export function MeetingIntake() {
             {/* Input area based on mode */}
             <div className="mb-6">
               <h3 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3">
-                {inputMode === "record" ? "Recording" : inputMode === "upload" ? "Audio File" : "Transcript"}
+                {inputMode === "record" ? "Recording" : inputMode === "upload" ? "Audio / Video File" : "Transcript"}
               </h3>
 
               {inputMode === "record" && (
@@ -639,7 +639,7 @@ export function MeetingIntake() {
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
                           {isDragging ? "Drop audio or video file here" : "Click or drag & drop audio or video file"}
                         </p>
-                        <p className="text-xs text-zinc-400 mt-1">MP3, WAV, M4A, MP4, MOV, WebM (max 25MB)</p>
+                        <p className="text-xs text-zinc-400 mt-1">MP3, WAV, M4A, MP4, MOV, AVI, MKV, WebM (max 500MB — video audio is extracted automatically)</p>
                       </div>
                     )}
                   </div>
