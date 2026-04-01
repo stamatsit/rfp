@@ -1140,7 +1140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CSRF token generation - set cookie if not present
   if (!getCookie(req, CSRF_COOKIE_NAME)) {
     const csrfToken = generateCsrfToken()
-    res.setHeader("Set-Cookie", `${CSRF_COOKIE_NAME}=${csrfToken}; Path=/; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Strict; Max-Age=${4 * 60 * 60}`)
+    res.setHeader("Set-Cookie", `${CSRF_COOKIE_NAME}=${csrfToken}; Path=/; HttpOnly; ${process.env.NODE_ENV === "production" ? "Secure; " : ""}SameSite=Lax; Max-Age=${4 * 60 * 60}`)
   }
 
   try {
@@ -1155,9 +1155,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // CSRF token endpoint (public, before auth)
     if (path === "/csrf-token" && method === "GET") {
-      const csrfToken = getCookie(req, CSRF_COOKIE_NAME)
+      let csrfToken = getCookie(req, CSRF_COOKIE_NAME)
       if (!csrfToken) {
-        return res.status(500).json({ error: "CSRF token not initialized" })
+        csrfToken = generateCsrfToken()
+        res.setHeader("Set-Cookie", `${CSRF_COOKIE_NAME}=${csrfToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${4 * 60 * 60}`)
       }
       return res.json({ csrfToken })
     }
