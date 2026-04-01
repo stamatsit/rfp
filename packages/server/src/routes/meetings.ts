@@ -39,12 +39,12 @@ const audioUpload = multer({
     const allowed = [
       "audio/webm", "audio/mpeg", "audio/mp3", "audio/wav", "audio/wave",
       "audio/x-wav", "audio/mp4", "audio/m4a", "audio/x-m4a", "audio/ogg",
-      "video/webm", // MediaRecorder sometimes produces video/webm with audio-only
+      "video/webm", "video/mp4", "video/quicktime", "video/x-msvideo", "video/x-matroska",
     ]
-    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(webm|mp3|wav|m4a|ogg|mp4)$/i)) {
+    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(webm|mp3|wav|m4a|ogg|mp4|mov|avi|mkv)$/i)) {
       cb(null, true)
     } else {
-      cb(new Error(`Unsupported audio format: ${file.mimetype}`))
+      cb(new Error(`Unsupported file format: ${file.mimetype}`))
     }
   },
 })

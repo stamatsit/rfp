@@ -165,10 +165,10 @@ export function MeetingIntake() {
     e.preventDefault()
     setIsDragging(false)
     const file = e.dataTransfer.files?.[0]
-    if (file && (file.type.startsWith("audio/") || file.name.match(/\.(mp3|wav|m4a|webm|ogg|mp4)$/i))) {
+    if (file && (file.type.startsWith("audio/") || file.type.startsWith("video/") || file.name.match(/\.(mp3|wav|m4a|webm|ogg|mp4|mov|avi|mkv)$/i))) {
       processAudioFile(file)
     } else if (file) {
-      toast.error("Please drop an audio file (MP3, WAV, M4A, WebM)")
+      toast.error("Please drop an audio or video file (MP3, WAV, M4A, MP4, MOV)")
     }
   }
 
@@ -637,16 +637,16 @@ export function MeetingIntake() {
                     ) : (
                       <div>
                         <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                          {isDragging ? "Drop audio file here" : "Click or drag & drop audio file"}
+                          {isDragging ? "Drop audio or video file here" : "Click or drag & drop audio or video file"}
                         </p>
-                        <p className="text-xs text-zinc-400 mt-1">MP3, WAV, M4A, WebM (max 25MB)</p>
+                        <p className="text-xs text-zinc-400 mt-1">MP3, WAV, M4A, MP4, MOV, WebM (max 25MB)</p>
                       </div>
                     )}
                   </div>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="audio/*,.mp3,.wav,.m4a,.webm,.ogg"
+                    accept="audio/*,video/*,.mp3,.wav,.m4a,.webm,.ogg,.mp4,.mov,.avi,.mkv"
                     onChange={handleAudioFileChange}
                     className="hidden"
                   />
