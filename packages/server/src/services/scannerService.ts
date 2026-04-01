@@ -174,6 +174,19 @@ export function analyzeImages($: cheerio.CheerioAPI, rawHtml?: string): ScanIssu
           wcagLevel: "A",
         })
       }
+    } else {
+      // alt === "" — image is marked as decorative
+      issues.push({
+        ruleId: "img-alt-decorative",
+        category: "images",
+        severity: "info",
+        message: "Image has empty alt text (marked as decorative)",
+        element: truncateElement(outerHtml),
+        selector,
+        line,
+        wcagCriteria: "1.1.1",
+        wcagLevel: "A",
+      })
     }
   })
 
@@ -249,6 +262,34 @@ export function analyzeLandmarks($: cheerio.CheerioAPI): ScanIssue[] {
     })
   }
 
+  // Duplicate <main> landmarks
+  const mainCount = $("main, [role='main']").length
+  if (mainCount > 1) {
+    issues.push({
+      ruleId: "landmark-main-duplicate",
+      category: "landmarks",
+      severity: "warning",
+      message: `Page has ${mainCount} <main> landmarks — there should be only one`,
+      suggestion: "Ensure there is only one <main> element (or role=\"main\") per page",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
+    })
+  }
+
+  // Missing footer / contentinfo landmark
+  const hasFooter = $("footer, [role='contentinfo']").length > 0
+  if (!hasFooter) {
+    issues.push({
+      ruleId: "landmark-contentinfo",
+      category: "landmarks",
+      severity: "warning",
+      message: "Page is missing a <footer> (contentinfo) landmark",
+      suggestion: "Add a <footer> element for the site/page footer area",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
+    })
+  }
+
   return issues
 }
 
@@ -288,6 +329,33 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
     }
   })
 
+  // Radio/checkbox groups without fieldset+legend
+  const groupMap = new Map<string, any[]>()
+  $('input[type="radio"][name], input[type="checkbox"][name]').each((_i, el) => {
+    const name = $(el).attr("name")
+    if (name) {
+      const arr = groupMap.get(name) ?? []
+      arr.push(el)
+      groupMap.set(name, arr)
+    }
+  })
+  groupMap.forEach((elements, name) => {
+    if (elements.length > 1) {
+      const inFieldset = $(elements[0]).closest("fieldset").find("legend").length > 0
+      if (!inFieldset) {
+        issues.push({
+          ruleId: "form-fieldset-missing",
+          category: "forms",
+          severity: "warning",
+          message: `Group of inputs with name="${name}" is not wrapped in a <fieldset> with <legend>`,
+          suggestion: "Wrap related radio buttons or checkboxes in a <fieldset> with a <legend> describing the group",
+          wcagCriteria: "1.3.1",
+          wcagLevel: "A",
+        })
+      }
+    }
+  })
+
   // Buttons without accessible name
   $("button").each((_i, el) => {
     const text = $(el).text().trim()
@@ -319,7 +387,7 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
     const ariaLabel = $(el).attr("aria-label")
     const ariaLabelledBy = $(el).attr("aria-labelledby")
     const title = $(el).attr("title")
-    const hasImg = $(el).find("img[alt]").length > 0
+    const hasImg = $(el).find("img[alt]").filter((_i, img) => ($(img).attr("alt") ?? "").trim().length > 0).length > 0
 
     if (!text && !ariaLabel && !ariaLabelledBy && !title && !hasImg) {
       const outerHtml = $.html(el) ?? ""
@@ -461,6 +529,28 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
       suggestion: "Add og:title, og:description, and og:image meta tags for better social sharing",
     })
   }
+
+  // Duplicate IDs
+  const idMap = new Map<string, number>()
+  $("[id]").each((_i, el) => {
+    const id = $(el).attr("id")
+    if (id) {
+      idMap.set(id, (idMap.get(id) ?? 0) + 1)
+    }
+  })
+  idMap.forEach((count, id) => {
+    if (count > 1) {
+      issues.push({
+        ruleId: "duplicate-id",
+        category: "document",
+        severity: "error",
+        message: `Duplicate id="${id}" found ${count} times — IDs must be unique`,
+        suggestion: "Ensure every id attribute value is unique within the page",
+        wcagCriteria: "4.1.1",
+        wcagLevel: "A",
+      })
+    }
+  })
 
   return { issues, meta }
 }
@@ -1135,12 +1225,11 @@ export function calculateScores(issues: ScanIssue[]): { categoryScores: Category
   })
 
   // Weighted overall score
-  // Accessibility (images + contrast): 30%
+  // Accessibility (images + contrast): 35%
   // Structure (headings + landmarks + forms + structure): 20%
   // SEO / document + schema: 25%
   // Security: 10%
   // Links: 10%
-  // Performance: 5%
   const getScore = (cat: Category) => categoryScores.find((c) => c.category === cat)?.score ?? 100
 
   const accessibilityScore = (getScore("images") + getScore("contrast")) / 2
@@ -1150,12 +1239,11 @@ export function calculateScores(issues: ScanIssue[]): { categoryScores: Category
   const linksScore = getScore("links")
 
   const overallScore = Math.round(
-    accessibilityScore * 0.30 +
+    accessibilityScore * 0.35 +
     structureScore * 0.20 +
     seoScore * 0.25 +
     securityScore * 0.10 +
-    linksScore * 0.10 +
-    getScore("performance") * 0.05,
+    linksScore * 0.10,
   )
 
   return { categoryScores, overallScore: Math.max(0, Math.min(100, overallScore)) }

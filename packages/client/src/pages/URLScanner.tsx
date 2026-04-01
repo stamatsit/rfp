@@ -23,7 +23,7 @@ import {
   Eye,
   Layout,
   Search,
-  Map,
+  Map as MapIcon,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
@@ -196,7 +196,7 @@ interface CrawlSummary {
   pages: CrawlPageResult[]
 }
 
-type View = "home" | "scanning" | "results" | "detail" | "crawling" | "crawl-results"
+type View = "home" | "scanning" | "results" | "detail" | "sitemap-browse" | "crawling" | "crawl-results"
 type ResultTab = "issues" | "headings" | "links" | "schema" | "structure" | "history"
 type FilterSeverity = "all" | "error" | "warning" | "info"
 
@@ -504,13 +504,13 @@ function CategoryCard({
   return (
     <button
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border rounded-2xl p-4 text-center transition-all hover:shadow-md ${
+      className={`bg-white dark:bg-slate-900 border rounded-2xl p-3 text-center transition-all hover:shadow-md ${
         active
           ? "border-blue-500 dark:border-blue-400 ring-1 ring-blue-500/20"
           : "border-black/[0.06] dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-slate-600"
       }`}
     >
-      <div className={`text-xl font-bold mb-1 ${scoreTextClass(score)}`}>
+      <div className={`text-lg font-bold mb-1 ${scoreTextClass(score)}`}>
         {score}
       </div>
       <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
@@ -854,8 +854,14 @@ export function URLScanner() {
   const aiAbortRef = useRef<AbortController | null>(null)
 
   // Issue grouping: collapsed groups and active category filter
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(CATEGORY_GROUPS.map((g) => g.id)))
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null)
+
+  // Sitemap browse state
+  const [sitemapUrls, setSitemapUrls] = useState<string[]>([])
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set())
+  const [sitemapLoading, setSitemapLoading] = useState(false)
+  const [sitemapSearch, setSitemapSearch] = useState("")
 
   // Crawl state
   const [crawlProgress, setCrawlProgress] = useState<{ index: number; total: number; url: string; status: string }[]>([])
@@ -1078,55 +1084,901 @@ export function URLScanner() {
     const grouped = groupIssuesByCategory(report.issues)
     const getScore = (cat: string) => report.categoryScores.find((c) => c.category === cat)?.score ?? 100
     const cats = [
-      { label: "Accessibility", score: Math.round((getScore("images") + getScore("contrast") + getScore("forms") + getScore("landmarks")) / 4) },
-      { label: "Structure", score: Math.round((getScore("headings") + getScore("structure")) / 2) },
-      { label: "SEO", score: Math.round((getScore("document") * 2 + getScore("schema")) / 3) },
-      { label: "Security", score: getScore("security") },
+      { label: "Accessibility", score: Math.round((getScore("images") + getScore("contrast") + getScore("forms") + getScore("landmarks")) / 4), color: "#8b5cf6" },
+      { label: "Structure", score: Math.round((getScore("headings") + getScore("structure")) / 2), color: "#3b82f6" },
+      { label: "SEO", score: Math.round((getScore("document") * 2 + getScore("schema")) / 3), color: "#10b981" },
+      { label: "Security", score: getScore("security"), color: "#f59e0b" },
     ]
     const errorCount = report.issues.filter((i) => i.severity === "error").length
     const warningCount = report.issues.filter((i) => i.severity === "warning").length
     const infoCount = report.issues.filter((i) => i.severity === "info").length
     const domain = report.url.replace(/^https?:\/\//, "").replace(/\/$/, "")
     const dateStr = new Date(report.scannedAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
+    const timeStr = new Date(report.scannedAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+    const scoreColor = (s: number) => s >= 90 ? "#16a34a" : s >= 70 ? "#d97706" : "#dc2626"
+    const scoreClass = (s: number) => s >= 90 ? "green" : s >= 70 ? "amber" : "red"
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Scan Report — ${domain}</title>
+    // Build heading tree HTML recursively
+    const renderHeadings = (nodes: HeadingNode[]): string =>
+      nodes.map((h) => {
+        const indent = (h.level - 1) * 24
+        const hasIssue = h.issues && h.issues.length > 0
+        return `<div class="heading-row" style="padding-left:${indent}px">
+          <span class="heading-tag h${h.level}-tag">H${h.level}</span>
+          <span class="heading-text${hasIssue ? " heading-issue" : ""}">${h.text ? esc(h.text) : '<em style="color:#94a3b8">empty</em>'}</span>
+          ${hasIssue ? `<span class="heading-warn">${h.issues.join(", ")}</span>` : ""}
+        </div>`
+      }).join("")
+
+    // Meta tags section
+    const metaRows: [string, string][] = []
+    if (report.meta.title) metaRows.push(["Title", esc(report.meta.title)])
+    if (report.meta.description) metaRows.push(["Description", esc(report.meta.description)])
+    if (report.meta.lang) metaRows.push(["Language", report.meta.lang])
+    if (report.meta.charset) metaRows.push(["Charset", report.meta.charset])
+    if (report.meta.viewport) metaRows.push(["Viewport", esc(report.meta.viewport)])
+    if (report.meta.canonical) metaRows.push(["Canonical URL", esc(report.meta.canonical)])
+    if (report.meta.ogTags && Object.keys(report.meta.ogTags).length > 0) {
+      for (const [k, v] of Object.entries(report.meta.ogTags)) {
+        metaRows.push([`OG: ${k}`, esc(String(v))])
+      }
+    }
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>URL Scanner Report — ${esc(domain)}</title>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#1e293b;padding:48px;max-width:900px;margin:0 auto;font-size:14px}
-h1{font-size:28px;font-weight:800;margin-bottom:4px}h2{font-size:18px;font-weight:700;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #e2e8f0}h3{font-size:14px;font-weight:700;margin:16px 0 8px;text-transform:uppercase;letter-spacing:.5px;color:#64748b}
-.meta{color:#64748b;font-size:13px;margin-bottom:24px}.scores{display:flex;gap:16px;margin:24px 0}.score-card{flex:1;text-align:center;border:1px solid #e2e8f0;border-radius:12px;padding:16px 8px}
-.score-card .val{font-size:28px;font-weight:800}.score-card .lbl{font-size:12px;color:#64748b;margin-top:2px}.score-card .bar{height:4px;border-radius:2px;background:#e2e8f0;margin-top:8px}.score-card .bar-fill{height:100%;border-radius:2px}
-.overall{text-align:center;padding:20px;border:2px solid #e2e8f0;border-radius:16px;min-width:120px}.overall .val{font-size:48px;font-weight:800}.overall .lbl{font-size:13px;color:#64748b}
-.summary{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:24px 0;padding:20px;border:1px solid #e2e8f0;border-radius:12px}
-.summary ul{list-style:none;padding:0}.summary li{padding:4px 0;font-size:13px;display:flex;align-items:flex-start;gap:8px}.summary li::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-top:6px;flex-shrink:0}
-.priority li::before{background:#ef4444}.working li::before{background:#22c55e}
-.group{margin:16px 0}.group-header{font-size:14px;font-weight:600;padding:8px 0;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9}
-.group-count{font-size:11px;background:#f1f5f9;color:#64748b;padding:2px 8px;border-radius:99px}
-.issue{padding:8px 0;border-bottom:1px solid #f8fafc;display:flex;gap:8px;font-size:13px;page-break-inside:avoid}.issue:last-child{border:none}
-.dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}.dot-error{background:#ef4444}.dot-warning{background:#f59e0b}.dot-info{background:#60a5fa}
-.issue-meta{color:#94a3b8;font-size:11px;margin-top:2px}
-.footer{margin-top:40px;padding-top:16px;border-top:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:11px}
-.green{color:#16a34a}.amber{color:#d97706}.red{color:#dc2626}
-@media print{body{padding:24px}h2{break-after:avoid}.group{break-inside:avoid}}
-</style></head><body>
-<h1>URL Scanner Report</h1>
-<div class="meta">${domain} &mdash; Scanned ${dateStr} &mdash; ${report.fetchTimeMs}ms fetch &mdash; ${report.issues.length} issues</div>
+  @page {
+    margin: 1.5cm 2cm;
+    @bottom-center {
+      content: counter(page) " of " counter(pages);
+      font-size: 9px;
+      color: #94a3b8;
+    }
+  }
 
-<div style="display:flex;gap:24px;align-items:center;margin:24px 0">
-<div class="overall"><div class="val ${report.overallScore >= 90 ? "green" : report.overallScore >= 70 ? "amber" : "red"}">${report.overallScore}</div><div class="lbl">Overall Score</div></div>
-<div class="scores" style="flex:1">${cats.map((c) => `<div class="score-card"><div class="val ${c.score >= 90 ? "green" : c.score >= 70 ? "amber" : "red"}">${c.score}</div><div class="lbl">${c.label}</div><div class="bar"><div class="bar-fill" style="width:${c.score}%;background:${c.score >= 90 ? "#16a34a" : c.score >= 70 ? "#d97706" : "#dc2626"}"></div></div></div>`).join("")}</div>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: #1e293b;
+    background: #fff;
+    font-size: 13px;
+    line-height: 1.5;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---- Cover / Header ---- */
+  .cover {
+    text-align: center;
+    padding: 48px 0 36px;
+    border-bottom: 3px solid #1e293b;
+    margin-bottom: 32px;
+  }
+  .cover .brand {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+  .cover h1 {
+    font-size: 32px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+  }
+  .cover .url {
+    font-size: 16px;
+    color: #3b82f6;
+    word-break: break-all;
+    margin-bottom: 8px;
+  }
+  .cover .date {
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .cover .scan-meta {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    margin-top: 16px;
+    font-size: 11px;
+    color: #64748b;
+  }
+  .cover .scan-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* ---- Section headings ---- */
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 32px 0 14px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e2e8f0;
+    letter-spacing: -0.2px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #64748b;
+    margin: 0 0 10px;
+  }
+
+  /* ---- Score ring ---- */
+  .score-hero {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin: 24px 0;
+    page-break-inside: avoid;
+  }
+  .score-ring {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    flex-shrink: 0;
+  }
+  .score-ring svg {
+    width: 140px;
+    height: 140px;
+    transform: rotate(-90deg);
+  }
+  .score-ring .ring-bg {
+    fill: none;
+    stroke: #f1f5f9;
+    stroke-width: 10;
+  }
+  .score-ring .ring-fg {
+    fill: none;
+    stroke-width: 10;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease;
+  }
+  .score-ring .score-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+  }
+  .score-ring .score-num {
+    font-size: 40px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .score-ring .score-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ---- Category score cards ---- */
+  .cat-scores {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    flex: 1;
+  }
+  .cat-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px 10px;
+    text-align: center;
+    page-break-inside: avoid;
+  }
+  .cat-card .cat-val {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .cat-card .cat-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 4px;
+    margin-bottom: 8px;
+  }
+  .cat-card .cat-bar {
+    height: 4px;
+    background: #f1f5f9;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .cat-card .cat-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  /* ---- Summary ---- */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 16px 0 24px;
+    page-break-inside: avoid;
+  }
+  .summary-col {
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .summary-col.priority {
+    border-left: 3px solid #ef4444;
+  }
+  .summary-col.working {
+    border-left: 3px solid #22c55e;
+  }
+  .summary-col ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  .summary-col li {
+    padding: 5px 0;
+    font-size: 12.5px;
+    color: #334155;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    line-height: 1.45;
+  }
+  .summary-col li::before {
+    content: "";
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .summary-col.priority li::before { background: #ef4444; }
+  .summary-col.working li::before { background: #22c55e; }
+
+  /* ---- Issue counts strip ---- */
+  .count-strip {
+    display: flex;
+    gap: 16px;
+    margin: 8px 0 16px;
+    font-size: 12px;
+  }
+  .count-strip .count-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+  .count-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ---- Issue groups ---- */
+  .group {
+    margin: 18px 0;
+    page-break-inside: avoid;
+  }
+  .group-header {
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .group-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 800;
+    color: #fff;
+  }
+  .group-count {
+    font-size: 10px;
+    font-weight: 600;
+    background: #e2e8f0;
+    color: #64748b;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-left: auto;
+  }
+  .group-body {
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+  }
+  .issue {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    gap: 10px;
+    font-size: 12.5px;
+    page-break-inside: avoid;
+  }
+  .issue:last-child { border-bottom: none; }
+  .sev-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .sev-error { background: #ef4444; }
+  .sev-warning { background: #f59e0b; }
+  .sev-info { background: #60a5fa; }
+  .issue-content { flex: 1; min-width: 0; }
+  .issue-msg { color: #1e293b; line-height: 1.4; }
+  .issue-detail {
+    color: #94a3b8;
+    font-size: 11px;
+    margin-top: 2px;
+    line-height: 1.35;
+    word-break: break-all;
+  }
+  .issue-wcag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: #6366f1;
+    background: #eef2ff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    margin-left: 4px;
+  }
+
+  /* ---- Heading tree ---- */
+  .heading-tree {
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .heading-row {
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12.5px;
+  }
+  .heading-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+    padding: 1px 6px;
+    border-radius: 4px;
+    min-width: 28px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .h1-tag { background: #6366f1; }
+  .h2-tag { background: #3b82f6; }
+  .h3-tag { background: #0ea5e9; }
+  .h4-tag { background: #14b8a6; }
+  .h5-tag { background: #8b5cf6; }
+  .h6-tag { background: #a855f7; }
+  .heading-text { color: #334155; }
+  .heading-issue { color: #dc2626; }
+  .heading-warn {
+    font-size: 10px;
+    color: #f59e0b;
+    margin-left: auto;
+  }
+
+  /* ---- Security headers table ---- */
+  .sec-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .sec-table th {
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #64748b;
+    padding: 8px 12px;
+    border-bottom: 2px solid #e2e8f0;
+    background: #f8fafc;
+  }
+  .sec-table td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .sec-table tr:last-child td { border-bottom: none; }
+  .sec-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .sec-present { color: #16a34a; background: #f0fdf4; }
+  .sec-missing { color: #dc2626; background: #fef2f2; }
+  .sec-grade {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    margin-left: 12px;
+  }
+
+  /* ---- Meta tags ---- */
+  .meta-table {
+    width: 100%;
+    font-size: 12.5px;
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .meta-table td {
+    padding: 6px 0;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+  }
+  .meta-table td:first-child {
+    font-weight: 600;
+    color: #64748b;
+    width: 140px;
+    padding-right: 16px;
+    white-space: nowrap;
+  }
+  .meta-table td:last-child {
+    color: #334155;
+    word-break: break-all;
+  }
+
+  /* ---- Link summary cards ---- */
+  .link-cards {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .link-card {
+    text-align: center;
+    padding: 12px 8px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .link-card .lc-val {
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 1;
+  }
+  .link-card .lc-label {
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* ---- Schema section ---- */
+  .schema-entity {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin: 8px 0;
+    page-break-inside: avoid;
+    overflow: hidden;
+  }
+  .schema-entity-header {
+    padding: 8px 12px;
+    background: #f8fafc;
+    font-size: 12.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .schema-source {
+    font-size: 10px;
+    font-weight: 500;
+    color: #64748b;
+    background: #f1f5f9;
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .schema-props {
+    padding: 8px 12px;
+    font-size: 11.5px;
+    color: #475569;
+  }
+  .schema-props div {
+    padding: 2px 0;
+  }
+  .schema-props .prop-key {
+    color: #64748b;
+    font-weight: 600;
+  }
+  .schema-issue-item {
+    padding: 4px 12px;
+    font-size: 11.5px;
+    color: #dc2626;
+    background: #fef2f2;
+    border-top: 1px solid #fecaca;
+  }
+
+  /* ---- Site structure ---- */
+  .struct-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin: 8px 0;
+    page-break-inside: avoid;
+  }
+  .struct-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+  .struct-check {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .struct-yes { background: #dcfce7; color: #16a34a; }
+  .struct-no { background: #fee2e2; color: #dc2626; }
+
+  /* ---- Colors ---- */
+  .green { color: #16a34a; }
+  .amber { color: #d97706; }
+  .red { color: #dc2626; }
+
+  /* ---- Footer ---- */
+  .footer {
+    margin-top: 48px;
+    padding: 20px 0;
+    border-top: 2px solid #1e293b;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #94a3b8;
+  }
+  .footer .footer-brand {
+    font-weight: 700;
+    color: #64748b;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-size: 10px;
+  }
+
+  /* ---- Print ---- */
+  @media print {
+    body { padding: 0; }
+    .cover { padding-top: 24px; }
+    h2 { break-after: avoid; }
+    .group { break-inside: avoid; }
+    .issue { break-inside: avoid; }
+    .score-hero { break-inside: avoid; }
+    .summary-grid { break-inside: avoid; }
+    .schema-entity { break-inside: avoid; }
+    .sec-table { break-inside: avoid; }
+    .heading-tree { break-inside: avoid; }
+    .link-cards { break-inside: avoid; }
+    .struct-grid { break-inside: avoid; }
+    .footer { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- =============== COVER =============== -->
+<div class="cover">
+  <div class="brand">Stamats</div>
+  <h1>Website Audit Report</h1>
+  <div class="url">${esc(report.url)}</div>
+  <div class="date">${dateStr} at ${timeStr}</div>
+  <div class="scan-meta">
+    <span>${report.fetchTimeMs}ms response</span>
+    <span>&middot;</span>
+    <span>${(report.htmlSize / 1024).toFixed(1)} KB HTML</span>
+    <span>&middot;</span>
+    <span>${report.domElements.toLocaleString()} DOM elements</span>
+    <span>&middot;</span>
+    <span>${report.issues.length} issues found</span>
+  </div>
 </div>
 
-${report.summary ? `<div class="summary"><div class="priority"><h3>Top Priorities</h3><ul>${(report.summary.topPriorities ?? []).map((p) => `<li>${p}</li>`).join("")}</ul></div><div class="working"><h3>What's Working</h3><ul>${(report.summary.whatsWorking ?? []).map((w) => `<li>${w}</li>`).join("")}</ul></div></div>` : ""}
+<!-- =============== SCORE HERO =============== -->
+<div class="score-hero">
+  <div class="score-ring">
+    <svg viewBox="0 0 140 140">
+      <circle class="ring-bg" cx="70" cy="70" r="58" />
+      <circle class="ring-fg" cx="70" cy="70" r="58"
+        stroke="${scoreColor(report.overallScore)}"
+        stroke-dasharray="${2 * Math.PI * 58}"
+        stroke-dashoffset="${2 * Math.PI * 58 * (1 - report.overallScore / 100)}" />
+    </svg>
+    <div class="score-value">
+      <div class="score-num ${scoreClass(report.overallScore)}">${report.overallScore}</div>
+      <div class="score-label">Overall</div>
+    </div>
+  </div>
+  <div class="cat-scores">
+    ${cats.map((c) => `
+    <div class="cat-card">
+      <div class="cat-val ${scoreClass(c.score)}">${c.score}</div>
+      <div class="cat-label">${c.label}</div>
+      <div class="cat-bar">
+        <div class="cat-bar-fill" style="width:${c.score}%;background:${scoreColor(c.score)}"></div>
+      </div>
+    </div>`).join("")}
+  </div>
+</div>
 
-<h2>Issues (${errorCount} errors, ${warningCount} warnings, ${infoCount} info)</h2>
-${grouped.map(({ group, issues: gi }) => `<div class="group"><div class="group-header">${group.label} <span class="group-count">${gi.length}</span></div>${gi.map((issue) => `<div class="issue"><div class="dot dot-${issue.severity}"></div><div><div>${issue.message}</div><div class="issue-meta">${issue.selector ? issue.selector + " &middot; " : ""}${issue.wcagCriteria ? "WCAG " + issue.wcagCriteria : issue.ruleId}</div></div></div>`).join("")}</div>`).join("")}
+<!-- =============== SUMMARY =============== -->
+${report.summary && (report.summary.topPriorities?.length || report.summary.whatsWorking?.length) ? `
+<h2>Executive Summary</h2>
+<div class="summary-grid">
+  ${report.summary.topPriorities?.length ? `
+  <div class="summary-col priority">
+    <h3>Top Priorities</h3>
+    <ul>${report.summary.topPriorities.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
+  </div>` : ""}
+  ${report.summary.whatsWorking?.length ? `
+  <div class="summary-col working">
+    <h3>What's Working</h3>
+    <ul>${report.summary.whatsWorking.map((w) => `<li>${esc(w)}</li>`).join("")}</ul>
+  </div>` : ""}
+</div>` : ""}
 
-${report.headingTree.length > 0 ? `<h2>Heading Structure</h2><div style="font-size:13px">${report.headingTree.map((h) => `<div style="padding:3px 0;padding-left:${(h.level - 1) * 20}px"><strong style="font-size:11px;color:#64748b">H${h.level}</strong> ${h.text || "<em style='color:#94a3b8'>(empty)</em>"}</div>`).join("")}</div>` : ""}
+<!-- =============== ISSUES =============== -->
+<h2>Issues Found</h2>
+<div class="count-strip">
+  <div class="count-item"><span class="count-dot" style="background:#ef4444"></span> ${errorCount} Errors</div>
+  <div class="count-item"><span class="count-dot" style="background:#f59e0b"></span> ${warningCount} Warnings</div>
+  <div class="count-item"><span class="count-dot" style="background:#60a5fa"></span> ${infoCount} Info</div>
+</div>
+${grouped.map(({ group, issues: gi }) => {
+  const iconColors: Record<string, string> = {
+    accessibility: "#8b5cf6",
+    structure: "#3b82f6",
+    seo: "#10b981",
+    security: "#f59e0b",
+    links: "#06b6d4",
+    other: "#64748b",
+  }
+  const iconLetters: Record<string, string> = {
+    accessibility: "A",
+    structure: "S",
+    seo: "E",
+    security: "K",
+    links: "L",
+    other: "O",
+  }
+  const errs = gi.filter((i) => i.severity === "error").length
+  const warns = gi.filter((i) => i.severity === "warning").length
+  const infos = gi.filter((i) => i.severity === "info").length
+  const countParts = [errs > 0 ? `${errs}E` : "", warns > 0 ? `${warns}W` : "", infos > 0 ? `${infos}I` : ""].filter(Boolean).join(" ")
+  return `
+  <div class="group">
+    <div class="group-header">
+      <span class="group-icon" style="background:${iconColors[group.id] ?? "#64748b"}">${iconLetters[group.id] ?? "?"}</span>
+      ${group.label}
+      <span class="group-count">${gi.length} &mdash; ${countParts}</span>
+    </div>
+    <div class="group-body">
+      ${gi.map((issue) => `
+      <div class="issue">
+        <div class="sev-dot sev-${issue.severity}"></div>
+        <div class="issue-content">
+          <div class="issue-msg">${esc(issue.message)}</div>
+          <div class="issue-detail">
+            ${issue.selector ? `<span>${esc(issue.selector)}</span>` : ""}
+            ${issue.selector && (issue.wcagCriteria || issue.ruleId) ? " &middot; " : ""}
+            ${issue.wcagCriteria ? `<span class="issue-wcag">WCAG ${issue.wcagCriteria}${issue.wcagLevel ? " " + issue.wcagLevel : ""}</span>` : `<span>${issue.ruleId}</span>`}
+          </div>
+        </div>
+      </div>`).join("")}
+    </div>
+  </div>`
+}).join("")}
 
-${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.securityHeaders.grade}</h2><div style="font-size:13px">${Object.entries(report.securityHeaders.headers).map(([k, v]) => `<div style="padding:3px 0;display:flex;gap:8px"><span style="width:240px;color:#64748b">${k}</span><span style="color:${v.present ? "#16a34a" : "#dc2626"}">${v.present ? "Present" : "Missing"}</span></div>`).join("")}</div>` : ""}
+<!-- =============== HEADINGS =============== -->
+${report.headingTree.length > 0 ? `
+<h2>Heading Structure</h2>
+<div class="heading-tree">
+  ${renderHeadings(report.headingTree)}
+</div>` : ""}
 
-<div class="footer">Generated by Stamats URL Scanner &mdash; ${dateStr}</div>
-</body></html>`
+<!-- =============== META TAGS =============== -->
+${metaRows.length > 0 ? `
+<h2>Meta Tags &amp; SEO Data</h2>
+<table class="meta-table">
+  ${metaRows.map(([label, val]) => `<tr><td>${label}</td><td>${val}</td></tr>`).join("")}
+</table>` : ""}
+
+<!-- =============== SECURITY HEADERS =============== -->
+${report.securityHeaders ? (() => {
+  const grade = report.securityHeaders.grade
+  const gradeColor = grade === "A" || grade === "A+" ? "#16a34a" : grade === "B" ? "#d97706" : grade === "C" ? "#f59e0b" : "#dc2626"
+  const headers = report.securityHeaders.headers
+  const presentCount = Object.values(headers).filter((v: { present: boolean }) => v.present).length
+  const totalHeaders = Object.keys(headers).length
+  return `
+<h2>Security Headers
+  <span class="sec-grade" style="background:${gradeColor}">${grade}</span>
+  <span style="font-size:12px;font-weight:400;color:#64748b;margin-left:8px">${presentCount}/${totalHeaders} present</span>
+</h2>
+<table class="sec-table">
+  <thead><tr><th>Header</th><th>Status</th><th>Value</th></tr></thead>
+  <tbody>
+    ${Object.entries(headers).map(([k, v]: [string, { present: boolean; value?: string }]) => `
+    <tr>
+      <td style="font-weight:600">${k}</td>
+      <td><span class="sec-badge ${v.present ? "sec-present" : "sec-missing"}">${v.present ? "&#10003; Present" : "&#10007; Missing"}</span></td>
+      <td style="font-size:11px;color:#64748b;word-break:break-all">${v.present && v.value ? esc(String(v.value)).substring(0, 80) : "&mdash;"}</td>
+    </tr>`).join("")}
+  </tbody>
+</table>`
+})() : ""}
+
+<!-- =============== LINK SUMMARY =============== -->
+${report.linkSummary ? `
+<h2>Link Analysis</h2>
+<div class="link-cards">
+  <div class="link-card">
+    <div class="lc-val" style="color:#3b82f6">${report.linkSummary.total}</div>
+    <div class="lc-label">Total</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-val" style="color:#16a34a">${report.linkSummary.healthy}</div>
+    <div class="lc-label">Healthy</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-val" style="color:#dc2626">${report.linkSummary.broken}</div>
+    <div class="lc-label">Broken</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-val" style="color:#d97706">${report.linkSummary.redirects}</div>
+    <div class="lc-label">Redirects</div>
+  </div>
+  <div class="link-card">
+    <div class="lc-val" style="color:#94a3b8">${report.linkSummary.timeouts}</div>
+    <div class="lc-label">Timeouts</div>
+  </div>
+</div>` : ""}
+
+<!-- =============== SCHEMA =============== -->
+${report.schema && (report.schema.entities.length > 0 || report.schema.issues.length > 0) ? `
+<h2>Schema Markup</h2>
+<div style="font-size:12px;color:#64748b;margin-bottom:10px">
+  ${report.schema.totalFound} entit${report.schema.totalFound === 1 ? "y" : "ies"} found
+  ${report.schema.hasJsonLd ? ' &middot; <span style="color:#10b981;font-weight:600">JSON-LD</span>' : ""}
+  ${report.schema.hasMicrodata ? ' &middot; <span style="color:#3b82f6;font-weight:600">Microdata</span>' : ""}
+  ${report.schema.hasRdfa ? ' &middot; <span style="color:#8b5cf6;font-weight:600">RDFa</span>' : ""}
+</div>
+${report.schema.entities.map((entity) => {
+  const props = Object.entries(entity.properties).slice(0, 8)
+  return `
+  <div class="schema-entity">
+    <div class="schema-entity-header">
+      <span style="color:#6366f1">@</span> ${esc(entity.type)}
+      <span class="schema-source">${esc(entity.source)}</span>
+    </div>
+    ${props.length > 0 ? `
+    <div class="schema-props">
+      ${props.map(([k, v]) => `<div><span class="prop-key">${esc(k)}:</span> ${esc(String(v)).substring(0, 100)}</div>`).join("")}
+      ${Object.keys(entity.properties).length > 8 ? `<div style="color:#94a3b8;font-style:italic">+ ${Object.keys(entity.properties).length - 8} more properties</div>` : ""}
+    </div>` : ""}
+    ${entity.missingRequired && entity.missingRequired.length > 0 ? `
+    <div class="schema-issue-item">Missing required: ${entity.missingRequired.map((m) => esc(m)).join(", ")}</div>` : ""}
+    ${entity.issues && entity.issues.length > 0 ? entity.issues.map((iss) => {
+      const msg = typeof iss === "string" ? iss : iss.message
+      return `<div class="schema-issue-item">${esc(msg)}</div>`
+    }).join("") : ""}
+  </div>`
+}).join("")}
+${report.schema.issues.length > 0 ? `
+<div style="margin-top:12px">
+  <h3>Schema Issues</h3>
+  ${report.schema.issues.map((iss) => `
+  <div class="issue" style="border:none;padding:4px 0">
+    <div class="sev-dot sev-${iss.severity}"></div>
+    <div class="issue-content">
+      <div class="issue-msg">${esc(iss.message)}</div>
+    </div>
+  </div>`).join("")}
+</div>` : ""}
+` : ""}
+
+<!-- =============== SITE STRUCTURE =============== -->
+${report.siteStructure ? (() => {
+  const ph = report.siteStructure.pageHierarchy
+  const structItems = [
+    { label: "Header", present: !!ph.hasHeader },
+    { label: "Navigation", present: !!ph.hasNav },
+    { label: "Main content", present: !!ph.hasMain },
+    { label: "Footer", present: !!ph.hasFooter },
+    { label: "Sidebar (aside)", present: !!ph.hasAside },
+    { label: "Breadcrumb", present: !!ph.hasBreadcrumb },
+  ]
+  return `
+<h2>Site Structure</h2>
+<h3>Semantic Elements</h3>
+<div class="struct-grid">
+  ${structItems.map((item) => `
+  <div class="struct-item">
+    <span class="struct-check ${item.present ? "struct-yes" : "struct-no"}">${item.present ? "&#10003;" : "&#10007;"}</span>
+    <span>${item.label}</span>
+  </div>`).join("")}
+</div>
+${ph.navLinkCount ? `<div style="font-size:12px;color:#64748b;margin:6px 0">${ph.navLinkCount} navigation links detected</div>` : ""}
+${ph.sections && ph.sections.length > 0 ? `
+<h3 style="margin-top:16px">Page Sections</h3>
+<div style="font-size:12px;margin:4px 0">
+  ${ph.sections.map((s) => `<div style="padding:3px 0;display:flex;gap:8px">
+    <span style="font-weight:600;color:#3b82f6;min-width:60px">&lt;${s.tag}&gt;</span>
+    ${s.id ? `<span style="color:#64748b">id="${esc(s.id)}"</span>` : ""}
+    ${s.ariaLabel ? `<span style="color:#64748b">aria-label="${esc(s.ariaLabel)}"</span>` : ""}
+  </div>`).join("")}
+</div>` : ""}
+${report.siteStructure.navigation.length > 0 ? `
+<h3 style="margin-top:16px">Navigation Links</h3>
+<div style="font-size:12px;margin:4px 0;columns:2;column-gap:24px">
+  ${report.siteStructure.navigation.slice(0, 20).map((n) => `<div style="padding:2px 0;break-inside:avoid">${esc(n.text || n.href)}</div>`).join("")}
+  ${report.siteStructure.navigation.length > 20 ? `<div style="color:#94a3b8;font-style:italic;padding:2px 0">+ ${report.siteStructure.navigation.length - 20} more</div>` : ""}
+</div>` : ""}
+`
+})() : ""}
+
+<!-- =============== FOOTER =============== -->
+<div class="footer">
+  <div>
+    <div class="footer-brand">Stamats</div>
+    <div>Generated by Stamats URL Scanner</div>
+  </div>
+  <div style="text-align:right">
+    <div>${dateStr}</div>
+    <div style="color:#cbd5e1">${esc(report.url)}</div>
+  </div>
+</div>
+
+</body>
+</html>`
 
     const w = window.open("", "_blank")
     if (w) {
@@ -1273,9 +2125,54 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
     [sendAiMessage],
   )
 
-  // ----- Crawl Site -----
-  const startCrawl = useCallback(
+  // ----- Fetch Sitemap (browse mode) -----
+  const fetchSitemap = useCallback(
     async (url: string) => {
+      const normalized = normalizeUrl(url)
+      if (!normalized) return
+
+      setError(null)
+      setSitemapLoading(true)
+      setSitemapUrls([])
+      setSelectedUrls(new Set())
+      setSitemapSearch("")
+      setView("sitemap-browse")
+
+      try {
+        const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+        const response = await fetch("/api/scanner/sitemap", {
+          method: "POST",
+          headers,
+          credentials: "include",
+          body: JSON.stringify({ url: normalized }),
+        })
+
+        if (!response.ok) {
+          const text = await response.text()
+          let msg = "Failed to fetch sitemap"
+          try { const j = JSON.parse(text); msg = j.error || msg } catch { if (text) msg = text }
+          setError(msg)
+          setView("home")
+          return
+        }
+
+        const data = await response.json()
+        const urls: string[] = data.urls ?? []
+        setSitemapUrls(urls)
+        setSelectedUrls(new Set(urls)) // select all by default
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Failed to fetch sitemap")
+        setView("home")
+      } finally {
+        setSitemapLoading(false)
+      }
+    },
+    [],
+  )
+
+  // ----- Crawl Site (with optional pre-selected URLs) -----
+  const startCrawl = useCallback(
+    async (url: string, specificUrls?: string[]) => {
       const normalized = normalizeUrl(url)
       if (!normalized) return
 
@@ -1294,7 +2191,12 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
           method: "POST",
           headers,
           credentials: "include",
-          body: JSON.stringify({ url: normalized, maxPages: 20, options: { wcagLevel: options.wcagLevel } }),
+          body: JSON.stringify({
+            url: normalized,
+            urls: specificUrls,
+            maxPages: specificUrls ? specificUrls.length : 20,
+            options: { wcagLevel: options.wcagLevel },
+          }),
           signal: controller.signal,
         })
 
@@ -1390,7 +2292,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
     return (
       <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
         <AppHeader title="URL Scanner" />
-        <div className="flex items-start justify-center pt-[12vh]">
+        <div className="flex items-start justify-center pt-[8vh]">
           <div className="w-full max-w-2xl px-6">
             {/* Title */}
             <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -1398,7 +2300,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                 URL Scanner
               </h1>
               <p className="text-slate-500 dark:text-slate-400">
-                Check any website for accessibility, structure, and SEO issues.
+                Paste a URL to audit accessibility, SEO, schema, and security.
               </p>
             </div>
 
@@ -1466,10 +2368,10 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
               <button
                 type="button"
                 disabled={!urlInput.trim()}
-                onClick={() => startCrawl(urlInput)}
+                onClick={() => fetchSitemap(urlInput)}
                 className="text-blue-600 dark:text-blue-400 font-medium px-4 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-1.5 text-sm"
               >
-                <Map size={15} />
+                <MapIcon size={15} />
                 Crawl Site
               </button>
             </form>
@@ -1673,6 +2575,185 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
               </button>
             </div>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // RENDER: Sitemap Browser (select pages to scan)
+  // ---------------------------------------------------------------------------
+  if (view === "sitemap-browse") {
+    // Group URLs by path section
+    const grouped: { section: string; urls: string[] }[] = (() => {
+      const sectionMap = new Map<string, string[]>()
+      const filtered = sitemapSearch
+        ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase()))
+        : sitemapUrls
+
+      for (const url of filtered) {
+        try {
+          const parsed = new URL(url)
+          const parts = parsed.pathname.split("/").filter(Boolean)
+          const section = parts.length > 1 ? `/${parts[0]}/` : "/"
+          if (!sectionMap.has(section)) sectionMap.set(section, [])
+          sectionMap.get(section)!.push(url)
+        } catch {
+          if (!sectionMap.has("/")) sectionMap.set("/", [])
+          sectionMap.get("/")!.push(url)
+        }
+      }
+
+      return Array.from(sectionMap.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([section, urls]) => ({ section, urls }))
+    })()
+
+    const totalFiltered = grouped.reduce((s, g) => s + g.urls.length, 0)
+
+    return (
+      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
+        <AppHeader title="URL Scanner" />
+        <div className="max-w-4xl mx-auto px-6 py-8">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => setView("home")}
+              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <div className="flex-1">
+              <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Select Pages to Scan</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {sitemapLoading ? "Fetching sitemap..." : `${sitemapUrls.length} pages found in sitemap`}
+              </p>
+            </div>
+            <button
+              onClick={() => startCrawl(urlInput, Array.from(selectedUrls))}
+              disabled={selectedUrls.size === 0}
+              className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              Scan {selectedUrls.size} Page{selectedUrls.size !== 1 ? "s" : ""}
+            </button>
+          </div>
+
+          {sitemapLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 size={24} className="text-blue-500 animate-spin" />
+              <span className="ml-3 text-sm text-slate-500 dark:text-slate-400">Discovering pages...</span>
+            </div>
+          ) : (
+            <>
+              {/* Toolbar: search + select all/none */}
+              <div className="flex items-center gap-3 mb-5">
+                <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
+                  <Search size={14} className="text-slate-400" />
+                  <input
+                    type="text"
+                    value={sitemapSearch}
+                    onChange={(e) => setSitemapSearch(e.target.value)}
+                    placeholder="Filter pages..."
+                    className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
+                  />
+                  {sitemapSearch && (
+                    <button onClick={() => setSitemapSearch("")} className="text-slate-400 hover:text-slate-600">
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <button
+                  onClick={() => {
+                    const filtered = sitemapSearch ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase())) : sitemapUrls
+                    const allSelected = filtered.every((u) => selectedUrls.has(u))
+                    setSelectedUrls((prev) => {
+                      const next = new Set(prev)
+                      for (const u of filtered) {
+                        if (allSelected) next.delete(u)
+                        else next.add(u)
+                      }
+                      return next
+                    })
+                  }}
+                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
+                >
+                  {sitemapUrls.length > 0 && (sitemapSearch ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase())) : sitemapUrls).every((u) => selectedUrls.has(u))
+                    ? "Deselect All"
+                    : "Select All"}
+                </button>
+                <span className="text-xs text-slate-400 whitespace-nowrap">{selectedUrls.size} / {totalFiltered}</span>
+              </div>
+
+              {/* Grouped sections */}
+              <div className="space-y-4">
+                {grouped.map(({ section, urls }) => {
+                  const sectionSelected = urls.filter((u) => selectedUrls.has(u)).length
+                  const allSectionSelected = sectionSelected === urls.length
+
+                  return (
+                    <div key={section} className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden">
+                      {/* Section header */}
+                      <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.04] dark:border-white/[0.04] bg-slate-50/50 dark:bg-slate-800/30">
+                        <input
+                          type="checkbox"
+                          checked={allSectionSelected}
+                          onChange={() => {
+                            setSelectedUrls((prev) => {
+                              const next = new Set(prev)
+                              for (const u of urls) {
+                                if (allSectionSelected) next.delete(u)
+                                else next.add(u)
+                              }
+                              return next
+                            })
+                          }}
+                          className="accent-blue-600 w-4 h-4"
+                        />
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-mono">{section}</span>
+                        <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
+                          {sectionSelected}/{urls.length}
+                        </span>
+                      </div>
+
+                      {/* URL list */}
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {urls.map((url) => {
+                          const path = (() => { try { return new URL(url).pathname } catch { return url } })()
+                          return (
+                            <label
+                              key={url}
+                              className="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border-b border-black/[0.02] dark:border-white/[0.02] last:border-0"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedUrls.has(url)}
+                                onChange={() => {
+                                  setSelectedUrls((prev) => {
+                                    const next = new Set(prev)
+                                    if (next.has(url)) next.delete(url)
+                                    else next.add(url)
+                                    return next
+                                  })
+                                }}
+                                className="accent-blue-600 w-3.5 h-3.5 flex-shrink-0"
+                              />
+                              <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{path}</span>
+                            </label>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {sitemapUrls.length === 0 && !sitemapLoading && (
+                <div className="text-center py-16 text-sm text-slate-500 dark:text-slate-400">
+                  No sitemap found for this site. Try scanning the URL directly instead.
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     )
@@ -2009,7 +3090,39 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
     return (
       <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
         <AppHeader title="URL Scanner" />
-        <div className="max-w-4xl mx-auto px-6 py-8">
+        <div className="flex">
+        {/* Sticky sidebar nav for main tabs */}
+        <div className="hidden lg:flex flex-col w-[200px] flex-shrink-0 border-r border-slate-200/60 dark:border-slate-700/40 min-h-[calc(100vh-56px)]">
+          <div className="sticky top-16 px-4 py-8 space-y-1">
+            <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] px-3 mb-3">Results</div>
+            {([
+              { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
+              { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
+              { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
+              { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
+              { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
+              { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
+            ]).map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setResultTab(tab.id)}
+                className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left text-[13px] font-medium transition-all ${
+                  resultTab === tab.id
+                    ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+                }`}
+              >
+                <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+                <span className="flex-1">{tab.label}</span>
+                {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+                {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-1 min-w-0 max-w-4xl mx-auto px-6 py-8">
           {/* Back + URL + actions */}
           <div className="flex items-center gap-3 mb-8">
             <button
@@ -2092,7 +3205,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
           </div>
 
           {/* Score Row */}
-          <div className="flex items-center gap-8 mb-10">
+          <div className="flex items-center gap-5 mb-8">
             {/* Overall ring */}
             <div className="flex flex-col items-center flex-shrink-0">
               <ScoreRing score={report.overallScore} />
@@ -2133,12 +3246,12 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
           {report.summary &&
             (report.summary.topPriorities?.length ||
               report.summary.whatsWorking?.length) && (
-              <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-5 mb-8">
+              <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-4 mb-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Top Priorities */}
                   {report.summary.topPriorities?.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider mb-2.5">
+                      <h3 className="text-[11px] font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider mb-2.5">
                         Top Priorities
                       </h3>
                       <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
@@ -2154,7 +3267,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                   {/* What's Working */}
                   {report.summary.whatsWorking?.length > 0 && (
                     <div>
-                      <h3 className="text-xs font-semibold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-2.5">
+                      <h3 className="text-[11px] font-semibold text-emerald-500 dark:text-emerald-400 uppercase tracking-wider mb-2.5">
                         What's Working
                       </h3>
                       <ul className="space-y-2 text-sm text-slate-500 dark:text-slate-400">
@@ -2175,8 +3288,8 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
               </div>
             )}
 
-          {/* Tab bar */}
-          <div className="flex gap-6 border-b border-black/[0.06] dark:border-white/[0.06] mb-6">
+          {/* Tab bar (mobile only — sidebar handles this on desktop) */}
+          <div className="flex gap-7 border-b border-slate-200 dark:border-slate-800 mb-6 lg:hidden overflow-x-auto">
             {(
               [
                 {
@@ -2253,7 +3366,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                 ))}
               </div>
 
-              {/* Grouped issue list */}
+              {/* Grouped issue list with sidebar nav */}
               {(() => {
                 // Apply severity filter, then category filter
                 let issues = filteredIssues
@@ -2296,7 +3409,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                       const groupWarnings = groupIssues.filter((i) => i.severity === "warning").length
 
                       return (
-                        <div key={group.id}>
+                        <div key={group.id} id={`group-${group.id}`}>
                           {/* Group header */}
                           <button
                             onClick={() => setCollapsedGroups((prev) => {
@@ -2305,7 +3418,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                               else next.add(group.id)
                               return next
                             })}
-                            className="flex items-center gap-2 w-full py-2 text-left"
+                            className="flex items-center gap-2 w-full py-2 text-left sticky top-0 z-10 bg-white dark:bg-[hsl(224,20%,8%)]"
                           >
                             {isCollapsed ? <ChevronRight size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
                             <Icon size={14} className={group.color} />
@@ -2325,7 +3438,11 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                                     setSelectedIssue(issue)
                                     setView("detail")
                                   }}
-                                  className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-3 flex items-start gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left"
+                                  className={`bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-3 flex items-start gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left ${
+                                    issue.severity === "error" ? "border-l-[3px] border-l-red-500" :
+                                    issue.severity === "warning" ? "border-l-[3px] border-l-amber-500" :
+                                    "border-l-[3px] border-l-blue-400"
+                                  }`}
                                 >
                                   <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${severityDotClass(issue.severity)}`} />
                                   <div className="flex-1 min-w-0">
@@ -2335,6 +3452,9 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
                                       {issue.line != null && <>Line {issue.line} &middot; </>}
                                       {issue.wcagCriteria ? <>WCAG {issue.wcagCriteria}</> : issue.ruleId}
                                     </div>
+                                    {issue.suggestion && (
+                                      <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{issue.suggestion}</div>
+                                    )}
                                   </div>
                                 </button>
                               ))}
@@ -2525,7 +3645,7 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
 
                           {/* Properties grid */}
                           {propEntries.length > 0 && (
-                            <div className="px-5 py-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+                            <div className="px-5 py-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm max-h-[300px] overflow-y-auto">
                               {propEntries.map(([key, value]) => (
                                 <div key={key} className="contents">
                                   <span className="text-right text-slate-400 dark:text-slate-500 text-xs pt-0.5">{key}</span>
@@ -2945,7 +4065,8 @@ ${report.securityHeaders ? `<h2>Security Headers &mdash; Grade ${report.security
               )}
             </div>
           )}
-        </div>
+        </div>{/* close main content */}
+        </div>{/* close flex wrapper */}
 
         <AiChatPanel show={showAiPanel} onClose={() => setShowAiPanel(false)} messages={aiMessages} input={aiInput} onInputChange={setAiInput} onSend={sendAiMessage} isLoading={isAiLoading} suggestedPrompts={suggestedPrompts} />
       </div>

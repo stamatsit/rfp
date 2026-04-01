@@ -29,7 +29,7 @@ export function generateCsrfToken(req: Request, res: Response, next: NextFunctio
   res.cookie(CSRF_COOKIE_NAME, token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
+    sameSite: "lax",
     maxAge: 4 * 60 * 60 * 1000, // 4 hours (match session)
   })
 
@@ -95,11 +95,16 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
  * Endpoint to get CSRF token for client-side requests
  */
 export function getCsrfToken(req: Request, res: Response) {
-  const token = req.cookies?.[CSRF_COOKIE_NAME]
+  let token = req.cookies?.[CSRF_COOKIE_NAME]
 
   if (!token) {
-    return res.status(500).json({
-      error: "CSRF token not initialized"
+    // Generate on the fly if middleware didn't set it (e.g., cookie parsing issue)
+    token = crypto.randomBytes(32).toString("hex")
+    res.cookie(CSRF_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 4 * 60 * 60 * 1000,
     })
   }
 
