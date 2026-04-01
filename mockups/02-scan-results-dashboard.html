@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Scanner — Results</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = { darkMode: 'class', theme: { extend: { colors: {
+      bg: 'hsl(224 20% 8%)', surface: 'hsl(224 20% 10%)', surfaceHover: 'hsl(224 20% 14%)',
+      border: 'hsl(224 20% 18%)', fg: 'hsl(210 40% 96%)', fgMuted: 'hsl(215 20% 55%)',
+      primary: 'hsl(217 91% 60%)', success: 'hsl(152 69% 41%)', warning: 'hsl(38 92% 50%)',
+      danger: 'hsl(0 84% 60%)', info: 'hsl(199 89% 48%)',
+    }}}}
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.015em; -webkit-font-smoothing: antialiased; }
+    body { background: hsl(224 20% 8%); color: hsl(210 40% 96%); }
+    .card { background: hsl(224 20% 10%); border: 1px solid hsl(224 20% 18%); border-radius: 16px; }
+    .bar { height: 5px; border-radius: 3px; }
+    .tab { padding: 8px 0; font-size: 14px; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab:hover { color: hsl(210 40% 96%); }
+    .tab.active { color: hsl(217 91% 60%); border-color: hsl(217 91% 60%); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+
+    .score-ring { position: relative; width: 100px; height: 100px; }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-ring .track { fill: none; stroke: hsl(224 20% 16%); stroke-width: 7; }
+    .score-ring .progress { fill: none; stroke-width: 7; stroke-linecap: round; }
+    .score-ring .label { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-4xl mx-auto px-6 py-8">
+
+    <!-- Back + URL -->
+    <div class="flex items-center gap-3 mb-8 fade-in">
+      <a href="01-scanner-home.html" class="text-fgMuted hover:text-fg transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <div class="flex-1">
+        <h1 class="text-lg font-semibold">stamatsinc.com</h1>
+        <p class="text-xs text-fgMuted">Scanned Mar 27, 2026 &middot; 1.2s</p>
+      </div>
+      <button class="px-3 py-1.5 rounded-lg text-sm text-fgMuted border border-border hover:text-fg transition-all">Export</button>
+      <button class="px-3 py-1.5 rounded-lg text-sm text-white bg-primary hover:bg-primary/90 transition-all">Rescan</button>
+    </div>
+
+    <!-- Score Row -->
+    <div class="flex items-center gap-8 mb-10 fade-in">
+      <!-- Overall -->
+      <div class="flex flex-col items-center">
+        <div class="score-ring mb-2">
+          <svg viewBox="0 0 100 100" width="100" height="100">
+            <circle class="track" cx="50" cy="50" r="42" />
+            <circle class="progress" cx="50" cy="50" r="42" stroke="hsl(152 69% 41%)" stroke-dasharray="263.9" stroke-dashoffset="31.7" />
+          </svg>
+          <div class="label">
+            <span class="text-2xl font-extrabold">88</span>
+          </div>
+        </div>
+        <span class="text-xs text-fgMuted">Overall</span>
+      </div>
+
+      <!-- Category cards -->
+      <div class="flex-1 grid grid-cols-4 gap-3">
+        <div class="card p-4 text-center">
+          <div class="text-xl font-bold mb-1">87</div>
+          <div class="text-xs text-fgMuted mb-2">Accessibility</div>
+          <div class="bar bg-surfaceHover"><div class="h-full bg-primary rounded-full" style="width:87%"></div></div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-xl font-bold mb-1">92</div>
+          <div class="text-xs text-fgMuted mb-2">Structure</div>
+          <div class="bar bg-surfaceHover"><div class="h-full bg-success rounded-full" style="width:92%"></div></div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-xl font-bold text-warning mb-1">78</div>
+          <div class="text-xs text-fgMuted mb-2">SEO</div>
+          <div class="bar bg-surfaceHover"><div class="h-full bg-warning rounded-full" style="width:78%"></div></div>
+        </div>
+        <div class="card p-4 text-center">
+          <div class="text-xl font-bold mb-1">95</div>
+          <div class="text-xs text-fgMuted mb-2">Security</div>
+          <div class="bar bg-surfaceHover"><div class="h-full bg-success rounded-full" style="width:95%"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card p-5 mb-8 fade-in">
+      <div class="grid grid-cols-2 gap-6">
+        <div>
+          <h3 class="text-xs font-semibold text-danger uppercase tracking-wider mb-2.5">Top Priorities</h3>
+          <ul class="space-y-2 text-sm text-fgMuted">
+            <li class="flex items-start gap-2">
+              <div class="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+              3 images have no alt text — screen readers can't describe them
+            </li>
+            <li class="flex items-start gap-2">
+              <div class="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+              Heading structure skips from H1 to H3 — add an H2
+            </li>
+            <li class="flex items-start gap-2">
+              <div class="w-1.5 h-1.5 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+              Newsletter input has no label — form is inaccessible
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-success uppercase tracking-wider mb-2.5">What's Working</h3>
+          <ul class="space-y-2 text-sm text-fgMuted">
+            <li class="flex items-start gap-2">
+              <svg class="w-3.5 h-3.5 text-success mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              All security headers present (A grade)
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-3.5 h-3.5 text-success mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              Valid lang attribute and charset
+            </li>
+            <li class="flex items-start gap-2">
+              <svg class="w-3.5 h-3.5 text-success mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+              61 of 64 links are healthy
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-6 border-b border-border mb-6 fade-in">
+      <a href="#" class="tab active text-primary font-medium">Issues (24)</a>
+      <a href="03-heading-tree.html" class="tab text-fgMuted font-medium">Headings</a>
+      <a href="#" class="tab text-fgMuted font-medium">Links (64)</a>
+      <a href="05-export-compare.html" class="tab text-fgMuted font-medium">History</a>
+    </div>
+
+    <!-- Filter Pills -->
+    <div class="flex gap-2 mb-5 fade-in">
+      <button class="px-3 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary border border-primary/20">All 24</button>
+      <button class="px-3 py-1 rounded-full text-xs font-medium text-danger border border-border hover:border-danger/30 transition-colors">4 Errors</button>
+      <button class="px-3 py-1 rounded-full text-xs font-medium text-warning border border-border hover:border-warning/30 transition-colors">12 Warnings</button>
+      <button class="px-3 py-1 rounded-full text-xs font-medium text-info border border-border hover:border-info/30 transition-colors">8 Info</button>
+    </div>
+
+    <!-- Issue List -->
+    <div class="space-y-2 fade-in">
+      <a href="04-issue-detail.html" class="card px-5 py-4 flex items-start gap-3 hover:border-danger/30 transition-colors block">
+        <div class="w-2 h-2 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">Heading hierarchy skipped</div>
+          <div class="text-xs text-fgMuted mt-0.5">H1 jumps to H3 — missing H2 &middot; Line 142 &middot; WCAG 1.3.1</div>
+        </div>
+      </a>
+
+      <a href="04-issue-detail.html" class="card px-5 py-4 flex items-start gap-3 hover:border-danger/30 transition-colors block">
+        <div class="w-2 h-2 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">3 images missing alt text</div>
+          <div class="text-xs text-fgMuted mt-0.5">Screen readers cannot describe these images &middot; WCAG 1.1.1</div>
+        </div>
+      </a>
+
+      <a href="#" class="card px-5 py-4 flex items-start gap-3 hover:border-danger/30 transition-colors block">
+        <div class="w-2 h-2 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">Multiple H1 elements</div>
+          <div class="text-xs text-fgMuted mt-0.5">Page has 2 H1 tags — should have exactly one</div>
+        </div>
+      </a>
+
+      <a href="#" class="card px-5 py-4 flex items-start gap-3 hover:border-danger/30 transition-colors block">
+        <div class="w-2 h-2 rounded-full bg-danger mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">Form input missing label</div>
+          <div class="text-xs text-fgMuted mt-0.5">Newsletter email input has no associated label &middot; WCAG 1.3.1</div>
+        </div>
+      </a>
+
+      <div class="card px-5 py-4 flex items-start gap-3">
+        <div class="w-2 h-2 rounded-full bg-warning mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">Meta description too short</div>
+          <div class="text-xs text-fgMuted mt-0.5">45 characters — recommended 120-160</div>
+        </div>
+      </div>
+
+      <div class="card px-5 py-4 flex items-start gap-3">
+        <div class="w-2 h-2 rounded-full bg-warning mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">5 links use generic text</div>
+          <div class="text-xs text-fgMuted mt-0.5">"Read More" and "Click Here" lack context &middot; WCAG 2.4.4</div>
+        </div>
+      </div>
+
+      <div class="card px-5 py-4 flex items-start gap-3">
+        <div class="w-2 h-2 rounded-full bg-info mt-1.5 flex-shrink-0"></div>
+        <div class="flex-1">
+          <div class="text-sm font-medium">No Open Graph image</div>
+          <div class="text-xs text-fgMuted mt-0.5">Social shares will use a default preview</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed bottom-4 right-4 text-xs text-fgMuted/50">Mockup 2/5 — Results</div>
+</body>
+</html>

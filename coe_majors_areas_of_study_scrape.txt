@@ -1,0 +1,615 @@
+================================================================================
+       COE COLLEGE - MAJORS & AREAS OF STUDY PAGE - COMPLETE SCRAPE
+       URL: https://www.coe.edu/academics/majors-areas-study
+       Date Scraped: 2026-03-30
+================================================================================
+
+
+################################################################################
+SECTION 1: PAGE METADATA & TECHNICAL DETAILS
+################################################################################
+
+Page Title:          "Majors & Areas of Study - On Campus | Coe College"
+CMS:                 Concrete5 (concrete CMS)
+CMS Content ID:      217
+Edit Mode:           false
+Arrange Mode:        false
+Application URL:     https://www.coe.edu
+Active Locale:       en_US (US English)
+Dispatcher:          /index.php
+Image Path:          /concrete/images
+User Registered:     false
+
+
+################################################################################
+SECTION 2: TRACKING, ANALYTICS & THIRD-PARTY SCRIPTS
+################################################################################
+
+- Hotjar:                   ID 3018294 (version 6)
+- Google Tag Manager:       GTM-5DWWK5P
+- Google Analytics:         UA-3745152-31
+- Google Ads Conversion:    AW-704615665
+- Mautic Marketing:         https://start.gocoe.org/mtc.js
+
+
+################################################################################
+SECTION 3: BREADCRUMB NAVIGATION
+################################################################################
+
+Coe (/) > Academics (/academics) > Majors & Areas of Study - On Campus
+
+
+################################################################################
+SECTION 4: FULL PRIMARY NAVIGATION STRUCTURE
+################################################################################
+
+---------- ADMISSION SUBMENU ----------
+- First-Year Students           https://www.coe.edu/admission/first-year-students
+- International Students        https://www.coe.edu/admission/international-students
+- Transfer Students             https://www.coe.edu/admission/transfer-students
+- Online Students               https://www.coe.edu/academics/coe-online
+- Visit                         https://apply.coe.edu/portal/visit
+- Request Information           https://www.coe.edu/admission/request-information
+- Parents                       https://www.coe.edu/admission/parents
+- School Counselors             https://www.coe.edu/admission/school-counselors
+- Financial Aid & Scholarships  https://www.coe.edu/admission/financial-aid-scholarships
+- Majors & Areas of Study       /academics/majors-areas-study
+- Meet Your Counselor           https://www.coe.edu/admission/meet-your-counselor
+- Why Coe?                      /why-coe
+- Submit Your Enrollment Fee    https://www.coe.edu/admission/first-year-students/admitted-students/enroll-coe
+- Destination: Cedar Rapids     https://www.coe.edu/admission/destination-cedar-rapids
+- Iowa Ready - Regent Price Match  https://www.coe.edu/admission/iowa-ready
+- Aviation Mgmt & Flight Ops Student Checklist
+    https://www.coe.edu/academics/majors-areas-study/business-administration-economics/aviation-management/aviation-management-flight-school-student-checklist
+- Virtual Tour                  https://www.coe.edu/admission/virtual-reality-experience/#virtualtour
+- Engineering & Physics Visit Day  https://www.coe.edu/admission/engineering-and-physics-visit-day
+
+CTA Buttons under Admission:
+  [Plan a Visit]   https://apply.coe.edu/portal/visit
+  [Apply]          /admission/first-year-students/apply-enroll
+  [Request Info]   /admission/request-information
+
+---------- ACADEMICS SUBMENU ----------
+- Majors & Areas of Study - On Campus  /academics/majors-areas-study
+- Coe Online                           https://www.coe.edu/academics/coe-online
+- The Coe Difference - Centers and Programs
+    https://www.coe.edu/academics/coe-difference-centers-and-programs
+- Academic Resources                   https://www.coe.edu/academics/academic-resources
+- Stewart Memorial Library             https://www.coe.edu/academics/stewart-memorial-library
+
+---------- STUDENT LIFE SUBMENU ----------
+- Clubs & Organizations               https://www.coe.edu/student-life/clubs-organizations
+- Athletics                            https://kohawkathletics.com/
+- Religious & Spiritual Life           https://www.coe.edu/student-life/religious-life
+- Health & Wellness                    https://www.coe.edu/student-life/health-wellness
+- Residence Life                       https://www.coe.edu/student-life/residence-life
+- Title IX                             https://www.coe.edu/student-life/title-ix
+- Community Standards & Expectations   https://www.coe.edu/student-life/community-standards-expectations
+- Student Life Resources               https://www.coe.edu/student-life/student-life-resources
+- Contact Student Life                 https://www.coe.edu/student-life/contact-student-life
+
+---------- WHY COE SUBMENU ----------
+- Events                               https://www.coe.edu/why-coe/events
+- News & Features                      https://www.coe.edu/why-coe/news
+- Discover Coe                         https://www.coe.edu/why-coe/discover-coe
+- Faculty/Staff Directory              https://www.coe.edu/why-coe/faculty-staff-directory
+- Consumer Information                 https://www.coe.edu/why-coe/consumer-information
+- Parents & Visitors                   https://www.coe.edu/why-coe/parents-visitors
+- Visitor Information                  https://www.coe.edu/why-coe/visitor-information
+- Kohawk Stories                       https://www.coe.edu/why-coe/kohawk-stories
+- The Perfect College Town             https://www.coe.edu/why-coe/perfect-college-town
+- Legends of Coe                       https://www.coe.edu/why-coe/legends-coe
+- Women of Coe                         https://www.coe.edu/why-coe/women-coe
+- Progress with Purpose                https://www.coe.edu/why-coe/progress-purpose
+
+---------- ATHLETICS SUBMENU ----------
+- Sports                               http://www.coeathletics.com/
+- Master Schedule                      https://kohawkathletics.com/calendar.aspx
+- Recruit Me                           https://kohawkathletics.com/sports/2019/7/8/become-a-kohawk.aspx
+- News Archive                         https://kohawkathletics.com/archives.aspx
+- Hall of Fame                         https://kohawkathletics.com/honors/hall-of-fame
+- Campus Map                           /why-coe/visitor-information
+- Staff Directory                      https://kohawkathletics.com/staff.aspx
+
+---------- ALUMNI SUBMENU ----------
+- Support Coe                          https://www.coe.edu/alumni/support-coe
+- Alumni & Friends Engagement          https://www.coe.edu/alumni/alumni-engagement
+- Publications                         /why-coe/discover-coe/publications
+- Make a Gift                          https://host.nxt.blackbaud.com/donor-form/?svcid=renxt&formId=ae4b98a6-9315-43fe-a936-5ac5150b7531&envid=p-6-E2j12TBUGXTGvPVqGM1g&zone=usa
+- C3: Creativity, Careers, Community   https://www.coe.edu/alumni/c3-creativity-careers-community
+- Advancement Services                 https://www.coe.edu/alumni/advancement-services
+- FAQs                                 https://www.coe.edu/alumni/faqs
+
+---------- SECONDARY TOP-RIGHT LINKS ----------
+- Careers              https://www.coe.edu/why-coe/discover-coe/human-resources/careers
+- Current Students     https://www.coe.edu/students
+- Faculty & Staff      https://www.coe.edu/faculty-staff
+- Parents & Visitors   https://www.coe.edu/why-coe/parents-visitors
+- Request Info         https://www.coe.edu/admission/request-information
+- Search This Site     (search field)
+
+
+################################################################################
+SECTION 5: PAGE HEADINGS (IN ORDER)
+################################################################################
+
+H1: "Majors & Areas of Study - On Campus"
+H2: "Majors & Areas of Study"
+H2: "Minors"
+H2: "Pre-Professional Programs"
+H2: "Academic Resources"
+
+
+################################################################################
+SECTION 6: COMPLETE LIST OF MAJORS (60 areas of study total on campus)
+################################################################################
+
+LEGEND:
+  ^  = Also available as a minor
+  *  = No longer accepting students for the major
+  ** = No longer accepting students for the minor
+
+---------- MAJORS ----------
+
+ #  | Major Name                                              | Symbol | URL
+----|--------------------------------------------------------|--------|----
+  1 | Accounting                                              |        | /academics/majors-areas-study/business-administration-economics/accounting
+  2 | African American Studies                                | ^      | /academics/majors-areas-study/african-american-studies
+  3 | Art                                                     | ^      | /academics/majors-areas-study/art
+  4 | Asian Studies                                           | ^      | /academics/majors-areas-study/asian-studies
+  5 | Aviation Management & Flight Operations - Bus. Admin.   |        | /academics/majors-areas-study/business-administration-economics/business/aviation-management
+  6 | Biochemistry                                            |        | /academics/majors-areas-study/biochemistry
+  7 | Biology                                                 |        | /academics/majors-areas-study/biology
+  8 | Business Administration                                 |        | /academics/majors-areas-study/business-administration-economics/business
+  9 | Chemistry                                               | ^      | /academics/majors-areas-study/chemistry
+ 10 | Communication Studies                                   | ^      | /academics/majors-areas-study/communication-studies
+ 11 | Computer Science                                        | ^      | /academics/majors-areas-study/mathematics-computer-science
+ 12 | Creative Writing                                        | ^      | /academics/majors-areas-study/english-creative-writing-communication-studies
+ 13 | Data Science                                            |        | /academics/majors-areas-study/data-science
+ 14 | Economics                                               | ^      | /academics/majors-areas-study/business-administration-economics/economics
+ 15 | Education                                               |        | /academics/majors-areas-study/education
+ 16 | Engineering Physics                                     |        | /academics/majors-areas-study/engineering-physics
+ 17 | English                                                 | ^      | /academics/majors-areas-study/english-creative-writing-communication-studies
+ 18 | English as a Second Language (ESL)                      |        | /academics/majors-areas-study/english-second-language-esl
+ 19 | Environmental and Ecological Science - Biology          |        | /academics/majors-areas-study/biology
+ 20 | Environmental Science                                   | *      | /academics/majors-areas-study/environmental-science
+ 21 | Environmental Studies                                   |        | /academics/majors-areas-study/environmental-studies
+ 22 | Film Studies                                            | *      | /academics/majors-areas-study/film-studies
+ 23 | Finance - Business Administration                       |        | /academics/majors-areas-study/business-administration-economics/business/finance
+ 24 | French & Francophone Studies                            | *      | /academics/majors-areas-study/french-francophone-studies
+ 25 | History                                                 | ^      | /academics/majors-areas-study/history
+ 26 | Interdisciplinary Science                               |        | /academics/majors-areas-study/general-science
+ 27 | Interdisciplinary Studies                               |        | /academics/majors-areas-study/interdisciplinary-studies
+ 28 | International Business - Business Administration        |        | /academics/majors-areas-study/business-administration-economics/business/international-business
+ 29 | International Economics                                 | ^      | /academics/majors-areas-study/business-administration-economics/international-economics
+ 30 | International Studies                                   |        | /academics/majors-areas-study/international-studies
+ 31 | Kinesiology                                             |        | /academics/majors-areas-study/kinesiology
+ 32 | Management - Business Administration                    |        | /academics/majors-areas-study/business-administration-economics/business/management
+ 33 | Marketing - Business Administration                     |        | /academics/majors-areas-study/business-administration-economics/business/marketing
+ 34 | Mathematics                                             | ^      | /academics/majors-areas-study/mathematics-computer-science
+ 35 | Media Production - Art                                  |        | /academics/majors-areas-study/art/media-production
+ 36 | Molecular Biology                                       | *      | /academics/majors-areas-study/molecular-biology
+ 37 | Molecular Biology - Biology                             |        | /academics/majors-areas-study/biology
+ 38 | Multimedia Graphic Design - Art                         |        | /academics/majors-areas-study/art/multimedia-graphic-design
+ 39 | Music                                                   | ^      | /academics/majors-areas-study/music
+ 40 | Neuroscience                                            |        | /academics/majors-areas-study/neuroscience
+ 41 | Non-Profit Arts & Creative Leadership - Art             |        | /academics/majors-areas-study/art/non-profit-arts-creative-leadership
+ 42 | Nursing                                                 |        | /academics/majors-areas-study/nursing
+ 43 | Organizational Science - Psychology                     |        | /academics/majors-areas-study/psychology/organizational-science
+ 44 | Performing Arts - Theatre Arts                          |        | /academics/majors-areas-study/theatre-arts
+ 45 | Philosophy                                              | ^      | /academics/majors-areas-study/philosophy
+ 46 | Physics                                                 | ^      | /academics/majors-areas-study/physics
+ 47 | Political Science                                       | ^      | /academics/majors-areas-study/political-science
+ 48 | Pre-Health Sciences - Biology                           |        | /academics/majors-areas-study/biology
+ 49 | Psychology                                              |        | /academics/majors-areas-study/psychology
+ 50 | Public Relations                                        |        | /academics/majors-areas-study/public-relations
+ 51 | Risk Management/Insurance - Business Administration     |        | /academics/majors-areas-study/business-administration-economics/business/risk-management-insurance
+ 52 | ROTC                                                    |        | /academics/majors-areas-study/rotc
+ 53 | Social & Criminal Justice                               |        | /academics/majors-areas-study/social-criminal-justice
+ 54 | Sociology                                               | ^      | /academics/majors-areas-study/sociology
+ 55 | Spanish                                                 | ^      | /academics/majors-areas-study/foreign-language
+ 56 | Spanish Studies                                         |        | /academics/majors-areas-study/foreign-language
+ 57 | Sports Management - Business Administration             |        | /academics/majors-areas-study/business-administration-economics/business/sports-management
+ 58 | Theatre Arts                                            | ^      | /academics/majors-areas-study/theatre-arts
+ 59 | Theatre Arts Management - Theatre Arts                  |        | /academics/majors-areas-study/theatre-arts
+ 60 | Writing                                                 | *      | /academics/majors-areas-study/writing
+
+
+---------- MINORS (8 total) ----------
+
+ #  | Minor Name                | Symbol | URL
+----|--------------------------|--------|----
+  1 | Anthropology              | **     | /academics/majors-areas-study/anthropology
+  2 | Applied Mathematics       |        | /academics/majors-areas-study/mathematics-computer-science
+  3 | Art History               | *      | /academics/majors-areas-study/art/art-history
+  4 | Classical Studies         |        | /academics/majors-areas-study/classical-studies
+  5 | Health and Society Studies|        | /academics/majors-areas-study/health-society-studies
+  6 | Museum Studies            |        | /academics/majors-areas-study/art/museum-studies
+  7 | Religion                  | *      | /academics/majors-areas-study/religion
+  8 | Secondary Education       |        | /academics/majors-areas-study/education
+
+
+---------- PRE-PROFESSIONAL PROGRAMS (14 total) ----------
+
+ #  | Program Name              | URL
+----|--------------------------|----
+  1 | Pre-Actuarial Science     | /academics/majors-areas-study/pre-actuarial-science
+  2 | Pre-Architecture          | /academics/majors-areas-study/pre-architecture
+  3 | Pre-Athletic Training     | /academics/majors-areas-study/pre-athletic-training
+  4 | Pre-Dental                | /academics/majors-areas-study/pre-dental
+  5 | Pre-Engineering           | /academics/majors-areas-study/pre-engineering
+  6 | Pre-Law                   | /academics/majors-areas-study/pre-law
+  7 | Pre-Med                   | /academics/majors-areas-study/pre-med
+  8 | Pre-Music Therapy         | /academics/majors-areas-study/music
+  9 | Pre-Pharmacy              | /academics/majors-areas-study/pre-pharmacy
+ 10 | Pre-Physical Therapy      | /academics/majors-areas-study/pre-physical-therapy
+ 11 | Pre-Physician Assistant   | /academics/majors-areas-study/pre-physician-assistant
+ 12 | Pre-Podiatry              | /academics/majors-areas-study/pre-podiatry
+ 13 | Pre-Public Health         | /academics/majors-areas-study/pre-public-health
+ 14 | Pre-Veterinary            | /academics/majors-areas-study/pre-veterinary
+
+
+################################################################################
+SECTION 7: PROGRAMS NO LONGER ACCEPTING STUDENTS
+################################################################################
+
+Majors no longer accepting students (*):
+  - Environmental Science
+  - Film Studies
+  - French & Francophone Studies
+  - Molecular Biology (standalone)
+  - Writing
+
+Minors no longer accepting students (**):
+  - Anthropology
+
+Minors no longer accepting students (*):
+  - Art History
+  - Religion
+
+
+################################################################################
+SECTION 8: MAJORS ALSO AVAILABLE AS MINORS (^)
+################################################################################
+
+  - African American Studies
+  - Art
+  - Asian Studies
+  - Chemistry
+  - Communication Studies
+  - Computer Science
+  - Creative Writing
+  - Economics
+  - English
+  - History
+  - International Economics
+  - Mathematics
+  - Music
+  - Philosophy
+  - Physics
+  - Political Science
+  - Sociology
+  - Spanish
+  - Theatre Arts
+
+
+################################################################################
+SECTION 9: DEPARTMENTAL GROUPINGS (BY URL STRUCTURE)
+################################################################################
+
+--- Business Administration & Economics Department ---
+  - Accounting
+  - Aviation Management & Flight Operations
+  - Business Administration
+  - Economics
+  - Finance
+  - International Business
+  - International Economics
+  - Management
+  - Marketing
+  - Risk Management/Insurance
+  - Sports Management
+
+--- Biology Department ---
+  - Biology
+  - Environmental and Ecological Science
+  - Molecular Biology - Biology
+  - Pre-Health Sciences - Biology
+
+--- Art Department ---
+  - Art
+  - Art History (minor)
+  - Media Production
+  - Multimedia Graphic Design
+  - Museum Studies (minor)
+  - Non-Profit Arts & Creative Leadership
+
+--- English, Creative Writing & Communication Studies ---
+  - Creative Writing
+  - English
+
+--- Mathematics & Computer Science ---
+  - Applied Mathematics (minor)
+  - Computer Science
+  - Mathematics
+
+--- Psychology Department ---
+  - Organizational Science
+  - Psychology
+
+--- Theatre Arts Department ---
+  - Performing Arts
+  - Theatre Arts
+  - Theatre Arts Management
+
+--- Foreign Language Department ---
+  - Spanish
+  - Spanish Studies
+
+--- Standalone Programs ---
+  - African American Studies
+  - Asian Studies
+  - Biochemistry
+  - Chemistry
+  - Classical Studies (minor)
+  - Communication Studies
+  - Data Science
+  - Education / Secondary Education
+  - Engineering Physics
+  - English as a Second Language (ESL)
+  - Environmental Science
+  - Environmental Studies
+  - Film Studies
+  - French & Francophone Studies
+  - Health and Society Studies (minor)
+  - History
+  - Interdisciplinary Science
+  - Interdisciplinary Studies
+  - International Studies
+  - Kinesiology
+  - Molecular Biology (standalone)
+  - Music
+  - Neuroscience
+  - Nursing
+  - Philosophy
+  - Physics
+  - Political Science
+  - Public Relations
+  - Religion (minor)
+  - ROTC
+  - Social & Criminal Justice
+  - Sociology
+  - Writing
+
+
+################################################################################
+SECTION 10: ACADEMIC RESOURCES SECTION
+################################################################################
+
+  - Academic Calendar       https://www.coe.edu/academics/academic-resources/academic-calendar
+  - Academic Catalog        https://www.coe.edu/academics/academic-resources/catalog
+  - Office of Accessibility Services
+      https://www.coe.edu/academics/coe-difference-centers-and-programs/learning-commons/accessibility-services
+  - Online Bookstore        https://www.coe.edu/why-coe/bookstore
+  - Articulation & Transfer Agreements
+      https://www.coe.edu/academics/academic-resources/articulation-transfer-agreements
+  - Provost's Office        https://www.coe.edu/academics/academic-resources/provosts-office
+  - Registrar               https://www.coe.edu/academics/academic-resources/registrar
+  - Stewart Memorial Library https://www.coe.edu/academics/stewart-memorial-library
+
+
+################################################################################
+SECTION 11: CALLS TO ACTION (CTAs)
+################################################################################
+
+  1. "Plan a Visit" (button)         -> https://apply.coe.edu/portal/visit
+  2. "Apply" (button)                -> /admission/first-year-students/apply-enroll
+  3. "Request Info" (button)         -> /admission/request-information
+  4. "Schedule A Visit" (button)     -> https://apply.coe.edu/portal/visit
+  5. "Toggle navigation" (hamburger menu trigger)
+  6. "Learn about our online degree" -> https://www.coe.edu/academics/coe-online
+
+
+################################################################################
+SECTION 12: INTERACTIVE ELEMENTS
+################################################################################
+
+  - Expandable primary navigation menu with 6 main sections + submenus
+  - Google Translate widget (TranslateElement for language selection)
+  - "Search This Site" search field
+  - Toggle navigation (mobile menu)
+
+
+################################################################################
+SECTION 13: IMAGES ON PAGE
+################################################################################
+
+  Image                                                                      | Alt Text
+  ---------------------------------------------------------------------------|---------
+  /application/themes/coecollege/img/logo.png                                | (none)
+  /application/files/2615/2722/8454/menu-3.jpg                               | (none)
+  /application/files/7915/2934/9004/menu-2.jpg                               | (none)
+  /application/files/8615/2934/9003/menu-1.jpg                               | (none)
+  /application/files/9115/2934/9005/menu-4.jpg                               | (none)
+  /application/files/9915/3140/8833/menu-5.jpg                               | (none)
+  /application/files/7015/3140/9929/menu-alumni.jpg                          | (none)
+  /application/files/6715/3295/5908/logo-inverse_d0df2b7091e86e54874de89adba2f4ae.png | (none)
+
+NOTE: No alt text is provided for ANY image on the page (accessibility concern).
+
+
+################################################################################
+SECTION 14: STATISTICS & DATA POINTS
+################################################################################
+
+  - "60 areas of study" (stated in Academics section description)
+  - Founded: 1851 (from description: "selective, private, nationally recognized
+    four-year coeducational liberal arts institution providing superior
+    educational experiences for students since 1851")
+  - Institution type: Selective, private, nationally recognized, four-year,
+    coeducational, liberal arts
+  - Mascot: Kohawk (referenced in athletics links, Kohawk Stories, Kohawk Shop)
+
+
+################################################################################
+SECTION 15: FOOTER - COMPLETE CONTENTS
+################################################################################
+
+--- Footer Logo ---
+  Coe College Logo (inverted) -> https://www.coe.edu/
+
+--- Footer Primary Links ---
+  - Apply & Enroll          https://www.coe.edu/admission/first-year-students/apply-enroll
+  - Plan a Visit            https://apply.coe.edu/portal/visit
+  - Calendar of Events      https://www.coe.edu/why-coe/events/calendar
+  - Give                    https://host.nxt.blackbaud.com/donor-form/?svcid=renxt&formId=ae4b98a6-9315-43fe-a936-5ac5150b7531&envid=p-6-E2j12TBUGXTGvPVqGM1g&zone=usa
+
+--- Footer Resources ---
+  - Directory               https://www.coe.edu/why-coe/faculty-staff-directory
+  - Maps & Directions       https://www.coe.edu/why-coe/visitor-information
+  - Consumer Information    https://www.coe.edu/why-coe/consumer-information
+  - Webcasts                https://portal.stretchinternet.com/coeadmin/
+  - Privacy Policy          https://www.coe.edu/why-coe/consumer-information/privacy
+
+--- Footer Quick Links ---
+  - Bookstore               https://coe.textbookx.com/institutional/index.php
+  - The Kohawk Shop          https://the-kohawk-shop.myshopify.com/
+  - Campus Calendar          https://www.coe.edu/why-coe/events/calendar
+  - Majors & Areas of Study  https://www.coe.edu/academics/majors-areas-study
+  - Library                  https://www.coe.edu/academics/stewart-memorial-library
+  - My Coe                   https://my.coe.edu
+  - Moodle                   https://moodle.coe.edu
+  - Request Information      https://www.coe.edu/admission/request-information
+
+--- Social Media ---
+  - Facebook    https://www.facebook.com/CoeCollege
+  - Instagram   https://www.instagram.com/coecollege/
+  - TikTok      https://www.tiktok.com/@coecollege
+  - Twitter     https://twitter.com/CoeCollege
+  - LinkedIn    https://www.linkedin.com/school/coe-college/
+  - YouTube     https://www.youtube.com/coecollege
+
+--- Contact Information ---
+  Address:  1220 First Avenue NE, Cedar Rapids, IA 52402
+  Phone:    877.Call.Coe (877-225-5263) or 319.399.8500
+  Email:    admission@coe.edu
+
+--- Copyright ---
+  (C) 2026 Coe College | All rights reserved.
+  Web Application by Informatics, Inc
+
+
+################################################################################
+SECTION 16: EXTERNAL SERVICES & PLATFORMS REFERENCED
+################################################################################
+
+  - Blackbaud (donation platform):       host.nxt.blackbaud.com
+  - Stretch Internet (webcasts):         portal.stretchinternet.com
+  - TextBookX (bookstore):               coe.textbookx.com
+  - Shopify (Kohawk Shop):               the-kohawk-shop.myshopify.com
+  - Moodle (LMS):                        moodle.coe.edu
+  - My Coe (student portal):             my.coe.edu
+  - Kohawk Athletics:                    kohawkathletics.com
+  - Hotjar (heatmaps/analytics):         hotjar.com
+  - Google Tag Manager / Analytics / Ads
+  - Mautic (marketing automation):       start.gocoe.org
+
+
+################################################################################
+SECTION 17: PAGE LAYOUT STRUCTURE (TOP TO BOTTOM)
+################################################################################
+
+  1. HEADER BAR
+     - Logo (top-left)
+     - Primary nav: Admission | Academics | Student Life | Why Coe | Athletics | Alumni
+     - Secondary links: Careers | Current Students | Faculty & Staff | Parents & Visitors
+     - CTA buttons: Plan a Visit | Apply | Request Info
+     - Search field
+
+  2. BREADCRUMB
+     - Coe > Academics > Majors & Areas of Study - On Campus
+
+  3. PAGE TITLE
+     - H1: "Majors & Areas of Study - On Campus"
+
+  4. GOOGLE TRANSLATE WIDGET
+
+  5. MAIN CONTENT AREA
+     - H2: "Majors & Areas of Study"
+       - Alphabetical list of 60 majors with links and symbols
+     - H2: "Minors"
+       - Alphabetical list of 8 minors with links and symbols
+     - H2: "Pre-Professional Programs"
+       - Alphabetical list of 14 pre-professional programs with links
+     - Footnote legend (^ * **)
+     - "Learn about our online degree" link
+
+  6. ACADEMIC RESOURCES SECTION
+     - H2: "Academic Resources"
+     - 8 resource links in list format
+
+  7. FOOTER
+     - Logo (inverted)
+     - Primary links (Apply, Visit, Calendar, Give)
+     - Resources column
+     - Quick Links column
+     - Social media icons (6 platforms)
+     - Contact block (address, phone, email)
+     - Copyright notice
+
+
+################################################################################
+SECTION 18: NOTABLE OBSERVATIONS & DETAILS
+################################################################################
+
+  - The page claims "60 areas of study" but lists 60 majors + 8 minors +
+    14 pre-professional programs = 82 total program listings. The "60 areas"
+    likely refers to on-campus major programs specifically.
+
+  - 5 majors are marked as no longer accepting students (Environmental Science,
+    Film Studies, French & Francophone Studies, Molecular Biology standalone,
+    Writing).
+
+  - 3 minors are marked as no longer accepting students (Anthropology, Art
+    History, Religion).
+
+  - Several majors are sub-specializations within a parent department:
+    * 8 under Business Administration
+    * 4 under Art
+    * 3 under Biology
+    * 3 under Theatre Arts
+    * 2 under Psychology
+    * 2 under Foreign Language
+    * 2 under English/Creative Writing/Communication Studies
+    * 2 under Mathematics/Computer Science
+
+  - The "Pre-Music Therapy" program links to the Music department page, not a
+    standalone pre-professional page.
+
+  - No images have alt text, which is a notable accessibility gap.
+
+  - The page uses the Concrete5 CMS (now called ConcreteCMS).
+
+  - The institution uses Blackbaud for donor management, Mautic for marketing
+    automation, Moodle as its LMS, and Stretch Internet for athletic webcasts.
+
+  - The athletics domain (kohawkathletics.com) is separate from the main
+    coe.edu domain.
+
+  - "Iowa Ready - Regent Price Match" suggests a competitive pricing program
+    matching Iowa regent university tuition.
+
+  - The vanity phone number 877.Call.Coe (877-225-5263) is a memorable
+    admissions line.
+
+  - The college's web application is credited to Informatics, Inc.
+
+  - Google Translate is embedded directly on the page for international
+    accessibility.
+
+  - The Kohawk Shop runs on Shopify as a separate e-commerce storefront.
+
+
+================================================================================
+                            END OF SCRAPE
+================================================================================

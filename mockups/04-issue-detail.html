@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Scanner — Issue Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = { darkMode: 'class', theme: { extend: { colors: {
+      bg: 'hsl(224 20% 8%)', surface: 'hsl(224 20% 10%)', surfaceHover: 'hsl(224 20% 14%)',
+      border: 'hsl(224 20% 18%)', fg: 'hsl(210 40% 96%)', fgMuted: 'hsl(215 20% 55%)',
+      primary: 'hsl(217 91% 60%)', success: 'hsl(152 69% 41%)', warning: 'hsl(38 92% 50%)',
+      danger: 'hsl(0 84% 60%)', info: 'hsl(199 89% 48%)',
+    }}}}
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400&display=swap');
+    * { font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.015em; -webkit-font-smoothing: antialiased; }
+    body { background: hsl(224 20% 8%); color: hsl(210 40% 96%); }
+    .card { background: hsl(224 20% 10%); border: 1px solid hsl(224 20% 18%); border-radius: 16px; }
+    .code { font-family: 'Fira Code', monospace; font-size: 13px; line-height: 1.7; }
+    .code-error { background: rgba(239,68,68,0.06); border-left: 3px solid hsl(0 84% 60%); }
+    .code-fix { background: rgba(34,197,94,0.06); border-left: 3px solid hsl(152 69% 41%); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-3xl mx-auto px-6 py-8">
+
+    <!-- Back -->
+    <div class="flex items-center gap-3 mb-8">
+      <a href="02-scan-results-dashboard.html" class="text-fgMuted hover:text-fg transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <span class="text-sm text-fgMuted">Back to results</span>
+    </div>
+
+    <!-- Issue Title -->
+    <div class="mb-8 fade-in">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="px-2 py-1 rounded-lg bg-danger/10 text-danger text-xs font-bold">ERROR</span>
+        <span class="text-xs text-fgMuted font-mono">img-alt-missing</span>
+        <span class="text-xs text-fgMuted">&middot; WCAG 1.1.1 Level A</span>
+      </div>
+      <h1 class="text-2xl font-bold mb-2">Images missing alt text</h1>
+      <p class="text-fgMuted">3 images have no <code class="bg-surfaceHover px-1.5 py-0.5 rounded text-sm text-info">alt</code> attribute. Screen readers cannot describe them.</p>
+    </div>
+
+    <!-- Affected Elements -->
+    <div class="space-y-4 mb-8 fade-in">
+      <!-- Element 1 -->
+      <div class="card overflow-hidden">
+        <div class="px-5 py-3 text-xs text-fgMuted flex items-center justify-between border-b border-border">
+          <span>Line 38</span>
+          <span class="font-mono">img.hero-banner</span>
+        </div>
+        <div class="px-5 py-3 code code-error">
+          <span class="text-fgMuted/50 mr-4 select-none">38</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/hero-banner.jpg"</span> <span class="text-cyan-400">class</span>=<span class="text-success">"hero-banner"</span><span class="text-info">&gt;</span>
+        </div>
+        <div class="px-5 py-3 code code-fix border-t border-border/50">
+          <span class="text-fgMuted/50 mr-4 select-none">fix</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/hero-banner.jpg"</span> <span class="text-yellow-400">alt="..."</span> <span class="text-cyan-400">class</span>=<span class="text-success">"hero-banner"</span><span class="text-info">&gt;</span>
+        </div>
+      </div>
+
+      <!-- Element 2 -->
+      <div class="card overflow-hidden">
+        <div class="px-5 py-3 text-xs text-fgMuted flex items-center justify-between border-b border-border">
+          <span>Line 95</span>
+          <span class="font-mono">img.team-photo</span>
+        </div>
+        <div class="px-5 py-3 code code-error">
+          <span class="text-fgMuted/50 mr-4 select-none">95</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/team-2024.jpg"</span><span class="text-info">&gt;</span>
+        </div>
+        <div class="px-5 py-3 code code-fix border-t border-border/50">
+          <span class="text-fgMuted/50 mr-4 select-none">fix</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/team-2024.jpg"</span> <span class="text-yellow-400">alt="Stamats team photo"</span><span class="text-info">&gt;</span>
+        </div>
+      </div>
+
+      <!-- Element 3 -->
+      <div class="card overflow-hidden">
+        <div class="px-5 py-3 text-xs text-fgMuted flex items-center justify-between border-b border-border">
+          <span>Line 201</span>
+          <span class="font-mono">img.client-logo</span>
+        </div>
+        <div class="px-5 py-3 code code-error">
+          <span class="text-fgMuted/50 mr-4 select-none">201</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/logos/univ-iowa.png"</span><span class="text-info">&gt;</span>
+        </div>
+        <div class="px-5 py-3 code code-fix border-t border-border/50">
+          <span class="text-fgMuted/50 mr-4 select-none">fix</span><span class="text-info">&lt;img</span> <span class="text-cyan-400">src</span>=<span class="text-success">"/logos/univ-iowa.png"</span> <span class="text-yellow-400">alt="University of Iowa logo"</span><span class="text-info">&gt;</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- How to Fix -->
+    <div class="card p-5 mb-8 fade-in">
+      <h2 class="text-sm font-semibold mb-3">How to Fix</h2>
+      <ol class="space-y-1.5 text-sm text-fgMuted list-decimal list-inside">
+        <li>Add an <code class="bg-surfaceHover px-1 py-0.5 rounded text-xs text-info">alt</code> attribute describing each image's content</li>
+        <li>For decorative images, use <code class="bg-surfaceHover px-1 py-0.5 rounded text-xs text-info">alt=""</code> (empty string)</li>
+        <li>Keep alt text concise — under 125 characters</li>
+      </ol>
+    </div>
+
+    <!-- Learn More -->
+    <div class="fade-in">
+      <h2 class="text-sm font-semibold mb-3">Learn More</h2>
+      <div class="space-y-2 text-sm">
+        <a href="#" class="text-primary hover:underline block">W3C: Understanding SC 1.1.1 Non-text Content</a>
+        <a href="#" class="text-primary hover:underline block">WebAIM: Alternative Text Guide</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed bottom-4 right-4 text-xs text-fgMuted/50">Mockup 4/5 — Issue Detail</div>
+</body>
+</html>

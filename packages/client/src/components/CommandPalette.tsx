@@ -24,6 +24,7 @@ import {
   ImageDown,
   Presentation,
   BarChart3,
+  ScanSearch,
 } from "lucide-react"
 import { conversationsApi, clientsApi, type ConversationSummary, type ClientResponse } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
@@ -64,11 +65,12 @@ const ROUTE_ITEMS: PaletteItem[] = [
   { id: "pitch-deck", type: "route", label: "Pitch Deck Designer", description: "AI-powered presentation builder", icon: Presentation, href: "/pitch-deck" },
   { id: "meetings", type: "route", label: "Meeting Intake", description: "Record, transcribe & analyze meetings", icon: MessageSquare, href: "/meetings" },
   { id: "analytics", type: "route", label: "Proposal Analytics", description: "Charts & KPIs for win rates", icon: BarChart3, href: "/analytics" },
+  { id: "scanner", type: "route", label: "URL Scanner", description: "Scan websites for accessibility & structure", icon: ScanSearch, href: "/scanner" },
   { id: "help", type: "route", label: "Help", description: "Documentation & guides", icon: HelpCircle, href: "/help" },
   { id: "support", type: "route", label: "Support", description: "Contact support", icon: LifeBuoy, href: "/support" },
 ]
 
-const ERIC_ONLY_ROUTES = new Set(["pitch-deck"])
+const ERIC_ONLY_ROUTES = new Set(["pitch-deck", "scanner"])
 
 const PAGE_ROUTE_MAP: Record<string, string> = {
   "ask-ai": "/ai",

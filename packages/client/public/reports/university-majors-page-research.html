@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>University Majors Page Research | Stamats, March 2026</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --crimson:#9b1b30;--crimson-light:rgba(155,27,48,.06);
+  --text:#1c1917;--text-2:#57534e;--text-3:#a8a29e;
+  --cream:#faf9f7;--sand:#f0eeea;
+  --border:#e4e2dd;--border-hover:#ccc9c2;
+  --green:#16a34a;--blue:#2563eb;--amber:#d97706;--purple:#7c3aed;
+  --r:14px;--r-sm:10px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:#fff;color:var(--text);line-height:1.65;-webkit-font-smoothing:antialiased}
+a{color:var(--crimson);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ── Mockup bar ── */
+.mock-bar{
+  position:sticky;top:0;z-index:100;
+  background:var(--text);color:var(--text-3);
+  text-align:center;padding:10px 20px;
+  font-size:.72rem;font-weight:500;letter-spacing:.03em;
+}
+.mock-bar strong{color:#c8a951}
+
+/* ── Layout ── */
+.wrap{max-width:900px;margin:0 auto;padding:0 28px}
+
+/* ── Header ── */
+.doc-header{padding:56px 0 40px;background:linear-gradient(180deg,var(--cream),#fff 80%);border-bottom:1px solid var(--border)}
+.doc-header h1{font-size:clamp(1.6rem,3.5vw,2.2rem);font-weight:700;letter-spacing:-.03em;line-height:1.15;margin-bottom:10px}
+.doc-header .sub{font-size:.95rem;color:var(--text-2);line-height:1.7;max-width:600px}
+.doc-header .meta{margin-top:16px;font-size:.76rem;color:var(--text-3);font-weight:500}
+
+/* ── TOC ── */
+.toc{padding:32px 0;border-bottom:1px solid var(--border)}
+.toc h2{font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px}
+.toc-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px}
+@media(max-width:600px){.toc-grid{grid-template-columns:1fr}}
+.toc a{display:block;padding:6px 0;font-size:.85rem;font-weight:500;color:var(--text);border-bottom:1px solid transparent}
+.toc a:hover{color:var(--crimson);text-decoration:none}
+.toc a span{color:var(--text-3);font-size:.72rem;margin-left:6px}
+
+/* ── Sections ── */
+.section{padding:48px 0;border-bottom:1px solid var(--border)}
+.section:last-of-type{border-bottom:none}
+.section h2{font-size:1.3rem;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.section .school-sub{font-size:.84rem;color:var(--text-2);margin-bottom:28px}
+.section h3{font-size:1rem;font-weight:600;margin-top:28px;margin-bottom:8px;color:var(--text)}
+.section p{font-size:.88rem;color:var(--text-2);margin-bottom:12px}
+.section ul{margin:0 0 12px 20px;font-size:.86rem;color:var(--text-2)}
+.section li{margin-bottom:5px}
+.section li strong{color:var(--text);font-weight:600}
+
+/* ── Info cards ── */
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0}
+@media(max-width:600px){.info-grid{grid-template-columns:1fr}}
+.info-card{padding:16px 18px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--cream)}
+.info-card .lbl{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:6px}
+.info-card .val{font-size:.84rem;color:var(--text);font-weight:500;line-height:1.5}
+
+/* ── Tags ── */
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}
+.tag{padding:3px 9px;border-radius:4px;font-size:.66rem;font-weight:600;letter-spacing:.02em}
+.tag-good{background:rgba(22,163,74,.07);color:var(--green)}
+.tag-mid{background:rgba(217,119,6,.07);color:var(--amber)}
+.tag-weak{background:rgba(155,27,48,.06);color:var(--crimson)}
+.tag-unique{background:rgba(124,58,237,.07);color:var(--purple)}
+
+/* ── Comparison table ── */
+.table-wrap{overflow-x:auto;margin:24px 0;border:1px solid var(--border);border-radius:var(--r)}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+thead{background:var(--cream)}
+th{padding:12px 14px;text-align:left;font-weight:600;color:var(--text);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;border-bottom:1px solid var(--sand);color:var(--text-2);vertical-align:top}
+tr:last-child td{border-bottom:none}
+td:first-child{font-weight:600;color:var(--text);white-space:nowrap}
+.check{color:var(--green)}
+.cross{color:var(--text-3)}
+.star{color:var(--amber)}
+
+/* ── Callout ── */
+.callout{margin:28px 0;padding:20px 22px;border-left:3px solid var(--crimson);background:var(--crimson-light);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.callout h4{font-size:.82rem;font-weight:600;color:var(--crimson);margin-bottom:6px}
+.callout p{font-size:.84rem;color:var(--text-2);margin-bottom:0}
+
+/* ── Takeaways ── */
+.takeaway{padding:20px 22px;border:1px solid var(--border);border-radius:var(--r);margin:14px 0;background:#fff;transition:border-color .15s}
+.takeaway:hover{border-color:var(--border-hover)}
+.takeaway .num{font-size:.66rem;font-weight:700;color:var(--crimson);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.takeaway h4{font-size:.9rem;font-weight:600;margin-bottom:6px}
+.takeaway p{font-size:.84rem;color:var(--text-2);margin:0}
+
+/* ── Footer ── */
+.doc-footer{padding:36px 0;background:var(--cream);border-top:1px solid var(--border);margin-top:48px}
+.doc-footer p{font-size:.78rem;color:var(--text-3);text-align:center}
+
+/* ── Stamats badge ── */
+.stamats{
+  position:fixed;bottom:20px;left:20px;z-index:90;
+  display:flex;align-items:center;gap:8px;
+  padding:7px 14px 7px 9px;background:rgba(28,25,23,.88);
+  color:rgba(255,255,255,.6);border-radius:100px;font-size:.68rem;font-weight:500;
+  box-shadow:0 4px 12px rgba(0,0,0,.12);
+}
+.stamats img{width:18px;height:18px;border-radius:4px}
+.stamats strong{color:#fff;font-weight:600}
+</style>
+</head>
+<body>
+
+<div class="mock-bar"><strong>COMPETITIVE RESEARCH</strong> &mdash; How top universities present their Majors & Areas of Study pages &nbsp;|&nbsp; Stamats, March 2026</div>
+
+<div class="doc-header">
+  <div class="wrap">
+    <h1>University Majors Page Research</h1>
+    <p class="sub">Competitive analysis of 10 top universities &mdash; how they structure, design, and optimize their academic program listing pages for prospective students.</p>
+    <p class="meta">Prepared for Coe College redesign &nbsp;&bull;&nbsp; Stamats &nbsp;&bull;&nbsp; March 30, 2026</p>
+  </div>
+</div>
+
+<div class="toc">
+  <div class="wrap">
+    <h2>Contents</h2>
+    <div class="toc-grid">
+      <a href="#stanford">Stanford University <span>Best-in-class filtering</span></a>
+      <a href="#mit">MIT <span>Reference catalog</span></a>
+      <a href="#duke">Duke University <span>Storytelling + conversion</span></a>
+      <a href="#northwestern">Northwestern University <span>Multi-pathway exploration</span></a>
+      <a href="#umich">University of Michigan <span>Color-coded badges</span></a>
+      <a href="#harvard">Harvard University <span>Editorial gateway</span></a>
+      <a href="#yale">Yale University <span>AI chat + flat list</span></a>
+      <a href="#princeton">Princeton University <span>Interactive accordion</span></a>
+      <a href="#williams">Williams College <span>Minimal table</span></a>
+      <a href="#amherst">Amherst College <span>Stat-forward directory</span></a>
+      <a href="#comparison">Feature Comparison Matrix</a>
+      <a href="#takeaways">Key Takeaways for Coe</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- STANFORD -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="stanford">
+  <div class="wrap">
+    <h2>Stanford University</h2>
+    <p class="school-sub">bulletin.stanford.edu/programs &nbsp;&mdash;&nbsp; 349 programs listed</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Best Filtering UX</span>
+      <span class="tag tag-unique">Custom Illustrations</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Two-column layout with a deep filter sidebar on the left and card-based results on the right. Pagination at the bottom handles 349 total programs across multiple pages. Clean, utility-forward design.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>The most sophisticated filter system of any university reviewed. Eight distinct filter dimensions:</p>
+    <ul>
+      <li><strong>Search bar</strong> with typeahead ("Type to search programs...")</li>
+      <li><strong>Program Level:</strong> Undergraduate / Graduate radio buttons</li>
+      <li><strong>Academic Areas:</strong> Dropdown with autocomplete</li>
+      <li><strong>Interests:</strong> Dropdown with autocomplete</li>
+      <li><strong>Degree:</strong> Dropdown with autocomplete</li>
+      <li><strong>Coterm Masters Programs:</strong> Yes / No toggle</li>
+      <li><strong>Academic Options:</strong> Minor, PhD Minor, Departmental Honors checkboxes</li>
+      <li><strong>Department(s):</strong> Dropdown with autocomplete</li>
+    </ul>
+    <p>Results count displayed live ("Results (349)") and sort options include Catalog Display Name, Degree Designation, and Description.</p>
+
+    <h3>Program Cards</h3>
+    <p>Full-width horizontal cards with custom department illustrations (not photos) on the left, program name with degree designation (e.g., "Aeronautics and Astronautics (BS)"), a 2&ndash;4 sentence outcome-oriented description, and a right-arrow link to the detail page. Each degree variant gets its own card.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Gold-standard filtering. Typeahead search. Custom illustrations add visual identity. Outcome-oriented copy per program.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No Apply/Visit CTAs on the listing page. No trust stats visible. Pagination over infinite scroll may slow exploration.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- MIT -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="mit">
+  <div class="wrap">
+    <h2>MIT</h2>
+    <p class="school-sub">catalog.mit.edu/subjects &nbsp;&mdash;&nbsp; 40+ subject areas</p>
+
+    <div class="tags">
+      <span class="tag tag-unique">Dual Index System</span>
+      <span class="tag tag-mid">Reference-Only</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Academic catalog format with a deep hierarchical left sidebar and three tabbed views: Overview (alphabetical), By Course Number (MIT's numerical system), and a Key tab explaining notation. Designed for current students and advisors, not prospective student marketing.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>Catalog-wide search bar. Two indexing methods: alphabetical and by MIT's unique course numbering system (Course 6 = EECS, Course 18 = Math). Left sidebar organized by schools with expandable sections.</p>
+
+    <h3>Program Display</h3>
+    <p>Simple bulleted hyperlink lists on the landing page. Each entry is "[Subject Name] (Course Number)" linking to a dedicated page. Detail pages show prerequisites, credit structure (lecture-lab-prep format), term offerings, requirement badges, instructor names, and full descriptions.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Dual indexing is genuinely useful. Key tab teaches users the notation. Most information-dense detail pages of any school.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">Zero marketing value. No imagery, no stats, no CTAs. Would not work for enrollment-focused pages.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- DUKE -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="duke">
+  <div class="wrap">
+    <h2>Duke University</h2>
+    <p class="school-sub">admissions.duke.edu/academic-possibilities &nbsp;&mdash;&nbsp; 147 programs (63 majors, 61 minors, 23 certificates)</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Best Storytelling</span>
+      <span class="tag tag-good">Best Conversion</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Narrative storytelling page that reads as a journey. Hero carousel, then progressive disclosure: "The Duke Way of Thinking" philosophy, Academic Opportunities split by school (Trinity College, Pratt Engineering), full alphabetical lists, research section, and international opportunities.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>No filters at all. Programs are presented as three flat alphabetical text lists (Majors, Minors, Certificates) with asterisk notations for restrictions. The page relies on storytelling to engage users rather than search/filter tooling.</p>
+
+    <h3>Trust &amp; Stats</h3>
+    <p>The richest statistical content of any school reviewed:</p>
+    <ul>
+      <li><strong>430,000</strong> unique academic combinations available</li>
+      <li><strong>83%</strong> of students pursue more than one major</li>
+      <li><strong>53%</strong> undergrads graduate with research experience</li>
+      <li><strong>$800M</strong> spent on Duke research each year</li>
+      <li><strong>200+</strong> study abroad programs</li>
+    </ul>
+
+    <h3>Conversion</h3>
+    <p>Persistent header CTAs (Connect, Visit, Apply) visible at all times. Mailing list signup in footer. "Learn More" arrows throughout. The most conversion-optimized page of all ten reviewed.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Compelling narrative arc. Always-visible CTAs. Best use of statistics to sell outcomes. Hero carousel for visual engagement.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No filtering on 147 programs. Flat text lists are hard to scan. Must scroll through entire page to find a specific program.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- NORTHWESTERN -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="northwestern">
+  <div class="wrap">
+    <h2>Northwestern University</h2>
+    <p class="school-sub">northwestern.edu/academics &nbsp;&mdash;&nbsp; 11 schools, multi-pathway exploration</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Multi-Pathway UX</span>
+      <span class="tag tag-unique">School Grid Cards</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Gateway page with three exploration pathways: by program type (Undergraduate, Graduate, Continuing), by school (11 visual cards), and by A-Z filterable data tables. Audience tabs at the top (Students, Faculty, Parents, Alumni, Media).</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>The Graduate A-Z page has a solid filterable table with three dimensions: filter by degree granted (Master's, Doctoral), by interest tags, and by Northwestern school. Results display as a four-column table (Program, School, Degree Type, Tags).</p>
+
+    <h3>Program Display</h3>
+    <p>Gateway uses image cards with thumbnails per school. A-Z pages use structured data tables. The 11-school grid with consistent card layouts provides visual browsing by institutional organization.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Accommodates multiple user research patterns. School grid is visually browsable. Graduate A-Z table has real filtering. Experiential learning section.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No persistent Apply CTAs. Gateway page is generic. Filtering only available on sub-pages, not the main landing.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- UMICH -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="umich">
+  <div class="wrap">
+    <h2>University of Michigan (LSA)</h2>
+    <p class="school-sub">lsa.umich.edu/lsa/academics/majors-minors.html &nbsp;&mdash;&nbsp; 185+ programs</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Best Badge Filtering</span>
+      <span class="tag tag-good">Best Inline Preview</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Audience selector bar, then quick-action buttons, breadcrumb, introductory text, two rows of color-coded filter buttons, a "Filtered by" status indicator, and a three-column interactive data table with inline accordion expansion.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>The most visually intuitive filter system. Two rows of colored badge buttons:</p>
+    <ul>
+      <li><strong>Category:</strong> HUM (Humanities, dark red), NAT (Natural Sciences, green), SOC (Social Sciences, teal), INT (Interdisciplinary, teal)</li>
+      <li><strong>Type:</strong> M (Major, dark green), m (Minor, red), sm (Sub-Major, gray), sps (Supplemental Studies)</li>
+    </ul>
+    <p>Active filters display in a "Filtered by:" status bar. Programs show matching badge icons inline.</p>
+
+    <h3>Program Display</h3>
+    <p>Three-column data table (Name, Type, Category). Clicking a program expands an inline accordion showing: full description, related programs with cross-links, and three CTA buttons (Requirements, Website, Advising). Users can preview details without leaving the page.</p>
+
+    <div class="callout">
+      <h4>Why this matters for Coe</h4>
+      <p>Michigan handles 185+ programs without overwhelming the page by combining color-coded visual filtering with inline previews. This is the closest pattern to what would work at Coe's scale (60+ programs) &mdash; achievable without the engineering investment of Stanford's system.</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Color-coded badges are instantly scannable. Inline accordion eliminates page navigation. Three CTAs per expanded program. Career outcomes link.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No text search. Badge labels (HUM, NAT, SOC) require learning. No images or visual content per program.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- HARVARD -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="harvard">
+  <div class="wrap">
+    <h2>Harvard University</h2>
+    <p class="school-sub">college.harvard.edu/academics/fields-study &nbsp;&mdash;&nbsp; Editorial gateway (no directory)</p>
+
+    <div class="tags">
+      <span class="tag tag-unique">Brand-First</span>
+      <span class="tag tag-weak">No Program List</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>This is deliberately NOT a program directory. It's an editorial gateway page with a video hero, long-form narrative about Harvard's liberal arts philosophy, quotes from the president and dean, expandable accordions for concentration categories, and a "View all Concentrations" link to a separate directory.</p>
+
+    <h3>Approach</h3>
+    <p>Harvard uses brand storytelling over utility. Stats are woven into narrative: "3,700+ courses in 50 undergraduate fields," "About half of all students choose honors track." The page prioritizes philosophy and prestige over program discovery.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Premium brand feel. Video hero. Authoritative leadership quotes. "On This Page" quick navigation for long content.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">A prospective student asking "What can I major in?" must click through to a separate page. Zero filtering or quick-scan capability. Only works because it's Harvard.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- YALE -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="yale">
+  <div class="wrap">
+    <h2>Yale University</h2>
+    <p class="school-sub">admissions.yale.edu/majors-and-academic-programs &nbsp;&mdash;&nbsp; 80+ majors</p>
+
+    <div class="tags">
+      <span class="tag tag-unique">AI Chatbot</span>
+      <span class="tag tag-good">Student Stories</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Hero with heading and lab photo, editorial intro about open curriculum, flat alphabetical list of 80+ hyperlinked major names, 4-stat callout section, student blog posts with thumbnails, dual-degree programs, and an AI chat launcher that appears multiple times.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <p>None. 80+ programs presented as one continuous alphabetical text list with no search, filters, or A-Z jump links. The simplest possible format.</p>
+
+    <h3>Unique Features</h3>
+    <ul>
+      <li><strong>AI-powered admissions chatbot</strong> ("Ask A Question") &mdash; the most innovative conversion tool of any school. Appears 3+ times on the page.</li>
+      <li><strong>Student blog integration:</strong> "Filming My Senior Thesis at Yale," "Pre-Med Life at Yale," "When Your Professor Wins the Nobel Prize"</li>
+      <li><strong>Interdisciplinary "and" branding:</strong> Computer Science and Economics, Mathematics & Philosophy &mdash; tied to Yale's "Embrace And" platform</li>
+    </ul>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">AI chatbot addresses real student questions. Blog post integration adds student voice. Strong statistical proof points (2,000+ courses, 20% double major).</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">Zero filtering on 80+ programs. No descriptions per major. Must click through for any detail.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- PRINCETON -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="princeton">
+  <div class="wrap">
+    <h2>Princeton University</h2>
+    <p class="school-sub">princeton.edu/academics/areas-of-study &nbsp;&mdash;&nbsp; 200+ programs</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Best Filtering (Ivy)</span>
+      <span class="tag tag-good">Most Info Per Program</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Clean utility page with a search/filter bar at top and alphabetical accordion-style program listings below. The most functionally rich page among the Ivies.</p>
+
+    <h3>Navigation &amp; Filtering</h3>
+    <ul>
+      <li><strong>Keyword search:</strong> Real-time program lookup</li>
+      <li><strong>Degree type dropdown:</strong> Undergraduate Degree, Certificate, Minor, Graduate Degree, Graduate Certificate</li>
+    </ul>
+
+    <h3>Program Display</h3>
+    <p>Collapsible accordion items. Clicking a program expands to reveal: full description (50-100 words), "View Courses" link, Academic Units with internal links, and Degrees/Certificates/Minors with clickable degree type links (A.B., Ph.D., M.S.E., M.Eng.). The richest per-program information of any school reviewed.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Real search + degree type filter. Accordion handles 200+ programs without overwhelm. Richest detail per program. Clean information architecture.</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">Purely text-based, no images. No student stories or outcome data. Utilitarian with zero brand storytelling.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- WILLIAMS -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="williams">
+  <div class="wrap">
+    <h2>Williams College</h2>
+    <p class="school-sub">williams.edu/academics/areas-of-study &nbsp;&mdash;&nbsp; ~55 programs</p>
+
+    <div class="tags">
+      <span class="tag tag-unique">"What's Offered" Column</span>
+      <span class="tag tag-mid">Minimal</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Hero image, editorial intro explaining majors vs. concentrations, then a two-column HTML table with "Area of Study" and "What's Offered" columns. Right sidebar with Academics section navigation. Print-friendly.</p>
+
+    <h3>Program Display</h3>
+    <p>Static two-column table. Column 1 links to the department site. Column 2 shows "Major," "Concentration," or "More information." The "What's Offered" column is a genuinely useful UX element that instantly distinguishes program types.</p>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Extremely clean and scannable. "What's Offered" column solves a real UX problem. Zero cognitive load. References to unique programs (Williams-Exeter at Oxford).</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No filtering, no descriptions, no imagery, no stats. Purely functional and text-only. Feels dated.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- AMHERST -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="amherst">
+  <div class="wrap">
+    <h2>Amherst College</h2>
+    <p class="school-sub">amherst.edu/academiclife/departments &nbsp;&mdash;&nbsp; 43 majors</p>
+
+    <div class="tags">
+      <span class="tag tag-good">Best Stat Cards</span>
+      <span class="tag tag-unique">Open Curriculum</span>
+    </div>
+
+    <h3>Layout</h3>
+    <p>Left sidebar with Academics navigation, then four colored statistic cards as the hero element, intro paragraph, three-column bulleted list of 43 hyperlinked majors, supplementary sections (Interdisciplinary Majors, Creative Writing, Five College Programs), and course catalog buttons.</p>
+
+    <h3>Stat Cards (Hero)</h3>
+    <p>The best trust signal device of any school reviewed. Four colored cards displayed immediately:</p>
+    <ul>
+      <li><strong>43</strong> &mdash; Number of majors (green)</li>
+      <li><strong>7:1</strong> &mdash; Student-to-faculty ratio, 209 full-time instructional faculty (maroon)</li>
+      <li><strong>19</strong> &mdash; Average class size, 84% under 30 students (teal)</li>
+      <li><strong>850+</strong> &mdash; Courses, 6,000+ through Five College Consortium (dark blue)</li>
+    </ul>
+
+    <div class="callout">
+      <h4>Why this matters for Coe</h4>
+      <p>Amherst is the closest peer school in size and type to Coe (small liberal arts, ~43 vs ~60 programs). Their stat cards approach is directly applicable &mdash; and the Coe mockup already includes this pattern with the trust strip and outcomes section.</p>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-card">
+        <div class="lbl">Strengths</div>
+        <div class="val">Stat cards are immediately impactful. Three-column layout is efficient. Anticipates common questions (Creative Writing, interdisciplinary options, Five College access).</div>
+      </div>
+      <div class="info-card">
+        <div class="lbl">Weaknesses</div>
+        <div class="val">No filtering, no descriptions per major. CMS taxonomy tags exposed to users. Page feels dated. No imagery per program.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- COMPARISON TABLE -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="comparison">
+  <div class="wrap">
+    <h2>Feature Comparison Matrix</h2>
+    <p class="school-sub">How all 10 universities stack up across key features</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Feature</th>
+            <th>Stanford</th>
+            <th>MIT</th>
+            <th>Duke</th>
+            <th>N'western</th>
+            <th>UMich</th>
+            <th>Harvard</th>
+            <th>Yale</th>
+            <th>Princeton</th>
+            <th>Williams</th>
+            <th>Amherst</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Program Search</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Category Filters</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Per-Program Description</td>
+            <td class="check">&#10003;</td>
+            <td class="star">Detail only</td>
+            <td class="cross">&mdash;</td>
+            <td class="star">Schools only</td>
+            <td class="star">On expand</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="star">On expand</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Visual Cards/Grid</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Inline Expand/Accordion</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="star">Partial</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Trust Statistics</td>
+            <td class="star">Minimal</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="star">Minimal</td>
+            <td class="star">Minimal</td>
+            <td class="star">Inline</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+          </tr>
+          <tr>
+            <td>Apply/Visit CTAs</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="star">Footer</td>
+            <td class="star">Signup</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="star">Footer</td>
+            <td class="star">Footer</td>
+          </tr>
+          <tr>
+            <td>Student Stories</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Schema.org Markup</td>
+            <td class="star">Basic</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+          <tr>
+            <td>Career Outcomes Link</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="star">Research $</td>
+            <td class="cross">&mdash;</td>
+            <td class="check">&#10003;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+            <td class="cross">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════ -->
+<!-- TAKEAWAYS -->
+<!-- ════════════════════════════════════════ -->
+<div class="section" id="takeaways">
+  <div class="wrap">
+    <h2>Key Takeaways for Coe</h2>
+    <p class="school-sub">What the best schools do &mdash; and where the Coe mockup already leads</p>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 01</div>
+      <h4>The Coe mockup is ahead of most Ivies</h4>
+      <p>The proposed Coe redesign already includes search, filter pills, visual cards with descriptions, trust stats, outcomes data, and Schema.org markup. Harvard, Yale, Williams, and Amherst have none of these. The mockup's card-based grid with filter pills is more functional than 7 of the 10 schools reviewed.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 02</div>
+      <h4>Steal Michigan's inline accordion pattern</h4>
+      <p>The "View all 60 programs" button could expand into a filterable list with inline accordions (like UMich) rather than navigating to a new page. This lets users preview program details without leaving the page &mdash; reducing bounce and increasing engagement.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 03</div>
+      <h4>Add degree-type badges to cards (like Williams)</h4>
+      <p>Williams' "What's Offered" column is a small UX win that instantly communicates Major vs. Minor vs. Concentration. The Coe mockup already has tags (Major, Minor, New) &mdash; consider expanding these to be filterable and adding them to all programs.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 04</div>
+      <h4>Keep the conversion CTAs &mdash; Duke proves it works</h4>
+      <p>Duke is the only top school with persistent Apply/Visit/Connect CTAs. The Coe mockup's "Apply Now" header button and quiz CTA are smart. Consider adding a "Request Info" or "Plan a Visit" secondary CTA alongside it.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 05</div>
+      <h4>The quiz CTA is a differentiator</h4>
+      <p>No other school in this research has an on-page "Find Your Major" quiz. Yale's AI chatbot is the closest parallel. This is a genuine competitive advantage for Coe &mdash; a small school can offer personalized guidance that large universities cannot.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 06</div>
+      <h4>Schema.org markup is a competitive edge</h4>
+      <p>Only 3 of 10 schools (Duke, Harvard, and Stanford partially) use structured data. The Coe mockup's three JSON-LD blocks (CollegeOrUniversity, BreadcrumbList, ItemList with EducationalOccupationalProgram) are best-in-class and will improve search visibility.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 07</div>
+      <h4>No one shows salary/career data on the listing page</h4>
+      <p>The Coe mockup's outcomes section ($48K avg salary, 97% employed, 85% internship) is unique among all 10 schools. For ROI-minded families choosing between schools, this is a strong selling point. Keep it prominent.</p>
+    </div>
+
+    <div class="takeaway">
+      <div class="num">Takeaway 08</div>
+      <h4>Make filters actually work</h4>
+      <p>The mockup's filter pills (All, Majors, Minors, Pre-Professional, STEM, Business, Arts & Humanities) are the right categories. In implementation, combine text search with pill filters &mdash; this matches the UMich badge approach and Stanford's multi-dimensional filtering at a scale appropriate for 60 programs.</p>
+    </div>
+
+  </div>
+</div>
+
+<div class="doc-footer">
+  <div class="wrap">
+    <p>Competitive Research &nbsp;&bull;&nbsp; Stamats &nbsp;&bull;&nbsp; March 2026 &nbsp;&bull;&nbsp; Prepared for Coe College Majors Page Redesign</p>
+  </div>
+</div>
+
+<div class="stamats"><img src="screenshots/stamats-logo.png" alt="Stamats">Research by <strong>Stamats</strong></div>
+
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Scanner — Home</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = { darkMode: 'class', theme: { extend: { colors: {
+      bg: 'hsl(224 20% 8%)', surface: 'hsl(224 20% 10%)', surfaceHover: 'hsl(224 20% 14%)',
+      border: 'hsl(224 20% 18%)', fg: 'hsl(210 40% 96%)', fgMuted: 'hsl(215 20% 55%)',
+      primary: 'hsl(217 91% 60%)', success: 'hsl(152 69% 41%)', warning: 'hsl(38 92% 50%)',
+      danger: 'hsl(0 84% 60%)', info: 'hsl(199 89% 48%)',
+    }}}}
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.015em; -webkit-font-smoothing: antialiased; }
+    body { background: hsl(224 20% 8%); color: hsl(210 40% 96%); }
+    .card { background: hsl(224 20% 10%); border: 1px solid hsl(224 20% 18%); border-radius: 16px; }
+    .scan-btn { background: linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 65%)); }
+    .scan-btn:hover { box-shadow: 0 4px 24px rgba(59,130,246,0.35); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.5s ease forwards; }
+    .fade-in-2 { animation: fadeIn 0.5s 0.1s ease forwards; opacity: 0; }
+  </style>
+</head>
+<body class="min-h-screen flex items-start justify-center pt-[16vh]">
+  <div class="w-full max-w-2xl px-6">
+
+    <!-- Title -->
+    <div class="text-center mb-10 fade-in">
+      <h1 class="text-3xl font-bold mb-2">URL Scanner</h1>
+      <p class="text-fgMuted">Check any website for accessibility, structure, and SEO issues.</p>
+    </div>
+
+    <!-- URL Input -->
+    <div class="card p-2 flex items-center gap-2 mb-6 fade-in">
+      <svg class="w-5 h-5 text-fgMuted ml-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9"/></svg>
+      <input type="url" placeholder="https://example.com" class="flex-1 bg-transparent text-fg py-3 px-2 outline-none placeholder:text-fgMuted/40" />
+      <button class="scan-btn text-white font-semibold px-7 py-3 rounded-xl transition-all">Scan</button>
+    </div>
+
+    <!-- Options -->
+    <div class="flex items-center justify-center gap-6 mb-16 fade-in-2 text-sm text-fgMuted">
+      <label class="flex items-center gap-2 cursor-pointer hover:text-fg transition-colors">
+        <input type="checkbox" checked class="accent-primary" /> WCAG Audit
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer hover:text-fg transition-colors">
+        <input type="checkbox" checked class="accent-primary" /> Headings
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer hover:text-fg transition-colors">
+        <input type="checkbox" checked class="accent-primary" /> SEO
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer hover:text-fg transition-colors">
+        <input type="checkbox" class="accent-primary" /> Links
+      </label>
+      <select class="bg-transparent border border-border rounded-lg px-2 py-1 text-fgMuted outline-none">
+        <option>WCAG AA</option>
+        <option>WCAG A</option>
+        <option>WCAG AAA</option>
+      </select>
+    </div>
+
+    <!-- Recent Scans -->
+    <div class="fade-in-2">
+      <h2 class="text-sm font-medium text-fgMuted mb-3">Recent Scans</h2>
+      <div class="space-y-2">
+        <a href="02-scan-results-dashboard.html" class="card px-5 py-4 flex items-center justify-between hover:border-fgMuted/30 transition-colors block">
+          <div>
+            <div class="text-sm font-medium">stamatsinc.com</div>
+            <div class="text-xs text-fgMuted mt-0.5">2 hours ago</div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-xs text-danger">3 errors</span>
+            <span class="w-10 h-10 rounded-full bg-success/10 text-success text-sm font-bold flex items-center justify-center">92</span>
+          </div>
+        </a>
+        <a href="#" class="card px-5 py-4 flex items-center justify-between hover:border-fgMuted/30 transition-colors block">
+          <div>
+            <div class="text-sm font-medium">clientsite.edu</div>
+            <div class="text-xs text-fgMuted mt-0.5">Yesterday</div>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-xs text-danger">12 errors</span>
+            <span class="w-10 h-10 rounded-full bg-warning/10 text-warning text-sm font-bold flex items-center justify-center">74</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed bottom-4 right-4 text-xs text-fgMuted/50">Mockup 1/5 — Home</div>
+</body>
+</html>

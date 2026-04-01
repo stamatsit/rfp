@@ -1,0 +1,538 @@
+================================================================================
+  COE COLLEGE - MAJORS & AREAS OF STUDY PAGE
+  COMPREHENSIVE GAP ANALYSIS: WHAT THEY DON'T HAVE (AND SHOULD BY 2026)
+  URL: https://www.coe.edu/academics/majors-areas-study
+  Analyzed: 2026-03-30
+================================================================================
+
+
+################################################################################
+ SEVERITY LEGEND
+################################################################################
+
+  [CRITICAL]  - Industry standard; absence is a competitive disadvantage NOW
+  [HIGH]      - Expected by prospective students/parents in 2026
+  [MEDIUM]    - Differentiators that peer institutions commonly offer
+  [LOW]       - Nice-to-haves that would elevate the experience
+
+
+================================================================================
+CATEGORY 1: ACCESSIBILITY (ADA / WCAG 2.2 COMPLIANCE)
+================================================================================
+
+[CRITICAL] No alt text on ANY image
+  - Header logo, footer logo, and all 6 menu images have zero alt text
+  - Violates WCAG 2.1 Level A (Success Criterion 1.1.1)
+  - Screen readers will announce these as unlabeled images or skip them
+  - Potential legal liability under ADA Title III
+
+[CRITICAL] No ARIA labels on navigation menus
+  - Expandable dropdown menus lack aria-expanded, aria-haspopup attributes
+  - Nested submenus have no aria-controls or aria-owns relationships
+  - Keyboard-only users cannot determine menu state (open/closed)
+
+[CRITICAL] Search field has no associated <label> element
+  - "Search This Site" appears to be placeholder text, not a proper label
+  - Violates WCAG 2.1 Level A (Success Criterion 1.3.1)
+
+[CRITICAL] Symbol legend (^ * **) is inaccessible
+  - Screen readers will read "African American Studies caret" not
+    "African American Studies, also available as a minor"
+  - No aria-describedby or title attributes to explain symbols
+  - Legend is buried at bottom of a long list - sighted users may miss it too
+
+[HIGH] No visible focus indicators documented
+  - Keyboard users cannot see which element is currently focused
+  - Violates WCAG 2.1 Level AA (Success Criterion 2.4.7)
+
+[HIGH] Missing semantic landmark regions
+  - No <nav> element wrapping navigation (uses generic <ul>)
+  - No <main> element wrapping primary content (only a skip-link target ID)
+  - No <footer> semantic element for footer region
+  - No <article> or <section> elements organizing major groupings
+  - Screen reader users cannot jump between page regions
+
+[HIGH] No lang="en" attribute confirmed on <html> tag
+  - Screen readers may not select correct pronunciation engine
+  - Violates WCAG 2.1 Level A (Success Criterion 3.1.1)
+
+[MEDIUM] No skip-to-sections links
+  - Skip link exists for #main-content but with 80+ items, users need
+    skip links to "Minors" and "Pre-Professional Programs" sections too
+
+[MEDIUM] No high-contrast mode or text resize controls
+  - Many higher-ed sites now offer built-in accessibility toolbars
+
+[LOW] No accessibility statement page linked from this page
+  - Best practice: link to a page describing conformance level and contact
+
+
+================================================================================
+CATEGORY 2: SEO & TECHNICAL MARKUP
+================================================================================
+
+[CRITICAL] No meta description tag
+  - Google will auto-generate a snippet from page content (unpredictable)
+  - Competitors with crafted descriptions will get higher CTR in search
+
+[CRITICAL] No Open Graph (og:) meta tags
+  - When shared on Facebook, LinkedIn, or messaging apps:
+    * No title, description, or image will render
+    * Link preview will be blank or auto-scraped poorly
+  - Missing: og:title, og:description, og:image, og:url, og:type
+
+[CRITICAL] No Twitter/X Card meta tags
+  - Same social sharing problem as Open Graph
+  - Missing: twitter:card, twitter:title, twitter:description, twitter:image
+
+[CRITICAL] No Schema.org structured data (JSON-LD)
+  - Google cannot display rich results for this page
+  - Missing schemas that should be present:
+    * CollegeOrUniversity (institution)
+    * EducationalOrganization
+    * Course or ProgramOfStudy (for each major)
+    * BreadcrumbList (breadcrumbs exist visually but not in markup)
+    * ItemList (for the list of majors)
+  - Competitors with structured data get rich snippets in search results
+
+[CRITICAL] No canonical URL tag
+  - Risk of duplicate content if page is accessible at multiple URLs
+  - Google may index the wrong version
+
+[HIGH] Legacy Google Analytics (UA-3745152-31)
+  - Universal Analytics was sunset by Google in July 2023
+  - Should be using Google Analytics 4 (GA4) exclusively
+  - UA properties are no longer processing data
+
+[HIGH] Heading hierarchy issues
+  - Page has H1 then multiple H2s but no H3s for sub-groupings
+  - Business specializations under a flat H2 instead of nested H3s
+  - Screen readers and SEO crawlers use heading hierarchy to understand
+    content structure
+
+[MEDIUM] No sitemap.xml or robots.txt reference in HTML
+  - Should have <link rel="sitemap"> in <head>
+
+[MEDIUM] No hreflang tags
+  - Google Translate widget is present but no hreflang tells search
+    engines about language availability
+
+[MEDIUM] Images have no loading="lazy" attribute
+  - All images load immediately, slowing initial page render
+
+[LOW] No favicon/apple-touch-icon references visible
+  - Bookmarks and browser tabs may show generic icons
+
+
+================================================================================
+CATEGORY 3: CONTENT GAPS (WHAT'S NOT ON THE PAGE)
+================================================================================
+
+[CRITICAL] Zero program descriptions
+  - Every major is just a name and a link. No blurb, no sentence, nothing.
+  - A student scanning 60+ majors has no way to understand what each
+    program covers without clicking every single link
+  - Peer institutions provide at minimum a 1-2 sentence description
+
+[CRITICAL] No student outcomes data
+  - Missing for every program:
+    * Employment rate after graduation
+    * Average starting salary
+    * Graduate school placement rate
+    * Employers who hire Coe grads
+    * Career paths associated with each major
+  - This is the #1 thing Gen Z students and parents look for (per
+    multiple higher-ed surveys 2023-2025)
+
+[CRITICAL] No accreditation information displayed
+  - Page shows no badges or mentions of:
+    * Regional accreditor (HLC - Higher Learning Commission)
+    * Program-specific accreditations (AACSB for business, CCNE for
+      nursing, ABET for engineering, NASM for music, etc.)
+  - Accreditation is a top trust signal for tuition-paying families
+
+[HIGH] No faculty information
+  - No faculty names, credentials, research interests, or student-faculty
+    ratio per department
+  - Students want to know who they'll learn from
+
+[HIGH] No degree requirements summary
+  - No credit hours, course counts, or time-to-completion per major
+  - No sample 4-year plans or course roadmaps
+  - Students can't estimate workload or plan ahead from this page
+
+[HIGH] No student testimonials or success stories
+  - No quotes, no alumni spotlights, no "day in the life" features
+  - Zero social proof for any program
+
+[HIGH] No video content whatsoever
+  - No department overview videos
+  - No student spotlights
+  - No virtual classroom tours
+  - No professor introductions
+  - Video is the dominant content format for Gen Z decision-making
+
+[HIGH] No explanation for discontinued programs
+  - 5 majors and 3 minors are marked "no longer accepting students"
+  - No explanation of whether this is temporary, permanent, or
+    transitional (teach-out)
+  - Current students in those programs get no guidance from this page
+
+[MEDIUM] No tuition or cost information
+  - No per-program cost estimates
+  - No link to net price calculator from this page
+  - No ROI data (cost vs. expected earnings)
+
+[MEDIUM] No admission requirements by program
+  - No GPA expectations, prerequisites, audition requirements (music/
+    theatre), portfolio requirements (art), or test score expectations
+
+[MEDIUM] No research opportunities mentioned
+  - Liberal arts colleges emphasize undergraduate research, but this
+    page doesn't mention it for any program
+
+[MEDIUM] No internship or experiential learning information
+  - No co-op programs, clinical placements, student teaching details,
+    or field experience descriptions
+
+[MEDIUM] No dual-degree or combined program guidance
+  - Students interested in double majors or major/minor combos get
+    no guidance
+
+[LOW] No "NEW" or "FEATURED" labels
+  - Data Science and Neuroscience are relatively new programs that
+    could attract attention if highlighted
+
+[LOW] No program comparison chart
+  - No side-by-side view of related majors (e.g., all 8 business tracks)
+
+
+================================================================================
+CATEGORY 4: USER EXPERIENCE (UX) & INTERFACE DESIGN
+================================================================================
+
+[CRITICAL] No search or filter functionality
+  - 82 programs listed on one page with no way to:
+    * Search by keyword
+    * Filter by category (STEM, Business, Arts, etc.)
+    * Filter by degree type (major, minor, pre-professional)
+    * Filter by availability (hide discontinued programs)
+    * Filter by "also available as minor"
+  - User must scroll through entire alphabetical list
+  - This is the single biggest UX failure on the page
+
+[HIGH] No category/department grouping view
+  - All 60 majors are in one flat alphabetical list
+  - No toggle between "Alphabetical" and "By Department" views
+  - Students interested in "something in science" must scan every entry
+
+[HIGH] Confusing symbol notation system
+  - ^ for "also a minor", * for "closed major", ** for "closed minor"
+  - Legend is at the BOTTOM of the list, not the top
+  - Users encounter symbols before encountering their meaning
+  - No tooltip or hover explanation on each symbol
+  - Visually indistinguishable at a glance (small superscript characters)
+
+[HIGH] No mobile-optimized program cards
+  - Just a text list of links - no visual hierarchy
+  - Modern standard: card-based layout with icon, title, brief
+    description, and CTA per program
+
+[HIGH] Discontinued programs mixed with active programs
+  - "Environmental Science*" sits right next to "Environmental Studies"
+  - Misleading for students who click expecting to enroll
+  - Should be separated or clearly visually distinguished (greyed out,
+    separate section, or hidden by default with "show discontinued" toggle)
+
+[MEDIUM] No "undecided student" pathway
+  - Page assumes students already know what they want
+  - No "Explore Your Interests" quiz or guided pathway
+  - No "Most Popular Majors" or "Fastest Growing Programs" callout
+  - No "Don't know what to study?" help section
+
+[MEDIUM] Redundant/confusing entries
+  - "Molecular Biology" and "Molecular Biology - Biology" listed separately
+  - "Spanish" and "Spanish Studies" listed separately with no distinction
+  - "Theatre Arts", "Performing Arts - Theatre Arts", and "Theatre Arts
+    Management - Theatre Arts" are three separate entries
+  - Users cannot tell the difference without clicking each one
+
+[MEDIUM] Page is extremely long with no anchoring
+  - No sticky table of contents
+  - No "back to top" button
+  - No anchor links from a top-of-page overview
+  - On mobile, this is a very long scroll
+
+[LOW] No dark mode support
+  - Increasingly expected in 2025-2026, especially by younger users
+
+[LOW] No print-friendly stylesheet
+  - Parents and counselors often print program lists
+
+
+================================================================================
+CATEGORY 5: MODERN FEATURES ABSENT
+================================================================================
+
+[HIGH] No AI chatbot or virtual advisor
+  - "What major is right for me?" is the #1 question prospective
+    students have
+  - No conversational tool to guide exploration
+  - Competitors (large and small) are deploying these rapidly
+
+[HIGH] No "Find Your Major" quiz or assessment tool
+  - Interest inventories, personality-to-major matching, career-to-major
+    mapping are standard at peer institutions
+  - Holland Code, MBTI-style, or custom quiz integration missing
+
+[HIGH] No interactive program explorer / visual map
+  - No visual representation of how programs relate to each other
+  - No "explore by interest area" interactive graphic
+  - No department cluster visualization
+
+[MEDIUM] No degree pathway visualizer
+  - No flowchart showing freshman -> sophomore -> junior -> senior
+    course progression for any major
+  - No prerequisite chain visualization
+
+[MEDIUM] No cost/ROI calculator
+  - No tool to estimate total cost of a specific major
+  - No salary projection by major
+  - No loan repayment estimator tied to program choice
+
+[MEDIUM] No saved/bookmarked favorites
+  - Users cannot save programs of interest for later comparison
+  - No "My List" or "Compare" functionality
+  - No account-based personalization
+
+[MEDIUM] No virtual tour integration on THIS page
+  - Virtual tour exists elsewhere on the site but is not embedded here
+  - No department-specific virtual walkthroughs
+  - No 360-degree classroom/lab views
+
+[MEDIUM] No event/webinar tie-ins
+  - No "Attend our next Business Info Session" links per department
+  - No upcoming open house dates related to specific programs
+  - No "Talk to a student in this major" scheduling
+
+[LOW] No social sharing buttons per program
+  - Students can't easily share a specific major with parents/friends
+
+[LOW] No RSS feed or notification subscription
+  - Can't subscribe to "new programs added" alerts
+
+[LOW] No podcast or audio content
+  - Faculty or student-hosted podcast episodes about programs would
+    be engaging
+
+
+================================================================================
+CATEGORY 6: TRUST SIGNALS & SOCIAL PROOF
+================================================================================
+
+[CRITICAL] No rankings or recognition displayed
+  - No U.S. News & World Report ranking
+  - No Forbes, Niche, Princeton Review, or other ranking citations
+  - No "Best Value" or "Top College" badges
+  - Peer institutions display these prominently
+
+[CRITICAL] No graduation or retention rates
+  - Federal IPEDS data is publicly available but not shown here
+  - Parents and counselors use this to evaluate institutional quality
+
+[HIGH] No employment statistics
+  - No "95% of graduates employed within 6 months" type claims
+  - No employer logos or partnership highlights
+  - No career services outcome data
+
+[HIGH] No student-to-faculty ratio displayed
+  - This is a KEY selling point for a small liberal arts college
+  - Should be prominently featured (Coe's ratio is likely very favorable)
+
+[HIGH] No class size information
+  - Average class size, percentage of classes under 20 students, etc.
+  - Another key liberal arts differentiator left invisible
+
+[HIGH] No alumni network data
+  - No alumni count, notable alumni, or network reach information
+  - No "where our graduates work" employer cloud or map
+
+[MEDIUM] No program-specific accreditation badges
+  - Nursing (CCNE?), Business (AACSB/ACBSP?), Education (CAEP?) -
+    none displayed
+
+[MEDIUM] No awards or distinctions per program
+  - No "Our chemistry program was ranked #X" or "Our education grads
+    have a 100% licensure pass rate"
+
+[MEDIUM] No student satisfaction data
+  - No NSSE results, no internal survey highlights
+
+[LOW] No employer testimonials
+  - "We love hiring Coe graduates because..." type quotes
+
+
+================================================================================
+CATEGORY 7: PRIVACY, COMPLIANCE & LEGAL
+================================================================================
+
+[CRITICAL] No cookie consent banner
+  - Page loads Hotjar, Google Analytics, Google Ads, Google Tag Manager,
+    and Mautic tracking - ALL before any user consent
+  - Violates GDPR (if any EU visitors), ePrivacy Directive, and
+    increasingly U.S. state privacy laws (CCPA, CPRA, VCDPA, CPA, etc.)
+  - Hotjar specifically records session replays - extremely high privacy
+    sensitivity without consent
+
+[HIGH] No WCAG conformance claim
+  - No accessibility statement linked or displayed
+  - No stated target level (A, AA, AAA)
+  - Best practice: publish an accessibility page with contact for
+    accommodation requests
+
+[HIGH] No privacy policy link on page body
+  - Privacy policy exists in footer but is not contextually linked near
+    tracking-heavy areas (forms, request info CTAs)
+
+[MEDIUM] No FERPA disclaimer near any student data references
+  - If outcome data were added, FERPA disclaimers would be needed
+
+[MEDIUM] No data retention disclosure
+  - Mautic marketing automation is collecting behavioral data
+  - No disclosure about how long visitor data is stored
+
+[LOW] No cookie preference center
+  - Even if a consent banner were added, users should be able to
+    granularly control which cookies they accept
+
+
+================================================================================
+CATEGORY 8: PERFORMANCE & TECHNICAL DEBT
+================================================================================
+
+[HIGH] Multiple synchronous tracking scripts
+  - Hotjar, GTM, GA, Google Ads, and Mautic all load in <head>
+  - These are render-blocking and slow initial page load
+  - Should use async/defer attributes or load via GTM exclusively
+
+[HIGH] Legacy Universal Analytics (UA) still running
+  - UA-3745152-31 is a Universal Analytics property
+  - Google stopped processing UA data in July 2023
+  - This is dead code that still slows the page
+
+[MEDIUM] No image lazy loading
+  - All images load eagerly even if below the fold
+  - Should use loading="lazy" on non-critical images
+
+[MEDIUM] No Content Security Policy (CSP) headers evident
+  - Multiple third-party scripts without CSP increases XSS risk
+
+[MEDIUM] Concrete5 CMS (legacy)
+  - While ConcreteCMS is still maintained, it has a much smaller
+    ecosystem than WordPress, Drupal, or modern headless CMS options
+  - May limit available plugins for features listed above
+
+[LOW] Google Translate widget is inline JavaScript
+  - Legacy implementation; modern approach would use server-side
+    translation or a more performant widget
+
+[LOW] No service worker or PWA capability
+  - Page cannot work offline or be "installed" as an app
+
+
+================================================================================
+CATEGORY 9: COMPETITIVE DISADVANTAGES vs. PEER INSTITUTIONS
+================================================================================
+
+What comparable liberal arts colleges typically offer that Coe does not
+on this page:
+
+  FEATURE                           | COE HAS IT? | PEERS HAVE IT?
+  ----------------------------------|-------------|---------------
+  Program search/filter             | NO          | YES (most)
+  Program descriptions              | NO          | YES (all)
+  Student outcome data              | NO          | YES (many)
+  Interactive major quiz            | NO          | YES (many)
+  Video content per program         | NO          | YES (many)
+  Faculty highlights                | NO          | YES (most)
+  Schema.org structured data        | NO          | YES (many)
+  Open Graph social sharing tags    | NO          | YES (most)
+  Cookie consent mechanism          | NO          | YES (most)
+  Mobile-first card design          | NO          | YES (most)
+  Chatbot / virtual assistant       | NO          | YES (growing)
+  Cost / ROI information            | NO          | YES (some)
+  Accreditation badges              | NO          | YES (most)
+  Rankings displayed                | NO          | YES (most)
+  Degree pathway visualizer         | NO          | YES (some)
+  Accessibility statement           | NO          | YES (most)
+  GA4 (current analytics)           | NO (uses UA)| YES (all)
+
+
+================================================================================
+CATEGORY 10: CONTENT INCONSISTENCIES & NAMING PROBLEMS
+================================================================================
+
+[HIGH] Duplicate/ambiguous program listings
+  - "Molecular Biology" (standalone, closed) AND "Molecular Biology -
+    Biology" (active) - confusing
+  - "Spanish" AND "Spanish Studies" - both link to /foreign-language,
+    what's the difference?
+  - "Environmental Science" (closed) AND "Environmental and Ecological
+    Science - Biology" AND "Environmental Studies" - three similar names
+
+[HIGH] Inconsistent naming conventions
+  - Some majors use "Department - Specialization" format:
+    "Finance - Business Administration"
+  - Others use "Specialization - Department" format:
+    "Media Production - Art"
+  - Others have no department suffix at all: "Accounting" (which IS
+    under Business Administration)
+  - No consistent pattern for students to understand structure
+
+[MEDIUM] "Pre-Music Therapy" links to Music page
+  - Every other pre-professional program has its own dedicated page
+  - Pre-Music Therapy links to the general Music department page
+  - Inconsistent experience
+
+[MEDIUM] "Interdisciplinary Science" links to /general-science
+  - URL slug doesn't match the program name
+  - May confuse users and hurt SEO
+
+[LOW] Page title redundancy
+  - Title: "Majors & Areas of Study - On Campus | Coe College"
+  - The "On Campus" qualifier implies there's an online version, but
+    this distinction isn't made clear on the page itself until a small
+    link at the bottom
+
+
+================================================================================
+SUMMARY: TOP 20 THINGS COE SHOULD ADD (PRIORITIZED)
+================================================================================
+
+ RANK | ITEM                                      | SEVERITY
+ -----|-------------------------------------------|----------
+   1  | Search and filter for programs             | CRITICAL
+   2  | Brief description for each program         | CRITICAL
+   3  | Schema.org structured data (JSON-LD)       | CRITICAL
+   4  | Open Graph + Twitter Card meta tags        | CRITICAL
+   5  | Meta description tag                       | CRITICAL
+   6  | Cookie consent banner                      | CRITICAL
+   7  | Alt text on all images                     | CRITICAL
+   8  | ARIA labels on interactive elements        | CRITICAL
+   9  | Student outcome / career data              | CRITICAL
+  10  | Accreditation & ranking badges             | CRITICAL
+  11  | Canonical URL tag                          | CRITICAL
+  12  | Upgrade from UA to GA4                     | HIGH
+  13  | Program-specific video content             | HIGH
+  14  | Faculty highlights per department          | HIGH
+  15  | "Find Your Major" quiz tool                | HIGH
+  16  | Semantic HTML5 landmarks                   | HIGH
+  17  | Degree requirements / credit hours         | HIGH
+  18  | Student testimonials per program           | HIGH
+  19  | Card-based responsive layout               | HIGH
+  20  | WCAG 2.2 AA accessibility statement        | HIGH
+
+
+================================================================================
+                         END OF GAP ANALYSIS
+================================================================================

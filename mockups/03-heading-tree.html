@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>URL Scanner — Heading Tree</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwindcss.config = { darkMode: 'class', theme: { extend: { colors: {
+      bg: 'hsl(224 20% 8%)', surface: 'hsl(224 20% 10%)', surfaceHover: 'hsl(224 20% 14%)',
+      border: 'hsl(224 20% 18%)', fg: 'hsl(210 40% 96%)', fgMuted: 'hsl(215 20% 55%)',
+      primary: 'hsl(217 91% 60%)', success: 'hsl(152 69% 41%)', warning: 'hsl(38 92% 50%)',
+      danger: 'hsl(0 84% 60%)', info: 'hsl(199 89% 48%)',
+    }}}}
+  </script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    * { font-family: 'Inter', -apple-system, sans-serif; letter-spacing: -0.015em; -webkit-font-smoothing: antialiased; }
+    body { background: hsl(224 20% 8%); color: hsl(210 40% 96%); }
+    .card { background: hsl(224 20% 10%); border: 1px solid hsl(224 20% 18%); border-radius: 16px; }
+    .tag { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; padding: 2px 7px; border-radius: 6px; font-weight: 600; }
+    .tree-branch { border-left: 2px solid hsl(224 20% 22%); }
+    .tab { padding: 8px 0; font-size: 14px; border-bottom: 2px solid transparent; transition: all 0.2s; }
+    .tab:hover { color: hsl(210 40% 96%); }
+    .tab.active { color: hsl(217 91% 60%); border-color: hsl(217 91% 60%); }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .fade-in { animation: fadeIn 0.4s ease forwards; }
+  </style>
+</head>
+<body class="min-h-screen">
+  <div class="max-w-3xl mx-auto px-6 py-8">
+
+    <!-- Back + URL -->
+    <div class="flex items-center gap-3 mb-8">
+      <a href="02-scan-results-dashboard.html" class="text-fgMuted hover:text-fg transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/></svg>
+      </a>
+      <h1 class="text-lg font-semibold">stamatsinc.com</h1>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-6 border-b border-border mb-8">
+      <a href="02-scan-results-dashboard.html" class="tab text-fgMuted font-medium">Issues (24)</a>
+      <a href="#" class="tab active text-primary font-medium">Headings</a>
+      <a href="#" class="tab text-fgMuted font-medium">Links (64)</a>
+      <a href="05-export-compare.html" class="tab text-fgMuted font-medium">History</a>
+    </div>
+
+    <!-- Summary -->
+    <div class="flex items-center gap-4 mb-6 text-sm text-fgMuted fade-in">
+      <span>12 headings found</span>
+      <span class="text-danger">2 errors</span>
+      <span class="text-warning">1 warning</span>
+    </div>
+
+    <!-- Heading Tree -->
+    <div class="card p-6 fade-in">
+      <!-- H1 -->
+      <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+        <span class="tag bg-primary/15 text-primary">H1</span>
+        <span class="text-sm font-medium">Stamats — Higher Education Marketing</span>
+        <span class="text-xs text-fgMuted ml-auto">:18</span>
+      </div>
+
+      <!-- H2 children -->
+      <div class="ml-6 tree-branch pl-5 mt-1 space-y-1">
+        <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+          <span class="tag bg-blue-500/15 text-blue-400">H2</span>
+          <span class="text-sm">About Stamats</span>
+          <span class="text-xs text-fgMuted ml-auto">:34</span>
+        </div>
+
+        <!-- H3 children of About -->
+        <div class="ml-6 tree-branch pl-5 space-y-1">
+          <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+            <span class="tag bg-cyan-500/15 text-cyan-400">H3</span>
+            <span class="text-sm">Our Mission</span>
+            <span class="text-xs text-fgMuted ml-auto">:52</span>
+          </div>
+          <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+            <span class="tag bg-cyan-500/15 text-cyan-400">H3</span>
+            <span class="text-sm">Our Team</span>
+            <span class="text-xs text-fgMuted ml-auto">:78</span>
+          </div>
+        </div>
+
+        <!-- ERROR: H3 that skipped H2 -->
+        <div class="flex items-center gap-3 py-2 px-2 rounded-lg bg-danger/5 border border-danger/20">
+          <span class="tag bg-danger/15 text-danger">H3</span>
+          <span class="text-sm">Our Services</span>
+          <span class="text-xs text-danger ml-2">Skipped H2</span>
+          <span class="text-xs text-fgMuted ml-auto">:142</span>
+        </div>
+
+        <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+          <span class="tag bg-blue-500/15 text-blue-400">H2</span>
+          <span class="text-sm">Our Clients</span>
+          <span class="text-xs text-fgMuted ml-auto">:210</span>
+        </div>
+
+        <div class="flex items-center gap-3 py-2 rounded-lg hover:bg-surfaceHover/50 px-2 transition-colors">
+          <span class="tag bg-blue-500/15 text-blue-400">H2</span>
+          <span class="text-sm">Testimonials</span>
+          <span class="text-xs text-fgMuted ml-auto">:245</span>
+        </div>
+
+        <!-- WARNING: empty heading -->
+        <div class="flex items-center gap-3 py-2 px-2 rounded-lg bg-warning/5 border border-warning/20">
+          <span class="tag bg-warning/15 text-warning">H2</span>
+          <span class="text-sm italic text-fgMuted">(empty)</span>
+          <span class="text-xs text-warning ml-2">Empty heading</span>
+          <span class="text-xs text-fgMuted ml-auto">:280</span>
+        </div>
+      </div>
+
+      <!-- ERROR: Duplicate H1 -->
+      <div class="flex items-center gap-3 py-2 px-2 mt-2 rounded-lg bg-danger/5 border border-danger/20">
+        <span class="tag bg-danger/15 text-danger">H1</span>
+        <span class="text-sm">Contact Us Today</span>
+        <span class="text-xs text-danger ml-2">Duplicate H1</span>
+        <span class="text-xs text-fgMuted ml-auto">:312</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed bottom-4 right-4 text-xs text-fgMuted/50">Mockup 3/5 — Headings</div>
+</body>
+</html>

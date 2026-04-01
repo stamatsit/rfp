@@ -11,6 +11,7 @@ import {
   Presentation,
   Mic,
   BarChart3,
+  ScanSearch,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -32,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/convert", icon: ImageDown, label: "Image Toolkit" },
   { to: "/meetings", icon: Mic, label: "Meeting Intake" },
   { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
+  { to: "/scanner", icon: ScanSearch, label: "URL Scanner", emailOnly: "eric.yerke@stamats.com" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },
 ]
 

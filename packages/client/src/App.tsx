@@ -34,6 +34,7 @@ const ImageConverter = lazy(() => import("./pages/ImageConverter").then(m => ({ 
 const PitchDeckDesigner = lazy(() => import("./pages/PitchDeckDesigner").then(m => ({ default: m.PitchDeckDesigner })))
 const MeetingIntake = lazy(() => import("./pages/MeetingIntake").then(m => ({ default: m.MeetingIntake })))
 const Analytics = lazy(() => import("./pages/Analytics").then(m => ({ default: m.Analytics })))
+const URLScanner = lazy(() => import("./pages/URLScanner").then(m => ({ default: m.URLScanner })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -130,6 +131,7 @@ function AppRoutes() {
             <Route path="/pitch-deck" element={<ProtectedRoute><PitchDeckDesigner /></ProtectedRoute>} />
             <Route path="/meetings" element={<ProtectedRoute><MeetingIntake /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
+            <Route path="/scanner" element={<ProtectedRoute><URLScanner /></ProtectedRoute>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

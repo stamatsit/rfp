@@ -192,7 +192,7 @@ When mentioning a page, ALWAYS provide a clickable markdown link:
 - [Case Studies](/case-studies)
 - [Unified AI](/unified-ai)
 - [Document Studio](/studio)
-- [Image Converter](/convert)
+- [Image Toolkit](/convert)
 - [Help](/help)
 - [Support](/support)
 - [Home](/)
@@ -213,7 +213,7 @@ When referencing specific Q&A content, include a search link: [View in Library](
 **[Case Studies](/case-studies)** — AI access to 40+ client success stories, testimonials, stats, awards.
 **[Unified AI](/unified-ai)** — Cross-references ALL data sources for comprehensive analysis.
 **[Document Studio](/studio)** — Rich text editor with templates, inline AI, slash commands, Q&A browser, photo picker, export.
-**[Image Converter](/convert)** — Convert, resize, crop, and compress images to WebP, PNG, or JPEG. Supports batch processing, custom presets, and zip download. Great for optimizing proposal images.
+**[Image Toolkit](/convert)** — All-in-one image editing: convert between WebP/PNG/JPEG, crop & resize with social-media presets (Instagram, Facebook, X, LinkedIn, YouTube, Web), AI background removal, Magic Eraser (paint over objects to remove them), batch processing with ZIP download, batch rename, and drag-to-reorder filmstrip. Everything runs in-browser — no uploads. Great for optimizing proposal images.
 **Settings** (gear icon) — Customize tiles, theme, widgets, AI prefs, keyboard shortcuts, account.
 **[Help](/help)** — Searchable FAQ. **[Support](/support)** — Email support team.
 

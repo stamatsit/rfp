@@ -5,6 +5,8 @@ import { saveAs } from "file-saver"
 import JSZip from "jszip"
 import { removeBackground } from "@imgly/background-removal"
 import { useInpainting } from "@/hooks/useInpainting"
+import { useUpscaler, ENHANCE_OPS } from "@/hooks/useUpscaler"
+import localforage from "localforage"
 import {
   ImageDown,
   Eraser,
@@ -43,6 +45,9 @@ import {
   Sparkles,
   Loader2,
   AlertCircle,
+  Wand2,
+  ChevronDown,
+  Copy,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { Button } from "@/components/ui/button"
@@ -242,12 +247,12 @@ let nextId = 0
 
 const STORAGE_KEY = "image-converter-session"
 
-function loadSession(): { images: ImageItem[]; selectedId: number | null; quality: number } | null {
+const sessionStore = localforage.createInstance({ name: "image-toolkit", storeName: "session" })
+
+async function loadSessionAsync(): Promise<{ images: ImageItem[]; selectedId: number | null; quality: number } | null> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const data = JSON.parse(raw)
-    if (!Array.isArray(data.images) || data.images.length === 0) return null
+    const data = await sessionStore.getItem<{ images: ImageItem[]; selectedId: number | null; quality: number }>(STORAGE_KEY)
+    if (!data || !Array.isArray(data.images) || data.images.length === 0) return null
     // Restore nextId to avoid collisions
     const maxId = Math.max(...data.images.map((img: ImageItem) => img.id))
     nextId = maxId + 1
@@ -255,6 +260,8 @@ function loadSession(): { images: ImageItem[]; selectedId: number | null; qualit
     data.images = data.images.map((img: ImageItem) => ({
       bgRemoved: false,
       preBgSrc: null,
+      enhanced: false,
+      preEnhanceSrc: null,
       altText: "",
       ...img,
     }))
@@ -264,24 +271,31 @@ function loadSession(): { images: ImageItem[]; selectedId: number | null; qualit
   }
 }
 
+let _saveTimer: ReturnType<typeof setTimeout> | null = null
+
 function saveSession(images: ImageItem[], selectedId: number | null, quality: number) {
-  if (images.length === 0) {
-    localStorage.removeItem(STORAGE_KEY)
-    return
-  }
-  try {
-    // Strip preBgSrc (can be huge) to stay within localStorage quota
-    const slim = images.map(({ preBgSrc, ...rest }) => rest)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ images: slim, selectedId, quality }))
-  } catch {
-    // localStorage quota exceeded — clear and retry with just metadata
-    try {
-      localStorage.removeItem(STORAGE_KEY)
-    } catch {
-      // give up
+  // Debounce writes — IndexedDB is async so we batch rapid state changes
+  if (_saveTimer) clearTimeout(_saveTimer)
+  _saveTimer = setTimeout(() => {
+    if (images.length === 0) {
+      sessionStore.removeItem(STORAGE_KEY).catch(() => {})
+      return
     }
-  }
+    // Strip undo snapshots — they can be huge and aren't critical to restore
+    const slim = images.map(({ preBgSrc, preEnhanceSrc, ...rest }) => rest)
+    sessionStore.setItem(STORAGE_KEY, { images: slim, selectedId, quality }).catch(() => {})
+  }, 500)
 }
+
+// Migrate any old localStorage session into IndexedDB (one-time)
+try {
+  const legacy = localStorage.getItem(STORAGE_KEY)
+  if (legacy) {
+    const data = JSON.parse(legacy)
+    sessionStore.setItem(STORAGE_KEY, data).catch(() => {})
+    localStorage.removeItem(STORAGE_KEY)
+  }
+} catch { /* ignore */ }
 
 // ---------------------------------------------------------------------------
 // Types
@@ -306,6 +320,11 @@ interface ImageItem {
   bgRemoved: boolean
   /** Snapshot of src before BG removal, for undo */
   preBgSrc: string | null
+  enhanced: boolean
+  /** Snapshot of src before enhancement, for undo */
+  preEnhanceSrc: string | null
+  /** Label describing what enhancement was applied */
+  enhanceLabel?: string
   altText: string
   altTextGenerating?: boolean
 }
@@ -316,15 +335,14 @@ type Mode = "convert" | "crop" | "erase"
 // Component
 // ---------------------------------------------------------------------------
 
-const _initialSession = loadSession()
-
 export function ImageConverter() {
-  const [images, setImages] = useState<ImageItem[]>(_initialSession?.images ?? [])
-  const [selectedId, setSelectedId] = useState<number | null>(_initialSession?.selectedId ?? null)
+  const [images, setImages] = useState<ImageItem[]>([])
+  const [selectedId, setSelectedId] = useState<number | null>(null)
   const [mode, setMode] = useState<Mode>("convert")
-  const [quality, setQuality] = useState(_initialSession?.quality ?? 80)
+  const [quality, setQuality] = useState(80)
   const [outputFormat, setOutputFormat] = useState<"webp" | "png" | "jpeg">("webp")
   const [presetKey, setPresetKey] = useState("")
+  const [sessionLoaded, setSessionLoaded] = useState(false)
 
   // Crop state (for the currently selected image)
   const [crop, setCrop] = useState({ x: 0, y: 0 })
@@ -347,10 +365,23 @@ export function ImageConverter() {
 
   const selected = images.find((img) => img.id === selectedId) ?? null
 
-  // Auto-save session to localStorage
+  // Restore session from IndexedDB on mount
   useEffect(() => {
+    loadSessionAsync().then((data) => {
+      if (data) {
+        setImages(data.images)
+        setSelectedId(data.selectedId)
+        setQuality(data.quality)
+      }
+      setSessionLoaded(true)
+    })
+  }, [])
+
+  // Auto-save session to IndexedDB (only after initial load to avoid clobbering)
+  useEffect(() => {
+    if (!sessionLoaded) return
     saveSession(images, selectedId, quality)
-  }, [images, selectedId, quality])
+  }, [images, selectedId, quality, sessionLoaded])
 
   // ---- Helpers to update a single image ----
   const updateImage = useCallback(
@@ -393,6 +424,8 @@ export function ImageConverter() {
               converted: false,
               bgRemoved: false,
               preBgSrc: null,
+              enhanced: false,
+              preEnhanceSrc: null,
               altText: "",
             }
             setImages((prev) => [...prev, item])
@@ -835,6 +868,66 @@ export function ImageConverter() {
   // If BG is removed, output must support alpha (PNG or WebP, not JPEG)
   const bgNeedsAlphaWarning = selected?.bgRemoved && selected.originalFormat === "JPG" || selected?.bgRemoved && selected?.originalFormat === "JPEG"
 
+  // ---- AI Enhance / Upscale ----
+
+  const {
+    enhance: runEnhance,
+    isProcessing: enhancing,
+    progress: enhanceProgress,
+    status: enhanceStatus,
+    error: enhanceError,
+  } = useUpscaler()
+
+  const [enhanceOp, setEnhanceOp] = useState("")
+
+  const handleEnhance = async () => {
+    if (!selected || enhancing || !enhanceOp) return
+    const op = ENHANCE_OPS.find((o) => o.id === enhanceOp)
+    if (!op) return
+
+    const result = await runEnhance(selected.src, enhanceOp)
+    if (!result) return
+
+    // Measure output dimensions
+    const resultImg = new Image()
+    await new Promise<void>((resolve) => {
+      resultImg.onload = () => resolve()
+      resultImg.src = result
+    })
+
+    updateImage(selected.id, {
+      preEnhanceSrc: selected.src,
+      src: result,
+      enhanced: true,
+      enhanceLabel: op.label,
+      naturalWidth: resultImg.naturalWidth,
+      naturalHeight: resultImg.naturalHeight,
+      outputWidth: resultImg.naturalWidth,
+      outputHeight: resultImg.naturalHeight,
+      converted: false,
+    })
+  }
+
+  const handleUndoEnhance = () => {
+    if (!selected || !selected.preEnhanceSrc) return
+    const prev = selected.preEnhanceSrc
+    const img = new Image()
+    img.onload = () => {
+      updateImage(selected.id, {
+        src: prev,
+        enhanced: false,
+        preEnhanceSrc: null,
+        enhanceLabel: undefined,
+        naturalWidth: img.naturalWidth,
+        naturalHeight: img.naturalHeight,
+        outputWidth: img.naturalWidth,
+        outputHeight: img.naturalHeight,
+        converted: false,
+      })
+    }
+    img.src = prev
+  }
+
   // ---- Inline Magic Eraser ----
 
   const {
@@ -1239,6 +1332,72 @@ export function ImageConverter() {
 
   const convertedCount = images.filter((img) => img.converted).length
 
+  // ---- Multi-size export ----
+
+  interface ExportSize {
+    id: number
+    w: number
+    h: number
+    label: string
+  }
+
+  const [multiSizeOpen, setMultiSizeOpen] = useState(false)
+  const [exportSizes, setExportSizes] = useState<ExportSize[]>([])
+  const exportSizeNextId = useRef(0)
+
+  const addExportSize = (w: number, h: number, label: string) => {
+    setExportSizes((prev) => [...prev, { id: exportSizeNextId.current++, w, h, label }])
+  }
+
+  const removeExportSize = (id: number) => {
+    setExportSizes((prev) => prev.filter((s) => s.id !== id))
+  }
+
+  const addExportSizeFromPreset = (key: string) => {
+    if (!key) return
+    for (const group of PRESET_GROUPS) {
+      for (const p of group.presets) {
+        if (buildPresetKey(group.label, p.label) === key) {
+          addExportSize(p.width, p.height, `${group.label} ${p.label}`)
+          return
+        }
+      }
+    }
+  }
+
+  const handleDownloadMultiSize = async () => {
+    if (!selected || exportSizes.length === 0) return
+    setConverting(true)
+    setConvertProgress(0)
+    try {
+      const zip = new JSZip()
+      const baseName = stripExtension(selected.fileName)
+      const ext = formatExt[outputFormat]
+
+      // First: include the current output size
+      const mainBlob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
+      zip.file(`${baseName}-${selected.outputWidth}x${selected.outputHeight}.${ext}`, mainBlob)
+      setConvertProgress(1)
+
+      // Then: each additional size
+      for (let i = 0; i < exportSizes.length; i++) {
+        const s = exportSizes[i]
+        const blob = await exportImage(selected.src, s.w, s.h, outputFormat, quality)
+        zip.file(`${baseName}-${s.w}x${s.h}.${ext}`, blob)
+        setConvertProgress(i + 2)
+      }
+
+      const zipBlob = await zip.generateAsync({ type: "blob" })
+      saveAs(zipBlob, `${baseName}-multi-size.zip`)
+      updateImage(selected.id, { converted: true })
+    } catch (err) {
+      console.error("Multi-size export failed:", err)
+    } finally {
+      setConverting(false)
+      setConvertProgress(0)
+    }
+  }
+
   // ---- Render ----
 
   return (
@@ -1257,7 +1416,7 @@ export function ImageConverter() {
                 Image Toolkit
               </h1>
               <p className="text-[13px] text-slate-500 dark:text-slate-400">
-                Convert, crop, resize, erase &amp; remove backgrounds
+                Convert, crop, enhance, erase &amp; remove backgrounds
               </p>
             </div>
           </div>
@@ -1282,6 +1441,11 @@ export function ImageConverter() {
                             BG Removed
                           </span>
                         )}
+                        {selected.enhanced && (
+                          <span className="px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                            {selected.enhanceLabel || "Enhanced"}
+                          </span>
+                        )}
                         {selected.cropApplied && (
                           <span className="px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                             Cropped
@@ -1294,6 +1458,15 @@ export function ImageConverter() {
                         )}
                       </div>
                       <div className="flex items-center gap-1">
+                        {selected.enhanced && (
+                          <button
+                            onClick={handleUndoEnhance}
+                            className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors"
+                          >
+                            <Undo2 size={13} />
+                            Undo Enhance
+                          </button>
+                        )}
                         {selected.bgRemoved && (
                           <button
                             onClick={handleUndoBgRemoval}
@@ -1404,6 +1577,46 @@ export function ImageConverter() {
                             } : {}),
                           }}
                         />
+                        {/* Enhance processing overlay */}
+                        {enhancing && (
+                          <div className="absolute inset-0 z-[2] overflow-hidden rounded-lg" style={{ isolation: "isolate" }}>
+                            <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" style={{ willChange: "auto" }} />
+                            <div
+                              className="absolute pointer-events-none"
+                              style={{
+                                willChange: "transform",
+                                top: 0, bottom: 0, left: "-50%", width: "50%",
+                                background: "linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 30%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent 100%)",
+                                animation: "shimmer-sweep 1.8s ease-in-out infinite",
+                              }}
+                            />
+                            <div
+                              className="absolute top-0 bottom-0 w-[2px] pointer-events-none"
+                              style={{
+                                willChange: "transform", transform: "translateZ(0)",
+                                background: "linear-gradient(180deg, transparent 0%, rgba(59,130,246,0.6) 30%, rgba(59,130,246,0.9) 50%, rgba(59,130,246,0.6) 70%, transparent 100%)",
+                                boxShadow: "0 0 12px 4px rgba(59,130,246,0.3)",
+                                animation: "scan-line 2.2s ease-in-out infinite",
+                              }}
+                            />
+                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none" style={{ willChange: "transform", transform: "translateZ(0)" }}>
+                              <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20" style={{ animation: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite" }}>
+                                <Wand2 size={16} className="text-white" />
+                              </div>
+                              <span className="text-[13px] font-medium text-white drop-shadow-lg">
+                                {enhanceStatus || "Enhancing..."}
+                              </span>
+                              {enhanceProgress > 0 && enhanceProgress < 100 && (
+                                <div className="w-32 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-white/80 rounded-full transition-all duration-300"
+                                    style={{ width: `${enhanceProgress}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
                         {/* BG removal processing overlay — GPU-composited shimmer */}
                         {bgRemoving && (
                           <div className="absolute inset-0 z-[2] overflow-hidden rounded-lg" style={{ isolation: "isolate" }}>
@@ -1552,6 +1765,11 @@ export function ImageConverter() {
                           {img.cropApplied && !img.converted && (
                             <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
                               <Crop size={9} className="text-white" strokeWidth={3} />
+                            </div>
+                          )}
+                          {img.enhanced && !img.converted && !img.cropApplied && !img.bgRemoved && (
+                            <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center">
+                              <Wand2 size={9} className="text-white" strokeWidth={3} />
                             </div>
                           )}
                           {img.bgRemoved && !img.converted && !img.cropApplied && (
@@ -1902,6 +2120,107 @@ export function ImageConverter() {
                       )}
                     </div>
 
+                    {/* AI Enhance / Upscale */}
+                    <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Wand2 size={12} />
+                          AI Enhance
+                        </Label>
+                        {selected.enhanced && (
+                          <span className="text-[10px] font-medium text-blue-500 dark:text-blue-400 flex items-center gap-1">
+                            <Check size={10} />
+                            {selected.enhanceLabel || "Enhanced"}
+                          </span>
+                        )}
+                      </div>
+
+                      {selected.enhanced ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+                            <Check size={13} className="text-blue-500 flex-shrink-0" />
+                            <span className="text-[12px] font-medium text-blue-700 dark:text-blue-300">
+                              {selected.enhanceLabel || "Enhanced"}
+                            </span>
+                            <button
+                              onClick={handleUndoEnhance}
+                              className="ml-auto text-[11px] font-medium text-blue-500 dark:text-blue-400 hover:underline"
+                            >
+                              Undo
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <Select value={enhanceOp} onValueChange={setEnhanceOp}>
+                            <SelectTrigger className="w-full text-[13px]">
+                              <SelectValue placeholder="Choose enhancement..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectGroup>
+                                <SelectLabel>Upscale</SelectLabel>
+                                {ENHANCE_OPS.filter((o) => o.category === "upscale").map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.label} — {o.desc}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                              <SelectGroup>
+                                <SelectLabel>Quality Fix</SelectLabel>
+                                {ENHANCE_OPS.filter((o) => o.category === "enhance").map((o) => (
+                                  <SelectItem key={o.id} value={o.id}>
+                                    {o.label} — {o.desc}
+                                  </SelectItem>
+                                ))}
+                              </SelectGroup>
+                            </SelectContent>
+                          </Select>
+
+                          <button
+                            onClick={handleEnhance}
+                            disabled={!enhanceOp || enhancing}
+                            className="w-full flex items-center justify-center gap-2 h-9 rounded-xl text-[13px] font-medium
+                                       bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600
+                                       text-white shadow-sm shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                          >
+                            {enhancing ? (
+                              <>
+                                <Loader2 size={14} className="animate-spin" />
+                                {enhanceStatus || `Enhancing... ${enhanceProgress}%`}
+                              </>
+                            ) : (
+                              <>
+                                <Wand2 size={14} />
+                                {enhanceOp
+                                  ? ENHANCE_OPS.find((o) => o.id === enhanceOp)?.label || "Enhance"
+                                  : "Select & Enhance"}
+                              </>
+                            )}
+                          </button>
+
+                          {enhancing && enhanceProgress > 0 && (
+                            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300"
+                                style={{ width: `${enhanceProgress}%` }}
+                              />
+                            </div>
+                          )}
+
+                          {enhanceError && (
+                            <p className="text-[11px] text-red-500 dark:text-red-400 flex items-center gap-1.5">
+                              <AlertCircle size={11} />
+                              {enhanceError}
+                            </p>
+                          )}
+
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
+                            Runs locally — no upload, no API cost
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Eraser controls (shown in erase mode) */}
                     {mode === "erase" && (
                       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-pink-200 dark:border-pink-800/50 shadow-sm p-4 space-y-3">
@@ -2232,6 +2551,132 @@ export function ImageConverter() {
                         )}
                       </Button>
 
+                      {/* Multi-size export */}
+                      <button
+                        onClick={() => setMultiSizeOpen(!multiSizeOpen)}
+                        className="w-full flex items-center justify-center gap-1.5 py-1.5 text-[11px] font-medium text-slate-400 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+                      >
+                        <Copy size={11} />
+                        Export multiple sizes{exportSizes.length > 0 && ` (${exportSizes.length})`}
+                        <ChevronDown
+                          size={11}
+                          className={`transition-transform duration-200 ${multiSizeOpen ? "rotate-180" : ""}`}
+                        />
+                      </button>
+
+                      {multiSizeOpen && (
+                        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-3 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                          {/* Size list */}
+                          {exportSizes.length > 0 && (
+                            <div className="space-y-1.5">
+                              {exportSizes.map((s) => (
+                                <div
+                                  key={s.id}
+                                  className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700/50"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[12px] font-mono font-medium text-slate-700 dark:text-slate-300">
+                                      {s.w}×{s.h}
+                                    </span>
+                                    <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                                      {s.label}
+                                    </span>
+                                  </div>
+                                  <button
+                                    onClick={() => removeExportSize(s.id)}
+                                    className="text-slate-300 hover:text-red-400 dark:text-slate-600 dark:hover:text-red-400 transition-colors"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Add from preset */}
+                          <Select value="" onValueChange={addExportSizeFromPreset}>
+                            <SelectTrigger className="w-full text-[12px] h-8">
+                              <SelectValue placeholder="Add size from preset..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {PRESET_GROUPS.map((group) => (
+                                <SelectGroup key={group.label}>
+                                  <SelectLabel>{group.label}</SelectLabel>
+                                  {group.presets.map((p) => {
+                                    const key = buildPresetKey(group.label, p.label)
+                                    return (
+                                      <SelectItem key={key} value={key}>
+                                        {p.label} — {p.width}×{p.height}
+                                      </SelectItem>
+                                    )
+                                  })}
+                                </SelectGroup>
+                              ))}
+                            </SelectContent>
+                          </Select>
+
+                          {/* Manual size input */}
+                          <div className="flex gap-1.5 items-end">
+                            <div className="flex-1">
+                              <Input
+                                id="ms-w"
+                                type="number"
+                                min={1}
+                                placeholder="W"
+                                className="text-[12px] h-8"
+                              />
+                            </div>
+                            <span className="pb-1.5 text-slate-300 dark:text-slate-600 text-[11px]">×</span>
+                            <div className="flex-1">
+                              <Input
+                                id="ms-h"
+                                type="number"
+                                min={1}
+                                placeholder="H"
+                                className="text-[12px] h-8"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                const wEl = document.getElementById("ms-w") as HTMLInputElement
+                                const hEl = document.getElementById("ms-h") as HTMLInputElement
+                                const w = parseInt(wEl?.value) || 0
+                                const h = parseInt(hEl?.value) || 0
+                                if (w > 0 && h > 0) {
+                                  addExportSize(w, h, "Custom")
+                                  wEl.value = ""
+                                  hEl.value = ""
+                                }
+                              }}
+                              className="h-8 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-emerald-500 dark:hover:text-emerald-400 transition-colors"
+                            >
+                              <Plus size={14} />
+                            </button>
+                          </div>
+
+                          {/* Download multi-size ZIP */}
+                          {exportSizes.length > 0 && (
+                            <Button
+                              onClick={handleDownloadMultiSize}
+                              disabled={converting}
+                              className="w-full h-9 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-medium rounded-xl shadow-sm transition-all text-[13px]"
+                            >
+                              {converting && convertProgress > 0 ? (
+                                <span className="flex items-center gap-2">
+                                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                  Exporting {convertProgress}/{exportSizes.length + 1}...
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-2">
+                                  <Archive size={14} />
+                                  Download {exportSizes.length + 1} sizes as ZIP
+                                </span>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
                       {images.length > 1 && (
                         <Button
                           onClick={handleDownloadAll}
@@ -2239,7 +2684,7 @@ export function ImageConverter() {
                           variant="outline"
                           className="w-full h-10 rounded-xl font-medium"
                         >
-                          {converting && convertProgress > 0 ? (
+                          {converting && convertProgress > 0 && !multiSizeOpen ? (
                             <span className="flex items-center gap-2">
                               <div className="w-4 h-4 border-2 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin" />
                               Converting {convertProgress}/{images.length}...
@@ -2260,6 +2705,7 @@ export function ImageConverter() {
                   {[
                     { icon: <Zap size={16} />, color: "text-amber-500", title: "Convert", desc: "PNG, JPEG, WebP output with quality control" },
                     { icon: <Crop size={16} />, color: "text-violet-500", title: "Crop & Resize", desc: "Visual cropper + social media presets" },
+                    { icon: <Wand2 size={16} />, color: "text-blue-500", title: "AI Enhance", desc: "Upscale, denoise, deblur & retouch — all local" },
                     { icon: <Eraser size={16} />, color: "text-pink-500", title: "Magic Eraser", desc: "AI-powered object removal — paint to erase" },
                     { icon: <Sparkles size={16} />, color: "text-purple-500", title: "Remove Background", desc: "One-click, runs locally — no API cost" },
                     { icon: <Layers size={16} />, color: "text-emerald-500", title: "Batch Export", desc: "Convert all images at once as ZIP" },

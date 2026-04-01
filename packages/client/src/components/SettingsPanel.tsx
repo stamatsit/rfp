@@ -41,6 +41,7 @@ import {
   ImageDown,
   Presentation,
   Mic,
+  ScanSearch,
 } from "lucide-react"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
@@ -148,11 +149,11 @@ const defaultTiles: TileConfig[] = [
     badge: "NEW",
   },
   {
-    id: "image-converter",
+    id: "image-toolkit",
     to: "/convert",
     icon: <ImageDown size={22} strokeWidth={2} />,
-    title: "Image Converter",
-    description: "Convert images to WebP — crop & resize to exact dimensions",
+    title: "Image Toolkit",
+    description: "Convert, crop, erase & remove backgrounds",
     gradient: "linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #0D9488 100%)",
     shadowColor: "rgba(16, 185, 129, 0.15)",
     enabled: true,
@@ -188,6 +189,17 @@ const defaultTiles: TileConfig[] = [
     description: "Charts and KPIs for win rates, services, trends, and CE performance",
     gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
+    enabled: true,
+    badge: "NEW",
+  },
+  {
+    id: "url-scanner",
+    to: "/scanner",
+    icon: <ScanSearch size={22} strokeWidth={2} />,
+    title: "URL Scanner",
+    description: "Scan any website for accessibility, structure, schema, and SEO issues",
+    gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
+    shadowColor: "rgba(139, 92, 246, 0.15)",
     enabled: true,
     badge: "NEW",
   },
@@ -561,7 +573,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "url-scanner"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()

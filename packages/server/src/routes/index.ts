@@ -17,6 +17,7 @@ import companionRouter from "./companion.js"
 import humanizerRouter from "./humanizer.js"
 import pitchDeckRouter from "./pitchDeck.js"
 import meetingsRouter from "./meetings.js"
+import scannerRouter from "./scanner.js"
 
 const router = Router()
 
@@ -38,5 +39,6 @@ router.use("/companion", companionRouter)
 router.use("/humanizer", humanizerRouter)
 router.use("/pitch-deck", pitchDeckRouter)
 router.use("/meetings", meetingsRouter)
+router.use("/scanner", scannerRouter)
 
 export default router
