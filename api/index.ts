@@ -8,6 +8,8 @@ import { eq, ilike, or, desc, asc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
+import { scanUrl as scanUrlService } from "../packages/server/src/services/scannerService.js"
+import type { ScanOptions as ScannerOptions } from "../packages/server/src/types/scanner.js"
 import mammoth from "mammoth"
 import { createRequire } from "module"
 
@@ -7573,6 +7575,52 @@ Only include quotes where the client is clearly saying something positive or not
         `
       }
       return res.json(rows)
+    }
+
+    // ─── Scanner routes (eric.yerke@stamats.com only) ───────────────
+    if (path.startsWith("/scanner")) {
+      if (session?.userEmail !== "eric.yerke@stamats.com") {
+        return res.status(403).json({ error: "URL Scanner is not available for your account" })
+      }
+
+      if (path === "/scanner/check-access" && method === "GET") {
+        return res.json({ hasAccess: true })
+      }
+
+      if (path === "/scanner/scan" && method === "POST") {
+        const targetUrl = (req.body?.url ?? "").trim()
+        if (!targetUrl) return res.status(400).json({ error: "URL is required" })
+
+        const normalized = /^https?:\/\//i.test(targetUrl) ? targetUrl : `https://${targetUrl}`
+        if (!isPublicUrl(normalized)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+
+        const clientOpts = req.body?.options ?? req.body ?? {}
+        const options: ScannerOptions = {
+          checkLinks: clientOpts.links === true || clientOpts.checkLinks === true,
+          wcagLevel: ["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA",
+          timeout: typeof clientOpts.timeout === "number" ? Math.min(Math.max(clientOpts.timeout, 5000), 30000) : 15000,
+        }
+
+        // SSE streaming
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+
+        const sendEvent = (data: Record<string, any>) => {
+          res.write(`data: ${JSON.stringify(data)}\n\n`)
+        }
+
+        try {
+          const report = await scanUrlService(normalized, options, (step, status) => {
+            sendEvent({ step, status })
+          })
+          sendEvent({ step: "complete", report })
+        } catch (err: any) {
+          sendEvent({ step: "error", message: err.message ?? "Scan failed" })
+        }
+        return res.end()
+      }
     }
 
     // 404 for unmatched routes
