@@ -115,19 +115,107 @@ router.post("/scan", async (req: Request, res: Response) => {
 })
 
 // ---------------------------------------------------------------------------
-// POST /crawl — Sitemap crawl: fetch sitemap.xml, scan up to N pages, stream results
+// Shared: fetch and parse sitemap URLs from a site
 // ---------------------------------------------------------------------------
-router.post("/crawl", async (req: Request, res: Response) => {
+async function discoverSitemapUrls(baseUrl: string, maxUrls = 500): Promise<string[]> {
+  const parsedBase = new URL(baseUrl)
+  const sitemapUrl = `${parsedBase.origin}/sitemap.xml`
+
+  const fetchSitemapUrls = async (url: string): Promise<string[]> => {
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
+      signal: AbortSignal.timeout(10000),
+    })
+    if (!resp.ok) return []
+    const text = await resp.text()
+
+    // Check if this is a sitemap index (contains <sitemap> tags)
+    const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
+
+    if (isSitemapIndex) {
+      const childSitemaps: string[] = []
+      const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
+      let match
+      while ((match = sitemapLocRegex.exec(text)) !== null) {
+        childSitemaps.push(match[1]!.trim())
+      }
+      // Fetch ALL child sitemaps to discover full site
+      const pageUrls: string[] = []
+      for (const childUrl of childSitemaps) {
+        if (pageUrls.length >= maxUrls) break
+        try {
+          const childUrls = await fetchSitemapUrls(childUrl)
+          pageUrls.push(...childUrls)
+        } catch { /* skip failed child sitemaps */ }
+      }
+      return pageUrls
+    }
+
+    // Regular sitemap — extract <url><loc> page URLs
+    const urls: string[] = []
+    const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
+    let match
+    while ((match = locRegex.exec(text)) !== null) {
+      const u = match[1]!.trim()
+      if (u.startsWith("http") && isPublicUrl(u)) {
+        urls.push(u)
+      }
+    }
+    // Fallback: if no <url><loc> matches, try plain <loc>
+    if (urls.length === 0) {
+      const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
+      while ((match = plainLocRegex.exec(text)) !== null) {
+        const u = match[1]!.trim()
+        if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
+          urls.push(u)
+        }
+      }
+    }
+    return urls
+  }
+
+  const urls = await fetchSitemapUrls(sitemapUrl)
+  return [...new Set(urls)].slice(0, maxUrls)
+}
+
+// ---------------------------------------------------------------------------
+// POST /sitemap — Discover sitemap URLs (no scanning, just returns the list)
+// ---------------------------------------------------------------------------
+router.post("/sitemap", async (req: Request, res: Response) => {
   let baseUrl: string = (req.body?.url ?? "").trim()
   if (!baseUrl) return res.status(400).json({ error: "URL is required" })
 
   if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
   if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
 
-  const maxPages = Math.min(Math.max(req.body?.maxPages ?? 10, 1), 50)
+  try {
+    const urls = await discoverSitemapUrls(baseUrl)
+    if (urls.length === 0) {
+      return res.json({ urls: [baseUrl], source: "fallback" })
+    }
+    return res.json({ urls, source: "sitemap" })
+  } catch (err: any) {
+    console.error("[Scanner] Sitemap discovery failed:", err.message)
+    return res.json({ urls: [baseUrl], source: "fallback" })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// POST /crawl — Scan specific pages (SSE streaming)
+// ---------------------------------------------------------------------------
+router.post("/crawl", async (req: Request, res: Response) => {
+  // Accept either a specific URL list or a base URL for sitemap discovery
+  let urlsToScan: string[] = Array.isArray(req.body?.urls) ? req.body.urls.filter((u: any) => typeof u === "string" && isPublicUrl(u)) : []
+  let baseUrl: string = (req.body?.url ?? "").trim()
+
+  if (urlsToScan.length === 0 && !baseUrl) return res.status(400).json({ error: "URL or urls[] is required" })
+  if (baseUrl && !/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
+  if (baseUrl && !isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+
+  const maxPages = Math.min(Math.max(req.body?.maxPages ?? 20, 1), 200)
   const clientOpts = req.body?.options ?? {}
   const options: ScanOptions = {
-    checkLinks: false, // skip link checking in crawl for speed
+    checkLinks: false,
     wcagLevel: ["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA",
     timeout: 15000,
   }
@@ -147,81 +235,23 @@ router.post("/crawl", async (req: Request, res: Response) => {
   req.on("close", () => { aborted = true })
 
   try {
-    // Step 1: Try to fetch sitemap.xml
-    sendEvent({ step: "sitemap", status: "running", message: "Fetching sitemap..." })
+    // If no explicit URL list, discover from sitemap
+    if (urlsToScan.length === 0) {
+      sendEvent({ step: "sitemap", status: "running", message: "Fetching sitemap..." })
+      try {
+        urlsToScan = await discoverSitemapUrls(baseUrl, maxPages)
+      } catch { /* fallback below */ }
 
-    let sitemapUrls: string[] = []
-    const parsedBase = new URL(baseUrl)
-    const sitemapUrl = `${parsedBase.origin}/sitemap.xml`
-
-    try {
-      const fetchSitemapUrls = async (url: string): Promise<string[]> => {
-        const resp = await fetch(url, {
-          headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-          signal: AbortSignal.timeout(10000),
-        })
-        if (!resp.ok) return []
-        const text = await resp.text()
-
-        // Check if this is a sitemap index (contains <sitemap> tags)
-        const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
-
-        if (isSitemapIndex) {
-          // Extract child sitemap URLs from <sitemap><loc>
-          const childSitemaps: string[] = []
-          const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-          let match
-          while ((match = sitemapLocRegex.exec(text)) !== null) {
-            childSitemaps.push(match[1]!.trim())
-          }
-          // Fetch the first few child sitemaps to get actual page URLs
-          const pageUrls: string[] = []
-          for (const childUrl of childSitemaps.slice(0, 5)) {
-            if (pageUrls.length >= maxPages) break
-            try {
-              const childUrls = await fetchSitemapUrls(childUrl)
-              pageUrls.push(...childUrls)
-            } catch { /* skip failed child sitemaps */ }
-          }
-          return pageUrls
-        }
-
-        // Regular sitemap — extract <url><loc> page URLs
-        const urls: string[] = []
-        const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-        let match
-        while ((match = locRegex.exec(text)) !== null) {
-          const u = match[1]!.trim()
-          if (u.startsWith("http") && isPublicUrl(u)) {
-            urls.push(u)
-          }
-        }
-        // Fallback: if no <url><loc> matches, try plain <loc>
-        if (urls.length === 0) {
-          const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
-          while ((match = plainLocRegex.exec(text)) !== null) {
-            const u = match[1]!.trim()
-            if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
-              urls.push(u)
-            }
-          }
-        }
-        return urls
+      if (urlsToScan.length === 0) {
+        urlsToScan = [baseUrl]
+        sendEvent({ step: "sitemap", status: "done", message: "No sitemap found — scanning provided URL", urlCount: 1 })
+      } else {
+        urlsToScan = urlsToScan.slice(0, maxPages)
+        sendEvent({ step: "sitemap", status: "done", message: `Found ${urlsToScan.length} URLs`, urlCount: urlsToScan.length })
       }
-
-      sitemapUrls = await fetchSitemapUrls(sitemapUrl)
-    } catch {
-      // Sitemap fetch failed — that's ok
-    }
-
-    // If no sitemap or empty, fall back to just the provided URL
-    if (sitemapUrls.length === 0) {
-      sitemapUrls = [baseUrl]
-      sendEvent({ step: "sitemap", status: "done", message: "No sitemap found — scanning provided URL", urlCount: 1 })
     } else {
-      // Dedupe and limit
-      sitemapUrls = [...new Set(sitemapUrls)].slice(0, maxPages)
-      sendEvent({ step: "sitemap", status: "done", message: `Found ${sitemapUrls.length} URLs in sitemap`, urlCount: sitemapUrls.length })
+      urlsToScan = urlsToScan.slice(0, maxPages)
+      sendEvent({ step: "sitemap", status: "done", message: `Scanning ${urlsToScan.length} selected pages`, urlCount: urlsToScan.length })
     }
 
     if (aborted) return
@@ -229,19 +259,19 @@ router.post("/crawl", async (req: Request, res: Response) => {
     // Step 2: Scan each page
     const results: Array<{ url: string; overallScore: number; issues: number; errors: number; report?: ScanReport }> = []
 
-    for (let i = 0; i < sitemapUrls.length; i++) {
+    for (let i = 0; i < urlsToScan.length; i++) {
       if (aborted) return
-      const pageUrl = sitemapUrls[i]!
-      sendEvent({ step: "scanning", index: i, total: sitemapUrls.length, url: pageUrl, status: "running" })
+      const pageUrl = urlsToScan[i]!
+      sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "running" })
 
       try {
         const report = await scanUrl(pageUrl, options)
         const errorCount = report.issues.filter((i) => i.severity === "error").length
         results.push({ url: pageUrl, overallScore: report.overallScore, issues: report.issues.length, errors: errorCount, report })
-        sendEvent({ step: "scanning", index: i, total: sitemapUrls.length, url: pageUrl, status: "done", score: report.overallScore, issues: report.issues.length, errors: errorCount })
+        sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "done", score: report.overallScore, issues: report.issues.length, errors: errorCount })
       } catch (err: any) {
         results.push({ url: pageUrl, overallScore: 0, issues: 0, errors: 0 })
-        sendEvent({ step: "scanning", index: i, total: sitemapUrls.length, url: pageUrl, status: "error", message: err.message })
+        sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "error", message: err.message })
       }
     }
 
