@@ -24,6 +24,7 @@ import {
   Layout,
   Search,
   Map as MapIcon,
+  Menu,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
@@ -834,6 +835,7 @@ export function URLScanner() {
 
   // Export dropdown
   const [showExportMenu, setShowExportMenu] = useState(false)
+  const [showMobileNav, setShowMobileNav] = useState(false)
   const exportRef = useRef<HTMLDivElement>(null)
 
   // Copy feedback
@@ -2290,153 +2292,119 @@ ${report.siteStructure.navigation.length > 0 ? `
   // ---------------------------------------------------------------------------
   if (view === "home") {
     return (
-      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
+      <div className="min-h-screen bg-[#fafbfc] dark:bg-[hsl(224,20%,8%)]">
         <AppHeader title="URL Scanner" />
-        <div className="flex items-start justify-center pt-[8vh]">
-          <div className="w-full max-w-2xl px-6">
-            {/* Title */}
-            <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
-              <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-                URL Scanner
-              </h1>
-              <p className="text-slate-500 dark:text-slate-400">
-                Paste a URL to audit accessibility, SEO, schema, and security.
-              </p>
-            </div>
 
-            {/* Error banner */}
-            {error && (
-              <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 flex items-start gap-3">
-                <AlertCircle
-                  size={16}
-                  className="text-red-500 mt-0.5 flex-shrink-0"
-                />
-                <div className="flex-1">
-                  <p className="text-sm text-red-700 dark:text-red-400">
-                    {error}
-                  </p>
+        {/* Hero section with gradient background */}
+        <div className="relative overflow-hidden">
+          {/* Ambient background */}
+          <div className="absolute inset-0 pointer-events-none" style={{
+            background: "radial-gradient(ellipse 80% 60% at 50% 0%, rgba(59,130,246,0.06) 0%, transparent 70%), radial-gradient(ellipse 60% 50% at 80% 20%, rgba(139,92,246,0.04) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 20% 30%, rgba(6,182,212,0.03) 0%, transparent 70%)"
+          }} />
+
+          <div className="relative flex items-start justify-center pt-[7vh] pb-8">
+            <div className="w-full max-w-2xl px-6">
+              {/* Icon + Title */}
+              <div className="text-center mb-10 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-violet-500 mb-5 shadow-lg shadow-blue-500/20">
+                  <Globe size={24} className="text-white" strokeWidth={1.75} />
                 </div>
-                <button
-                  onClick={() => setError(null)}
-                  className="text-red-400 hover:text-red-600 dark:hover:text-red-300"
-                >
-                  <span className="sr-only">Dismiss</span>
-                  &times;
-                </button>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2 tracking-tight">
+                  URL Scanner
+                </h1>
+                <p className="text-[15px] text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
+                  Paste any URL to audit accessibility, SEO, schema markup, and security headers in seconds.
+                </p>
               </div>
-            )}
 
-            {/* URL Input Card */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault()
-                scanUrl(urlInput)
-              }}
-              className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-2 flex items-center gap-2 mb-6"
-            >
-              <Globe
-                size={20}
-                className="text-slate-400 dark:text-slate-500 ml-4 flex-shrink-0"
-              />
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://example.com"
-                className="flex-1 bg-transparent text-slate-900 dark:text-white py-3 px-2 outline-none placeholder:text-slate-400/40 dark:placeholder:text-slate-500/40 text-[15px]"
-                required
-              />
-              <button
-                type="submit"
-                disabled={!urlInput.trim()}
-                className="text-white font-semibold px-7 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                style={{
-                  background:
-                    "linear-gradient(135deg, hsl(217 91% 55%), hsl(217 91% 65%))",
-                }}
-                onMouseEnter={(e) => {
-                  if (!urlInput.trim()) return
-                  ;(e.target as HTMLElement).style.boxShadow =
-                    "0 4px 24px rgba(59,130,246,0.35)"
-                }}
-                onMouseLeave={(e) => {
-                  ;(e.target as HTMLElement).style.boxShadow = "none"
-                }}
-              >
-                Scan
-              </button>
-              <button
-                type="button"
-                disabled={!urlInput.trim()}
-                onClick={() => fetchSitemap(urlInput)}
-                className="text-blue-600 dark:text-blue-400 font-medium px-4 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-1.5 text-sm"
-              >
-                <MapIcon size={15} />
-                Crawl Site
-              </button>
-            </form>
+              {/* Error banner */}
+              {error && (
+                <div className="mb-6 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/40 flex items-start gap-3">
+                  <AlertCircle size={16} className="text-red-500 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
+                  </div>
+                  <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 dark:hover:text-red-300">
+                    <span className="sr-only">Dismiss</span>&times;
+                  </button>
+                </div>
+              )}
 
-            {/* Options */}
-            <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 mb-16 text-sm text-slate-500 dark:text-slate-400">
-              <label className="flex items-center gap-2 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={options.wcagAudit}
-                  onChange={(e) =>
-                    setOptions((o) => ({ ...o, wcagAudit: e.target.checked }))
-                  }
-                  className="accent-blue-600"
-                />
-                WCAG Audit
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={options.headings}
-                  onChange={(e) =>
-                    setOptions((o) => ({ ...o, headings: e.target.checked }))
-                  }
-                  className="accent-blue-600"
-                />
-                Headings
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={options.seo}
-                  onChange={(e) =>
-                    setOptions((o) => ({ ...o, seo: e.target.checked }))
-                  }
-                  className="accent-blue-600"
-                />
-                SEO
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={options.links}
-                  onChange={(e) =>
-                    setOptions((o) => ({ ...o, links: e.target.checked }))
-                  }
-                  className="accent-blue-600"
-                />
-                Links
-              </label>
-              <select
-                value={options.wcagLevel}
-                onChange={(e) =>
-                  setOptions((o) => ({
-                    ...o,
-                    wcagLevel: e.target.value as "A" | "AA" | "AAA",
-                  }))
-                }
-                className="bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-500 dark:text-slate-400 outline-none text-sm"
+              {/* URL Input Card */}
+              <form
+                onSubmit={(e) => { e.preventDefault(); scanUrl(urlInput) }}
+                className="bg-white dark:bg-slate-900 border border-black/[0.08] dark:border-white/[0.08] rounded-2xl p-2 flex items-center gap-2 mb-5 shadow-sm shadow-black/[0.03] dark:shadow-none transition-shadow focus-within:shadow-md focus-within:shadow-blue-500/[0.06] focus-within:border-blue-300/50 dark:focus-within:border-blue-500/30"
               >
-                <option value="A">WCAG A</option>
-                <option value="AA">WCAG AA</option>
-                <option value="AAA">WCAG AAA</option>
-              </select>
-            </div>
+                <Globe size={18} className="text-slate-400 dark:text-slate-500 ml-4 flex-shrink-0" />
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  placeholder="https://example.com"
+                  className="flex-1 bg-transparent text-slate-900 dark:text-white py-3 px-2 outline-none placeholder:text-slate-400/50 dark:placeholder:text-slate-500/40 text-[15px]"
+                  required
+                />
+                <button
+                  type="submit"
+                  disabled={!urlInput.trim()}
+                  className="text-white font-semibold px-7 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_8px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]"
+                >
+                  Scan
+                </button>
+                <button
+                  type="button"
+                  disabled={!urlInput.trim()}
+                  onClick={() => fetchSitemap(urlInput)}
+                  className="text-blue-600 dark:text-blue-400 font-medium px-4 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-1.5 text-sm"
+                >
+                  <MapIcon size={15} />
+                  Crawl Site
+                </button>
+              </form>
+
+              {/* Options — collapsible, cleaner design */}
+              <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 mb-12 text-[13px] text-slate-500 dark:text-slate-400">
+                {[
+                  { key: "wcagAudit" as const, label: "WCAG Audit" },
+                  { key: "headings" as const, label: "Headings" },
+                  { key: "seo" as const, label: "SEO" },
+                  { key: "links" as const, label: "Links" },
+                ].map((opt) => (
+                  <label key={opt.key} className="flex items-center gap-1.5 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none">
+                    <input
+                      type="checkbox"
+                      checked={options[opt.key]}
+                      onChange={(e) => setOptions((o) => ({ ...o, [opt.key]: e.target.checked }))}
+                      className="accent-blue-600 w-3.5 h-3.5"
+                    />
+                    {opt.label}
+                  </label>
+                ))}
+                <select
+                  value={options.wcagLevel}
+                  onChange={(e) => setOptions((o) => ({ ...o, wcagLevel: e.target.value as "A" | "AA" | "AAA" }))}
+                  className="bg-transparent border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-slate-500 dark:text-slate-400 outline-none text-[13px]"
+                >
+                  <option value="A">WCAG A</option>
+                  <option value="AA">WCAG AA</option>
+                  <option value="AAA">WCAG AAA</option>
+                </select>
+              </div>
+
+              {/* Feature pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2 mb-12 animate-in fade-in duration-700 delay-200">
+                {[
+                  { icon: Eye, label: "Accessibility", color: "text-purple-500 bg-purple-50 dark:bg-purple-950/30 border-purple-200/50 dark:border-purple-800/30" },
+                  { icon: Search, label: "SEO & Schema", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/50 dark:border-emerald-800/30" },
+                  { icon: Shield, label: "Security", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/30" },
+                  { icon: Layout, label: "Structure", color: "text-blue-600 bg-blue-50 dark:bg-blue-950/30 border-blue-200/50 dark:border-blue-800/30" },
+                ].map((f) => (
+                  <div key={f.label} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border ${f.color}`}>
+                    <f.icon size={12} strokeWidth={2} />
+                    {f.label}
+                  </div>
+                ))}
+              </div>
 
             {/* Recent Scans */}
             {recentScans.length > 0 && (
@@ -2500,6 +2468,7 @@ ${report.siteStructure.navigation.length > 0 ? `
             )}
           </div>
         </div>
+        </div>{/* close hero bg */}
       </div>
     )
   }
@@ -3090,19 +3059,87 @@ ${report.siteStructure.navigation.length > 0 ? `
     return (
       <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
         <AppHeader title="URL Scanner" />
+        {(() => {
+          const sidebarTabs = [
+            { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
+            { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
+            { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
+            { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
+            { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
+            { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
+          ]
+          const renderTabButton = (tab: typeof sidebarTabs[0], onClick?: () => void) => (
+            <button
+              key={tab.id}
+              onClick={() => { setResultTab(tab.id); onClick?.() }}
+              className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left text-[13px] font-medium transition-all ${
+                resultTab === tab.id
+                  ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                  : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
+              }`}
+            >
+              <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+              <span className="flex-1">{tab.label}</span>
+              {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+              {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
+            </button>
+          )
+          return null
+        })()}
+
+        {/* Mobile nav drawer */}
+        {showMobileNav && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/30 dark:bg-black/50" onClick={() => setShowMobileNav(false)} />
+            <div className="absolute left-0 top-0 bottom-0 w-[240px] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 shadow-xl animate-in slide-in-from-left duration-200">
+              <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200/60 dark:border-slate-700/40">
+                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Results</span>
+                <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="px-3 py-4 space-y-1">
+                {[
+                  { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
+                  { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
+                  { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
+                  { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
+                  { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
+                  { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => { setResultTab(tab.id); setShowMobileNav(false) }}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-all ${
+                      resultTab === tab.id
+                        ? "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400"
+                        : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    }`}
+                  >
+                    <tab.icon size={16} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+                    <span className="flex-1">{tab.label}</span>
+                    {tab.count > 0 && <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+                    {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex">
-        {/* Sticky sidebar nav for main tabs */}
+        {/* Sticky sidebar nav for main tabs — desktop only */}
         <div className="hidden lg:flex flex-col w-[200px] flex-shrink-0 border-r border-slate-200/60 dark:border-slate-700/40 min-h-[calc(100vh-56px)]">
           <div className="sticky top-16 px-4 py-8 space-y-1">
             <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] px-3 mb-3">Results</div>
-            {([
+            {[
               { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
               { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
               { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
               { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
               { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
               { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
-            ]).map((tab) => (
+            ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setResultTab(tab.id)}
@@ -3125,6 +3162,13 @@ ${report.siteStructure.navigation.length > 0 ? `
         <div className="flex-1 min-w-0 max-w-4xl mx-auto px-6 py-8">
           {/* Back + URL + actions */}
           <div className="flex items-center gap-3 mb-8">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => setShowMobileNav(true)}
+              className="lg:hidden text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+            >
+              <Menu size={20} />
+            </button>
             <button
               onClick={() => {
                 setView("home")
