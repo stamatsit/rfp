@@ -21,6 +21,9 @@
     "typescript": "^5.3.3"
   },
   "dependencies": {
+    "axe-core": "^4.11.1",
+    "cheerio": "^1.2.0",
+    "jsdom": "^29.0.1",
     "@imgly/background-removal": "^1.7.0",
     "@supabase/supabase-js": "^2.39.3",
     "@tensorflow/tfjs": "~4.11.0",
