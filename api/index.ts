@@ -8,8 +8,6 @@ import { eq, ilike, or, desc, asc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
-import { scanUrl as scanUrlService } from "../packages/server/src/services/scannerService.js"
-import type { ScanOptions as ScannerOptions } from "../packages/server/src/types/scanner.js"
 import mammoth from "mammoth"
 import { createRequire } from "module"
 
@@ -7595,9 +7593,9 @@ Only include quotes where the client is clearly saying something positive or not
         if (!isPublicUrl(normalized)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
 
         const clientOpts = req.body?.options ?? req.body ?? {}
-        const options: ScannerOptions = {
+        const options = {
           checkLinks: clientOpts.links === true || clientOpts.checkLinks === true,
-          wcagLevel: ["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA",
+          wcagLevel: (["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA") as "A" | "AA" | "AAA",
           timeout: typeof clientOpts.timeout === "number" ? Math.min(Math.max(clientOpts.timeout, 5000), 30000) : 15000,
         }
 
@@ -7612,11 +7610,14 @@ Only include quotes where the client is clearly saying something positive or not
         }
 
         try {
-          const report = await scanUrlService(normalized, options, (step, status) => {
+          // Dynamic import to avoid crashing the whole API if deps aren't available
+          const { scanUrl: scanUrlFn } = await import("../packages/server/src/services/scannerService.js")
+          const report = await scanUrlFn(normalized, options, (step: string, status: string) => {
             sendEvent({ step, status })
           })
           sendEvent({ step: "complete", report })
         } catch (err: any) {
+          console.error("[Scanner] Scan failed:", err?.message || err)
           sendEvent({ step: "error", message: err.message ?? "Scan failed" })
         }
         return res.end()
