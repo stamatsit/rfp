@@ -200,7 +200,7 @@ const defaultTiles: TileConfig[] = [
     description: "Scan any website for accessibility, structure, schema, and SEO issues",
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
     shadowColor: "rgba(139, 92, 246, 0.15)",
-    enabled: true,
+    enabled: false,
     badge: "NEW",
   },
 ]
@@ -297,6 +297,7 @@ interface AppSettings {
   smartSuggestions: boolean
   companionEnabled: boolean
   navRailEnabled: boolean
+  urlScannerEnabled: boolean
   shortcuts: Record<string, string>
 }
 
@@ -325,6 +326,7 @@ const defaultSettings: AppSettings = {
   smartSuggestions: true,
   companionEnabled: true,
   navRailEnabled: false,
+  urlScannerEnabled: false,
   shortcuts: {
     search: "Cmd+K",
     ai: "Cmd+J",
@@ -1440,6 +1442,16 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           </div>
                         </div>
                         <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />
+                      </div>
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/40">
+                        <div className="flex items-center gap-3">
+                          <ScanSearch size={16} className="text-emerald-500 dark:text-emerald-400" />
+                          <div>
+                            <p className="text-[13px] text-slate-700 dark:text-slate-300">URL Scanner</p>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Scan sites for accessibility, SEO & security</p>
+                          </div>
+                        </div>
+                        <Toggle enabled={settings.urlScannerEnabled} onChange={() => updateSetting("urlScannerEnabled", !settings.urlScannerEnabled)} />
                       </div>
                     </div>
                   </div>

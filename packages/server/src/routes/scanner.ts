@@ -9,7 +9,7 @@ import type { ScanOptions, ScanReport, ScanIssue } from "../types/scanner.js"
 
 const router = Router()
 
-const ALLOWED_EMAILS = ["eric.yerke@stamats.com"]
+const ALLOWED_EMAILS = ["eric.yerke@stamats.com", "sandra.fancher@stamats.com"]
 
 // ---------------------------------------------------------------------------
 // SSRF Guard

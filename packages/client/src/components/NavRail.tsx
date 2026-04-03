@@ -14,13 +14,17 @@ import {
   ScanSearch,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useState, useEffect } from "react"
 
 interface NavItem {
   to: string
   icon: React.ElementType
   label: string
   emailOnly?: string
+  settingKey?: string
 }
+
+const SETTINGS_KEY = "stamats-app-settings"
 
 const NAV_ITEMS: NavItem[] = [
   { to: "/", icon: Home, label: "Home" },
@@ -33,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/convert", icon: ImageDown, label: "Image Toolkit" },
   { to: "/meetings", icon: Mic, label: "Meeting Intake" },
   { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
-  { to: "/scanner", icon: ScanSearch, label: "URL Scanner", emailOnly: "eric.yerke@stamats.com" },
+  { to: "/scanner", icon: ScanSearch, label: "URL Scanner", settingKey: "urlScannerEnabled" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },
 ]
 
@@ -41,8 +45,20 @@ export function NavRail() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const [settings, setSettings] = useState<Record<string, unknown>>({})
 
-  const visibleItems = NAV_ITEMS.filter(item => !item.emailOnly || user?.email === item.emailOnly)
+  useEffect(() => {
+    try { setSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")) } catch {}
+    const handler = () => { try { setSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}")) } catch {} }
+    window.addEventListener("settings-changed", handler)
+    return () => window.removeEventListener("settings-changed", handler)
+  }, [])
+
+  const visibleItems = NAV_ITEMS.filter(item => {
+    if (item.emailOnly && user?.email !== item.emailOnly) return false
+    if (item.settingKey && !settings[item.settingKey]) return false
+    return true
+  })
 
   return (
     <aside className="fixed left-0 top-14 bottom-0 w-14 z-[150] flex flex-col pt-2 bg-white dark:bg-slate-900 border-r border-black/[0.06] dark:border-white/[0.06]">
