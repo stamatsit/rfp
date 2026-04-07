@@ -18,6 +18,7 @@ import humanizerRouter from "./humanizer.js"
 import pitchDeckRouter from "./pitchDeck.js"
 import meetingsRouter from "./meetings.js"
 import scannerRouter from "./scanner.js"
+import screenshotRouter from "./screenshot.js"
 
 const router = Router()
 
@@ -40,5 +41,6 @@ router.use("/humanizer", humanizerRouter)
 router.use("/pitch-deck", pitchDeckRouter)
 router.use("/meetings", meetingsRouter)
 router.use("/scanner", scannerRouter)
+router.use("/screenshot", screenshotRouter)
 
 export default router

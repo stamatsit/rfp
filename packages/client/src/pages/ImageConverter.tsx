@@ -50,6 +50,7 @@ import {
   Copy,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { addCsrfHeader } from "@/lib/csrfToken"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -360,6 +361,11 @@ export function ImageConverter() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
 
+  // Webpage screenshot capture
+  const [captureUrl, setCaptureUrl] = useState("")
+  const [capturing, setCapturing] = useState(false)
+  const [captureError, setCaptureError] = useState<string | null>(null)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
 
@@ -443,6 +449,38 @@ export function ImageConverter() {
     },
     []
   )
+
+  const captureWebpage = useCallback(async () => {
+    const raw = captureUrl.trim()
+    if (!raw) return
+    const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
+    setCapturing(true)
+    setCaptureError(null)
+    try {
+      const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+      const resp = await fetch("/api/screenshot", {
+        method: "POST",
+        credentials: "include",
+        headers,
+        body: JSON.stringify({ url: normalized }),
+      })
+      if (!resp.ok) {
+        let msg = `Capture failed (${resp.status})`
+        try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
+        throw new Error(msg)
+      }
+      const blob = await resp.blob()
+      const host = (() => { try { return new URL(normalized).hostname.replace(/^www\./, "") } catch { return "page" } })()
+      const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+      const file = new File([blob], `${host}-${ts}.png`, { type: "image/png" })
+      addFiles([file])
+      setCaptureUrl("")
+    } catch (err: any) {
+      setCaptureError(err?.message ?? "Capture failed")
+    } finally {
+      setCapturing(false)
+    }
+  }, [captureUrl, addFiles])
 
   const resetCropState = () => {
     setCrop({ x: 0, y: 0 })
@@ -1696,36 +1734,90 @@ export function ImageConverter() {
                   </>
                 ) : (
                   /* Drop zone when no image selected */
-                  <div
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
-                      ${isDragging
-                        ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
-                        : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
-                      }`}
-                  >
-                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
-                      <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
+                  <div className="space-y-4">
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                      onDragLeave={() => setIsDragging(false)}
+                      onDrop={handleDrop}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
+                        ${isDragging
+                          ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
+                          : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
+                        }`}
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
+                        <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
+                          Drop images here or click to browse
+                        </p>
+                        <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
+                          PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
+                        </p>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        onChange={handleFileChange}
+                        className="hidden"
+                      />
                     </div>
-                    <div className="text-center">
-                      <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
-                        Drop images here or click to browse
-                      </p>
-                      <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
-                        PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
-                      </p>
+
+                    {/* Webpage screenshot capture */}
+                    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center">
+                          <Globe size={14} className="text-blue-500 dark:text-blue-400" strokeWidth={1.75} />
+                        </div>
+                        <div>
+                          <p className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
+                            Capture a full webpage
+                          </p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                            Paste a URL — we'll grab a full-page PNG
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="url"
+                          placeholder="https://example.com"
+                          value={captureUrl}
+                          onChange={(e) => { setCaptureUrl(e.target.value); if (captureError) setCaptureError(null) }}
+                          onKeyDown={(e) => { if (e.key === "Enter" && !capturing) captureWebpage() }}
+                          disabled={capturing}
+                          className="h-9 text-[13px]"
+                        />
+                        <Button
+                          type="button"
+                          onClick={captureWebpage}
+                          disabled={capturing || !captureUrl.trim()}
+                          className="h-9 px-3 text-[13px] bg-blue-500 hover:bg-blue-600 text-white"
+                        >
+                          {capturing ? (
+                            <>
+                              <Loader2 size={13} className="animate-spin mr-1.5" />
+                              Capturing
+                            </>
+                          ) : (
+                            <>
+                              <ImageDown size={13} className="mr-1.5" />
+                              Capture
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                      {captureError && (
+                        <div className="mt-2 flex items-start gap-1.5 text-[12px] text-red-500 dark:text-red-400">
+                          <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
+                          <span>{captureError}</span>
+                        </div>
+                      )}
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleFileChange}
-                      className="hidden"
-                    />
                   </div>
                 )}
 

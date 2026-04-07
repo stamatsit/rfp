@@ -7624,6 +7624,67 @@ Only include quotes where the client is clearly saying something positive or not
       }
     }
 
+    // ─── Screenshot route — full-page PNG capture via Microlink ──────
+    if ((path === "/screenshot" || path === "/screenshot/") && method === "POST") {
+      const targetUrl = (req.body?.url ?? "").toString().trim()
+      if (!targetUrl) return res.status(400).json({ error: "URL is required" })
+
+      const normalized = /^https?:\/\//i.test(targetUrl) ? targetUrl : `https://${targetUrl}`
+      if (!isPublicUrl(normalized)) {
+        return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+      }
+
+      try {
+        const apiUrl = new URL("https://api.microlink.io/")
+        apiUrl.searchParams.set("url", normalized)
+        apiUrl.searchParams.set("screenshot", "true")
+        apiUrl.searchParams.set("fullPage", "true")
+        apiUrl.searchParams.set("type", "png")
+        apiUrl.searchParams.set("waitUntil", "networkidle0")
+        apiUrl.searchParams.set("meta", "false")
+
+        const headers: Record<string, string> = {}
+        if (process.env.MICROLINK_API_KEY) headers["x-api-key"] = process.env.MICROLINK_API_KEY
+
+        const metaResp = await fetch(apiUrl.toString(), { headers })
+        if (!metaResp.ok) {
+          const text = await metaResp.text().catch(() => "")
+          return res.status(502).json({
+            error: "Screenshot service failed",
+            detail: text.slice(0, 300) || metaResp.statusText,
+          })
+        }
+        const meta = await metaResp.json() as {
+          status: string
+          data?: { screenshot?: { url?: string } }
+          message?: string
+        }
+        const shotUrl = meta?.data?.screenshot?.url
+        if (meta.status !== "success" || !shotUrl) {
+          return res.status(502).json({
+            error: "Screenshot service returned no image",
+            detail: meta?.message ?? "unknown",
+          })
+        }
+
+        const imgResp = await fetch(shotUrl)
+        if (!imgResp.ok) {
+          return res.status(502).json({ error: "Failed to download screenshot image" })
+        }
+        const buf = Buffer.from(await imgResp.arrayBuffer())
+        res.setHeader("Content-Type", "image/png")
+        res.setHeader("Content-Length", buf.length.toString())
+        res.setHeader("Cache-Control", "no-store")
+        return res.status(200).send(buf)
+      } catch (err: any) {
+        console.error("[Screenshot] Capture failed:", err?.message || err)
+        return res.status(500).json({
+          error: "Screenshot capture failed",
+          detail: err?.message ?? "unknown error",
+        })
+      }
+    }
+
     // 404 for unmatched routes
     return res.status(404).json({ error: "Not found", path })
 
