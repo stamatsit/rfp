@@ -1003,6 +1003,8 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   if (path.startsWith("/rfp/scan")) return true
   if (path.startsWith("/rfp/extract")) return true
   if (path.startsWith("/rfp/documents")) return true
+  // Webpage screenshot — any logged-in user can capture
+  if (path === "/screenshot" || path === "/screenshot/") return true
   return false
 }
 
