@@ -361,10 +361,14 @@ export function ImageConverter() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
 
-  // Webpage screenshot capture
-  const [captureUrl, setCaptureUrl] = useState("")
-  const [capturing, setCapturing] = useState(false)
-  const [captureError, setCaptureError] = useState<string | null>(null)
+  // Webpage screenshot capture (batch via modal)
+  const [captureModalOpen, setCaptureModalOpen] = useState(false)
+  const [captureUrlsText, setCaptureUrlsText] = useState("")
+  const [captureViewport, setCaptureViewport] = useState<"desktop" | "mobile">("desktop")
+  const [captureRunning, setCaptureRunning] = useState(false)
+  type CaptureRowStatus = "queued" | "capturing" | "done" | "error"
+  interface CaptureRow { id: number; url: string; status: CaptureRowStatus; error?: string }
+  const [captureRows, setCaptureRows] = useState<CaptureRow[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -450,37 +454,88 @@ export function ImageConverter() {
     []
   )
 
-  const captureWebpage = useCallback(async () => {
-    const raw = captureUrl.trim()
-    if (!raw) return
-    const normalized = /^https?:\/\//i.test(raw) ? raw : `https://${raw}`
-    setCapturing(true)
-    setCaptureError(null)
-    try {
-      const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-      const resp = await fetch("/api/screenshot", {
-        method: "POST",
-        credentials: "include",
-        headers,
-        body: JSON.stringify({ url: normalized }),
-      })
-      if (!resp.ok) {
-        let msg = `Capture failed (${resp.status})`
-        try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
-        throw new Error(msg)
-      }
-      const blob = await resp.blob()
-      const host = (() => { try { return new URL(normalized).hostname.replace(/^www\./, "") } catch { return "page" } })()
-      const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
-      const file = new File([blob], `${host}-${ts}.png`, { type: "image/png" })
-      addFiles([file])
-      setCaptureUrl("")
-    } catch (err: any) {
-      setCaptureError(err?.message ?? "Capture failed")
-    } finally {
-      setCapturing(false)
+  const captureBatch = useCallback(async () => {
+    // Parse URLs (one per line, trim, drop empties, dedupe, normalize)
+    const lines = captureUrlsText
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+    const seen = new Set<string>()
+    const normalized: string[] = []
+    for (const l of lines) {
+      const u = /^https?:\/\//i.test(l) ? l : `https://${l}`
+      if (seen.has(u)) continue
+      seen.add(u)
+      normalized.push(u)
     }
-  }, [captureUrl, addFiles])
+    if (normalized.length === 0) return
+
+    // Initial row state
+    let nextRowId = (captureRows.at(-1)?.id ?? 0) + 1
+    const newRows: CaptureRow[] = normalized.map((u) => ({
+      id: nextRowId++,
+      url: u,
+      status: "queued" as const,
+    }))
+    setCaptureRows((prev) => [...prev, ...newRows])
+    setCaptureRunning(true)
+
+    const updateRow = (id: number, patch: Partial<CaptureRow>) => {
+      setCaptureRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+    }
+
+    // Concurrency-limited worker pool (3 in flight)
+    const CONCURRENCY = 3
+    const queue = [...newRows]
+    const viewport = captureViewport
+
+    const runOne = async (row: CaptureRow) => {
+      updateRow(row.id, { status: "capturing" })
+      try {
+        const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+        const resp = await fetch("/api/screenshot", {
+          method: "POST",
+          credentials: "include",
+          headers,
+          body: JSON.stringify({ url: row.url, viewport }),
+        })
+        if (!resp.ok) {
+          let msg = `Capture failed (${resp.status})`
+          try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
+          throw new Error(msg)
+        }
+        const blob = await resp.blob()
+        const host = (() => {
+          try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
+        })()
+        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+        const suffix = viewport === "mobile" ? "-mobile" : ""
+        const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
+        addFiles([file])
+        updateRow(row.id, { status: "done" })
+      } catch (err: any) {
+        updateRow(row.id, { status: "error", error: err?.message ?? "Capture failed" })
+      }
+    }
+
+    const workers: Promise<void>[] = []
+    for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
+      workers.push((async function worker() {
+        while (queue.length > 0) {
+          const row = queue.shift()
+          if (!row) return
+          await runOne(row)
+        }
+      })())
+    }
+    await Promise.all(workers)
+    setCaptureRunning(false)
+    setCaptureUrlsText("")
+  }, [captureUrlsText, captureViewport, captureRows, addFiles])
+
+  const clearCaptureHistory = useCallback(() => {
+    setCaptureRows([])
+  }, [])
 
   const resetCropState = () => {
     setCrop({ x: 0, y: 0 })
@@ -1449,7 +1504,7 @@ export function ImageConverter() {
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
               <ImageDown size={20} className="text-white" strokeWidth={2} />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-semibold text-slate-900 dark:text-white">
                 Image Toolkit
               </h1>
@@ -1457,6 +1512,14 @@ export function ImageConverter() {
                 Convert, crop, enhance, erase &amp; remove backgrounds
               </p>
             </div>
+            <Button
+              type="button"
+              onClick={() => setCaptureModalOpen(true)}
+              className="h-9 px-3.5 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
+            >
+              <Globe size={14} className="mr-1.5" />
+              Capture from URL
+            </Button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -1734,90 +1797,36 @@ export function ImageConverter() {
                   </>
                 ) : (
                   /* Drop zone when no image selected */
-                  <div className="space-y-4">
-                    <div
-                      onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
-                      onDragLeave={() => setIsDragging(false)}
-                      onDrop={handleDrop}
-                      onClick={() => fileInputRef.current?.click()}
-                      className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
-                        ${isDragging
-                          ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
-                          : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
-                        }`}
-                    >
-                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
-                        <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
-                          Drop images here or click to browse
-                        </p>
-                        <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
-                          PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
-                        </p>
-                      </div>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
+                      ${isDragging
+                        ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
+                        : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
+                      }`}
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">
+                      <Upload size={24} className="text-emerald-500 dark:text-emerald-400" strokeWidth={1.5} />
                     </div>
-
-                    {/* Webpage screenshot capture */}
-                    <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900/40 p-4">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/50 flex items-center justify-center">
-                          <Globe size={14} className="text-blue-500 dark:text-blue-400" strokeWidth={1.75} />
-                        </div>
-                        <div>
-                          <p className="text-[13px] font-medium text-slate-700 dark:text-slate-200">
-                            Capture a full webpage
-                          </p>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                            Paste a URL — we'll grab a full-page PNG
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="url"
-                          placeholder="https://example.com"
-                          value={captureUrl}
-                          onChange={(e) => { setCaptureUrl(e.target.value); if (captureError) setCaptureError(null) }}
-                          onKeyDown={(e) => { if (e.key === "Enter" && !capturing) captureWebpage() }}
-                          disabled={capturing}
-                          className="h-9 text-[13px]"
-                        />
-                        <Button
-                          type="button"
-                          onClick={captureWebpage}
-                          disabled={capturing || !captureUrl.trim()}
-                          className="h-9 px-3 text-[13px] bg-blue-500 hover:bg-blue-600 text-white"
-                        >
-                          {capturing ? (
-                            <>
-                              <Loader2 size={13} className="animate-spin mr-1.5" />
-                              Capturing
-                            </>
-                          ) : (
-                            <>
-                              <ImageDown size={13} className="mr-1.5" />
-                              Capture
-                            </>
-                          )}
-                        </Button>
-                      </div>
-                      {captureError && (
-                        <div className="mt-2 flex items-start gap-1.5 text-[12px] text-red-500 dark:text-red-400">
-                          <AlertCircle size={12} className="mt-0.5 flex-shrink-0" />
-                          <span>{captureError}</span>
-                        </div>
-                      )}
+                    <div className="text-center">
+                      <p className="text-[15px] font-medium text-slate-700 dark:text-slate-300">
+                        Drop images here or click to browse
+                      </p>
+                      <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
+                        PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
+                      </p>
                     </div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
                   </div>
                 )}
 
@@ -2816,6 +2825,182 @@ export function ImageConverter() {
           </div>
         </div>
       </main>
+
+      {/* Capture-from-URL modal */}
+      {captureModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !captureRunning) setCaptureModalOpen(false)
+          }}
+        >
+          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/20">
+                  <Globe size={16} className="text-white" strokeWidth={2} />
+                </div>
+                <div>
+                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">
+                    Capture webpages
+                  </h2>
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400">
+                    Paste a list of URLs — we'll grab a full-page screenshot of each
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => { if (!captureRunning) setCaptureModalOpen(false) }}
+                disabled={captureRunning}
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Body — scrollable */}
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+              {/* Viewport toggle */}
+              <div>
+                <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                  Viewport
+                </Label>
+                <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => setCaptureViewport("desktop")}
+                    disabled={captureRunning}
+                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
+                      ${captureViewport === "desktop"
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                  >
+                    <MonitorSmartphone size={14} />
+                    Desktop
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">1280×800</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCaptureViewport("mobile")}
+                    disabled={captureRunning}
+                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
+                      ${captureViewport === "mobile"
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                  >
+                    <MonitorSmartphone size={14} className="rotate-90" />
+                    Mobile
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">390×844</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* URL textarea */}
+              <div>
+                <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
+                  URLs <span className="lowercase">(one per line)</span>
+                </Label>
+                <textarea
+                  value={captureUrlsText}
+                  onChange={(e) => setCaptureUrlsText(e.target.value)}
+                  disabled={captureRunning}
+                  rows={6}
+                  placeholder={"https://example.com\nhttps://stamats.com\nhttps://coe.edu/admission"}
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-[13px] font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-y disabled:opacity-50"
+                />
+              </div>
+
+              {/* Status list */}
+              {captureRows.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                      Captures
+                    </Label>
+                    {!captureRunning && (
+                      <button
+                        type="button"
+                        onClick={clearCaptureHistory}
+                        className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                      >
+                        Clear history
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {captureRows.map((row) => (
+                      <div
+                        key={row.id}
+                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800"
+                      >
+                        <div className="w-4 h-4 flex-shrink-0">
+                          {row.status === "queued" && (
+                            <div className="w-2 h-2 mt-1 ml-1 rounded-full bg-slate-300 dark:bg-slate-600" />
+                          )}
+                          {row.status === "capturing" && (
+                            <Loader2 size={14} className="text-blue-500 animate-spin" />
+                          )}
+                          {row.status === "done" && (
+                            <Check size={14} className="text-emerald-500" strokeWidth={3} />
+                          )}
+                          {row.status === "error" && (
+                            <AlertCircle size={14} className="text-red-500" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-mono text-slate-600 dark:text-slate-300 truncate">
+                            {row.url}
+                          </p>
+                          {row.status === "error" && row.error && (
+                            <p className="text-[11px] text-red-500 dark:text-red-400 truncate">
+                              {row.error}
+                            </p>
+                          )}
+                        </div>
+                        <span className={`text-[10px] uppercase tracking-wider font-medium flex-shrink-0
+                          ${row.status === "done" ? "text-emerald-500" :
+                            row.status === "error" ? "text-red-500" :
+                            row.status === "capturing" ? "text-blue-500" :
+                            "text-slate-400"}`}>
+                          {row.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                Up to 3 captures run in parallel · images stream into the toolkit as they finish
+              </p>
+              <Button
+                type="button"
+                onClick={captureBatch}
+                disabled={captureRunning || !captureUrlsText.trim()}
+                className="h-9 px-4 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
+              >
+                {captureRunning ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin mr-1.5" />
+                    Capturing
+                  </>
+                ) : (
+                  <>
+                    <ImageDown size={13} className="mr-1.5" />
+                    Capture all
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shimmer animation keyframes */}
       <style>{`

@@ -7624,7 +7624,9 @@ Only include quotes where the client is clearly saying something positive or not
       }
     }
 
-    // ─── Screenshot route — full-page PNG capture via Microlink ──────
+    // ─── Screenshot route — full-page PNG capture ────────────────────
+    // Provider: ScreenshotOne if SCREENSHOTONE_ACCESS_KEY is set,
+    // otherwise Microlink free tier as fallback.
     if ((path === "/screenshot" || path === "/screenshot/") && method === "POST") {
       const targetUrl = (req.body?.url ?? "").toString().trim()
       if (!targetUrl) return res.status(400).json({ error: "URL is required" })
@@ -7634,51 +7636,173 @@ Only include quotes where the client is clearly saying something positive or not
         return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
       }
 
+      // Viewport: desktop (1280x800 @2x) or mobile (390x844 @3x, iPhone 14)
+      const viewportRaw = (req.body?.viewport ?? "desktop").toString()
+      const isMobile = viewportRaw === "mobile"
+      const vpWidth = isMobile ? 390 : 1280
+      const vpHeight = isMobile ? 844 : 800
+      const vpDpr = isMobile ? 3 : 2
+
       try {
-        const apiUrl = new URL("https://api.microlink.io/")
-        apiUrl.searchParams.set("url", normalized)
-        apiUrl.searchParams.set("screenshot", "true")
-        apiUrl.searchParams.set("fullPage", "true")
-        apiUrl.searchParams.set("type", "png")
-        apiUrl.searchParams.set("waitUntil", "networkidle0")
-        apiUrl.searchParams.set("meta", "false")
+        let buf: Buffer
+        const screenshotOneKey = process.env.SCREENSHOTONE_ACCESS_KEY
 
-        const headers: Record<string, string> = {}
-        if (process.env.MICROLINK_API_KEY) headers["x-api-key"] = process.env.MICROLINK_API_KEY
+        if (screenshotOneKey) {
+          // ScreenshotOne — residential IPs, video embeds render correctly.
+          //
+          // Vimeo's player refuses to render in headless browsers — especially
+          // for unlisted/private videos (URLs with ?h=...). We work around it
+          // by fetching the page HTML ourselves, calling Vimeo's oEmbed API to
+          // get the real poster URL, and injecting JS that swaps the iframes
+          // with <img> tags before the screenshot.
+          let vimeoScript: string | null = null
+          try {
+            const htmlResp = await fetch(normalized, {
+              headers: {
+                "User-Agent":
+                  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+              },
+              signal: AbortSignal.timeout(8000),
+            })
+            if (htmlResp.ok) {
+              const html = await htmlResp.text()
+              const re = /player\.vimeo\.com\/video\/(\d+)(?:\?h=([a-f0-9]+))?/g
+              const seen = new Set<string>()
+              const videos: { id: string; hash: string | null }[] = []
+              let mm: RegExpExecArray | null
+              while ((mm = re.exec(html)) !== null) {
+                const id = mm[1]!
+                const hash = mm[2] ?? null
+                const key = `${id}:${hash ?? ""}`
+                if (seen.has(key)) continue
+                seen.add(key)
+                videos.push({ id, hash })
+              }
+              if (videos.length > 0) {
+                const thumbs = await Promise.all(
+                  videos.map(async (v) => {
+                    try {
+                      const pageUrl = v.hash
+                        ? `https://vimeo.com/${v.id}/${v.hash}`
+                        : `https://vimeo.com/${v.id}`
+                      const oembedUrl = `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(pageUrl)}`
+                      const r = await fetch(oembedUrl, { signal: AbortSignal.timeout(5000) })
+                      if (!r.ok) return null
+                      const d = (await r.json()) as { thumbnail_url?: string }
+                      if (!d.thumbnail_url) return null
+                      const big = d.thumbnail_url.replace(/_\d+x\d+(\?|$)/, "_1280x720$1")
+                      return { id: v.id, url: big }
+                    } catch { return null }
+                  })
+                )
+                const map = thumbs.filter((t): t is { id: string; url: string } => !!t)
+                if (map.length > 0) {
+                  const mapLit = JSON.stringify(Object.fromEntries(map.map((t) => [t.id, t.url])))
+                  vimeoScript = `(function(){var thumbs=${mapLit};document.querySelectorAll('iframe').forEach(function(f){var s=f.src||'';var m=s.match(/player\\.vimeo\\.com\\/video\\/(\\d+)/);if(!m||!thumbs[m[1]])return;var img=document.createElement('img');img.src=thumbs[m[1]];img.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;border:0';if(f.parentNode)f.parentNode.replaceChild(img,f)});})();`
+                }
+              }
+            }
+          } catch { /* enrichment is best-effort, never block the screenshot */ }
 
-        const metaResp = await fetch(apiUrl.toString(), { headers })
-        if (!metaResp.ok) {
-          const text = await metaResp.text().catch(() => "")
-          return res.status(502).json({
-            error: "Screenshot service failed",
-            detail: text.slice(0, 300) || metaResp.statusText,
-          })
-        }
-        const meta = await metaResp.json() as {
-          status: string
-          data?: { screenshot?: { url?: string } }
-          message?: string
-        }
-        const shotUrl = meta?.data?.screenshot?.url
-        if (meta.status !== "success" || !shotUrl) {
-          return res.status(502).json({
-            error: "Screenshot service returned no image",
-            detail: meta?.message ?? "unknown",
-          })
+          const api = new URL("https://api.screenshotone.com/take")
+          api.searchParams.set("access_key", screenshotOneKey)
+          api.searchParams.set("url", normalized)
+          api.searchParams.set("full_page", "true")
+          api.searchParams.set("format", "png")
+          api.searchParams.set("viewport_width", String(vpWidth))
+          api.searchParams.set("viewport_height", String(vpHeight))
+          api.searchParams.set("device_scale_factor", String(vpDpr))
+          if (isMobile) api.searchParams.set("viewport_mobile", "true")
+          api.searchParams.set("block_ads", "true")
+          api.searchParams.set("block_cookie_banners", "true")
+          api.searchParams.set("block_chats", "true")
+          api.searchParams.set("block_trackers", "true")
+          api.searchParams.set("wait_until", "networkidle2")
+          api.searchParams.set("delay", "3")
+          api.searchParams.set("cache", "false")
+
+          // Inline YouTube replacement (no API lookup needed — thumbnail URL
+          // is predictable from the video ID).
+          const youtubeScript = `document.querySelectorAll('iframe').forEach(function(f){var s=f.src||'';var m=s.match(/(?:youtube\\.com\\/embed|youtube-nocookie\\.com\\/embed)\\/([^?&\\/]+)/);if(!m)return;var img=document.createElement('img');img.src='https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg';img.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;border:0';if(f.parentNode)f.parentNode.replaceChild(img,f)});`
+          const fullScript = (vimeoScript ?? "") + youtubeScript
+          if (fullScript) api.searchParams.set("scripts", fullScript)
+
+          const resp = await fetch(api.toString())
+          if (!resp.ok) {
+            const text = await resp.text().catch(() => "")
+            return res.status(502).json({
+              error: "Screenshot service failed",
+              detail: text.slice(0, 300) || resp.statusText,
+            })
+          }
+          buf = Buffer.from(await resp.arrayBuffer())
+        } else {
+          // Microlink fallback (free tier, no key)
+          const apiUrl = new URL("https://api.microlink.io/")
+          apiUrl.searchParams.set("url", normalized)
+          apiUrl.searchParams.set("screenshot", "true")
+          apiUrl.searchParams.set("fullPage", "true")
+          apiUrl.searchParams.set("type", "png")
+          apiUrl.searchParams.set("waitUntil", "networkidle0")
+          apiUrl.searchParams.set("meta", "false")
+          apiUrl.searchParams.set("viewport.width", String(vpWidth))
+          apiUrl.searchParams.set("viewport.height", String(vpHeight))
+          apiUrl.searchParams.set("viewport.deviceScaleFactor", String(vpDpr))
+          if (isMobile) apiUrl.searchParams.set("viewport.isMobile", "true")
+          apiUrl.searchParams.set(
+            "userAgent",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+          )
+          apiUrl.searchParams.set("adblock", "true")
+          apiUrl.searchParams.set(
+            "hide",
+            [
+              'iframe[src*="cloudflarestream.com"]',
+              'iframe[src*="videodelivery.net"]',
+              'iframe[src*="mediadelivery.net"]',
+              'iframe[src*="vdocipher"]',
+              'iframe[src*="jwplatform"]',
+              'iframe[src*="brightcove"]',
+            ].join(",")
+          )
+
+          const headers: Record<string, string> = {}
+          if (process.env.MICROLINK_API_KEY) headers["x-api-key"] = process.env.MICROLINK_API_KEY
+
+          const metaResp = await fetch(apiUrl.toString(), { headers })
+          if (!metaResp.ok) {
+            const text = await metaResp.text().catch(() => "")
+            return res.status(502).json({
+              error: "Screenshot service failed",
+              detail: text.slice(0, 300) || metaResp.statusText,
+            })
+          }
+          const meta = await metaResp.json() as {
+            status: string
+            data?: { screenshot?: { url?: string } }
+            message?: string
+          }
+          const shotUrl = meta?.data?.screenshot?.url
+          if (meta.status !== "success" || !shotUrl) {
+            return res.status(502).json({
+              error: "Screenshot service returned no image",
+              detail: meta?.message ?? "unknown",
+            })
+          }
+          const imgResp = await fetch(shotUrl)
+          if (!imgResp.ok) {
+            return res.status(502).json({ error: "Failed to download screenshot image" })
+          }
+          buf = Buffer.from(await imgResp.arrayBuffer())
         }
 
-        const imgResp = await fetch(shotUrl)
-        if (!imgResp.ok) {
-          return res.status(502).json({ error: "Failed to download screenshot image" })
-        }
-        const buf = Buffer.from(await imgResp.arrayBuffer())
         res.setHeader("Content-Type", "image/png")
         res.setHeader("Content-Length", buf.length.toString())
         res.setHeader("Cache-Control", "no-store")
         return res.status(200).send(buf)
       } catch (err: any) {
         console.error("[Screenshot] Capture failed:", err?.message || err)
-        return res.status(500).json({
+        return res.status(502).json({
           error: "Screenshot capture failed",
           detail: err?.message ?? "unknown error",
         })
