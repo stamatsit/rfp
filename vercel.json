@@ -4,7 +4,7 @@
   "installCommand": "npm install --legacy-peer-deps && npm install --legacy-peer-deps --prefix packages/client",
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 30,
+      "maxDuration": 60,
       "memory": 1024
     }
   },
