@@ -7720,7 +7720,7 @@ Only include quotes where the client is clearly saying something positive or not
           api.searchParams.set("block_chats", "true")
           api.searchParams.set("block_trackers", "true")
           api.searchParams.set("wait_until", "networkidle2")
-          api.searchParams.set("delay", "3")
+          api.searchParams.set("delay", "7")
           api.searchParams.set("cache", "false")
 
           // Inline YouTube replacement (no API lookup needed — thumbnail URL

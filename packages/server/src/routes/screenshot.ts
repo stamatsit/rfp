@@ -136,7 +136,7 @@ async function captureWithScreenshotOne(
   api.searchParams.set("block_chats", "true")
   api.searchParams.set("block_trackers", "true")
   api.searchParams.set("wait_until", "networkidle2")
-  api.searchParams.set("delay", "3")
+  api.searchParams.set("delay", "7")
   api.searchParams.set("cache", "false")
 
   // Inline JS that swaps Vimeo iframes with their poster images.
