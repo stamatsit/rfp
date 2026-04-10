@@ -491,31 +491,50 @@ export function ImageConverter() {
 
     const runOne = async (row: CaptureRow) => {
       updateRow(row.id, { status: "capturing" })
-      try {
-        const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-        const resp = await fetch("/api/screenshot", {
-          method: "POST",
-          credentials: "include",
-          headers,
-          body: JSON.stringify({ url: row.url, viewport }),
-        })
-        if (!resp.ok) {
-          let msg = `Capture failed (${resp.status})`
-          try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
-          throw new Error(msg)
+
+      // Retry helper — first request often fails on Vercel cold start
+      // (function boot + screenshot pipeline exceeds gateway timeout).
+      const MAX_RETRIES = 2
+      let lastError: any = null
+      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+          const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+          const resp = await fetch("/api/screenshot", {
+            method: "POST",
+            credentials: "include",
+            headers,
+            body: JSON.stringify({ url: row.url, viewport }),
+          })
+          if (!resp.ok) {
+            let msg = `Capture failed (${resp.status})`
+            try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
+            throw new Error(msg)
+          }
+          const blob = await resp.blob()
+          const host = (() => {
+            try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
+          })()
+          const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
+          const suffix = viewport === "mobile" ? "-mobile" : ""
+          const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
+          addFiles([file])
+          updateRow(row.id, { status: "done" })
+          return // success — exit retry loop
+        } catch (err: any) {
+          lastError = err
+          // Only retry on network-level failures (cold start timeout),
+          // not on server error responses (those won't magically fix themselves)
+          const isNetworkError = err instanceof TypeError && /fetch/i.test(err.message)
+          const isGatewayTimeout = err?.message?.includes("504")
+          if ((isNetworkError || isGatewayTimeout) && attempt < MAX_RETRIES - 1) {
+            // Brief pause before retry to let the function warm up
+            await new Promise((r) => setTimeout(r, 1500))
+            continue
+          }
+          break
         }
-        const blob = await resp.blob()
-        const host = (() => {
-          try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
-        })()
-        const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
-        const suffix = viewport === "mobile" ? "-mobile" : ""
-        const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
-        addFiles([file])
-        updateRow(row.id, { status: "done" })
-      } catch (err: any) {
-        updateRow(row.id, { status: "error", error: err?.message ?? "Capture failed" })
       }
+      updateRow(row.id, { status: "error", error: lastError?.message ?? "Capture failed" })
     }
 
     const workers: Promise<void>[] = []
