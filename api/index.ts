@@ -7658,6 +7658,7 @@ Only include quotes where the client is clearly saying something positive or not
           // get the real poster URL, and injecting JS that swaps the iframes
           // with <img> tags before the screenshot.
           let vimeoScript: string | null = null
+          let youvisitScript: string | null = null
           try {
             const htmlResp = await fetch(normalized, {
               headers: {
@@ -7668,6 +7669,35 @@ Only include quotes where the client is clearly saying something positive or not
             })
             if (htmlResp.ok) {
               const html = await htmlResp.text()
+
+              // --- YouVisit 360 tour enrichment ---
+              const yvRe = /youvisit\.com[^"]*data-inst=(\d+)/g
+              const yvSeen = new Set<string>()
+              const yvIds: string[] = []
+              let yvM: RegExpExecArray | null
+              while ((yvM = yvRe.exec(html)) !== null) {
+                if (!yvSeen.has(yvM[1]!)) { yvSeen.add(yvM[1]!); yvIds.push(yvM[1]!) }
+              }
+              if (yvIds.length > 0) {
+                const yvThumbs = await Promise.all(
+                  yvIds.map(async (instId) => {
+                    try {
+                      const tourResp = await fetch(`https://www.youvisit.com/tour/${instId}`, { signal: AbortSignal.timeout(5000) })
+                      if (!tourResp.ok) return null
+                      const tourHtml = await tourResp.text()
+                      const ogMatch = tourHtml.match(/og:image[^>]*content="([^"]+)"/)
+                      return ogMatch ? { instId, url: ogMatch[1]! } : null
+                    } catch { return null }
+                  })
+                )
+                const yvMap = yvThumbs.filter((t): t is { instId: string; url: string } => !!t)
+                if (yvMap.length > 0) {
+                  const yvLit = JSON.stringify(Object.fromEntries(yvMap.map((t) => [t.instId, t.url])))
+                  youvisitScript = `(function(){var tours=${yvLit};document.querySelectorAll('a[href*="youvisit.com"]').forEach(function(a){var m=a.href.match(/data-inst=(\\d+)/);if(!m||!tours[m[1]])return;var img=document.createElement('img');img.src=tours[m[1]];img.style.cssText='width:100%;max-width:100%;height:auto;display:block;border:0;border-radius:8px;margin:0 auto';var container=a.parentNode;if(container){container.replaceChild(img,a)}});})();`
+                }
+              }
+
+              // --- Vimeo enrichment ---
               const re = /player\.vimeo\.com\/video\/(\d+)(?:\?h=([a-f0-9]+))?/g
               const seen = new Set<string>()
               const videos: { id: string; hash: string | null }[] = []
@@ -7726,7 +7756,7 @@ Only include quotes where the client is clearly saying something positive or not
           // Inline YouTube replacement (no API lookup needed — thumbnail URL
           // is predictable from the video ID).
           const youtubeScript = `document.querySelectorAll('iframe').forEach(function(f){var s=f.src||'';var m=s.match(/(?:youtube\\.com\\/embed|youtube-nocookie\\.com\\/embed)\\/([^?&\\/]+)/);if(!m)return;var img=document.createElement('img');img.src='https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg';img.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;border:0';if(f.parentNode)f.parentNode.replaceChild(img,f)});`
-          const fullScript = (vimeoScript ?? "") + youtubeScript
+          const fullScript = (vimeoScript ?? "") + youtubeScript + (youvisitScript ?? "")
           if (fullScript) api.searchParams.set("scripts", fullScript)
 
           const resp = await fetch(api.toString())

@@ -38,18 +38,8 @@ function isPublicUrl(urlString: string): boolean {
 //      pointing at the posters — injected into the page via ScreenshotOne's
 //      `scripts` parameter before the screenshot is taken.
 // ---------------------------------------------------------------------------
-async function buildVimeoReplacementScript(targetUrl: string): Promise<string | null> {
+async function buildVimeoReplacementScript(targetUrl: string, html: string): Promise<string | null> {
   try {
-    const htmlResp = await fetch(targetUrl, {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      },
-      signal: AbortSignal.timeout(8000),
-    })
-    if (!htmlResp.ok) return null
-    const html = await htmlResp.text()
-
     // Match player.vimeo.com/video/{id}[?h={hash}]
     const re = /player\.vimeo\.com\/video\/(\d+)(?:\?h=([a-f0-9]+))?/g
     const seen = new Set<string>()
@@ -111,6 +101,57 @@ const VIEWPORTS: Record<Viewport, { width: number; height: number; dpr: number; 
 }
 
 // ---------------------------------------------------------------------------
+// YouVisit tour enrichment
+//
+// YouVisit's 360 tour widget loads via JS and often refuses to render in
+// headless browsers — showing only a "Launch Experience" text link. We
+// work around this by finding YouVisit links with data-inst= in the href,
+// fetching the tour page's og:image, and injecting a replacement <img>.
+// ---------------------------------------------------------------------------
+async function buildYouVisitReplacementScript(html: string): Promise<string | null> {
+  try {
+    // Match youvisit.com links with data-inst=NNNNN
+    const re = /youvisit\.com[^"]*data-inst=(\d+)/g
+    const seen = new Set<string>()
+    const instIds: string[] = []
+    let m: RegExpExecArray | null
+    while ((m = re.exec(html)) !== null) {
+      if (seen.has(m[1]!)) continue
+      seen.add(m[1]!)
+      instIds.push(m[1]!)
+    }
+    if (instIds.length === 0) return null
+
+    // Fetch og:image for each institution tour page (in parallel)
+    const thumbs = await Promise.all(
+      instIds.map(async (instId) => {
+        try {
+          const tourUrl = `https://www.youvisit.com/tour/${instId}`
+          const resp = await fetch(tourUrl, { signal: AbortSignal.timeout(5000) })
+          if (!resp.ok) return null
+          const tourHtml = await resp.text()
+          const ogMatch = tourHtml.match(/og:image[^>]*content="([^"]+)"/)
+          return ogMatch ? { instId, url: ogMatch[1]! } : null
+        } catch {
+          return null
+        }
+      })
+    )
+    const map = thumbs.filter((t): t is { instId: string; url: string } => !!t)
+    if (map.length === 0) return null
+
+    // Build JS that finds YouVisit links and replaces their parent container
+    // with the tour preview image.
+    const mapLiteral = JSON.stringify(
+      Object.fromEntries(map.map((t) => [t.instId, t.url]))
+    )
+    return `(function(){var tours=${mapLiteral};document.querySelectorAll('a[href*="youvisit.com"]').forEach(function(a){var m=a.href.match(/data-inst=(\\d+)/);if(!m||!tours[m[1]])return;var img=document.createElement('img');img.src=tours[m[1]];img.style.cssText='width:100%;max-width:100%;height:auto;display:block;border:0;border-radius:8px;margin:0 auto';var container=a.parentNode;if(container){container.replaceChild(img,a)}});})();`
+  } catch {
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
 // ScreenshotOne provider — preferred when an access key is configured
 // ---------------------------------------------------------------------------
 async function captureWithScreenshotOne(
@@ -118,8 +159,22 @@ async function captureWithScreenshotOne(
   accessKey: string,
   viewport: Viewport,
 ): Promise<Buffer> {
-  // Pre-flight: scan the page for Vimeo embeds and prepare a replacement script
-  const vimeoScript = await buildVimeoReplacementScript(url)
+  // Pre-flight: scan the page for Vimeo/YouVisit embeds and prepare replacement scripts.
+  // We fetch the target HTML once and reuse it for both enrichment passes.
+  let pageHtml: string | null = null
+  try {
+    const htmlResp = await fetch(url, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+      },
+      signal: AbortSignal.timeout(8000),
+    })
+    if (htmlResp.ok) pageHtml = await htmlResp.text()
+  } catch { /* best-effort */ }
+
+  const vimeoScript = pageHtml ? await buildVimeoReplacementScript(url, pageHtml) : null
+  const youvisitScript = pageHtml ? await buildYouVisitReplacementScript(pageHtml) : null
   const vp = VIEWPORTS[viewport]
 
   const api = new URL("https://api.screenshotone.com/take")
@@ -143,7 +198,7 @@ async function captureWithScreenshotOne(
   // Also handles YouTube embeds inline (their thumbnail URL is predictable
   // from the video ID, no API lookup needed).
   const youtubeScript = `document.querySelectorAll('iframe').forEach(function(f){var s=f.src||'';var m=s.match(/(?:youtube\\.com\\/embed|youtube-nocookie\\.com\\/embed)\\/([^?&\\/]+)/);if(!m)return;var img=document.createElement('img');img.src='https://img.youtube.com/vi/'+m[1]+'/hqdefault.jpg';img.style.cssText='position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;border:0';if(f.parentNode)f.parentNode.replaceChild(img,f)});`
-  const fullScript = (vimeoScript ?? "") + youtubeScript
+  const fullScript = (vimeoScript ?? "") + youtubeScript + (youvisitScript ?? "")
   if (fullScript) api.searchParams.set("scripts", fullScript)
 
   const resp = await fetch(api.toString())
