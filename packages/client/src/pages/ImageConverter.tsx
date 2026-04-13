@@ -364,10 +364,10 @@ export function ImageConverter() {
   // Webpage screenshot capture (batch via modal)
   const [captureModalOpen, setCaptureModalOpen] = useState(false)
   const [captureUrlsText, setCaptureUrlsText] = useState("")
-  const [captureViewport, setCaptureViewport] = useState<"desktop" | "mobile">("desktop")
+  const [captureViewport, setCaptureViewport] = useState<"desktop" | "mobile" | "both">("desktop")
   const [captureRunning, setCaptureRunning] = useState(false)
   type CaptureRowStatus = "queued" | "capturing" | "done" | "error"
-  interface CaptureRow { id: number; url: string; status: CaptureRowStatus; error?: string }
+  interface CaptureRow { id: number; url: string; viewport: "desktop" | "mobile"; status: CaptureRowStatus; error?: string }
   const [captureRows, setCaptureRows] = useState<CaptureRow[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -470,13 +470,18 @@ export function ImageConverter() {
     }
     if (normalized.length === 0) return
 
-    // Initial row state
+    // Initial row state — "both" creates two rows per URL (desktop then mobile)
     let nextRowId = (captureRows.at(-1)?.id ?? 0) + 1
-    const newRows: CaptureRow[] = normalized.map((u) => ({
-      id: nextRowId++,
-      url: u,
-      status: "queued" as const,
-    }))
+    const viewports: ("desktop" | "mobile")[] =
+      captureViewport === "both" ? ["desktop", "mobile"] : [captureViewport]
+    const newRows: CaptureRow[] = normalized.flatMap((u) =>
+      viewports.map((vp) => ({
+        id: nextRowId++,
+        url: u,
+        viewport: vp,
+        status: "queued" as const,
+      }))
+    )
     setCaptureRows((prev) => [...prev, ...newRows])
     setCaptureRunning(true)
 
@@ -484,17 +489,18 @@ export function ImageConverter() {
       setCaptureRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
     }
 
-    // Concurrency-limited worker pool (3 in flight)
-    const CONCURRENCY = 3
+    // Concurrency-limited worker pool — 2 in flight with staggered starts
+    // to stay under screenshot provider rate limits on large batches.
+    const CONCURRENCY = 2
+    const STAGGER_MS = 800 // delay between starting new captures
     const queue = [...newRows]
-    const viewport = captureViewport
 
     const runOne = async (row: CaptureRow) => {
+      const viewport = row.viewport
       updateRow(row.id, { status: "capturing" })
 
-      // Retry helper — first request often fails on Vercel cold start
-      // (function boot + screenshot pipeline exceeds gateway timeout).
-      const MAX_RETRIES = 2
+      // Retry with exponential backoff — handles cold starts AND rate limits.
+      const MAX_RETRIES = 4
       let lastError: any = null
       for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
         try {
@@ -507,8 +513,16 @@ export function ImageConverter() {
           })
           if (!resp.ok) {
             let msg = `Capture failed (${resp.status})`
-            try { const j = await resp.json(); if (j?.error) msg = j.error } catch {}
-            throw new Error(msg)
+            let retryable = false
+            try {
+              const j = await resp.json()
+              if (j?.error) msg = j.error
+              if (j?.retryable) retryable = true
+            } catch {}
+            const err = new Error(msg) as any
+            err.status = resp.status
+            err.retryable = retryable
+            throw err
           }
           const blob = await resp.blob()
           const host = (() => {
@@ -522,13 +536,14 @@ export function ImageConverter() {
           return // success — exit retry loop
         } catch (err: any) {
           lastError = err
-          // Only retry on network-level failures (cold start timeout),
-          // not on server error responses (those won't magically fix themselves)
           const isNetworkError = err instanceof TypeError && /fetch/i.test(err.message)
           const isGatewayTimeout = err?.message?.includes("504")
-          if ((isNetworkError || isGatewayTimeout) && attempt < MAX_RETRIES - 1) {
-            // Brief pause before retry to let the function warm up
-            await new Promise((r) => setTimeout(r, 1500))
+          const isRateLimit = err?.status === 429 || err?.retryable
+          const shouldRetry = isNetworkError || isGatewayTimeout || isRateLimit
+          if (shouldRetry && attempt < MAX_RETRIES - 1) {
+            // Exponential backoff: 1.5s → 3s → 6s (longer for rate limits)
+            const baseDelay = isRateLimit ? 3000 : 1500
+            await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)))
             continue
           }
           break
@@ -539,17 +554,20 @@ export function ImageConverter() {
 
     const workers: Promise<void>[] = []
     for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
+      // Stagger worker starts so requests don't hit the provider simultaneously
+      if (i > 0) await new Promise((r) => setTimeout(r, STAGGER_MS))
       workers.push((async function worker() {
         while (queue.length > 0) {
           const row = queue.shift()
           if (!row) return
           await runOne(row)
+          // Brief gap between sequential captures within a worker
+          if (queue.length > 0) await new Promise((r) => setTimeout(r, STAGGER_MS))
         }
       })())
     }
     await Promise.all(workers)
     setCaptureRunning(false)
-    setCaptureUrlsText("")
   }, [captureUrlsText, captureViewport, captureRows, addFiles])
 
   const clearCaptureHistory = useCallback(() => {
@@ -1852,7 +1870,7 @@ export function ImageConverter() {
                   {/* Filmstrip — inside left column so it hugs the image */}
                   {images.length > 0 && (
                   <div className="mt-3">
-                    <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                    <div className="flex flex-wrap items-center gap-2 pb-2">
                       {images.map((img) => (
                         <div
                           key={img.id}
@@ -1861,7 +1879,7 @@ export function ImageConverter() {
                           onDragOver={(e) => handleFilmDragOver(e, img.id)}
                           onDragEnd={handleFilmDragEnd}
                           onClick={() => selectImage(img.id)}
-                          className={`relative flex-shrink-0 group rounded-xl overflow-hidden border-2 transition-all duration-150 cursor-pointer
+                          className={`relative group rounded-xl overflow-hidden border-2 transition-all duration-150 cursor-pointer
                             ${dragItemId === img.id ? "opacity-40" : ""}
                             ${img.id === selectedId
                               ? "border-emerald-500 shadow-lg shadow-emerald-500/20"
@@ -1903,6 +1921,11 @@ export function ImageConverter() {
                           >
                             <X size={10} className="text-white" />
                           </button>
+                          {img.fileName.includes("-mobile") && (
+                            <div className="absolute bottom-[18px] left-1 px-1 py-px rounded bg-blue-500/80 text-[7px] font-bold text-white leading-tight">
+                              M
+                            </div>
+                          )}
                           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-1 py-0.5">
                             <p className="text-[8px] text-white truncate font-medium">
                               {img.fileName}
@@ -2898,7 +2921,6 @@ export function ImageConverter() {
                   >
                     <MonitorSmartphone size={14} />
                     Desktop
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">1280×800</span>
                   </button>
                   <button
                     type="button"
@@ -2912,7 +2934,18 @@ export function ImageConverter() {
                   >
                     <MonitorSmartphone size={14} className="rotate-90" />
                     Mobile
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">390×844</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCaptureViewport("both")}
+                    disabled={captureRunning}
+                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
+                      ${captureViewport === "both"
+                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
+                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
+                      }`}
+                  >
+                    Both
                   </button>
                 </div>
               </div>
@@ -2969,6 +3002,9 @@ export function ImageConverter() {
                             <AlertCircle size={14} className="text-red-500" />
                           )}
                         </div>
+                        <span className="text-[9px] uppercase tracking-wider font-semibold flex-shrink-0 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                          {row.viewport === "mobile" ? "M" : "D"}
+                        </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] font-mono text-slate-600 dark:text-slate-300 truncate">
                             {row.url}

@@ -190,6 +190,10 @@ async function captureWithScreenshotOne(
   api.searchParams.set("block_cookie_banners", "true")
   api.searchParams.set("block_chats", "true")
   api.searchParams.set("block_trackers", "true")
+  // Block embed widgets that hold persistent connections and prevent networkidle.
+  // Their content is replaced with poster images via the injected scripts below.
+  if (youvisitScript) api.searchParams.append("block_requests", "*.youvisit.com/*")
+  if (vimeoScript) api.searchParams.append("block_requests", "*.vimeo.com/*")
   api.searchParams.set("wait_until", "networkidle2")
   api.searchParams.set("delay", "7")
   api.searchParams.set("cache", "false")
@@ -293,9 +297,20 @@ router.post("/", async (req: Request, res: Response) => {
     return res.status(200).send(buf)
   } catch (err: any) {
     console.error("[Screenshot] Capture failed:", err?.message || err)
+
+    // Surface rate-limit errors so the client can back off and retry
+    const msg = err?.message ?? ""
+    const isRateLimit = /429|rate.limit/i.test(msg)
+    if (isRateLimit) {
+      return res.status(429).json({
+        error: "Rate limited by screenshot provider — try again shortly",
+        retryable: true,
+      })
+    }
+
     return res.status(502).json({
       error: "Screenshot capture failed",
-      detail: err?.message ?? "unknown error",
+      detail: msg || "unknown error",
     })
   }
 })
