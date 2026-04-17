@@ -12,6 +12,7 @@ const SEED_USERS = [
   { email: "eric.yerke@stamats.com", name: "Eric Yerke" },
   { email: "becky.morehouse@stamats.com", name: "Becky Morehouse" },
   { email: "ericyerke@gmail.com", name: "Eric Yerke" },
+  { email: "eyerke@gmail.com", name: "Eric Yerke" },
 ]
 
 async function main() {

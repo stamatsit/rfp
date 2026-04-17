@@ -28,6 +28,8 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
+import { CreateReportModal } from "@/components/CreateReportModal"
+import { useIsAdmin } from "@/contexts/AuthContext"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -843,6 +845,10 @@ export function URLScanner() {
 
   // Abort controller for cancelling scans
   const abortRef = useRef<AbortController | null>(null)
+
+  // Create Client Report modal (admin only)
+  const isAdmin = useIsAdmin()
+  const [showReportModal, setShowReportModal] = useState(false)
 
   // AI Chat state
   const [showAiPanel, setShowAiPanel] = useState(false)
@@ -3238,6 +3244,18 @@ ${report.siteStructure.navigation.length > 0 ? `
               Ask AI
             </button>
 
+            {/* Create Client Report (admin only) */}
+            {isAdmin && (
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-all flex items-center gap-1.5 shadow-sm"
+                title="Turn this scan into a polished gap analysis"
+              >
+                <FileText size={14} />
+                Create Client Report
+              </button>
+            )}
+
             {/* Rescan */}
             <button
               onClick={() => scanUrl(report.url)}
@@ -4113,6 +4131,12 @@ ${report.siteStructure.navigation.length > 0 ? `
         </div>{/* close flex wrapper */}
 
         <AiChatPanel show={showAiPanel} onClose={() => setShowAiPanel(false)} messages={aiMessages} input={aiInput} onInputChange={setAiInput} onSend={sendAiMessage} isLoading={isAiLoading} suggestedPrompts={suggestedPrompts} />
+
+        <CreateReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          scannedUrl={report.url}
+        />
       </div>
     )
   }
