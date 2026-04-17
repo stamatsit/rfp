@@ -358,7 +358,17 @@ export function loadSettings(): AppSettings {
       ]
       // Preserve widgetsEnabled explicitly (default to false only if not set)
       const widgetsEnabled = parsed.widgetsEnabled !== undefined ? parsed.widgetsEnabled : defaultSettings.widgetsEnabled
-      return { ...defaultSettings, ...parsed, tiles: mergedTiles, widgets: mergedWidgets, widgetsEnabled }
+
+      // URL Scanner migration: earlier versions shipped the tile disabled-by-default while
+      // storing `urlScannerEnabled` as a separate Labs flag — causing the tile to stay hidden
+      // even after the user turned scanning on. Fix any stale state in-place.
+      for (const t of mergedTiles) {
+        if (t.id === "url-scanner" && t.enabled === false && (parsed.urlScannerEnabled ?? true) === true) {
+          t.enabled = true
+        }
+      }
+
+      return { ...defaultSettings, ...parsed, tiles: mergedTiles, widgets: mergedWidgets, widgetsEnabled, urlScannerEnabled: parsed.urlScannerEnabled ?? true }
     }
   } catch (e) {
     console.error("Failed to load settings:", e)
@@ -708,8 +718,20 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   }
 
   const toggleTile = (id: string) => {
-    const newTiles = settings.tiles.map(t => t.id === id ? { ...t, enabled: !t.enabled } : t)
-    updateSetting("tiles", newTiles)
+    const existing = settings.tiles.find(t => t.id === id)
+    const newEnabled = existing ? !existing.enabled : true
+    const newTiles = existing
+      ? settings.tiles.map(t => t.id === id ? { ...t, enabled: newEnabled } : t)
+      : [...settings.tiles, { id, enabled: newEnabled, order: settings.tiles.length }]
+    setSettings(prev => {
+      // Keep the URL Scanner nav-rail setting (`urlScannerEnabled`) in sync with its tile
+      // so there's one source of truth — no split-brain between Home tile and nav rail.
+      const next = id === "url-scanner"
+        ? { ...prev, tiles: newTiles, urlScannerEnabled: newEnabled }
+        : { ...prev, tiles: newTiles }
+      saveSettings(next)
+      return next
+    })
   }
 
   // Tile drag handlers
@@ -1442,30 +1464,6 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           </div>
                         </div>
                         <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />
-                      </div>
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50/60 dark:bg-emerald-900/20 border border-emerald-200/60 dark:border-emerald-800/40">
-                        <div className="flex items-center gap-3">
-                          <ScanSearch size={16} className="text-emerald-500 dark:text-emerald-400" />
-                          <div>
-                            <p className="text-[13px] text-slate-700 dark:text-slate-300">URL Scanner</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Scan sites for accessibility, SEO & security</p>
-                          </div>
-                        </div>
-                        <Toggle
-                          enabled={settings.urlScannerEnabled}
-                          onChange={() => {
-                            const newEnabled = !settings.urlScannerEnabled
-                            // Update both the nav-rail setting and the home-tile entry in one save.
-                            const newTiles = settings.tiles.some(t => t.id === "url-scanner")
-                              ? settings.tiles.map(t => t.id === "url-scanner" ? { ...t, enabled: newEnabled } : t)
-                              : [...settings.tiles, { id: "url-scanner", enabled: newEnabled, order: settings.tiles.length }]
-                            setSettings(prev => {
-                              const next = { ...prev, urlScannerEnabled: newEnabled, tiles: newTiles }
-                              saveSettings(next)
-                              return next
-                            })
-                          }}
-                        />
                       </div>
                     </div>
                   </div>

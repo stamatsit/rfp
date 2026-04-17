@@ -1005,6 +1005,9 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   if (path.startsWith("/rfp/documents")) return true
   // Webpage screenshot — any logged-in user can capture
   if (path === "/screenshot" || path === "/screenshot/") return true
+  // URL Scanner — all authenticated users can scan (Client Report feature stays admin-only
+  // because the /reports routes are not listed here)
+  if (path.startsWith("/scanner")) return true
   return false
 }
 
