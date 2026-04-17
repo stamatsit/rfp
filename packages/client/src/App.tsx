@@ -35,6 +35,8 @@ const PitchDeckDesigner = lazy(() => import("./pages/PitchDeckDesigner").then(m 
 const MeetingIntake = lazy(() => import("./pages/MeetingIntake").then(m => ({ default: m.MeetingIntake })))
 const Analytics = lazy(() => import("./pages/Analytics").then(m => ({ default: m.Analytics })))
 const URLScanner = lazy(() => import("./pages/URLScanner").then(m => ({ default: m.URLScanner })))
+const ReportsArchive = lazy(() => import("./pages/ReportsArchive").then(m => ({ default: m.ReportsArchive })))
+const ReportViewer = lazy(() => import("./pages/ReportViewer").then(m => ({ default: m.ReportViewer })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -132,6 +134,8 @@ function AppRoutes() {
             <Route path="/meetings" element={<ProtectedRoute><MeetingIntake /></ProtectedRoute>} />
             <Route path="/analytics" element={<ProtectedRoute><Analytics /></ProtectedRoute>} />
             <Route path="/scanner" element={<ProtectedRoute><URLScanner /></ProtectedRoute>} />
+            <Route path="/reports" element={<ProtectedRoute><ReportsArchive /></ProtectedRoute>} />
+            <Route path="/reports/:slug" element={<ProtectedRoute><ReportViewer /></ProtectedRoute>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

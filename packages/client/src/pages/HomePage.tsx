@@ -303,7 +303,7 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "url-scanner"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer"])
 
 export function HomePage() {
   const { user, markTourCompleted } = useAuth()
