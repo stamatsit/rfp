@@ -200,7 +200,7 @@ const defaultTiles: TileConfig[] = [
     description: "Scan any website for accessibility, structure, schema, and SEO issues",
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
     shadowColor: "rgba(139, 92, 246, 0.15)",
-    enabled: false,
+    enabled: true,
     badge: "NEW",
   },
 ]
@@ -326,7 +326,7 @@ const defaultSettings: AppSettings = {
   smartSuggestions: true,
   companionEnabled: true,
   navRailEnabled: false,
-  urlScannerEnabled: false,
+  urlScannerEnabled: true,
   shortcuts: {
     search: "Cmd+K",
     ai: "Cmd+J",
@@ -1451,7 +1451,21 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             <p className="text-[11px] text-slate-400 dark:text-slate-500">Scan sites for accessibility, SEO & security</p>
                           </div>
                         </div>
-                        <Toggle enabled={settings.urlScannerEnabled} onChange={() => updateSetting("urlScannerEnabled", !settings.urlScannerEnabled)} />
+                        <Toggle
+                          enabled={settings.urlScannerEnabled}
+                          onChange={() => {
+                            const newEnabled = !settings.urlScannerEnabled
+                            // Update both the nav-rail setting and the home-tile entry in one save.
+                            const newTiles = settings.tiles.some(t => t.id === "url-scanner")
+                              ? settings.tiles.map(t => t.id === "url-scanner" ? { ...t, enabled: newEnabled } : t)
+                              : [...settings.tiles, { id: "url-scanner", enabled: newEnabled, order: settings.tiles.length }]
+                            setSettings(prev => {
+                              const next = { ...prev, urlScannerEnabled: newEnabled, tiles: newTiles }
+                              saveSettings(next)
+                              return next
+                            })
+                          }}
+                        />
                       </div>
                     </div>
                   </div>
