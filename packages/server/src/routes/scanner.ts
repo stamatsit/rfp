@@ -9,8 +9,6 @@ import type { ScanOptions, ScanReport, ScanIssue } from "../types/scanner.js"
 
 const router = Router()
 
-const ALLOWED_EMAILS = ["eric.yerke@stamats.com", "sandra.fancher@stamats.com"]
-
 // ---------------------------------------------------------------------------
 // SSRF Guard
 // ---------------------------------------------------------------------------
@@ -26,23 +24,9 @@ function isPublicUrl(urlString: string): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Middleware: restrict access
-// ---------------------------------------------------------------------------
-function requireScannerAccess(req: Request, res: Response, next: Function) {
-  const email = (req.session as any)?.userEmail
-  if (!email || !ALLOWED_EMAILS.includes(email.toLowerCase())) {
-    return res.status(403).json({ error: "URL Scanner is not available for your account" })
-  }
-  next()
-}
-
-router.use(requireScannerAccess)
-
-// ---------------------------------------------------------------------------
 // GET /check-access — client calls to decide whether to show the feature
 // ---------------------------------------------------------------------------
 router.get("/check-access", (_req: Request, res: Response) => {
-  // If we get here the middleware already passed
   res.json({ hasAccess: true })
 })
 
