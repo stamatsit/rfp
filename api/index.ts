@@ -7580,12 +7580,8 @@ Only include quotes where the client is clearly saying something positive or not
       return res.json(rows)
     }
 
-    // ─── Scanner routes (eric.yerke@stamats.com only) ───────────────
+    // ─── Scanner routes (any authenticated user) ───────────────
     if (path.startsWith("/scanner")) {
-      if (session?.userEmail !== "eric.yerke@stamats.com") {
-        return res.status(403).json({ error: "URL Scanner is not available for your account" })
-      }
-
       if (path === "/scanner/check-access" && method === "GET") {
         return res.json({ hasAccess: true })
       }
