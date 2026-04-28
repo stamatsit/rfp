@@ -383,6 +383,15 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
 
   // Links without accessible name
   $("a").each((_i, el) => {
+    const href = $(el).attr("href")
+    // Skip named anchor targets (e.g. <a id="foo"></a>): these are scroll/fragment
+    // targets, not navigable links, so WCAG 2.4.4 ("Link Purpose") doesn't apply.
+    // Anchors without an href, role="link", or tabindex are not focusable links.
+    const role = $(el).attr("role")
+    const tabindex = $(el).attr("tabindex")
+    const isNavigableLink = href !== undefined || role === "link" || tabindex !== undefined
+    if (!isNavigableLink) return
+
     const text = $(el).text().trim()
     const ariaLabel = $(el).attr("aria-label")
     const ariaLabelledBy = $(el).attr("aria-labelledby")
@@ -400,7 +409,7 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
         element: truncateElement(outerHtml),
         selector: buildSelector($, el),
         line,
-        suggestion: "Add text content, aria-label, or title to the link",
+        suggestion: "Add visible text describing the link's destination. If the link is purely visual, add an aria-label.",
         wcagCriteria: "2.4.4",
         wcagLevel: "A",
       })
@@ -429,19 +438,21 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
   const issues: ScanIssue[] = []
 
   const title = $("title").first().text().trim() || undefined
-  const description = $('meta[name="description"]').attr("content")?.trim() || undefined
+  // Use case-insensitive `i` flag — HTML attribute values like name="Description" are
+  // accepted by browsers, so the scanner must match them too.
+  const description = $('meta[name="description" i]').attr("content")?.trim() || undefined
   const lang = $("html").attr("lang")?.trim() || undefined
-  const viewport = $('meta[name="viewport"]').attr("content")?.trim() || undefined
-  const canonical = $('link[rel="canonical"]').attr("href")?.trim() || undefined
+  const viewport = $('meta[name="viewport" i]').attr("content")?.trim() || undefined
+  const canonical = $('link[rel="canonical" i]').attr("href")?.trim() || undefined
 
   // Charset: check meta charset or http-equiv
   const charsetAttr = $("meta[charset]").attr("charset")?.trim()
-  const httpEquivCharset = $('meta[http-equiv="Content-Type"]').attr("content")?.trim()
+  const httpEquivCharset = $('meta[http-equiv="Content-Type" i]').attr("content")?.trim()
   const charset = charsetAttr || httpEquivCharset || undefined
 
   // OG tags
   const ogTags: Record<string, string> = {}
-  $('meta[property^="og:"]').each((_i, el) => {
+  $('meta[property^="og:" i]').each((_i, el) => {
     const prop = $(el).attr("property")
     const content = $(el).attr("content")
     if (prop && content) {
@@ -1111,18 +1122,24 @@ export async function checkLinks(
     hrefs.get(resolved)!.push(el)
   })
 
-  // Check for target="_blank" without rel="noopener"
-  $("a[target='_blank']").each((_i, el) => {
+  // Check for target="_blank" without rel="noopener". Match `target="_blank"`
+  // case-insensitively so `_BLANK` / `_Blank` variants are also caught.
+  $('a[target="_blank" i]').each((_i, el) => {
     const rel = ($(el).attr("rel") ?? "").toLowerCase()
     if (!rel.includes("noopener") && !rel.includes("noreferrer")) {
+      // Identify the link in the message itself so the user can see exactly which
+      // anchor was flagged without having to expand the issue.
+      const href = $(el).attr("href")?.trim() ?? ""
+      const linkText = $(el).text().trim().slice(0, 60) || $(el).attr("aria-label") || $(el).attr("title") || ""
+      const label = linkText ? `"${linkText}"` : href ? `(${href})` : ""
       issues.push({
         ruleId: "link-new-window",
         category: "links",
         severity: "warning",
-        message: "Link opens in new window without rel=\"noopener\"",
+        message: `Link ${label} opens in new window without rel="noopener"`.replace(/\s+/g, " ").trim(),
         element: truncateElement($.html(el) ?? ""),
         selector: buildSelector($, el),
-        suggestion: 'Add rel="noopener noreferrer" to links with target="_blank"',
+        suggestion: 'Add rel="noopener noreferrer" to this link to prevent the new window from accessing window.opener',
       })
     }
   })
@@ -1131,10 +1148,25 @@ export async function checkLinks(
   let broken = 0
   let redirects = 0
   let timeouts = 0
+  let blocked = 0
 
   // Check links with concurrency limit of 5
   const urls = Array.from(hrefs.keys()).filter((u) => isPublicUrl(u))
   const total = urls.length
+
+  // Browser-like UA — many sites (Twitter/X, LinkedIn, Cloudflare-fronted apps) reject
+  // bot-shaped User-Agent strings with 403/999. Matching a real browser drastically
+  // cuts false-positive "broken link" reports.
+  const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+  const COMMON_HEADERS = {
+    "User-Agent": BROWSER_UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+  }
+
+  // Status codes that almost always mean "the server blocked the bot," not "broken."
+  // Includes LinkedIn's bespoke 999 and the 401/403/429 family.
+  const isBlockedStatus = (s: number) => s === 401 || s === 403 || s === 429 || s === 999
 
   // Process in batches of 5
   for (let i = 0; i < urls.length; i += 5) {
@@ -1142,24 +1174,53 @@ export async function checkLinks(
 
     const results = await Promise.allSettled(
       batch.map(async (linkUrl) => {
-        const controller = new AbortController()
-        const timer = setTimeout(() => controller.abort(), 5000)
+        const fetchOnce = async (method: "HEAD" | "GET"): Promise<{ status: number; method: "HEAD" | "GET" }> => {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 5000)
+          try {
+            const resp = await fetch(linkUrl, {
+              method,
+              signal: controller.signal,
+              redirect: "follow", // follow redirects so a 301→200 isn't reported as a "redirect"
+              headers: COMMON_HEADERS,
+            })
+            return { status: resp.status, method }
+          } finally {
+            clearTimeout(timer)
+          }
+        }
 
         try {
-          const resp = await fetch(linkUrl, {
-            method: "HEAD",
-            signal: controller.signal,
-            redirect: "manual",
-            headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-          })
-          clearTimeout(timer)
-          return { url: linkUrl, status: resp.status }
+          // HEAD first (cheap). On any non-2xx, retry with GET — many servers return
+          // 4xx/5xx for HEAD even when GET works fine.
+          let res = await fetchOnce("HEAD")
+          if (!(res.status >= 200 && res.status < 300)) {
+            try {
+              const getRes = await fetchOnce("GET")
+              if (getRes.status >= 200 && getRes.status < 400) res = getRes
+              else if (res.status >= 400 && getRes.status < res.status) res = getRes
+            } catch { /* keep HEAD result */ }
+          }
+          return { url: linkUrl, status: res.status }
         } catch (err: any) {
-          clearTimeout(timer)
-          if (err.name === "AbortError") {
+          if (err?.name === "AbortError") {
             return { url: linkUrl, status: -1 } // timeout
           }
-          return { url: linkUrl, status: -2 } // network error
+          // On network error from HEAD, retry once with GET before giving up
+          try {
+            const getRes = await (async () => {
+              const c = new AbortController()
+              const t = setTimeout(() => c.abort(), 5000)
+              try {
+                const r = await fetch(linkUrl, { method: "GET", signal: c.signal, redirect: "follow", headers: COMMON_HEADERS })
+                return r.status
+              } finally { clearTimeout(t) }
+            })()
+            return { url: linkUrl, status: getRes }
+          } catch (err2: any) {
+            if (err2?.name === "AbortError") return { url: linkUrl, status: -1 }
+            return { url: linkUrl, status: -2 } // network error
+          }
         }
       }),
     )
@@ -1174,6 +1235,7 @@ export async function checkLinks(
       if (status >= 200 && status < 300) {
         healthy++
       } else if (status >= 300 && status < 400) {
+        // With redirect: "follow" we shouldn't usually land here, but keep the bucket.
         redirects++
       } else if (status === -1) {
         timeouts++
@@ -1182,7 +1244,18 @@ export async function checkLinks(
           category: "links",
           severity: "warning",
           message: `Link timed out: ${linkUrl}`,
-          suggestion: "Verify the link is accessible; it may be slow or blocking HEAD requests",
+          suggestion: "Verify the link is accessible; it may be slow or blocking automated requests",
+        })
+      } else if (isBlockedStatus(status)) {
+        // Don't fail the page for sites that block bots (Twitter, LinkedIn, etc.).
+        // Surface as info so the user can spot-check, but it doesn't tank the score.
+        blocked++
+        issues.push({
+          ruleId: "link-blocked",
+          category: "links",
+          severity: "info",
+          message: `Could not verify link (HTTP ${status} — site blocks automated checks): ${linkUrl}`,
+          suggestion: "This link could not be verified automatically. Check it manually in a browser.",
         })
       } else {
         broken++
@@ -1197,7 +1270,7 @@ export async function checkLinks(
     }
   }
 
-  console.log(`[Scanner] Link check complete: ${total} links — ${healthy} healthy, ${broken} broken, ${redirects} redirects, ${timeouts} timeouts`)
+  console.log(`[Scanner] Link check complete: ${total} links — ${healthy} healthy, ${broken} broken, ${redirects} redirects, ${timeouts} timeouts, ${blocked} blocked`)
 
   return {
     issues,

@@ -37,7 +37,6 @@ import {
   Youtube,
   Globe,
   FileImage,
-  MonitorSmartphone,
   TextCursorInput,
   Hash,
   RotateCcw,
@@ -50,7 +49,7 @@ import {
   Copy,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
-import { addCsrfHeader } from "@/lib/csrfToken"
+import { SitemapCaptureModal } from "@/components/SitemapCaptureModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -361,14 +360,8 @@ export function ImageConverter() {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState("")
 
-  // Webpage screenshot capture (batch via modal)
+  // Webpage screenshot capture (sitemap-driven modal)
   const [captureModalOpen, setCaptureModalOpen] = useState(false)
-  const [captureUrlsText, setCaptureUrlsText] = useState("")
-  const [captureViewport, setCaptureViewport] = useState<"desktop" | "mobile" | "both">("desktop")
-  const [captureRunning, setCaptureRunning] = useState(false)
-  type CaptureRowStatus = "queued" | "capturing" | "done" | "error"
-  interface CaptureRow { id: number; url: string; viewport: "desktop" | "mobile"; status: CaptureRowStatus; error?: string }
-  const [captureRows, setCaptureRows] = useState<CaptureRow[]>([])
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -453,126 +446,6 @@ export function ImageConverter() {
     },
     []
   )
-
-  const captureBatch = useCallback(async () => {
-    // Parse URLs (one per line, trim, drop empties, dedupe, normalize)
-    const lines = captureUrlsText
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-    const seen = new Set<string>()
-    const normalized: string[] = []
-    for (const l of lines) {
-      const u = /^https?:\/\//i.test(l) ? l : `https://${l}`
-      if (seen.has(u)) continue
-      seen.add(u)
-      normalized.push(u)
-    }
-    if (normalized.length === 0) return
-
-    // Initial row state — "both" creates two rows per URL (desktop then mobile)
-    let nextRowId = (captureRows.at(-1)?.id ?? 0) + 1
-    const viewports: ("desktop" | "mobile")[] =
-      captureViewport === "both" ? ["desktop", "mobile"] : [captureViewport]
-    const newRows: CaptureRow[] = normalized.flatMap((u) =>
-      viewports.map((vp) => ({
-        id: nextRowId++,
-        url: u,
-        viewport: vp,
-        status: "queued" as const,
-      }))
-    )
-    setCaptureRows((prev) => [...prev, ...newRows])
-    setCaptureRunning(true)
-
-    const updateRow = (id: number, patch: Partial<CaptureRow>) => {
-      setCaptureRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
-    }
-
-    // Concurrency-limited worker pool — 2 in flight with staggered starts
-    // to stay under screenshot provider rate limits on large batches.
-    const CONCURRENCY = 2
-    const STAGGER_MS = 800 // delay between starting new captures
-    const queue = [...newRows]
-
-    const runOne = async (row: CaptureRow) => {
-      const viewport = row.viewport
-      updateRow(row.id, { status: "capturing" })
-
-      // Retry with exponential backoff — handles cold starts AND rate limits.
-      const MAX_RETRIES = 4
-      let lastError: any = null
-      for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-        try {
-          const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-          const resp = await fetch("/api/screenshot", {
-            method: "POST",
-            credentials: "include",
-            headers,
-            body: JSON.stringify({ url: row.url, viewport }),
-          })
-          if (!resp.ok) {
-            let msg = `Capture failed (${resp.status})`
-            let retryable = false
-            try {
-              const j = await resp.json()
-              if (j?.error) msg = j.error
-              if (j?.retryable) retryable = true
-            } catch {}
-            const err = new Error(msg) as any
-            err.status = resp.status
-            err.retryable = retryable
-            throw err
-          }
-          const blob = await resp.blob()
-          const host = (() => {
-            try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
-          })()
-          const ts = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)
-          const suffix = viewport === "mobile" ? "-mobile" : ""
-          const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
-          addFiles([file])
-          updateRow(row.id, { status: "done" })
-          return // success — exit retry loop
-        } catch (err: any) {
-          lastError = err
-          const isNetworkError = err instanceof TypeError && /fetch/i.test(err.message)
-          const isGatewayTimeout = err?.message?.includes("504")
-          const isRateLimit = err?.status === 429 || err?.retryable
-          const shouldRetry = isNetworkError || isGatewayTimeout || isRateLimit
-          if (shouldRetry && attempt < MAX_RETRIES - 1) {
-            // Exponential backoff: 1.5s → 3s → 6s (longer for rate limits)
-            const baseDelay = isRateLimit ? 3000 : 1500
-            await new Promise((r) => setTimeout(r, baseDelay * Math.pow(2, attempt)))
-            continue
-          }
-          break
-        }
-      }
-      updateRow(row.id, { status: "error", error: lastError?.message ?? "Capture failed" })
-    }
-
-    const workers: Promise<void>[] = []
-    for (let i = 0; i < Math.min(CONCURRENCY, queue.length); i++) {
-      // Stagger worker starts so requests don't hit the provider simultaneously
-      if (i > 0) await new Promise((r) => setTimeout(r, STAGGER_MS))
-      workers.push((async function worker() {
-        while (queue.length > 0) {
-          const row = queue.shift()
-          if (!row) return
-          await runOne(row)
-          // Brief gap between sequential captures within a worker
-          if (queue.length > 0) await new Promise((r) => setTimeout(r, STAGGER_MS))
-        }
-      })())
-    }
-    await Promise.all(workers)
-    setCaptureRunning(false)
-  }, [captureUrlsText, captureViewport, captureRows, addFiles])
-
-  const clearCaptureHistory = useCallback(() => {
-    setCaptureRows([])
-  }, [])
 
   const resetCropState = () => {
     setCrop({ x: 0, y: 0 })
@@ -2868,194 +2741,12 @@ export function ImageConverter() {
         </div>
       </main>
 
-      {/* Capture-from-URL modal */}
-      {captureModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !captureRunning) setCaptureModalOpen(false)
-          }}
-        >
-          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl">
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center shadow-sm shadow-blue-500/20">
-                  <Globe size={16} className="text-white" strokeWidth={2} />
-                </div>
-                <div>
-                  <h2 className="text-[15px] font-semibold text-slate-900 dark:text-white">
-                    Capture webpages
-                  </h2>
-                  <p className="text-[12px] text-slate-500 dark:text-slate-400">
-                    Paste a list of URLs — we'll grab a full-page screenshot of each
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => { if (!captureRunning) setCaptureModalOpen(false) }}
-                disabled={captureRunning}
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Body — scrollable */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-              {/* Viewport toggle */}
-              <div>
-                <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
-                  Viewport
-                </Label>
-                <div className="flex gap-1 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setCaptureViewport("desktop")}
-                    disabled={captureRunning}
-                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
-                      ${captureViewport === "desktop"
-                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                      }`}
-                  >
-                    <MonitorSmartphone size={14} />
-                    Desktop
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCaptureViewport("mobile")}
-                    disabled={captureRunning}
-                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
-                      ${captureViewport === "mobile"
-                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                      }`}
-                  >
-                    <MonitorSmartphone size={14} className="rotate-90" />
-                    Mobile
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCaptureViewport("both")}
-                    disabled={captureRunning}
-                    className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
-                      ${captureViewport === "both"
-                        ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm"
-                        : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
-                      }`}
-                  >
-                    Both
-                  </button>
-                </div>
-              </div>
-
-              {/* URL textarea */}
-              <div>
-                <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2 block">
-                  URLs <span className="lowercase">(one per line)</span>
-                </Label>
-                <textarea
-                  value={captureUrlsText}
-                  onChange={(e) => setCaptureUrlsText(e.target.value)}
-                  disabled={captureRunning}
-                  rows={6}
-                  placeholder={"https://example.com\nhttps://stamats.com\nhttps://coe.edu/admission"}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 px-3 py-2.5 text-[13px] font-mono text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 resize-y disabled:opacity-50"
-                />
-              </div>
-
-              {/* Status list */}
-              {captureRows.length > 0 && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <Label className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      Captures
-                    </Label>
-                    {!captureRunning && (
-                      <button
-                        type="button"
-                        onClick={clearCaptureHistory}
-                        className="text-[11px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-                      >
-                        Clear history
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                    {captureRows.map((row) => (
-                      <div
-                        key={row.id}
-                        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800"
-                      >
-                        <div className="w-4 h-4 flex-shrink-0">
-                          {row.status === "queued" && (
-                            <div className="w-2 h-2 mt-1 ml-1 rounded-full bg-slate-300 dark:bg-slate-600" />
-                          )}
-                          {row.status === "capturing" && (
-                            <Loader2 size={14} className="text-blue-500 animate-spin" />
-                          )}
-                          {row.status === "done" && (
-                            <Check size={14} className="text-emerald-500" strokeWidth={3} />
-                          )}
-                          {row.status === "error" && (
-                            <AlertCircle size={14} className="text-red-500" />
-                          )}
-                        </div>
-                        <span className="text-[9px] uppercase tracking-wider font-semibold flex-shrink-0 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
-                          {row.viewport === "mobile" ? "M" : "D"}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[12px] font-mono text-slate-600 dark:text-slate-300 truncate">
-                            {row.url}
-                          </p>
-                          {row.status === "error" && row.error && (
-                            <p className="text-[11px] text-red-500 dark:text-red-400 truncate">
-                              {row.error}
-                            </p>
-                          )}
-                        </div>
-                        <span className={`text-[10px] uppercase tracking-wider font-medium flex-shrink-0
-                          ${row.status === "done" ? "text-emerald-500" :
-                            row.status === "error" ? "text-red-500" :
-                            row.status === "capturing" ? "text-blue-500" :
-                            "text-slate-400"}`}>
-                          {row.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-between gap-3 px-5 py-4 border-t border-slate-100 dark:border-slate-800">
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">
-                Up to 3 captures run in parallel · images stream into the toolkit as they finish
-              </p>
-              <Button
-                type="button"
-                onClick={captureBatch}
-                disabled={captureRunning || !captureUrlsText.trim()}
-                className="h-9 px-4 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
-              >
-                {captureRunning ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin mr-1.5" />
-                    Capturing
-                  </>
-                ) : (
-                  <>
-                    <ImageDown size={13} className="mr-1.5" />
-                    Capture all
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Capture-from-URL modal (sitemap-driven) */}
+      <SitemapCaptureModal
+        open={captureModalOpen}
+        onClose={() => setCaptureModalOpen(false)}
+        addFiles={addFiles}
+      />
 
       {/* Shimmer animation keyframes */}
       <style>{`

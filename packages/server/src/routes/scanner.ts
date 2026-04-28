@@ -99,21 +99,53 @@ router.post("/scan", async (req: Request, res: Response) => {
 })
 
 // ---------------------------------------------------------------------------
+// HTML entity decoding for URLs extracted from sitemaps
+// ---------------------------------------------------------------------------
+function decodeXmlEntities(str: string): string {
+  return str
+    .replace(/&amp;/g, "&")
+    .replace(/&#38;/g, "&")
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+}
+
+// ---------------------------------------------------------------------------
 // Shared: fetch and parse sitemap URLs from a site
 // ---------------------------------------------------------------------------
-async function discoverSitemapUrls(baseUrl: string, maxUrls = 500): Promise<string[]> {
-  const parsedBase = new URL(baseUrl)
-  const sitemapUrl = `${parsedBase.origin}/sitemap.xml`
 
-  const fetchSitemapUrls = async (url: string): Promise<string[]> => {
+type DiscoverProgress = (event: {
+  type: "status" | "discovered" | "done" | "error"
+  message?: string
+  url?: string
+  total?: number
+  source?: "sitemap" | "robots" | "fallback"
+}) => void
+
+const SITEMAP_FETCH_TIMEOUT = 5000
+
+async function discoverSitemapUrls(
+  baseUrl: string,
+  maxUrls = 500,
+  onProgress?: DiscoverProgress,
+): Promise<{ urls: string[]; source: "sitemap" | "robots" | "fallback" }> {
+  const parsedBase = new URL(baseUrl)
+  const origin = parsedBase.origin
+  const allUrls: string[] = []
+
+  const fetchSitemapUrls = async (
+    url: string,
+  ): Promise<string[]> => {
+    if (!isPublicUrl(url)) return []
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT),
     })
     if (!resp.ok) return []
     const text = await resp.text()
 
-    // Check if this is a sitemap index (contains <sitemap> tags)
     const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
 
     if (isSitemapIndex) {
@@ -121,14 +153,17 @@ async function discoverSitemapUrls(baseUrl: string, maxUrls = 500): Promise<stri
       const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
       let match
       while ((match = sitemapLocRegex.exec(text)) !== null) {
-        childSitemaps.push(match[1]!.trim())
+        childSitemaps.push(decodeXmlEntities(match[1]!.trim()))
       }
-      // Fetch ALL child sitemaps to discover full site
       const pageUrls: string[] = []
-      for (const childUrl of childSitemaps) {
+      for (let i = 0; i < childSitemaps.length; i++) {
         if (pageUrls.length >= maxUrls) break
+        onProgress?.({
+          type: "status",
+          message: `Reading ${i + 1} of ${childSitemaps.length} child sitemaps…`,
+        })
         try {
-          const childUrls = await fetchSitemapUrls(childUrl)
+          const childUrls = await fetchSitemapUrls(childSitemaps[i]!)
           pageUrls.push(...childUrls)
         } catch { /* skip failed child sitemaps */ }
       }
@@ -140,26 +175,72 @@ async function discoverSitemapUrls(baseUrl: string, maxUrls = 500): Promise<stri
     const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
     let match
     while ((match = locRegex.exec(text)) !== null) {
-      const u = match[1]!.trim()
+      const u = decodeXmlEntities(match[1]!.trim())
       if (u.startsWith("http") && isPublicUrl(u)) {
         urls.push(u)
+        onProgress?.({ type: "discovered", url: u, total: allUrls.length + urls.length })
       }
     }
     // Fallback: if no <url><loc> matches, try plain <loc>
     if (urls.length === 0) {
       const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
       while ((match = plainLocRegex.exec(text)) !== null) {
-        const u = match[1]!.trim()
+        const u = decodeXmlEntities(match[1]!.trim())
         if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
           urls.push(u)
+          onProgress?.({ type: "discovered", url: u, total: allUrls.length + urls.length })
         }
       }
     }
     return urls
   }
 
-  const urls = await fetchSitemapUrls(sitemapUrl)
-  return [...new Set(urls)].slice(0, maxUrls)
+  // 1. Try /sitemap.xml directly
+  onProgress?.({ type: "status", message: "Reading sitemap…" })
+  try {
+    const sitemapUrl = `${origin}/sitemap.xml`
+    const urls = await fetchSitemapUrls(sitemapUrl)
+    if (urls.length > 0) {
+      const deduped = [...new Set(urls)].slice(0, maxUrls)
+      return { urls: deduped, source: "sitemap" }
+    }
+  } catch { /* fall through to robots.txt */ }
+
+  // 2. Try robots.txt for Sitemap: declarations
+  onProgress?.({ type: "status", message: "Checking robots.txt…" })
+  try {
+    const robotsUrl = `${origin}/robots.txt`
+    if (isPublicUrl(robotsUrl)) {
+      const robotsResp = await fetch(robotsUrl, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
+        signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT),
+      })
+      if (robotsResp.ok) {
+        const robotsText = await robotsResp.text()
+        const sitemapDeclRegex = /^Sitemap:\s*(\S+)/gim
+        const declaredSitemaps: string[] = []
+        let rm
+        while ((rm = sitemapDeclRegex.exec(robotsText)) !== null) {
+          const candidate = rm[1]!.trim()
+          if (isPublicUrl(candidate)) declaredSitemaps.push(candidate)
+        }
+        for (const sm of declaredSitemaps) {
+          onProgress?.({ type: "status", message: `Reading sitemap from robots.txt…` })
+          try {
+            const urls = await fetchSitemapUrls(sm)
+            allUrls.push(...urls)
+          } catch { /* skip failed sitemap */ }
+        }
+        if (allUrls.length > 0) {
+          const deduped = [...new Set(allUrls)].slice(0, maxUrls)
+          return { urls: deduped, source: "robots" }
+        }
+      }
+    }
+  } catch { /* fall through to fallback */ }
+
+  // 3. Fallback — no sitemap found
+  return { urls: [], source: "fallback" }
 }
 
 // ---------------------------------------------------------------------------
@@ -173,14 +254,65 @@ router.post("/sitemap", async (req: Request, res: Response) => {
   if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
 
   try {
-    const urls = await discoverSitemapUrls(baseUrl)
-    if (urls.length === 0) {
+    const result = await discoverSitemapUrls(baseUrl)
+    if (result.urls.length === 0) {
       return res.json({ urls: [baseUrl], source: "fallback" })
     }
-    return res.json({ urls, source: "sitemap" })
+    return res.json({ urls: result.urls, source: result.source })
   } catch (err: any) {
     console.error("[Scanner] Sitemap discovery failed:", err.message)
     return res.json({ urls: [baseUrl], source: "fallback" })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// GET /sitemap-stream — SSE-streamed sitemap discovery
+// ---------------------------------------------------------------------------
+router.get("/sitemap-stream", async (req: Request, res: Response) => {
+  let baseUrl: string = (typeof req.query.url === "string" ? req.query.url : "").trim()
+  if (!baseUrl) return res.status(400).json({ error: "url query parameter is required" })
+
+  if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
+  if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+
+  res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("Cache-Control", "no-cache")
+  res.setHeader("Connection", "keep-alive")
+  res.setHeader("X-Accel-Buffering", "no")
+  res.flushHeaders()
+
+  let aborted = false
+  req.on("close", () => { aborted = true })
+
+  const sendSSE = (event: string, data: Record<string, unknown>) => {
+    if (aborted) return
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+  }
+
+  try {
+    const result = await discoverSitemapUrls(baseUrl, 2000, (evt) => {
+      if (aborted) return
+      if (evt.type === "discovered") {
+        sendSSE("discovered", { url: evt.url, total: evt.total })
+      } else if (evt.type === "status") {
+        sendSSE("status", { message: evt.message })
+      }
+    })
+
+    if (!aborted) {
+      if (result.urls.length === 0) {
+        sendSSE("done", { total: 0, source: "fallback" })
+      } else {
+        sendSSE("done", { total: result.urls.length, source: result.source })
+      }
+    }
+  } catch (err: any) {
+    console.error("[Scanner] SSE sitemap discovery failed:", err.message)
+    if (!aborted) {
+      sendSSE("error", { message: err.message ?? "Sitemap discovery failed" })
+    }
+  } finally {
+    if (!aborted) res.end()
   }
 })
 
@@ -223,7 +355,8 @@ router.post("/crawl", async (req: Request, res: Response) => {
     if (urlsToScan.length === 0) {
       sendEvent({ step: "sitemap", status: "running", message: "Fetching sitemap..." })
       try {
-        urlsToScan = await discoverSitemapUrls(baseUrl, maxPages)
+        const result = await discoverSitemapUrls(baseUrl, maxPages)
+        urlsToScan = result.urls
       } catch { /* fallback below */ }
 
       if (urlsToScan.length === 0) {
