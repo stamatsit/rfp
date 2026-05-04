@@ -62,8 +62,9 @@ export default function Register() {
     border ${hasError ? 'border-red-300' : 'border-slate-200/60 dark:border-slate-700'}
     text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
     text-[16px]
-    transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
+    transition-colors duration-150
+    hover:border-slate-300 dark:hover:border-slate-600
+    focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10
   `
 
   const inputShadow = {
@@ -73,7 +74,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f7] dark:bg-slate-950 transition-colors px-6">
+    <div className="min-h-screen flex items-center justify-center bg-[#f5f5f7] dark:bg-slate-950 transition-colors px-6 animate-fade-in">
       <div className="w-full max-w-[340px]">
         {/* Header */}
         <div className="text-center mb-10">
@@ -188,7 +189,7 @@ export default function Register() {
           </div>
 
           {error && (
-            <p className="text-[13px] text-red-600 text-center">
+            <p className="text-[13px] text-red-600 text-center animate-fade-in-up">
               {error}
             </p>
           )}
@@ -200,10 +201,11 @@ export default function Register() {
               w-full h-[52px] rounded-xl
               font-semibold text-[15px]
               flex items-center justify-center gap-2
-              transition-all duration-200
+              transition-all duration-150 ease-out
+              focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
               ${isLoading || !isFormValid
-                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed disabled:opacity-50'
+                : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
               }
             `}
           >
@@ -220,7 +222,7 @@ export default function Register() {
 
         <p className="text-center text-[14px] text-slate-500 dark:text-slate-400 mt-6">
           Already have an account?{" "}
-          <Link to="/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+          <Link to="/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950">
             Sign in
           </Link>
         </p>

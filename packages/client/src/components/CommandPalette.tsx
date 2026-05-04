@@ -199,11 +199,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-in fade-in-0 duration-200" />
 
       {/* Palette modal */}
       <div
-        className="relative w-full max-w-xl mx-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 shadow-2xl overflow-hidden"
+        className="relative w-full max-w-xl mx-4 rounded-2xl bg-white dark:bg-slate-800 border border-black/[0.06] dark:border-white/[0.08] shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-250 ease-[cubic-bezier(0.22,1,0.36,1)]"
         onKeyDown={handleKeyDown}
       >
         {/* Search input */}
@@ -214,10 +214,10 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search pages and conversations..."
-            className="flex-1 bg-transparent text-[15px] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none"
+            className="flex-1 bg-transparent text-[15px] text-slate-900 dark:text-white placeholder:text-slate-400 outline-none focus-visible:outline-none"
           />
           {query && (
-            <button onClick={() => setQuery("")} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+            <button onClick={() => setQuery("")} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15">
               <X size={14} className="text-slate-400" />
             </button>
           )}
@@ -248,7 +248,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         data-index={i}
                         onClick={() => { navigate(item.href); onClose() }}
                         onMouseEnter={() => setSelectedIndex(i)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-150 ease-out text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15
                           ${isSelected ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}
                       >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
@@ -281,7 +281,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         data-index={globalIndex}
                         onClick={() => { navigate(item.href); onClose() }}
                         onMouseEnter={() => setSelectedIndex(globalIndex)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-150 ease-out text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15
                           ${isSelected ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}
                       >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0
@@ -314,7 +314,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         data-index={globalIndex}
                         onClick={() => { navigate(item.href); onClose() }}
                         onMouseEnter={() => setSelectedIndex(globalIndex)}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-colors text-left
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 transition-all duration-150 ease-out text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15
                           ${isSelected ? "bg-slate-100 dark:bg-slate-700" : "hover:bg-slate-50 dark:hover:bg-slate-700/50"}`}
                       >
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0

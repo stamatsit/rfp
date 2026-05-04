@@ -1404,7 +1404,7 @@ export function ImageConverter() {
   // ---- Render ----
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
 
       <main className="flex-1 px-6 py-8">
@@ -1425,7 +1425,7 @@ export function ImageConverter() {
             <Button
               type="button"
               onClick={() => setCaptureModalOpen(true)}
-              className="h-9 px-3.5 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
+              className="h-9 px-3.5 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20 transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
             >
               <Globe size={14} className="mr-1.5" />
               Capture from URL
@@ -1435,7 +1435,7 @@ export function ImageConverter() {
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
             {/* LEFT — Preview / Drop zone + Filmstrip */}
             <div>
-              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-sm overflow-hidden transition-all duration-300">
                 {selected ? (
                   <>
                     {/* Preview toolbar */}
@@ -1712,10 +1712,10 @@ export function ImageConverter() {
                     onDragLeave={() => setIsDragging(false)}
                     onDrop={handleDrop}
                     onClick={() => fileInputRef.current?.click()}
-                    className={`cursor-pointer border-2 border-dashed transition-all duration-200 flex flex-col items-center justify-center py-20 gap-4 rounded-xl
+                    className={`cursor-pointer border-2 border-dashed transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] flex flex-col items-center justify-center py-20 gap-4 rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15
                       ${isDragging
-                        ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20"
-                        : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700"
+                        ? "border-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]"
+                        : "border-slate-200 dark:border-slate-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/10"
                       }`}
                   >
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 border border-emerald-100 dark:border-emerald-900/50 flex items-center justify-center">

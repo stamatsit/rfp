@@ -765,12 +765,10 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             )}
             {filteredSuccessItems.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <Trophy size={22} className="text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching client results</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Trophy size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No matching client results</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your search or filters</p>
               </div>
             )}
           </div>
@@ -827,12 +825,10 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             )}
             {filteredResults.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <TrendingUp size={22} className="text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching results</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <TrendingUp size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No matching results</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your search or filters</p>
               </div>
             )}
           </div>
@@ -869,12 +865,10 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             )}
             {filteredTestimonials.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <Quote size={22} className="text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching testimonials</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Quote size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No matching testimonials</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your search or filters</p>
               </div>
             )}
           </div>
@@ -924,12 +918,10 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               </div>
             )}
             {filteredAwards.length === 0 && (
-              <div className="text-center py-16">
-                <div className="w-12 h-12 mx-auto mb-3 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                  <Award size={22} className="text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No matching awards</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Try adjusting your search or filters</p>
+              <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Award size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No matching awards</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your search or filters</p>
               </div>
             )}
           </div>
@@ -989,8 +981,28 @@ function ProposalsSection() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 size={24} className="animate-spin text-blue-500" />
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-5xl mx-auto px-6 py-6 space-y-5">
+          <div className="grid grid-cols-4 gap-3">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="shimmer bg-white dark:bg-slate-800/60 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-4 py-3">
+                <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+                <div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="shimmer border border-black/[0.06] dark:border-white/[0.08] rounded-xl overflow-hidden">
+            <div className="h-10 bg-slate-100 dark:bg-slate-800" />
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-10 border-t border-slate-100 dark:border-slate-700/50 flex items-center px-4 gap-4">
+                <div className="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-3 w-12 bg-slate-200 dark:bg-slate-700 rounded" />
+                <div className="h-3 w-16 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -1803,7 +1815,7 @@ export function SearchLibrary() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-50 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
 
       <div className="flex-1 flex">
@@ -1817,7 +1829,7 @@ export function SearchLibrary() {
             <button
               key={section.id}
               onClick={() => setActiveSection(section.id)}
-              className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left transition-all duration-150 ${
+              className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${
                 activeSection === section.id
                   ? "bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-400 font-semibold"
                   : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
@@ -1842,7 +1854,7 @@ export function SearchLibrary() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search answers and photos..."
-                className="pl-9 pr-8 h-9 text-[13px] bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white rounded-lg focus:bg-white dark:focus:bg-slate-800 transition-colors"
+                className="pl-9 pr-8 h-9 text-[13px] bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 dark:text-white rounded-lg transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 focus-visible:bg-white dark:focus-visible:bg-slate-800 focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10"
                 onKeyDown={(e) => e.key === "Enter" && performSearch()}
               />
               {isSearching ? (
@@ -2088,13 +2100,12 @@ export function SearchLibrary() {
               })}
 
               {sortedAnswers.length === 0 && !isSearching && (
-                <div className="text-center py-16">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                    <FileText size={22} className="text-slate-300 dark:text-slate-600" />
-                  </div>
-                  <p className="text-[14px] text-slate-500 dark:text-slate-400">No answers match your filters</p>
+                <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                  <FileText size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                  <p className="text-base font-medium text-slate-700 dark:text-slate-300">No answers match your filters</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try different keywords or adjust your filters</p>
                   {activeFilterCount > 0 && (
-                    <button onClick={clearAllFilters} className="mt-3 text-[13px] text-blue-500 hover:underline">Clear filters</button>
+                    <button onClick={clearAllFilters} className="text-[13px] text-blue-500 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 rounded">Clear filters</button>
                   )}
                 </div>
               )}
@@ -2114,7 +2125,7 @@ export function SearchLibrary() {
           {typeFilter === "photos" && showPhotos && (
             <>
               {sortedPhotos.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 stagger-children">
                   {sortedPhotos.map((photo) => {
                     const topicColor = getTopicColor(photo.topicId, getTopicIndex(photo.topicId))
                     return (
@@ -2158,13 +2169,12 @@ export function SearchLibrary() {
                   })}
                 </div>
               ) : (
-                <div className="text-center py-16">
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon size={22} className="text-slate-300 dark:text-slate-600" />
-                  </div>
-                  <p className="text-[14px] text-slate-500 dark:text-slate-400">No photos match your filters</p>
+                <div className="text-center py-16 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                  <ImageIcon size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                  <p className="text-base font-medium text-slate-700 dark:text-slate-300">No photos match your filters</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try different keywords or adjust your filters</p>
                   {activeFilterCount > 0 && (
-                    <button onClick={clearAllFilters} className="mt-3 text-[13px] text-blue-500 hover:underline">Clear filters</button>
+                    <button onClick={clearAllFilters} className="text-[13px] text-blue-500 hover:underline focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 rounded">Clear filters</button>
                   )}
                 </div>
               )}
@@ -2182,12 +2192,10 @@ export function SearchLibrary() {
 
           {/* ── ALL-EMPTY state ── */}
           {answers.length === 0 && photos.length === 0 && !isSearching && (
-            <div className="text-center py-20">
-              <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-5">
-                <Search size={26} className="text-slate-300 dark:text-slate-600" />
-              </div>
-              <p className="text-[15px] font-semibold text-slate-700 dark:text-slate-300">No results</p>
-              <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">Try different keywords or clear your filters</p>
+            <div className="text-center py-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+              <Search size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+              <p className="text-base font-medium text-slate-700 dark:text-slate-300">No results</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try different keywords or clear your filters</p>
               {activeFilterCount > 0 && (
                 <Button variant="outline" onClick={clearAllFilters} className="mt-4 rounded-xl h-9 text-[13px]">
                   <X size={13} className="mr-1.5" />Clear filters

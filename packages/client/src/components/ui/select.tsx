@@ -21,7 +21,7 @@ const SelectTrigger = React.forwardRef<
        shadow-[0_1px_2px_rgba(0,0,0,0.02)]
        transition-all duration-200 ease-out`,
       "hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-[0_1px_3px_rgba(0,0,0,0.03)]",
-      "focus:outline-none focus:border-blue-400 dark:focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10",
+      "focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10",
       "data-[state=open]:border-blue-400 dark:data-[state=open]:border-blue-500 data-[state=open]:ring-4 data-[state=open]:ring-blue-500/10",
       "disabled:cursor-not-allowed disabled:opacity-50 disabled:bg-slate-50 dark:disabled:bg-slate-900",
       "[&>span]:line-clamp-1",

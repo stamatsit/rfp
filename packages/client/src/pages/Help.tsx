@@ -535,7 +535,7 @@ export function Help() {
   }, [filteredArticles])
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-slate-950 transition-colors duration-300">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-slate-950 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
 
       <main className="max-w-4xl mx-auto px-6 py-16">
@@ -560,7 +560,7 @@ export function Help() {
             placeholder="Search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-14 pr-5 h-12 text-[17px] rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-500"
+            className="w-full pl-14 pr-5 h-12 text-[17px] rounded-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm border border-slate-200/60 dark:border-slate-700 text-slate-900 dark:text-white transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10 placeholder:text-slate-400 dark:placeholder:text-slate-500"
             style={{ boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
           />
         </div>
@@ -590,14 +590,16 @@ export function Help() {
                 })}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-slate-500 dark:text-slate-400 transition-colors">No results found</p>
+              <div className="text-center py-12 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Search size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No results found</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try a different search term.</p>
               </div>
             )}
           </div>
         ) : (
           /* Category Grid */
-          <div className="space-y-12">
+          <div className="space-y-12 stagger-children">
             {groupedArticles.map((group) => {
               const meta = categoryMeta[group.category]
               if (!meta) return null

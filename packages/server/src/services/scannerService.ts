@@ -1,5 +1,5 @@
 /**
- * URL Scanner Service — accessibility, SEO, and security analysis engine
+ * URL Scanner Service — accessibility and security analysis engine
  */
 import * as cheerio from "cheerio"
 import { JSDOM } from "jsdom"
@@ -13,7 +13,6 @@ import type {
   Category,
   ScanSummary,
   Severity,
-  SchemaEntity,
   SiteStructure,
 } from "../types/scanner.js"
 
@@ -34,6 +33,12 @@ function isPublicUrl(urlString: string): boolean {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Returns true if a string is visually empty (null, whitespace, NBSP, zero-width chars, BOM) */
+function isEmptyText(s: string | undefined | null): boolean {
+  if (!s) return true
+  return s.replace(/[\s ​‌‍﻿]+/g, "").length === 0
+}
 
 /** Truncate HTML element string for readability */
 function truncateElement(html: string, max = 200): string {
@@ -77,7 +82,7 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
     if (level === 1) h1Count++
 
     // Empty heading
-    if (!text) {
+    if (isEmptyText(text)) {
       const issue: ScanIssue = {
         ruleId: "heading-empty",
         category: "headings",
@@ -87,6 +92,8 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
         selector: tagName,
         line,
         suggestion: "Add meaningful text content to the heading or remove it",
+        wcagCriteria: "1.3.1",
+        wcagLevel: "A",
       }
       issues.push(issue)
       nodeIssues.push("heading-empty")
@@ -103,6 +110,8 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
         selector: tagName,
         line,
         suggestion: `Use h${prevLevel + 1} instead to maintain proper heading hierarchy`,
+        wcagCriteria: "1.3.1",
+        wcagLevel: "A",
       }
       issues.push(issue)
       nodeIssues.push("heading-hierarchy")
@@ -112,14 +121,30 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
     tree.push({ level, text, line, issues: nodeIssues })
   })
 
+  // No headings at all — emit once and skip the more specific h1 check
+  if (headings.length === 0) {
+    issues.push({
+      ruleId: "heading-missing-all",
+      category: "headings",
+      severity: "warning",
+      message: "Page contains no heading elements",
+      suggestion: "Add heading elements (h1-h6) to provide document structure for screen readers and SEO",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
+    })
+    return { issues, tree }
+  }
+
   // H1 checks
   if (h1Count === 0) {
     issues.push({
       ruleId: "heading-missing-h1",
       category: "headings",
-      severity: "error",
+      severity: "warning",
       message: "Page is missing an h1 heading",
       suggestion: "Add a single h1 element that describes the main purpose of the page",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
     })
   } else if (h1Count > 1) {
     issues.push({
@@ -128,6 +153,8 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
       severity: "warning",
       message: `Page has ${h1Count} h1 headings — should have only one`,
       suggestion: "Use a single h1 for the page title; demote others to h2 or lower",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
     })
   }
 
@@ -136,40 +163,92 @@ export function analyzeHeadings($: cheerio.CheerioAPI, rawHtml?: string): { issu
 
 export function analyzeImages($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue[] {
   const issues: ScanIssue[] = []
-  const redundantPatterns = /^(image|photo|picture|graphic|icon|banner|img|logo)$/i
+  // Single-word generic alt text
+  const redundantExact = /^(image|photo|picture|graphic|icon|banner|img|logo)$/i
+  // Phrases starting with generic prefix (e.g. "Image of a sunset")
+  const redundantPrefix = /^(image|photo|picture|graphic) of /i
+  // Filename-like alt text (no spaces, has extension or starts with IMG_/DSC_)
+  const redundantFilename = /^(IMG_|DSC_|[A-Z0-9_-]+\.(jpg|jpeg|png|gif|webp|svg))/i
   const fileExtPattern = /\.(jpg|jpeg|png|gif|svg|webp|bmp|tiff|ico)(\?|$)/i
 
   $("img").each((_i, el) => {
     const alt = $(el).attr("alt")
+    const role = $(el).attr("role")
+    const ariaHidden = $(el).attr("aria-hidden")
     const outerHtml = $.html(el) ?? ""
     const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
     const selector = buildSelector($, el)
 
+    // Skip decorative images that are correctly marked per WCAG
+    if (role === "presentation" || role === "none" || ariaHidden === "true") return
+
+    const isLinkedImage = $(el).closest("a").length > 0
+
     if (alt === undefined) {
-      issues.push({
-        ruleId: "img-alt-missing",
-        category: "images",
-        severity: "error",
-        message: "Image is missing alt attribute",
-        element: truncateElement(outerHtml),
-        selector,
-        line,
-        suggestion: "Add an alt attribute describing the image, or alt=\"\" if decorative",
-        wcagCriteria: "1.1.1",
-        wcagLevel: "A",
-      })
+      // Linked image with no alt gets a distinct, higher-priority rule
+      if (isLinkedImage) {
+        issues.push({
+          ruleId: "img-link-alt-missing",
+          category: "images",
+          severity: "error",
+          message: "Linked image missing alt text — link will be unannounced by screen readers",
+          element: truncateElement(outerHtml),
+          selector,
+          line,
+          suggestion: "Add an alt attribute that describes the link destination or image content",
+          wcagCriteria: "1.1.1",
+          wcagLevel: "A",
+        })
+      } else {
+        issues.push({
+          ruleId: "img-alt-missing",
+          category: "images",
+          severity: "error",
+          message: "Image is missing alt attribute",
+          element: truncateElement(outerHtml),
+          selector,
+          line,
+          suggestion: "Add an alt attribute describing the image, or alt=\"\" if decorative",
+          wcagCriteria: "1.1.1",
+          wcagLevel: "A",
+        })
+      }
     } else if (alt.trim()) {
-      const altText = alt.trim().toLowerCase()
-      if (redundantPatterns.test(altText) || fileExtPattern.test(altText)) {
+      const altText = alt.trim()
+      const altLower = altText.toLowerCase()
+      const isRedundant =
+        redundantExact.test(altLower) ||
+        redundantPrefix.test(altLower) ||
+        redundantFilename.test(altText) ||
+        fileExtPattern.test(altLower)
+
+      if (isRedundant) {
         issues.push({
           ruleId: "img-alt-redundant",
           category: "images",
           severity: "warning",
-          message: `Image has non-descriptive alt text: "${alt.trim()}"`,
+          message: `Image has non-descriptive alt text: "${altText}"`,
           element: truncateElement(outerHtml),
           selector,
           line,
           suggestion: "Replace with a meaningful description of the image content",
+          wcagCriteria: "1.1.1",
+          wcagLevel: "A",
+        })
+      }
+
+      // Title duplicates alt text — screen readers may double-announce
+      const titleAttr = $(el).attr("title")?.trim()
+      if (titleAttr && titleAttr === altText) {
+        issues.push({
+          ruleId: "img-title-redundant",
+          category: "images",
+          severity: "warning",
+          message: "Image title duplicates alt text — screen readers may announce twice",
+          element: truncateElement(outerHtml),
+          selector,
+          line,
+          suggestion: "Remove the title attribute or make it provide supplementary information",
           wcagCriteria: "1.1.1",
           wcagLevel: "A",
         })
@@ -216,6 +295,24 @@ export function analyzeImages($: cheerio.CheerioAPI, rawHtml?: string): ScanIssu
     }
   })
 
+  // Image buttons (<input type="image">) without alt — WCAG 1.1.1 violation
+  $("input[type='image']").each((_, el) => {
+    const alt = $(el).attr("alt")
+    if (alt === undefined || isEmptyText(alt)) {
+      issues.push({
+        ruleId: "input-image-alt-missing",
+        category: "images",
+        severity: "error",
+        message: "Image button (<input type=\"image\">) is missing alt text",
+        element: truncateElement($.html(el) ?? ""),
+        selector: buildSelector($, el),
+        wcagCriteria: "1.1.1",
+        wcagLevel: "A",
+        suggestion: "Add an alt attribute describing the button's action",
+      })
+    }
+  })
+
   return issues
 }
 
@@ -224,13 +321,16 @@ export function analyzeLandmarks($: cheerio.CheerioAPI): ScanIssue[] {
 
   const hasMain = $("main, [role='main']").length > 0
   const hasNav = $("nav, [role='navigation']").length > 0
-  const hasBanner = $("header, [role='banner']").length > 0
+  // Per HTML spec, only top-level <header>/<footer> are banner/contentinfo landmarks.
+  // A <header> inside <article>, <section>, <aside>, <nav>, or <main> is NOT a banner.
+  const banners = $("header").filter((_, el) => $(el).parents("article, section, aside, nav, main").length === 0)
+  const hasBanner = banners.length > 0 || $("[role='banner']").length > 0
 
   if (!hasMain) {
     issues.push({
       ruleId: "landmark-main",
       category: "landmarks",
-      severity: "error",
+      severity: "warning",
       message: "Page is missing a <main> landmark region",
       suggestion: "Wrap the primary content area in a <main> element",
       wcagCriteria: "1.3.1",
@@ -242,7 +342,7 @@ export function analyzeLandmarks($: cheerio.CheerioAPI): ScanIssue[] {
     issues.push({
       ruleId: "landmark-nav",
       category: "landmarks",
-      severity: "warning",
+      severity: "info",
       message: "Page is missing a <nav> landmark for navigation",
       suggestion: "Wrap navigation links in a <nav> element",
       wcagCriteria: "1.3.1",
@@ -254,7 +354,7 @@ export function analyzeLandmarks($: cheerio.CheerioAPI): ScanIssue[] {
     issues.push({
       ruleId: "landmark-banner",
       category: "landmarks",
-      severity: "warning",
+      severity: "info",
       message: "Page is missing a <header> (banner) landmark",
       suggestion: "Add a <header> element for the site/page banner area",
       wcagCriteria: "1.3.1",
@@ -276,13 +376,14 @@ export function analyzeLandmarks($: cheerio.CheerioAPI): ScanIssue[] {
     })
   }
 
-  // Missing footer / contentinfo landmark
-  const hasFooter = $("footer, [role='contentinfo']").length > 0
+  // Missing footer / contentinfo landmark (same nesting rule as banner)
+  const contentinfos = $("footer").filter((_, el) => $(el).parents("article, section, aside, nav, main").length === 0)
+  const hasFooter = contentinfos.length > 0 || $("[role='contentinfo']").length > 0
   if (!hasFooter) {
     issues.push({
       ruleId: "landmark-contentinfo",
       category: "landmarks",
-      severity: "warning",
+      severity: "info",
       message: "Page is missing a <footer> (contentinfo) landmark",
       suggestion: "Add a <footer> element for the site/page footer area",
       wcagCriteria: "1.3.1",
@@ -341,7 +442,7 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
   })
   groupMap.forEach((elements, name) => {
     if (elements.length > 1) {
-      const inFieldset = $(elements[0]).closest("fieldset").find("legend").length > 0
+      const inFieldset = elements.every(el => $(el).closest("fieldset").find("legend").length > 0)
       if (!inFieldset) {
         issues.push({
           ruleId: "form-fieldset-missing",
@@ -356,6 +457,32 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
     }
   })
 
+  // Labels that exist but are empty
+  $("label").each((_i, el) => {
+    const labelText = $(el).text().trim()
+    if (!isEmptyText(labelText)) return // label has text content, OK
+
+    // Check if label contains an img with alt or svg with title providing a name
+    const hasImgAlt = $(el).find("img[alt]").filter((_j, img) => ($(img).attr("alt") ?? "").trim().length > 0).length > 0
+    const hasSvgTitle = $(el).find("svg title").filter((_j, t) => $(t).text().trim().length > 0).length > 0
+    if (hasImgAlt || hasSvgTitle) return
+
+    const outerHtml = $.html(el) ?? ""
+    const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
+    issues.push({
+      ruleId: "form-label-empty",
+      category: "forms",
+      severity: "error",
+      message: "Form label is empty — labels with for-attribute but no content provide no accessible name",
+      element: truncateElement(outerHtml),
+      selector: buildSelector($, el),
+      line,
+      suggestion: "Add descriptive text to the label element, or use aria-label on the input instead",
+      wcagCriteria: "1.3.1",
+      wcagLevel: "A",
+    })
+  })
+
   // Buttons without accessible name
   $("button").each((_i, el) => {
     const text = $(el).text().trim()
@@ -363,7 +490,7 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
     const ariaLabelledBy = $(el).attr("aria-labelledby")
     const title = $(el).attr("title")
 
-    if (!text && !ariaLabel && !ariaLabelledBy && !title) {
+    if (isEmptyText(text) && !ariaLabel && !ariaLabelledBy && !title) {
       const outerHtml = $.html(el) ?? ""
       const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
       issues.push({
@@ -398,7 +525,19 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
     const title = $(el).attr("title")
     const hasImg = $(el).find("img[alt]").filter((_i, img) => ($(img).attr("alt") ?? "").trim().length > 0).length > 0
 
-    if (!text && !ariaLabel && !ariaLabelledBy && !title && !hasImg) {
+    // Icon-only links: SVG with <title>, SVG with aria-label/labelledby, or any
+    // descendant with aria-label / role="img"+aria-label provide accessible names.
+    const hasSvgTitle = $(el).find("svg title").filter((_i, t) => $(t).text().trim().length > 0).length > 0
+    const hasSvgAriaLabel = $(el).find("svg[aria-label], svg[aria-labelledby]").length > 0
+    const hasDescendantAriaLabel = $(el).find("[aria-label]").length > 0
+    const hasRoleImgWithLabel = $(el).find('[role="img"][aria-label]').length > 0
+
+    const hasAccessibleName = !!(
+      !isEmptyText(text) || ariaLabel || ariaLabelledBy || title || hasImg ||
+      hasSvgTitle || hasSvgAriaLabel || hasDescendantAriaLabel || hasRoleImgWithLabel
+    )
+
+    if (!hasAccessibleName) {
       const outerHtml = $.html(el) ?? ""
       const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
       issues.push({
@@ -413,7 +552,7 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
         wcagCriteria: "2.4.4",
         wcagLevel: "A",
       })
-    } else if (text && GENERIC_LINK_TEXT.has(text.toLowerCase())) {
+    } else if (!isEmptyText(text) && GENERIC_LINK_TEXT.has(text.toLowerCase())) {
       const outerHtml = $.html(el) ?? ""
       const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
       issues.push({
@@ -425,6 +564,65 @@ export function analyzeForms($: cheerio.CheerioAPI, rawHtml?: string): ScanIssue
         selector: buildSelector($, el),
         line,
         suggestion: "Use descriptive link text that indicates the destination or purpose",
+        wcagCriteria: "2.4.4",
+        wcagLevel: "A",
+      })
+    }
+  })
+
+  // Adjacent links pointing to the same URL — duplicate tab stops
+  const allLinks = $("a[href]").toArray()
+  const reportedRedundantPairs = new Set<number>() // track by index to avoid double-reporting
+  for (let idx = 0; idx < allLinks.length - 1; idx++) {
+    if (reportedRedundantPairs.has(idx)) continue
+    const elA = allLinks[idx]
+    const elB = allLinks[idx + 1]
+    // Must be immediate siblings in the DOM
+    const nextSib = $(elA).next("a")
+    if (nextSib.length === 0 || nextSib[0] !== elB) continue
+
+    const hrefA = $(elA).attr("href")?.trim()
+    const hrefB = $(elB).attr("href")?.trim()
+    if (!hrefA || !hrefB) continue
+
+    try {
+      const resolvedA = new URL(hrefA, "http://localhost").href
+      const resolvedB = new URL(hrefB, "http://localhost").href
+      if (resolvedA === resolvedB) {
+        reportedRedundantPairs.add(idx + 1) // don't re-report from B's perspective
+        issues.push({
+          ruleId: "link-redundant",
+          category: "forms",
+          severity: "warning",
+          message: "Adjacent link points to the same URL — creates duplicate keyboard tab stops",
+          element: truncateElement($.html(elA) ?? ""),
+          selector: buildSelector($, elA),
+          suggestion: "Combine these adjacent links into a single link element",
+          wcagCriteria: "2.4.4",
+          wcagLevel: "A",
+        })
+      }
+    } catch {
+      // Unparseable URL, skip
+    }
+  }
+
+  // Link title duplicates visible text — screen readers may double-announce
+  $("a").each((_i, el) => {
+    const linkTitle = $(el).attr("title")?.trim()
+    const linkText = $(el).text().trim()
+    if (linkTitle && linkText && linkTitle === linkText) {
+      const outerHtml = $.html(el) ?? ""
+      const line = rawHtml ? estimateLine(rawHtml, outerHtml.slice(0, 60)) : undefined
+      issues.push({
+        ruleId: "link-title-redundant",
+        category: "forms",
+        severity: "warning",
+        message: "Link title duplicates link text — screen readers may announce twice",
+        element: truncateElement(outerHtml),
+        selector: buildSelector($, el),
+        line,
+        suggestion: "Remove the title attribute or make it provide supplementary context",
         wcagCriteria: "2.4.4",
         wcagLevel: "A",
       })
@@ -462,64 +660,22 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
 
   const meta: ScanReport["meta"] = { title, description, lang, charset, viewport, ogTags, canonical }
 
-  // Title
-  if (!title) {
-    issues.push({
-      ruleId: "meta-title-missing",
-      category: "document",
-      severity: "error",
-      message: "Page is missing a <title> element",
-      suggestion: "Add a <title> element inside <head> with a descriptive page title",
-    })
-  } else if (title.length < 30 || title.length > 60) {
-    issues.push({
-      ruleId: "meta-title-length",
-      category: "document",
-      severity: "warning",
-      message: `Title length is ${title.length} characters (recommended: 30-60)`,
-      suggestion: title.length < 30
-        ? "Expand the title to at least 30 characters for better SEO"
-        : "Shorten the title to 60 characters or fewer to avoid truncation in search results",
-    })
-  }
-
-  // Description
-  if (!description) {
-    issues.push({
-      ruleId: "meta-description-missing",
-      category: "document",
-      severity: "error",
-      message: "Page is missing a meta description",
-      suggestion: 'Add <meta name="description" content="..."> with a 120-160 character summary',
-    })
-  } else if (description.length < 120 || description.length > 160) {
-    issues.push({
-      ruleId: "meta-description-length",
-      category: "document",
-      severity: "warning",
-      message: `Meta description length is ${description.length} characters (recommended: 120-160)`,
-      suggestion: description.length < 120
-        ? "Expand the description to at least 120 characters"
-        : "Shorten the description to 160 characters or fewer to avoid truncation",
-    })
-  }
-
-  // Viewport
+  // Viewport (accessibility — WCAG responsive design)
   if (!viewport) {
     issues.push({
       ruleId: "meta-viewport-missing",
-      category: "document",
+      category: "structure",
       severity: "error",
       message: "Page is missing a viewport meta tag",
       suggestion: 'Add <meta name="viewport" content="width=device-width, initial-scale=1">',
     })
   }
 
-  // Lang
+  // Lang (accessibility — WCAG 3.1.1)
   if (!lang) {
     issues.push({
       ruleId: "html-lang-missing",
-      category: "document",
+      category: "structure",
       severity: "error",
       message: "HTML element is missing a lang attribute",
       suggestion: 'Add lang="en" (or appropriate language code) to the <html> element',
@@ -528,20 +684,7 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
     })
   }
 
-  // OG tags
-  const requiredOg = ["og:title", "og:description", "og:image"]
-  const missingOg = requiredOg.filter((tag) => !ogTags[tag])
-  if (missingOg.length > 0) {
-    issues.push({
-      ruleId: "og-tags-missing",
-      category: "document",
-      severity: "warning",
-      message: `Missing Open Graph tags: ${missingOg.join(", ")}`,
-      suggestion: "Add og:title, og:description, and og:image meta tags for better social sharing",
-    })
-  }
-
-  // Duplicate IDs
+  // Duplicate IDs (accessibility — WCAG 4.1.1)
   const idMap = new Map<string, number>()
   $("[id]").each((_i, el) => {
     const id = $(el).attr("id")
@@ -553,8 +696,8 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
     if (count > 1) {
       issues.push({
         ruleId: "duplicate-id",
-        category: "document",
-        severity: "error",
+        category: "structure",
+        severity: "warning",
         message: `Duplicate id="${id}" found ${count} times — IDs must be unique`,
         suggestion: "Ensure every id attribute value is unique within the page",
         wcagCriteria: "4.1.1",
@@ -562,6 +705,17 @@ export function analyzeMeta($: cheerio.CheerioAPI): { issues: ScanIssue[]; meta:
       })
     }
   })
+
+  // <noscript> presence may indicate JavaScript dependency
+  if ($("noscript").length > 0) {
+    issues.push({
+      ruleId: "noscript-present",
+      category: "structure",
+      severity: "info",
+      message: "Page contains <noscript> — may indicate JavaScript dependency",
+      suggestion: "Ensure the page provides adequate fallback content for users without JavaScript",
+    })
+  }
 
   return { issues, meta }
 }
@@ -600,290 +754,6 @@ export function analyzeSecurityHeaders(headers: Record<string, string>): ScanRep
   return { grade, headers: result }
 }
 
-// ---------------------------------------------------------------------------
-// Schema.org / Structured Data Analyzer
-// ---------------------------------------------------------------------------
-
-const COMMON_SCHEMA_TYPES = new Set([
-  "Organization", "WebPage", "Article", "BreadcrumbList", "FAQPage",
-  "LocalBusiness", "Product", "Event", "Person", "HowTo", "Review",
-  "AggregateRating", "VideoObject", "ImageObject", "WebSite", "SearchAction",
-  "SiteNavigationElement", "ItemList", "ListItem", "PostalAddress",
-  "ContactPoint", "Offer", "CreativeWork", "EducationalOrganization",
-  "CollegeOrUniversity", "NewsArticle", "BlogPosting", "Course",
-  "JobPosting", "Recipe", "MedicalOrganization",
-])
-
-const TYPES_NEEDING_NAME = new Set([
-  "Organization", "LocalBusiness", "Product", "Event", "Person",
-  "EducationalOrganization", "CollegeOrUniversity", "WebSite",
-  "Course", "JobPosting", "Recipe", "MedicalOrganization",
-])
-
-const TYPES_NEEDING_URL = new Set([
-  "Organization", "WebPage", "WebSite", "LocalBusiness",
-  "EducationalOrganization", "CollegeOrUniversity",
-])
-
-const TYPES_NEEDING_IMAGE = new Set([
-  "Article", "NewsArticle", "BlogPosting", "Product", "Organization",
-  "Event", "Recipe",
-])
-
-const TYPES_NEEDING_DESCRIPTION = new Set([
-  "WebPage", "Article", "NewsArticle", "BlogPosting", "Organization",
-  "Product", "Event", "Course",
-])
-
-export function analyzeSchema($: cheerio.CheerioAPI): { entities: SchemaEntity[]; issues: ScanIssue[] } {
-  const entities: SchemaEntity[] = []
-  const issues: ScanIssue[] = []
-
-  // ---- JSON-LD extraction ----
-  $('script[type="application/ld+json"]').each((_i, el) => {
-    const raw = $(el).text().trim()
-    if (!raw) return
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(raw)
-    } catch {
-      issues.push({
-        ruleId: "schema-json-invalid",
-        category: "schema",
-        severity: "error",
-        message: "Invalid JSON in JSON-LD script tag — could not parse",
-        element: truncateElement(raw),
-        suggestion: "Fix the JSON syntax in the JSON-LD script block",
-      })
-      return
-    }
-
-    // Handle arrays: some sites wrap entities in []
-    const items = Array.isArray(parsed) ? parsed : [parsed]
-
-    for (const item of items) {
-      if (typeof item !== "object" || item === null) continue
-      const obj = item as Record<string, unknown>
-
-      // Handle @graph arrays (common in WordPress/Yoast)
-      const graphItems = Array.isArray(obj["@graph"]) ? obj["@graph"] : [obj]
-
-      for (const graphItem of graphItems) {
-        if (typeof graphItem !== "object" || graphItem === null) continue
-        const entity = graphItem as Record<string, unknown>
-        const rawType = entity["@type"]
-        const types = Array.isArray(rawType) ? rawType : [rawType]
-        const typeStr = types.filter(Boolean).join(", ") || "Unknown"
-        const entityIssues: string[] = []
-
-        // Build properties (exclude @context, @type)
-        const properties: Record<string, unknown> = {}
-        for (const [key, value] of Object.entries(entity)) {
-          if (key !== "@context" && key !== "@type") {
-            properties[key] = value
-          }
-        }
-
-        // Validate @type against common types
-        for (const t of types) {
-          if (typeof t === "string" && !COMMON_SCHEMA_TYPES.has(t)) {
-            entityIssues.push("schema-type-unknown")
-            issues.push({
-              ruleId: "schema-type-unknown",
-              category: "schema",
-              severity: "info",
-              message: `Schema type "${t}" is not in the common schema.org types list`,
-              element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-              suggestion: "Verify the @type value is a valid schema.org type",
-            })
-          }
-        }
-
-        // Validate name/headline
-        const primaryType = types.find((t) => typeof t === "string") as string | undefined
-        if (primaryType && TYPES_NEEDING_NAME.has(primaryType)) {
-          if (!entity["name"] && !entity["headline"]) {
-            entityIssues.push("schema-name-missing")
-            issues.push({
-              ruleId: "schema-name-missing",
-              category: "schema",
-              severity: "warning",
-              message: `${primaryType} schema is missing "name" or "headline" property`,
-              element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-              suggestion: `Add a "name" property to the ${primaryType} structured data`,
-            })
-          }
-        }
-
-        // Articles need name or headline
-        if (primaryType === "Article" || primaryType === "NewsArticle" || primaryType === "BlogPosting") {
-          if (!entity["headline"] && !entity["name"]) {
-            if (!entityIssues.includes("schema-name-missing")) {
-              entityIssues.push("schema-name-missing")
-              issues.push({
-                ruleId: "schema-name-missing",
-                category: "schema",
-                severity: "warning",
-                message: `${primaryType} schema is missing "headline" property`,
-                element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-                suggestion: `Add a "headline" property to the ${primaryType} structured data`,
-              })
-            }
-          }
-        }
-
-        // Validate url
-        if (primaryType && TYPES_NEEDING_URL.has(primaryType)) {
-          if (!entity["url"]) {
-            entityIssues.push("schema-url-missing")
-            issues.push({
-              ruleId: "schema-url-missing",
-              category: "schema",
-              severity: "warning",
-              message: `${primaryType} schema is missing "url" property`,
-              element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-              suggestion: `Add a "url" property to the ${primaryType} structured data`,
-            })
-          }
-        }
-
-        // Validate image
-        if (primaryType && TYPES_NEEDING_IMAGE.has(primaryType)) {
-          if (!entity["image"]) {
-            entityIssues.push("schema-image-missing")
-            issues.push({
-              ruleId: "schema-image-missing",
-              category: "schema",
-              severity: "warning",
-              message: `${primaryType} schema is missing "image" property`,
-              element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-              suggestion: `Add an "image" property to the ${primaryType} structured data`,
-            })
-          }
-        }
-
-        // Validate description
-        if (primaryType && TYPES_NEEDING_DESCRIPTION.has(primaryType)) {
-          if (!entity["description"]) {
-            entityIssues.push("schema-description-missing")
-            issues.push({
-              ruleId: "schema-description-missing",
-              category: "schema",
-              severity: "info",
-              message: `${primaryType} schema is missing "description" property`,
-              element: truncateElement(JSON.stringify(entity).slice(0, 200)),
-              suggestion: `Add a "description" property to the ${primaryType} structured data`,
-            })
-          }
-        }
-
-        entities.push({
-          type: typeStr,
-          source: "json-ld",
-          properties,
-          issues: entityIssues,
-          raw: truncateElement(raw, 500),
-        })
-      }
-    }
-  })
-
-  // ---- Microdata extraction ----
-  $("[itemscope]").each((_i, el) => {
-    const itemtype = $(el).attr("itemtype") ?? ""
-    const typeName = (itemtype.split("/").pop() ?? itemtype) || "Unknown"
-    const entityIssues: string[] = []
-    const properties: Record<string, unknown> = {}
-
-    $(el).find("[itemprop]").each((_j, propEl) => {
-      const propName = $(propEl).attr("itemprop") ?? ""
-      const content = $(propEl).attr("content") ?? $(propEl).text().trim()
-      if (propName) {
-        properties[propName] = content
-      }
-    })
-
-    const outerHtml = $.html(el) ?? ""
-    entities.push({
-      type: typeName,
-      source: "microdata",
-      properties,
-      issues: entityIssues,
-      raw: truncateElement(outerHtml, 500),
-    })
-  })
-
-  // Check for orphaned itemprop elements (outside any itemscope)
-  $("[itemprop]").each((_i, el) => {
-    if ($(el).closest("[itemscope]").length === 0) {
-      issues.push({
-        ruleId: "schema-itemprop-orphaned",
-        category: "schema",
-        severity: "warning",
-        message: `itemprop="${$(el).attr("itemprop")}" found outside any itemscope`,
-        element: truncateElement($.html(el) ?? ""),
-        suggestion: "Wrap the element in a parent with itemscope and itemtype attributes",
-      })
-    }
-  })
-
-  // ---- RDFa extraction ----
-  $("[typeof]").each((_i, el) => {
-    const typeofAttr = $(el).attr("typeof") ?? "Unknown"
-    const entityIssues: string[] = []
-    const properties: Record<string, unknown> = {}
-
-    $(el).find("[property]").each((_j, propEl) => {
-      const propName = $(propEl).attr("property") ?? ""
-      const content = $(propEl).attr("content") ?? $(propEl).text().trim()
-      if (propName) {
-        properties[propName] = content
-      }
-    })
-
-    const outerHtml = $.html(el) ?? ""
-    entities.push({
-      type: typeofAttr,
-      source: "rdfa",
-      properties,
-      issues: entityIssues,
-      raw: truncateElement(outerHtml, 500),
-    })
-  })
-
-  // ---- General issues ----
-
-  // No structured data at all
-  if (entities.length === 0) {
-    issues.push({
-      ruleId: "schema-missing",
-      category: "schema",
-      severity: "info",
-      message: "No structured data (JSON-LD, Microdata, or RDFa) found on this page",
-      suggestion: "Add structured data to improve search engine understanding; JSON-LD is the recommended format",
-    })
-  }
-
-  // Check for duplicate types
-  const typeCounts = new Map<string, number>()
-  for (const entity of entities) {
-    typeCounts.set(entity.type, (typeCounts.get(entity.type) ?? 0) + 1)
-  }
-  for (const [type, count] of typeCounts) {
-    if (count > 1 && type !== "ListItem" && type !== "Unknown") {
-      issues.push({
-        ruleId: "schema-duplicate-type",
-        category: "schema",
-        severity: "info",
-        message: `Duplicate schema type "${type}" appears ${count} times`,
-        suggestion: "Ensure multiple entities of the same type are intentional and differentiated",
-      })
-    }
-  }
-
-  return { entities, issues }
-}
 
 // ---------------------------------------------------------------------------
 // Site Structure Analyzer
@@ -1092,190 +962,71 @@ function extractWcagLevel(tags: string[]): "A" | "AA" | "AAA" | undefined {
   return undefined
 }
 
-export async function checkLinks(
-  $: cheerio.CheerioAPI,
-  baseUrl: string,
-): Promise<{ issues: ScanIssue[]; summary: ScanReport["linkSummary"] }> {
-  console.log("[Scanner] Checking links...")
+
+// ---------------------------------------------------------------------------
+// Skip-link detection
+// ---------------------------------------------------------------------------
+
+export function analyzeSkipLink($: cheerio.CheerioAPI): ScanIssue[] {
   const issues: ScanIssue[] = []
-  const hrefs = new Map<string, any[]>()
 
-  // Collect unique hrefs
-  $("a[href]").each((_i, el) => {
-    const href = $(el).attr("href")?.trim()
-    if (!href) return
+  // Look at the first 5 elements inside <body> for a skip-navigation link
+  const bodyChildren = $("body > *").slice(0, 5)
+  let skipLink: cheerio.Cheerio<any> | null = null
 
-    // Skip anchors, mailto, tel, javascript
-    if (href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:") || href.startsWith("javascript:")) return
-
-    // Resolve relative URLs
-    let resolved: string
-    try {
-      resolved = new URL(href, baseUrl).href
-    } catch {
-      return
-    }
-
-    if (!hrefs.has(resolved)) {
-      hrefs.set(resolved, [])
-    }
-    hrefs.get(resolved)!.push(el)
-  })
-
-  // Check for target="_blank" without rel="noopener". Match `target="_blank"`
-  // case-insensitively so `_BLANK` / `_Blank` variants are also caught.
-  $('a[target="_blank" i]').each((_i, el) => {
-    const rel = ($(el).attr("rel") ?? "").toLowerCase()
-    if (!rel.includes("noopener") && !rel.includes("noreferrer")) {
-      // Identify the link in the message itself so the user can see exactly which
-      // anchor was flagged without having to expand the issue.
-      const href = $(el).attr("href")?.trim() ?? ""
-      const linkText = $(el).text().trim().slice(0, 60) || $(el).attr("aria-label") || $(el).attr("title") || ""
-      const label = linkText ? `"${linkText}"` : href ? `(${href})` : ""
-      issues.push({
-        ruleId: "link-new-window",
-        category: "links",
-        severity: "warning",
-        message: `Link ${label} opens in new window without rel="noopener"`.replace(/\s+/g, " ").trim(),
-        element: truncateElement($.html(el) ?? ""),
-        selector: buildSelector($, el),
-        suggestion: 'Add rel="noopener noreferrer" to this link to prevent the new window from accessing window.opener',
-      })
+  bodyChildren.each((_i, el) => {
+    if (skipLink) return
+    // The skip link itself could be among the first children, or inside a wrapper
+    const candidates = $(el).is("a") ? $(el) : $(el).find("a").first()
+    if (candidates.length === 0) return
+    const href = candidates.attr("href") ?? ""
+    const text = candidates.text().trim()
+    if (href.startsWith("#") && /\b(skip|jump)\b/i.test(text)) {
+      skipLink = candidates
     }
   })
 
-  let healthy = 0
-  let broken = 0
-  let redirects = 0
-  let timeouts = 0
-  let blocked = 0
-
-  // Check links with concurrency limit of 5
-  const urls = Array.from(hrefs.keys()).filter((u) => isPublicUrl(u))
-  const total = urls.length
-
-  // Browser-like UA — many sites (Twitter/X, LinkedIn, Cloudflare-fronted apps) reject
-  // bot-shaped User-Agent strings with 403/999. Matching a real browser drastically
-  // cuts false-positive "broken link" reports.
-  const BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-  const COMMON_HEADERS = {
-    "User-Agent": BROWSER_UA,
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-    "Accept-Language": "en-US,en;q=0.9",
-  }
-
-  // Status codes that almost always mean "the server blocked the bot," not "broken."
-  // Includes LinkedIn's bespoke 999 and the 401/403/429 family.
-  const isBlockedStatus = (s: number) => s === 401 || s === 403 || s === 429 || s === 999
-
-  // Process in batches of 5
-  for (let i = 0; i < urls.length; i += 5) {
-    const batch = urls.slice(i, i + 5)
-
-    const results = await Promise.allSettled(
-      batch.map(async (linkUrl) => {
-        const fetchOnce = async (method: "HEAD" | "GET"): Promise<{ status: number; method: "HEAD" | "GET" }> => {
-          const controller = new AbortController()
-          const timer = setTimeout(() => controller.abort(), 5000)
-          try {
-            const resp = await fetch(linkUrl, {
-              method,
-              signal: controller.signal,
-              redirect: "follow", // follow redirects so a 301→200 isn't reported as a "redirect"
-              headers: COMMON_HEADERS,
-            })
-            return { status: resp.status, method }
-          } finally {
-            clearTimeout(timer)
-          }
+  if (skipLink) {
+    const href = (skipLink as cheerio.Cheerio<any>).attr("href") ?? ""
+    const targetId = href.slice(1)
+    if (targetId) {
+      try {
+        const targetExists = $(`#${CSS.escape(targetId)}`).length > 0
+        if (targetExists) {
+          issues.push({
+            ruleId: "link-skip-found",
+            category: "structure",
+            severity: "info",
+            message: "Skip navigation link present",
+            element: truncateElement($.html(skipLink as any) ?? ""),
+            suggestion: "Good — skip link helps keyboard users bypass repetitive navigation",
+          })
+        } else {
+          issues.push({
+            ruleId: "link-skip-broken",
+            category: "structure",
+            severity: "error",
+            message: "Skip link target does not exist",
+            element: truncateElement($.html(skipLink as any) ?? ""),
+            suggestion: `Add an element with id="${targetId}" at the start of the main content area`,
+          })
         }
-
-        try {
-          // HEAD first (cheap). On any non-2xx, retry with GET — many servers return
-          // 4xx/5xx for HEAD even when GET works fine.
-          let res = await fetchOnce("HEAD")
-          if (!(res.status >= 200 && res.status < 300)) {
-            try {
-              const getRes = await fetchOnce("GET")
-              if (getRes.status >= 200 && getRes.status < 400) res = getRes
-              else if (res.status >= 400 && getRes.status < res.status) res = getRes
-            } catch { /* keep HEAD result */ }
-          }
-          return { url: linkUrl, status: res.status }
-        } catch (err: any) {
-          if (err?.name === "AbortError") {
-            return { url: linkUrl, status: -1 } // timeout
-          }
-          // On network error from HEAD, retry once with GET before giving up
-          try {
-            const getRes = await (async () => {
-              const c = new AbortController()
-              const t = setTimeout(() => c.abort(), 5000)
-              try {
-                const r = await fetch(linkUrl, { method: "GET", signal: c.signal, redirect: "follow", headers: COMMON_HEADERS })
-                return r.status
-              } finally { clearTimeout(t) }
-            })()
-            return { url: linkUrl, status: getRes }
-          } catch (err2: any) {
-            if (err2?.name === "AbortError") return { url: linkUrl, status: -1 }
-            return { url: linkUrl, status: -2 } // network error
-          }
-        }
-      }),
-    )
-
-    for (const result of results) {
-      if (result.status === "rejected") {
-        timeouts++
-        continue
-      }
-
-      const { url: linkUrl, status } = result.value
-      if (status >= 200 && status < 300) {
-        healthy++
-      } else if (status >= 300 && status < 400) {
-        // With redirect: "follow" we shouldn't usually land here, but keep the bucket.
-        redirects++
-      } else if (status === -1) {
-        timeouts++
+      } catch {
+        // CSS.escape failure — treat as broken
         issues.push({
-          ruleId: "link-timeout",
-          category: "links",
-          severity: "warning",
-          message: `Link timed out: ${linkUrl}`,
-          suggestion: "Verify the link is accessible; it may be slow or blocking automated requests",
-        })
-      } else if (isBlockedStatus(status)) {
-        // Don't fail the page for sites that block bots (Twitter, LinkedIn, etc.).
-        // Surface as info so the user can spot-check, but it doesn't tank the score.
-        blocked++
-        issues.push({
-          ruleId: "link-blocked",
-          category: "links",
-          severity: "info",
-          message: `Could not verify link (HTTP ${status} — site blocks automated checks): ${linkUrl}`,
-          suggestion: "This link could not be verified automatically. Check it manually in a browser.",
-        })
-      } else {
-        broken++
-        issues.push({
-          ruleId: "link-broken",
-          category: "links",
+          ruleId: "link-skip-broken",
+          category: "structure",
           severity: "error",
-          message: `Broken link (HTTP ${status}): ${linkUrl}`,
-          suggestion: "Remove or update this link",
+          message: "Skip link target does not exist",
+          element: truncateElement($.html(skipLink as any) ?? ""),
+          suggestion: "Verify the skip link target ID is valid and present on the page",
         })
       }
     }
   }
+  // If no skip link found, emit nothing — don't penalize sites that don't need one
 
-  console.log(`[Scanner] Link check complete: ${total} links — ${healthy} healthy, ${broken} broken, ${redirects} redirects, ${timeouts} timeouts, ${blocked} blocked`)
-
-  return {
-    issues,
-    summary: { total, healthy, broken, redirects, timeouts },
-  }
+  return issues
 }
 
 // ---------------------------------------------------------------------------
@@ -1284,7 +1035,7 @@ export async function checkLinks(
 
 export function calculateScores(issues: ScanIssue[]): { categoryScores: CategoryScore[]; overallScore: number } {
   const allCategories: Category[] = [
-    "headings", "images", "landmarks", "forms", "document", "links", "performance", "contrast", "security", "schema", "structure",
+    "headings", "images", "landmarks", "forms", "performance", "contrast", "security", "structure",
   ]
 
   const categoryScores: CategoryScore[] = allCategories.map((category) => {
@@ -1298,25 +1049,19 @@ export function calculateScores(issues: ScanIssue[]): { categoryScores: Category
   })
 
   // Weighted overall score
-  // Accessibility (images + contrast): 35%
-  // Structure (headings + landmarks + forms + structure): 20%
-  // SEO / document + schema: 25%
-  // Security: 10%
-  // Links: 10%
+  // Accessibility (images + contrast + forms + landmarks): 55%
+  // Structure (headings + structure): 30%
+  // Security: 15%
   const getScore = (cat: Category) => categoryScores.find((c) => c.category === cat)?.score ?? 100
 
-  const accessibilityScore = (getScore("images") + getScore("contrast")) / 2
-  const structureScore = (getScore("headings") + getScore("landmarks") + getScore("forms") + getScore("structure")) / 4
-  const seoScore = (getScore("document") * 2 + getScore("schema")) / 3
+  const accessibilityScore = (getScore("images") + getScore("contrast") + getScore("forms") + getScore("landmarks")) / 4
+  const structureScore = (getScore("headings") + getScore("structure")) / 2
   const securityScore = getScore("security")
-  const linksScore = getScore("links")
 
   const overallScore = Math.round(
-    accessibilityScore * 0.35 +
-    structureScore * 0.20 +
-    seoScore * 0.25 +
-    securityScore * 0.10 +
-    linksScore * 0.10,
+    accessibilityScore * 0.55 +
+    structureScore * 0.30 +
+    securityScore * 0.15,
   )
 
   return { categoryScores, overallScore: Math.max(0, Math.min(100, overallScore)) }
@@ -1330,9 +1075,7 @@ export function generateSummary(
   issues: ScanIssue[],
   categoryScores: CategoryScore[],
   securityHeaders: ScanReport["securityHeaders"],
-  linkSummary: ScanReport["linkSummary"] | undefined,
   meta: ScanReport["meta"],
-  schemaData?: ScanReport["schema"],
 ): ScanSummary {
   // Top priorities: worst errors first, then by count
   const errorCounts = new Map<string, { count: number; severity: Severity; message: string }>()
@@ -1369,13 +1112,6 @@ export function generateSummary(
     whatsWorking.push("Page has a language attribute set")
   }
 
-  if (linkSummary && linkSummary.total > 0) {
-    const healthPct = Math.round((linkSummary.healthy / linkSummary.total) * 100)
-    if (healthPct >= 90) {
-      whatsWorking.push(`${healthPct}% of links are healthy (${linkSummary.healthy}/${linkSummary.total})`)
-    }
-  }
-
   const headingScore = categoryScores.find((c) => c.category === "headings")?.score ?? 0
   if (headingScore > 90) {
     whatsWorking.push("Heading structure is well-organized")
@@ -1392,19 +1128,6 @@ export function generateSummary(
 
   if (meta.viewport) {
     whatsWorking.push("Viewport meta tag is configured")
-  }
-
-  // Schema findings
-  if (schemaData && schemaData.totalFound > 0) {
-    const jsonLdEntities = schemaData.entities.filter((e) => e.source === "json-ld")
-    const typeNames = [...new Set(jsonLdEntities.map((e) => e.type))].slice(0, 3)
-    if (schemaData.hasJsonLd && typeNames.length > 0) {
-      whatsWorking.push(`Valid ${typeNames.join(", ")} schema with JSON-LD`)
-    }
-    const hasBreadcrumb = schemaData.entities.some((e) => e.type.includes("BreadcrumbList"))
-    if (hasBreadcrumb) {
-      whatsWorking.push("BreadcrumbList structured data present")
-    }
   }
 
   // Keep 2-3 positives
@@ -1487,18 +1210,18 @@ export async function scanUrl(
     responseHeaders[key.toLowerCase()] = value
   })
 
-  // Step 2: Structure + SEO analysis
+  // Step 2: Structure + meta analysis
   progress("structure", "running")
   console.log("[Scanner] Running analyzers...")
-  const [headingResult, imageIssues, landmarkIssues, formIssues, metaResult, securityHeaders, schemaResult, siteStructure] = await Promise.all([
+  const [headingResult, imageIssues, landmarkIssues, formIssues, metaResult, securityHeaders, siteStructure, skipLinkIssues] = await Promise.all([
     Promise.resolve(analyzeHeadings($, html)),
     Promise.resolve(analyzeImages($, html)),
     Promise.resolve(analyzeLandmarks($)),
     Promise.resolve(analyzeForms($, html)),
     Promise.resolve(analyzeMeta($)),
     Promise.resolve(analyzeSecurityHeaders(responseHeaders)),
-    Promise.resolve(analyzeSchema($)),
     Promise.resolve(analyzeSiteStructure($, url)),
+    Promise.resolve(analyzeSkipLink($)),
   ])
   progress("structure", "done")
 
@@ -1513,18 +1236,52 @@ export async function scanUrl(
   }
   progress("accessibility", "done")
 
-  // Deduplicate: if both a custom rule and axe flagged the same element+category, keep the axe version
-  const axeSelectors = new Set(axeIssues.filter((i) => i.selector).map((i) => `${i.category}::${i.selector}`))
+  // ---------------------------------------------------------------------------
+  // Deduplicate: ruleId-based approach.
+  //
+  // The old selector-match dedup failed because axe uses full CSS paths while
+  // our buildSelector produces tag#id or tag.class — they never collide.
+  //
+  // New approach: for known custom↔axe equivalents, prefer the axe version when
+  // both engines flagged the same tag type. Issues without a known mapping are
+  // always kept.
+  // ---------------------------------------------------------------------------
+  const CUSTOM_TO_AXE_RULEID: Record<string, string> = {
+    "img-alt-missing":    "axe-image-alt",
+    "img-link-alt-missing": "axe-image-alt",
+    "button-name-empty":  "axe-button-name",
+    "link-name-empty":    "axe-link-name",
+    "form-label-missing": "axe-label",
+    "heading-empty":      "axe-empty-heading",
+    "html-lang-missing":  "axe-html-has-lang",
+    "meta-viewport-missing": "axe-meta-viewport",
+    "duplicate-id":       "axe-duplicate-id",
+  }
+
+  // Only dedup by exact selector identity. The old tag-based fallback incorrectly
+  // dropped custom findings when axe caught *some* elements of the same tag type
+  // but not all — a silent false negative. Accepting occasional duplicates (when
+  // selectors differ) is far safer than missing real violations.
+  const axeSelectorSet = new Set<string>()
+  for (const ai of axeIssues) {
+    if (ai.selector) axeSelectorSet.add(ai.selector)
+  }
+
   const customIssues = [
     ...headingResult.issues,
     ...imageIssues,
     ...landmarkIssues,
     ...formIssues,
     ...metaResult.issues,
-    ...schemaResult.issues,
+    ...skipLinkIssues,
   ].filter((issue) => {
-    if (!issue.selector) return true
-    return !axeSelectors.has(`${issue.category}::${issue.selector}`)
+    const axeEquiv = CUSTOM_TO_AXE_RULEID[issue.ruleId]
+    if (!axeEquiv) return true // no known axe equivalent — always keep
+
+    // If selectors are identical, prefer axe (exact same element)
+    if (issue.selector && axeSelectorSet.has(issue.selector)) return false
+
+    return true // axe didn't catch this one — keep our custom finding
   })
 
   let allIssues = [...customIssues, ...axeIssues]
@@ -1542,36 +1299,12 @@ export async function scanUrl(
     })
   }
 
-  // Step 4: Link checking (optional)
-  let linkSummary: ScanReport["linkSummary"] | undefined
-  if (options.checkLinks) {
-    progress("links", "running")
-    try {
-      const linkResult = await checkLinks($, url)
-      allIssues = [...allIssues, ...linkResult.issues]
-      linkSummary = linkResult.summary
-    } catch (err: any) {
-      console.error("[Scanner] Link checking failed:", err.message)
-    }
-    progress("links", "done")
-  }
-
-  // Step 5: Scoring
+  // Step 4: Scoring
   progress("scoring", "running")
   const { categoryScores, overallScore } = calculateScores(allIssues)
 
-  // Build the schema report block
-  const schemaReport: ScanReport["schema"] = {
-    entities: schemaResult.entities,
-    totalFound: schemaResult.entities.length,
-    hasJsonLd: schemaResult.entities.some((e) => e.source === "json-ld"),
-    hasMicrodata: schemaResult.entities.some((e) => e.source === "microdata"),
-    hasRdfa: schemaResult.entities.some((e) => e.source === "rdfa"),
-    issues: schemaResult.issues,
-  }
-
   // Generate summary
-  const summary = generateSummary(allIssues, categoryScores, securityHeaders, linkSummary, metaResult.meta, schemaReport)
+  const summary = generateSummary(allIssues, categoryScores, securityHeaders, metaResult.meta)
   progress("scoring", "done")
 
   console.log(`[Scanner] Scan complete — score: ${overallScore}/100, ${allIssues.length} issues`)
@@ -1588,9 +1321,7 @@ export async function scanUrl(
     issues: allIssues,
     headingTree: headingResult.tree,
     meta: metaResult.meta,
-    linkSummary,
     securityHeaders,
-    schema: schemaReport,
     siteStructure,
   }
 }

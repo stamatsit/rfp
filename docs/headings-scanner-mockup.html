@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scanner Portal — Mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #0f172a;
+    --ink-2: #1e293b;
+    --muted: #64748b;
+    --muted-2: #94a3b8;
+    --line: rgba(0, 0, 0, 0.06);
+    --line-strong: rgba(0, 0, 0, 0.08);
+    --bg-page: #f5f5f7;
+    --bg-card: #ffffff;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --green: #10b981;
+    --green-soft: #ecfdf5;
+    --green-deep: #047857;
+    --red:   #ef4444;
+    --red-soft: #fef2f2;
+    --red-deep:   #b91c1c;
+    --amber: #f59e0b;
+    --amber-soft: #fffbeb;
+  }
+
+  body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+    background: var(--bg-page);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.5;
+    font-size: 15px;
+    letter-spacing: -0.011em;
+    padding: 60px 24px 100px;
+  }
+  .mono { font-family: "JetBrains Mono", "SF Mono", monospace; letter-spacing: 0; }
+
+  /* ------- Mockup container ------- */
+  .doc {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .doc-header {
+    text-align: center;
+    margin-bottom: 56px;
+  }
+  .doc-header .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 12px;
+  }
+  .doc-header h1 {
+    font-size: 36px; font-weight: 700; letter-spacing: -0.025em;
+    color: var(--ink); line-height: 1.1;
+  }
+  .doc-header .sub {
+    margin-top: 14px; font-size: 16px; color: var(--muted);
+    max-width: 36em; margin-left: auto; margin-right: auto;
+  }
+
+  .mockup-section {
+    margin-bottom: 80px;
+  }
+  .mockup-label {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 18px;
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .mockup-label .num {
+    width: 22px; height: 22px; border-radius: 7px;
+    background: var(--ink); color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; letter-spacing: 0;
+  }
+  .mockup-label .desc {
+    font-weight: 400; text-transform: none; letter-spacing: 0;
+    color: var(--muted-2); font-size: 13px;
+  }
+
+  /* ------- Mock viewport (browser-y framing) ------- */
+  .viewport {
+    background: white;
+    border: 1px solid var(--line-strong);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 8px 32px -12px rgba(0, 0, 0, 0.08);
+  }
+  .viewport-bar {
+    background: #fafafa;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .viewport-bar .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: #e5e7eb;
+  }
+  .viewport-bar .dot:nth-child(1) { background: #ff5f57; }
+  .viewport-bar .dot:nth-child(2) { background: #febc2e; }
+  .viewport-bar .dot:nth-child(3) { background: #28c840; }
+  .viewport-bar .url {
+    flex: 1; margin-left: 10px;
+    font-size: 12px; color: var(--muted);
+    font-family: "JetBrains Mono", monospace;
+  }
+  .viewport-body {
+    padding: 56px 64px;
+  }
+
+  /* ------- App header (matches existing app) ------- */
+  .app-header {
+    padding: 14px 64px;
+    border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .app-header .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; font-weight: 600;
+  }
+  .app-header .brand-dot {
+    width: 22px; height: 22px; border-radius: 7px;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  }
+  .app-header .crumb {
+    color: var(--muted-2);
+    font-size: 14px;
+  }
+  .app-header .crumb-sep { color: var(--muted-2); margin: 0 8px; }
+  .app-header .crumb-current { color: var(--ink); font-weight: 500; }
+
+  /* ------- Portal hero ------- */
+  .portal-hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .portal-hero .eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent);
+    margin-bottom: 14px;
+  }
+  .portal-hero h1 {
+    font-size: 38px; font-weight: 700; letter-spacing: -0.028em;
+    line-height: 1.08; color: var(--ink);
+  }
+  .portal-hero .sub {
+    margin-top: 14px; font-size: 17px; color: var(--muted);
+    max-width: 32em; margin-left: auto; margin-right: auto;
+  }
+
+  /* ------- Two-tile grid ------- */
+  .tiles {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .tile {
+    background: var(--bg-card);
+    border: 1px solid var(--line-strong);
+    border-radius: 22px;
+    padding: 32px;
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    position: relative;
+  }
+  .tile:hover {
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 12px 36px -12px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+  }
+  .tile-icon {
+    width: 48px; height: 48px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 22px;
+    color: white;
+  }
+  .tile-icon.purple { background: linear-gradient(135deg, #8B5CF6, #6D28D9); }
+  .tile-icon.blue { background: linear-gradient(135deg, #3B82F6, #1D4ED8); }
+
+  .tile-title {
+    font-size: 22px; font-weight: 700; letter-spacing: -0.022em;
+    color: var(--ink); margin-bottom: 6px;
+  }
+  .tile-desc {
+    font-size: 14px; color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 24px;
+  }
+  .tile-input-row {
+    display: flex; gap: 8px;
+  }
+  .tile-input {
+    flex: 1;
+    padding: 12px 14px;
+    background: #fafafa;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    font-size: 14px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--ink);
+    transition: all 0.15s ease;
+  }
+  .tile-input::placeholder { color: var(--muted-2); }
+  .tile-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  }
+  .tile-button {
+    padding: 12px 18px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .tile-button:hover { background: var(--accent-hover); }
+  .tile-button:active { transform: scale(0.97); }
+
+  /* ------- Result panel (inside the tile, after expansion) ------- */
+  .result-panel {
+    margin-top: 28px;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .result-status {
+    display: flex; align-items: center; gap: 18px;
+    margin-bottom: 4px;
+  }
+  .status-icon {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .status-icon.pass {
+    background: var(--green-soft);
+    color: var(--green-deep);
+    box-shadow: 0 0 0 6px rgba(16, 185, 129, 0.06);
+  }
+  .status-icon.fail {
+    background: var(--red-soft);
+    color: var(--red-deep);
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0.06);
+  }
+  .status-text .label {
+    font-size: 26px; font-weight: 700; letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .status-text .label.pass { color: var(--green-deep); }
+  .status-text .label.fail { color: var(--red-deep); }
+  .status-text .sub {
+    font-size: 14px; color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* Info / tooltip trigger */
+  .info-trigger {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--line);
+    color: var(--muted);
+    font-size: 11px; font-weight: 600;
+    margin-left: 8px;
+    vertical-align: 1px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .info-trigger:hover { background: var(--line-strong); color: var(--ink); }
+
+  /* Reveal button row */
+  .result-actions {
+    margin-top: 22px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .reveal-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 9px 14px;
+    background: white;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .reveal-btn:hover { background: #fafafa; border-color: rgba(0, 0, 0, 0.12); }
+  .reveal-btn .chev {
+    transition: transform 0.2s ease;
+  }
+  .reveal-btn.open .chev { transform: rotate(180deg); }
+
+  /* ------- Heading tree ------- */
+  .heading-tree {
+    margin-top: 22px;
+    padding: 18px 20px;
+    background: #fafafa;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+  .heading-tree-meta {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .heading-row {
+    display: grid;
+    grid-template-columns: 28px 1fr;
+    gap: 12px;
+    align-items: baseline;
+    padding: 6px 0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+  }
+  .heading-tag {
+    font-weight: 600;
+    color: var(--muted);
+  }
+  .heading-row.violation .heading-tag {
+    color: var(--red-deep);
+  }
+  .heading-text {
+    color: var(--ink);
+  }
+  .heading-row.violation .heading-text {
+    color: var(--red-deep);
+  }
+  /* Indent visualization based on level */
+  .indent-1 { padding-left: 0; }
+  .indent-2 { padding-left: 22px; }
+  .indent-3 { padding-left: 44px; }
+  .indent-4 { padding-left: 66px; }
+  .indent-5 { padding-left: 88px; }
+  .indent-6 { padding-left: 110px; }
+
+  .violation-line {
+    display: block;
+    margin-top: 4px; margin-left: 40px;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    color: var(--red-deep);
+    background: var(--red-soft);
+    border-left: 2px solid var(--red);
+    padding: 6px 10px;
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* No-h1 banner */
+  .missing-h1 {
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: var(--red-soft);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 10px;
+    color: var(--red-deep);
+    font-size: 13px;
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  /* ------- Tooltip popover (state 6) ------- */
+  .tooltip-popover {
+    position: relative;
+    background: #0f172a;
+    color: #e2e8f0;
+    border-radius: 14px;
+    padding: 22px;
+    max-width: 440px;
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.25);
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .tooltip-popover::before {
+    content: "";
+    position: absolute;
+    top: -7px; left: 60px;
+    width: 14px; height: 14px;
+    background: #0f172a;
+    transform: rotate(45deg);
+  }
+  .tooltip-popover h4 {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: #94a3b8; margin-bottom: 12px;
+  }
+  .tooltip-popover h5 {
+    font-size: 13px; font-weight: 600;
+    color: white; margin-top: 14px; margin-bottom: 6px;
+  }
+  .tooltip-popover h5:first-of-type { margin-top: 0; }
+  .tooltip-popover p { color: #cbd5e1; }
+  .tooltip-popover code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.08);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: #fcd34d;
+  }
+  .tooltip-popover ul {
+    margin: 8px 0 0 0;
+    padding-left: 18px;
+    color: #cbd5e1;
+  }
+  .tooltip-popover ul li { margin: 3px 0; }
+  .tooltip-popover .links {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 12px;
+  }
+  .tooltip-popover .links a {
+    color: #60a5fa;
+    text-decoration: none;
+  }
+  .tooltip-popover .links a:hover { text-decoration: underline; }
+  .tooltip-popover .links .sep { color: #475569; margin: 0 6px; }
+
+  /* ------- Notes between mockups ------- */
+  .note {
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: white;
+    border: 1px dashed var(--line-strong);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .note strong { color: var(--ink); }
+
+  /* ------- SVG icon helpers ------- */
+  .icon-check, .icon-x { display: block; }
+</style>
+</head>
+<body>
+
+<div class="doc">
+  <div class="doc-header">
+    <div class="eyebrow">Mockup · Pre-build review</div>
+    <h1>Scanner Portal + Headings Tool</h1>
+    <p class="sub">Pixel-perfect mockups of every state. Confirm the visual direction before we ship the real implementation.</p>
+  </div>
+
+  <!-- ============================================================
+       STATE 1 — PORTAL (BOTH TILES, EMPTY)
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">1</span>
+      The portal — empty state
+      <span class="desc">/scanner — what you see when you land</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="app-header">
+        <div class="brand"><div class="brand-dot"></div> Scanner</div>
+        <div class="crumb"><span class="crumb-sep">/</span><span class="crumb-current">Pick a check</span></div>
+      </div>
+      <div class="viewport-body">
+        <div class="portal-hero">
+          <div class="eyebrow">Pick a check</div>
+          <h1>Two ways to scan a page.</h1>
+          <p class="sub">A full accessibility audit when you need depth, or a fast heading-structure check when you just want the answer.</p>
+        </div>
+
+        <div class="tiles">
+          <!-- Tile 1: Accessibility -->
+          <div class="tile">
+            <div class="tile-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="8" r="2"/>
+                <path d="M6 14s2 2 6 2 6-2 6-2"/>
+                <path d="M9 11l3 1 3-1"/>
+              </svg>
+            </div>
+            <div class="tile-title">Accessibility Scan</div>
+            <p class="tile-desc">Full WCAG audit using axe-core. Returns category scores, every issue, and AI-assisted fixes.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input" placeholder="https://example.com">
+              <button class="tile-button">Scan</button>
+            </div>
+          </div>
+
+          <!-- Tile 2: Headings -->
+          <div class="tile">
+            <div class="tile-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4v16"/>
+                <path d="M18 4v16"/>
+                <path d="M6 12h12"/>
+              </svg>
+            </div>
+            <div class="tile-title">Headings</div>
+            <p class="tile-desc">Quick yes-or-no on whether the page's heading hierarchy is valid. The simplest check possible.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input" placeholder="https://example.com">
+              <button class="tile-button">Check</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Two tiles, equal weight. Each has its own URL field so the user picks the check they want without a click-through. Submitting Tile 1 navigates to the existing scanner. Submitting Tile 2 expands the tile in place (state 2 or 3).</div>
+  </section>
+
+
+  <!-- ============================================================
+       STATE 2 — HEADINGS RESULT, PASS, COLLAPSED
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">2</span>
+      Headings result — Compliant (collapsed)
+      <span class="desc">After a successful scan</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="viewport-body" style="padding-top: 80px;">
+        <div class="tiles">
+          <div class="tile" style="opacity: 0.55;">
+            <div class="tile-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="8" r="2"/>
+                <path d="M6 14s2 2 6 2 6-2 6-2"/>
+                <path d="M9 11l3 1 3-1"/>
+              </svg>
+            </div>
+            <div class="tile-title">Accessibility Scan</div>
+            <p class="tile-desc">Full WCAG audit using axe-core.</p>
+          </div>
+
+          <div class="tile">
+            <div class="tile-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/>
+              </svg>
+            </div>
+            <div class="tile-title">Headings</div>
+            <p class="tile-desc">Quick yes-or-no on whether the page's heading hierarchy is valid.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input mono" value="https://stamats.com">
+              <button class="tile-button">Re-check</button>
+            </div>
+
+            <!-- Result panel -->
+            <div class="result-panel">
+              <div class="result-status">
+                <div class="status-icon pass">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </div>
+                <div class="status-text">
+                  <div class="label pass">Compliant
+                    <span class="info-trigger" title="Hover for rules">i</span>
+                  </div>
+                  <div class="sub">14 headings checked · structure is valid</div>
+                </div>
+              </div>
+
+              <div class="result-actions">
+                <button class="reveal-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev"><polyline points="6 9 12 15 18 9"/></svg>
+                  View structure
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Big green check, single-word verdict ("Compliant"), short sub-line with the count. The (i) bubble next to the label opens the tooltip from State 6. The structure is hidden by default — one click to reveal it.</div>
+  </section>
+
+
+  <!-- ============================================================
+       STATE 3 — HEADINGS RESULT, PASS, EXPANDED
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">3</span>
+      Headings result — Compliant, structure revealed
+      <span class="desc">After clicking "View structure"</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="viewport-body" style="padding-top: 80px;">
+        <div class="tiles">
+          <div class="tile" style="opacity: 0.55;">
+            <div class="tile-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="2"/>
+                <path d="M6 14s2 2 6 2 6-2 6-2"/><path d="M9 11l3 1 3-1"/>
+              </svg>
+            </div>
+            <div class="tile-title">Accessibility Scan</div>
+            <p class="tile-desc">Full WCAG audit using axe-core.</p>
+          </div>
+
+          <div class="tile">
+            <div class="tile-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/>
+              </svg>
+            </div>
+            <div class="tile-title">Headings</div>
+            <p class="tile-desc">Quick yes-or-no on whether the page's heading hierarchy is valid.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input mono" value="https://stamats.com">
+              <button class="tile-button">Re-check</button>
+            </div>
+
+            <div class="result-panel">
+              <div class="result-status">
+                <div class="status-icon pass">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div class="status-text">
+                  <div class="label pass">Compliant <span class="info-trigger">i</span></div>
+                  <div class="sub">14 headings checked · structure is valid</div>
+                </div>
+              </div>
+
+              <div class="result-actions">
+                <button class="reveal-btn open">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev"><polyline points="6 9 12 15 18 9"/></svg>
+                  Hide structure
+                </button>
+              </div>
+
+              <div class="heading-tree">
+                <div class="heading-tree-meta">Document order — indentation reflects level</div>
+                <div class="heading-row indent-1"><span class="heading-tag">h1</span><span class="heading-text">Stamats — Higher Ed Marketing</span></div>
+                <div class="heading-row indent-2"><span class="heading-tag">h2</span><span class="heading-text">What we do</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Strategy</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Brand</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Digital</span></div>
+                <div class="heading-row indent-2"><span class="heading-tag">h2</span><span class="heading-text">Featured work</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Indiana University</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Penn State</span></div>
+                <div class="heading-row indent-2"><span class="heading-tag">h2</span><span class="heading-text">Insights</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">2026 enrollment trends</span></div>
+                <div class="heading-row indent-4"><span class="heading-tag">h4</span><span class="heading-text">Methodology</span></div>
+                <div class="heading-row indent-2"><span class="heading-tag">h2</span><span class="heading-text">Get in touch</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Office hours</span></div>
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Email</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Tree is in document order with indentation by level. Mono font keeps it scannable. h4 → h2 transition (line 11→12) shows that going shallower more than one step is fine — that's the axe rule.</div>
+  </section>
+
+
+  <!-- ============================================================
+       STATE 4 — HEADINGS RESULT, FAIL, COLLAPSED
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">4</span>
+      Headings result — Not compliant (collapsed)
+      <span class="desc">When the rule fires</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="viewport-body" style="padding-top: 80px;">
+        <div class="tiles">
+          <div class="tile" style="opacity: 0.55;">
+            <div class="tile-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="2"/>
+                <path d="M6 14s2 2 6 2 6-2 6-2"/><path d="M9 11l3 1 3-1"/>
+              </svg>
+            </div>
+            <div class="tile-title">Accessibility Scan</div>
+            <p class="tile-desc">Full WCAG audit using axe-core.</p>
+          </div>
+
+          <div class="tile">
+            <div class="tile-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/>
+              </svg>
+            </div>
+            <div class="tile-title">Headings</div>
+            <p class="tile-desc">Quick yes-or-no on whether the page's heading hierarchy is valid.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input mono" value="https://example-bad-site.com">
+              <button class="tile-button">Re-check</button>
+            </div>
+
+            <div class="result-panel">
+              <div class="result-status">
+                <div class="status-icon fail">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </div>
+                <div class="status-text">
+                  <div class="label fail">Not compliant <span class="info-trigger">i</span></div>
+                  <div class="sub">3 issues across 11 headings</div>
+                </div>
+              </div>
+
+              <div class="result-actions">
+                <button class="reveal-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev"><polyline points="6 9 12 15 18 9"/></svg>
+                  View structure
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Same shape as compliant, but red. Issue count in the sub-line. One click reveals exactly where the breaks are (state 5).</div>
+  </section>
+
+
+  <!-- ============================================================
+       STATE 5 — HEADINGS RESULT, FAIL, EXPANDED
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">5</span>
+      Headings result — Not compliant, structure revealed
+      <span class="desc">Every break is highlighted</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="viewport-body" style="padding-top: 80px;">
+        <div class="tiles">
+          <div class="tile" style="opacity: 0.55;">
+            <div class="tile-icon purple">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"/><circle cx="12" cy="8" r="2"/>
+                <path d="M6 14s2 2 6 2 6-2 6-2"/><path d="M9 11l3 1 3-1"/>
+              </svg>
+            </div>
+            <div class="tile-title">Accessibility Scan</div>
+            <p class="tile-desc">Full WCAG audit using axe-core.</p>
+          </div>
+
+          <div class="tile">
+            <div class="tile-icon blue">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 12h12"/>
+              </svg>
+            </div>
+            <div class="tile-title">Headings</div>
+            <p class="tile-desc">Quick yes-or-no on whether the page's heading hierarchy is valid.</p>
+            <div class="tile-input-row">
+              <input type="text" class="tile-input mono" value="https://example-bad-site.com">
+              <button class="tile-button">Re-check</button>
+            </div>
+
+            <div class="result-panel">
+              <div class="result-status">
+                <div class="status-icon fail">
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/>
+                    <line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </div>
+                <div class="status-text">
+                  <div class="label fail">Not compliant <span class="info-trigger">i</span></div>
+                  <div class="sub">3 issues across 11 headings</div>
+                </div>
+              </div>
+
+              <div class="result-actions">
+                <button class="reveal-btn open">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="chev"><polyline points="6 9 12 15 18 9"/></svg>
+                  Hide structure
+                </button>
+              </div>
+
+              <div class="heading-tree">
+                <div class="heading-tree-meta">Document order — issues highlighted</div>
+                <div class="heading-row indent-2 violation">
+                  <span class="heading-tag">h2</span><span class="heading-text">Welcome to our site</span>
+                </div>
+                <span class="violation-line">First heading is h2 — page is missing an h1.</span>
+
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Our services</span></div>
+                <div class="heading-row indent-4"><span class="heading-tag">h4</span><span class="heading-text">Consulting</span></div>
+                <div class="heading-row indent-4"><span class="heading-tag">h4</span><span class="heading-text">Implementation</span></div>
+
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">Case studies</span></div>
+
+                <div class="heading-row indent-5 violation">
+                  <span class="heading-tag">h5</span><span class="heading-text">Featured: Acme Corp</span>
+                </div>
+                <span class="violation-line">Heading skipped from h3 to h5 (h4 missing in between).</span>
+
+                <div class="heading-row indent-3"><span class="heading-tag">h3</span><span class="heading-text">About us</span></div>
+
+                <div class="heading-row indent-6 violation">
+                  <span class="heading-tag">h6</span><span class="heading-text">Mission statement</span>
+                </div>
+                <span class="violation-line">Heading skipped from h3 to h6 (h4 and h5 missing in between).</span>
+
+                <div class="heading-row indent-2"><span class="heading-tag">h2</span><span class="heading-text">Contact</span></div>
+              </div>
+
+              <div class="missing-h1">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                Page is missing an h1 element entirely. Every page should have exactly one top-level heading.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Every break gets its own red row + a clear one-line explanation immediately under it. Missing-h1 gets its own banner at the bottom because it's a separate rule. Indentation reinforces level visually so the breaks are obvious at a glance.</div>
+  </section>
+
+
+  <!-- ============================================================
+       STATE 6 — TOOLTIP / RULES POPOVER
+       ============================================================ -->
+  <section class="mockup-section">
+    <div class="mockup-label">
+      <span class="num">6</span>
+      The (i) tooltip — actual rules + source
+      <span class="desc">What appears on hover/click of the info bubble</span>
+    </div>
+    <div class="viewport">
+      <div class="viewport-bar">
+        <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+        <span class="url">localhost:5173/scanner</span>
+      </div>
+      <div class="viewport-body" style="padding-top: 80px; padding-bottom: 80px;">
+        <div style="max-width: 540px; margin-left: 80px;">
+          <div class="tooltip-popover">
+            <h4>How this is checked</h4>
+
+            <h5>The rule</h5>
+            <p>Each heading must satisfy <code>currentLevel − previousLevel ≤ 1</code>. This is the exact check axe-core applies.</p>
+
+            <h5>What that means</h5>
+            <ul>
+              <li>Going deeper, levels can only increase by one (h1 → h2, never h1 → h3)</li>
+              <li>Going shallower is unrestricted (h4 → h2 or h4 → h1 is fine)</li>
+              <li>The first heading on the page is always allowed</li>
+              <li>The page must contain at least one h1 (separate rule)</li>
+            </ul>
+
+            <h5>Source</h5>
+            <p style="font-size: 12px;">Identical to the <code>heading-order</code> rule in axe-core, the engine used by Lighthouse, Deque, and most accessibility auditors.</p>
+
+            <div class="links">
+              <a href="https://dequeuniversity.com/rules/axe/4.10/heading-order">axe-core heading-order ↗</a>
+              <span class="sep">·</span>
+              <a href="https://www.w3.org/WAI/tutorials/page-structure/headings/">W3C WAI guidance ↗</a>
+              <span class="sep">·</span>
+              <a href="https://github.com/dequelabs/axe-core/blob/develop/lib/checks/navigation/heading-order-after.js">Source code ↗</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="note"><strong>Notes:</strong> Dark popover for contrast. Quotes the exact axe-core formula. Three live links to the source-of-truth documentation. Keeps the rule statement honest — copies industry standard verbatim instead of paraphrasing.</div>
+  </section>
+
+</div>
+
+</body>
+</html>

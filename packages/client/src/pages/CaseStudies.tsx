@@ -175,7 +175,7 @@ export function CaseStudies() {
         />
       }
       emptyState={
-        <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="flex flex-col items-center justify-center py-16 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
           <div
             className="w-20 h-20 rounded-3xl flex items-center justify-center mb-7"
             style={{
@@ -198,10 +198,11 @@ export function CaseStudies() {
                 key={action.label}
                 onClick={() => chat.handleSubmit(action.prompt)}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px]
-                           bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700
+                           bg-white dark:bg-slate-800 border border-black/[0.06] dark:border-white/[0.08]
                            text-slate-500 dark:text-slate-400
                            hover:border-violet-300 dark:hover:border-violet-600 hover:text-violet-600 dark:hover:text-violet-400
-                           transition-all duration-200"
+                           hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm
+                           transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]"
               >
                 <action.icon size={14} />
                 {action.label}

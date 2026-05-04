@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'url'
 import path from 'path'
+import tailwindcssAnimate from 'tailwindcss-animate'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -50,5 +51,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 }

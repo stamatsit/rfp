@@ -6,7 +6,7 @@ const badgeVariants = cva(
   `inline-flex items-center rounded-full border px-2.5 py-0.5
    text-xs font-medium tracking-wide
    transition-all duration-200 ease-out
-   focus:outline-none focus:ring-2 focus:ring-ring/50 focus:ring-offset-2`,
+   focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950`,
   {
     variants: {
       variant: {
@@ -22,7 +22,7 @@ const badgeVariants = cva(
           shadow-[0_0_0_1px_rgba(239,68,68,0.1)]
         `,
         outline: `
-          border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800
+          border-black/[0.06] dark:border-white/[0.08] text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800
           shadow-[0_1px_2px_rgba(0,0,0,0.02)]
         `,
         success: `

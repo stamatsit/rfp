@@ -12,7 +12,9 @@ const Card = React.forwardRef<
        border border-black/[0.04] dark:border-white/[0.08]
        shadow-[0_0_0_1px_rgb(0_0_0_/_0.02),0_1px_2px_rgb(0_0_0_/_0.03),0_4px_8px_rgb(0_0_0_/_0.02)]
        dark:shadow-[0_0_0_1px_rgb(255_255_255_/_0.03),0_1px_2px_rgb(0_0_0_/_0.2),0_4px_8px_rgb(0_0_0_/_0.15)]
-       transition-all duration-300 ease-out`,
+       transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+       hover:-translate-y-0.5 hover:shadow-lg
+       active:translate-y-0 active:shadow-md`,
       className
     )}
     {...props}

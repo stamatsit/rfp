@@ -135,7 +135,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #F97316 0%, #EA580C 50%, #C2410C 100%)",
     shadowColor: "rgba(249, 115, 22, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "client-portfolio",
@@ -146,7 +145,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #0EA5E9 0%, #0284C7 50%, #0369A1 100%)",
     shadowColor: "rgba(14, 165, 233, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "image-toolkit",
@@ -157,7 +155,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #0D9488 100%)",
     shadowColor: "rgba(16, 185, 129, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "pitch-deck-designer",
@@ -168,7 +165,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%)",
     shadowColor: "rgba(59, 130, 246, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "meeting-intake",
@@ -179,7 +175,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #10B981 0%, #059669 50%, #047857 100%)",
     shadowColor: "rgba(16, 185, 129, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "proposal-analytics",
@@ -190,7 +185,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #6366F1 0%, #4F46E5 50%, #4338CA 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
   {
     id: "url-scanner",
@@ -201,7 +195,6 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #8B5CF6 0%, #7C3AED 50%, #6D28D9 100%)",
     shadowColor: "rgba(139, 92, 246, 0.15)",
     enabled: true,
-    badge: "NEW",
   },
 ]
 
@@ -447,7 +440,7 @@ function Toggle({ enabled, onChange }: { enabled: boolean; onChange: () => void 
   return (
     <button
       onClick={onChange}
-      className={`relative w-11 h-6 rounded-full transition-all duration-300 ${
+      className={`relative w-11 h-6 rounded-full transition-colors duration-300 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${
         enabled
           ? "bg-blue-500"
           : "bg-slate-200 dark:bg-slate-600"
@@ -473,7 +466,7 @@ function SegmentedControl({ options, value, onChange }: {
         <button
           key={option.value}
           onClick={() => onChange(option.value)}
-          className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-200 ${
+          className={`px-3 py-1.5 text-[12px] font-medium rounded-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 ${
             value === option.value
               ? "bg-white dark:bg-slate-600 text-slate-900 dark:text-white shadow-sm"
               : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
@@ -866,7 +859,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   <button
                     key={cat.id}
                     onClick={() => setActiveCategory(cat.id)}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 ${
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 ${
                       isActive
                         ? "bg-blue-500 text-white shadow-sm"
                         : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700/50"

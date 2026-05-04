@@ -56,7 +56,7 @@ function ThemeToggle() {
   return (
     <button
       onClick={handleToggle}
-      className="relative w-10 h-5 rounded-full transition-colors duration-200 focus:outline-none bg-slate-200 dark:bg-slate-700"
+      className="relative w-10 h-5 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 bg-slate-200 dark:bg-slate-700"
       aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
       title={isDark ? 'Light mode' : 'Dark mode'}
     >
@@ -196,7 +196,7 @@ export function AppHeader({
             {showAskAI && location.pathname !== "/ai" && (
               <Link
                 to="/ai"
-                className="text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 transition-colors duration-200 active:scale-95"
+                className="text-violet-500 dark:text-violet-400 hover:text-violet-600 dark:hover:text-violet-300 transition-all duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 rounded-lg"
                 title="Ask AI"
               >
                 <Bot size={20} strokeWidth={2} />
@@ -211,6 +211,7 @@ export function AppHeader({
                   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
                   className={`hidden sm:flex items-center gap-2 px-2.5 py-1.5 rounded-xl transition-all duration-200
                              hover:bg-slate-100/70 dark:hover:bg-slate-800/70
+                             focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
                              ${isUserMenuOpen ? "bg-slate-100 dark:bg-slate-800" : ""}`}
                 >
                   <UserAvatar user={user} size="sm" />
@@ -223,7 +224,7 @@ export function AppHeader({
                 {/* Dropdown */}
                 {isUserMenuOpen && (
                   <div
-                    className="absolute right-0 top-full mt-2 w-52 py-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-slate-200/80 dark:border-slate-700/80 shadow-xl shadow-black/8 dark:shadow-black/40 z-[100]"
+                    className="absolute right-0 top-full mt-2 w-52 py-1 rounded-2xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border border-black/[0.06] dark:border-white/[0.08] shadow-lg z-[100] animate-in fade-in-0 zoom-in-95 slide-in-from-top-1 duration-150"
                   >
                     {/* User info header */}
                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
@@ -234,21 +235,21 @@ export function AppHeader({
                     <div className="py-1.5 px-1">
                       <button
                         onClick={() => { setIsUserMenuOpen(false); setIsSettingsOpen(true) }}
-                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
                         <Settings size={14} className="text-slate-400 dark:text-slate-500" />
                         Settings
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/help") }}
-                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
                         <HelpCircle size={14} className="text-slate-400 dark:text-slate-500" />
                         Help
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/support") }}
-                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
                         <LifeBuoy size={14} className="text-slate-400 dark:text-slate-500" />
                         Support
@@ -258,7 +259,7 @@ export function AppHeader({
                     <div className="border-t border-slate-100 dark:border-slate-800 py-1.5 px-1">
                       <button
                         onClick={() => { setIsUserMenuOpen(false); logout() }}
-                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                        className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-red-500/15"
                       >
                         <LogOut size={14} />
                         Sign Out

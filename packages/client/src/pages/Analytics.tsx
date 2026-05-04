@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   ResponsiveContainer,
@@ -37,12 +37,58 @@ function KPICard({ label, value, sub, icon: Icon, color }: {
   icon: React.ElementType
   color: string
 }) {
+  // Count-up animation for numeric values
+  const [displayValue, setDisplayValue] = useState<string | number>(typeof value === "number" ? 0 : value)
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    if (typeof value !== "number" && typeof value === "string") {
+      const numericMatch = value.match(/^(\d+(?:,\d+)*)/)
+      if (numericMatch) {
+        const target = parseInt((numericMatch[1] ?? "0").replace(/,/g, ""), 10)
+        const suffix = value.slice(numericMatch[0].length)
+        if (!mounted.current) {
+          mounted.current = true
+          const duration = 800
+          const start = performance.now()
+          const animate = (now: number) => {
+            const elapsed = now - start
+            const progress = Math.min(elapsed / duration, 1)
+            const eased = 1 - Math.pow(1 - progress, 3)
+            const current = Math.round(target * eased)
+            setDisplayValue(current.toLocaleString() + suffix)
+            if (progress < 1) requestAnimationFrame(animate)
+          }
+          requestAnimationFrame(animate)
+          return
+        }
+      }
+      setDisplayValue(value)
+    } else if (typeof value === "number") {
+      if (!mounted.current) {
+        mounted.current = true
+        const duration = 800
+        const start = performance.now()
+        const animate = (now: number) => {
+          const elapsed = now - start
+          const progress = Math.min(elapsed / duration, 1)
+          const eased = 1 - Math.pow(1 - progress, 3)
+          setDisplayValue(Math.round(value * eased))
+          if (progress < 1) requestAnimationFrame(animate)
+        }
+        requestAnimationFrame(animate)
+        return
+      }
+      setDisplayValue(value)
+    }
+  }, [value])
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 group hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300">
+    <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5 group hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
-          <p className="text-3xl font-bold mt-1.5 text-slate-900 dark:text-white tabular-nums">{value}</p>
+          <p className="text-3xl font-bold mt-1.5 text-slate-900 dark:text-white tabular-nums">{displayValue}</p>
           {sub && <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">{sub}</p>}
         </div>
         <div
@@ -66,7 +112,7 @@ function ChartCard({ title, children, className = "" }: {
   className?: string
 }) {
   return (
-    <div className={`rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 ${className}`}>
+    <div className={`rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg ${className}`}>
       <h3 className="text-[13px] font-semibold text-slate-700 dark:text-slate-300 mb-4">{title}</h3>
       {children}
     </div>
@@ -152,10 +198,35 @@ export function Analytics() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120]">
+      <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120] animate-in fade-in-0 duration-300">
         <AppHeader />
-        <div className="flex items-center justify-center h-[70vh]">
-          <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <div className="max-w-[1400px] mx-auto px-6 py-6">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="shimmer w-8 h-8 rounded-lg" />
+            <div>
+              <div className="shimmer h-5 w-48 rounded mb-1.5" />
+              <div className="shimmer h-3 w-72 rounded" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="shimmer rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5">
+                <div className="h-3 w-24 bg-slate-200 dark:bg-slate-700 rounded mb-3" />
+                <div className="h-8 w-20 bg-slate-200 dark:bg-slate-700 rounded mb-2" />
+                <div className="h-3 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+            <div className="shimmer lg:col-span-2 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5">
+              <div className="h-3 w-40 bg-slate-200 dark:bg-slate-700 rounded mb-4" />
+              <div className="h-[300px] bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+            <div className="shimmer rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5">
+              <div className="h-3 w-40 bg-slate-200 dark:bg-slate-700 rounded mb-4" />
+              <div className="h-[300px] bg-slate-200 dark:bg-slate-700 rounded" />
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -173,7 +244,7 @@ export function Analytics() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120]">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120] animate-in fade-in-0 duration-300">
       <AppHeader />
 
       <div className="max-w-[1400px] mx-auto px-6 py-6">
@@ -181,7 +252,7 @@ export function Analytics() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate("/")}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
           >
             <ArrowLeft size={18} />
           </button>
@@ -194,7 +265,7 @@ export function Analytics() {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6 stagger-children">
           <KPICard
             label="Total Proposals"
             value={summary?.total?.toLocaleString() ?? "—"}

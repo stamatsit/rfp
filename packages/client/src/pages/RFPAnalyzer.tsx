@@ -486,7 +486,7 @@ export function RFPAnalyzer() {
   const hasScanResults = scanner.scanResult !== null || scanner.flags.length > 0
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
       <ConfirmDialog
         open={!!confirmDeleteId}
@@ -504,7 +504,7 @@ export function RFPAnalyzer() {
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-4">
               <Link to="/">
-                <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hover:scale-105 active:scale-95">
+                <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-200 hover:scale-105 active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950">
                   <ArrowLeft size={20} className="text-slate-600 dark:text-slate-400" />
                 </Button>
               </Link>
@@ -524,10 +524,10 @@ export function RFPAnalyzer() {
             <div className="flex items-center gap-2">
               {/* Tab toggle */}
               <div className="flex rounded-xl p-1 bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700">
-                <button onClick={() => setActiveTab("scan")} className={`px-4 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200 ${activeTab === "scan" ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}>
+                <button onClick={() => setActiveTab("scan")} className={`px-4 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${activeTab === "scan" ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}>
                   <ScanLine size={14} className="inline-block mr-1.5 -mt-0.5" />Scan
                 </button>
-                <button onClick={() => setActiveTab("library")} className={`px-4 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200 ${activeTab === "library" ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}>
+                <button onClick={() => setActiveTab("library")} className={`px-4 py-1.5 text-[13px] font-medium rounded-lg transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${activeTab === "library" ? "bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"}`}>
                   <FolderOpen size={14} className="inline-block mr-1.5 -mt-0.5" />Library
                 </button>
               </div>
@@ -902,10 +902,10 @@ export function RFPAnalyzer() {
                       {/* Flags List */}
                       <CardContent className="p-4 max-h-[calc(100vh-380px)] overflow-y-auto space-y-3">
                         {activeFlags.length === 0 && dismissedFlags.length === 0 && (
-                          <div className="text-center py-8">
-                            <Shield size={32} className="text-red-400 mx-auto mb-3" />
-                            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No flags found</p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">This document looks clean based on current criteria.</p>
+                          <div className="text-center py-8 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                            <Shield size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                            <p className="text-base font-medium text-slate-700 dark:text-slate-300">No flags found</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">This document looks clean based on current criteria.</p>
                           </div>
                         )}
 
@@ -1072,11 +1072,11 @@ export function RFPAnalyzer() {
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-1 max-w-md">
                   <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input type="text" placeholder="Search documents..." value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} className="w-full h-10 pl-10 pr-4 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-400" />
+                  <input type="text" placeholder="Search documents..." value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} className="w-full h-10 pl-10 pr-4 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-white transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10" />
                 </div>
                 <div className="flex items-center gap-2">
                   {(["all", "RFP", "Proposal"] as const).map((type) => (
-                    <button key={type} onClick={() => setLibraryTypeFilter(type)} className={`px-4 py-2 text-sm font-medium rounded-xl transition-colors ${libraryTypeFilter === type ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`}>
+                    <button key={type} onClick={() => setLibraryTypeFilter(type)} className={`px-4 py-2 text-sm font-medium rounded-xl transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${libraryTypeFilter === type ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"}`}>
                       {type === "all" ? "All" : type}
                     </button>
                   ))}
@@ -1086,27 +1086,34 @@ export function RFPAnalyzer() {
 
               {/* Loading */}
               {libraryLoading ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <Loader2 size={40} className="text-red-500 animate-spin mb-4" />
-                  <p className="text-slate-500">Loading documents...</p>
+                <div className="space-y-3">
+                  {[...Array(5)].map((_, i) => (
+                    <div key={i} className="shimmer rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800 p-4">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-700" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-4 w-48 bg-slate-200 dark:bg-slate-700 rounded" />
+                          <div className="h-3 w-72 bg-slate-200 dark:bg-slate-700 rounded" />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : libraryDocs.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="w-20 h-20 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-6">
-                    <FolderOpen size={40} className="text-slate-400" />
-                  </div>
-                  <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">No documents yet</h2>
-                  <p className="text-slate-500 dark:text-slate-400 mb-6 text-center max-w-md">
+                <div className="flex flex-col items-center justify-center py-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                  <FolderOpen size={48} className="text-slate-300 dark:text-slate-700" />
+                  <h2 className="text-base font-medium text-slate-700 dark:text-slate-300">No documents yet</h2>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto text-center">
                     {librarySearch || libraryTypeFilter !== "all" ? "No documents match your filters." : "Upload and scan RFPs or proposals to build your library."}
                   </p>
-                  <Button onClick={() => setActiveTab("scan")} className="rounded-xl" style={{ background: "linear-gradient(135deg, #FF3B30 0%, #C5221F 100%)" }}>
+                  <Button onClick={() => setActiveTab("scan")} className="rounded-xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950" style={{ background: "linear-gradient(135deg, #FF3B30 0%, #C5221F 100%)" }}>
                     <ScanLine size={16} className="mr-2" /> Scan a Document
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 stagger-children">
                   {libraryDocs.map((doc) => (
-                    <Card key={doc.id} className="rounded-xl border-slate-200 dark:border-slate-700 dark:bg-slate-800 hover:border-red-200 dark:hover:border-red-700 hover:shadow-md transition-all cursor-pointer group" onClick={() => handleOpenDoc(doc)}>
+                    <Card key={doc.id} className="rounded-xl border-black/[0.06] dark:border-white/[0.08] dark:bg-slate-800 hover:border-red-200 dark:hover:border-red-700 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg cursor-pointer group" onClick={() => handleOpenDoc(doc)}>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 group-hover:bg-red-50 dark:group-hover:bg-red-900/20 transition-colors">

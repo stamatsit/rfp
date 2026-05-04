@@ -360,7 +360,7 @@ export function TestimonialManager() {
   // ─── Render ─────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
 
       <ConfirmDialog
@@ -563,9 +563,31 @@ export function TestimonialManager() {
 
             {/* Content */}
             {loading ? (
-              <div className="flex flex-col items-center justify-center py-24">
-                <div className="w-9 h-9 border-[2.5px] border-orange-200 border-t-orange-500 rounded-full animate-spin mb-4" />
-                <p className="text-sm text-slate-400">Loading testimonials...</p>
+              <div className="flex gap-4 items-start">
+                <div className="w-[340px] shrink-0 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80 p-3 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="shimmer w-1.5 h-1.5 rounded-full mt-2" />
+                      <div className="flex-1 space-y-2">
+                        <div className="shimmer h-3.5 w-2/3 rounded" />
+                        <div className="shimmer h-3 w-1/2 rounded" />
+                        <div className="shimmer h-3 w-full rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80 p-5 space-y-4">
+                  <div className="shimmer h-1 w-full rounded" />
+                  <div className="flex gap-2">
+                    <div className="shimmer h-5 w-16 rounded-full" />
+                    <div className="shimmer h-5 w-16 rounded-full" />
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <div className="shimmer h-4 w-full rounded" />
+                    <div className="shimmer h-4 w-5/6 rounded" />
+                    <div className="shimmer h-4 w-4/6 rounded" />
+                  </div>
+                </div>
               </div>
             ) : fetchError ? (
               <div className="text-center py-20">
@@ -577,18 +599,16 @@ export function TestimonialManager() {
                 <button onClick={() => { setFetchError(null); fetchTestimonials() }} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 transition-colors">Retry</button>
               </div>
             ) : testimonials.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-900/15 flex items-center justify-center mx-auto mb-4">
-                  <Quote size={28} className="text-orange-300 dark:text-orange-700" />
-                </div>
-                <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No testimonials found</p>
-                <p className="text-sm text-slate-400">Try adjusting your filters or search query.</p>
+              <div className="text-center py-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Quote size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No testimonials found</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try adjusting your filters or search query.</p>
               </div>
             ) : (
               <div className="flex gap-4 items-start">
                 {/* Left: list */}
                 <div
-                  className="w-[340px] shrink-0 flex flex-col overflow-y-auto rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800/80"
+                  className="w-[340px] shrink-0 flex flex-col overflow-y-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80"
                   style={{ maxHeight: "calc(100vh - 300px)", boxShadow: "0 1px 3px rgb(0 0 0 / 0.04)" }}
                 >
                   {isAdmin && (
@@ -630,14 +650,12 @@ export function TestimonialManager() {
                     />
                   ) : (
                     <div
-                      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/20 text-center"
+                      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/20 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3"
                       style={{ minHeight: 380 }}
                     >
-                      <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                        <Quote size={26} className="text-slate-300 dark:text-slate-600" />
-                      </div>
-                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Select a testimonial</p>
-                      <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Click any item in the list to view details</p>
+                      <Quote size={48} className="text-slate-300 dark:text-slate-700" />
+                      <p className="text-base font-medium text-slate-700 dark:text-slate-300">Select a testimonial</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Click any item in the list to view details</p>
                     </div>
                   )}
                 </div>
@@ -729,22 +747,20 @@ export function TestimonialManager() {
             )}
 
             {finderSearched && !finderLoading && !finderError && finderResults.length === 0 && (
-              <div className="text-center py-14">
-                <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-                  <Sparkles size={24} className="text-slate-300 dark:text-slate-600" />
-                </div>
-                <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">No matches found</p>
-                <p className="text-sm text-slate-400">Try rephrasing or broadening your description.</p>
+              <div className="text-center py-14 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Sparkles size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">No matches found</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Try rephrasing or broadening your description.</p>
               </div>
             )}
 
             {finderResults.length > 0 && !finderLoading && (
-              <div className="space-y-3">
+              <div className="space-y-3 stagger-children">
                 <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{finderResults.length} matches</p>
                 {finderResults.map((match, idx) => (
                   <div
                     key={match.testimonialId}
-                    className="relative rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800/80 p-5 hover:border-orange-200 dark:hover:border-orange-800/50 transition-all"
+                    className="relative rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80 p-5 hover:border-orange-200 dark:hover:border-orange-800/50 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md"
                     style={{ boxShadow: "0 1px 3px rgb(0 0 0 / 0.04)" }}
                   >
                     <div className="absolute left-0 top-5 bottom-5 w-0.5 rounded-r-full bg-gradient-to-b from-orange-400 to-orange-500" />
@@ -841,19 +857,40 @@ export function TestimonialManager() {
 
             {/* Content */}
             {awardsLoading ? (
-              <div className="flex flex-col items-center justify-center py-24">
-                <div className="w-9 h-9 border-[2.5px] border-orange-200 border-t-orange-500 rounded-full animate-spin mb-4" />
-                <p className="text-sm text-slate-400">Loading awards...</p>
+              <div className="flex gap-4 items-start">
+                <div className="w-[340px] shrink-0 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80 p-3 space-y-3">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      <div className="shimmer w-6 h-6 rounded-lg" />
+                      <div className="flex-1 space-y-2">
+                        <div className="shimmer h-3.5 w-2/3 rounded" />
+                        <div className="shimmer h-3 w-1/2 rounded" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80 p-5 space-y-4">
+                  <div className="shimmer h-1 w-full rounded" />
+                  <div className="flex items-start gap-4">
+                    <div className="shimmer w-[72px] h-[72px] rounded-xl" />
+                    <div className="flex-1 space-y-2">
+                      <div className="shimmer h-5 w-1/2 rounded" />
+                      <div className="shimmer h-3 w-1/4 rounded" />
+                    </div>
+                  </div>
+                  <div className="space-y-2 pt-2">
+                    <div className="shimmer h-3 w-full rounded" />
+                    <div className="shimmer h-3 w-5/6 rounded" />
+                  </div>
+                </div>
               </div>
             ) : filteredSortedAwards.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="w-16 h-16 rounded-2xl bg-orange-50 dark:bg-orange-900/15 flex items-center justify-center mx-auto mb-4">
-                  <Trophy size={28} className="text-orange-300 dark:text-orange-700" />
-                </div>
-                <p className="text-base font-semibold text-slate-700 dark:text-slate-200 mb-1">
+              <div className="text-center py-20 animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3">
+                <Trophy size={48} className="text-slate-300 dark:text-slate-700 mx-auto" />
+                <p className="text-base font-medium text-slate-700 dark:text-slate-300">
                   {awardsSearch || awardSubmissionFilter !== "all" ? "No awards match your filters" : "No awards yet"}
                 </p>
-                <p className="text-sm text-slate-400">
+                <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                   {awardsSearch || awardSubmissionFilter !== "all"
                     ? "Try adjusting your search or filter."
                     : isAdmin ? `Click "Add Award" to add your first award.` : "No awards have been added yet."}
@@ -863,7 +900,7 @@ export function TestimonialManager() {
               <div className="flex gap-4 items-start">
                 {/* Left: award list */}
                 <div
-                  className="w-[340px] shrink-0 flex flex-col overflow-y-auto rounded-2xl border border-slate-200/60 dark:border-slate-700/60 bg-white dark:bg-slate-800/80"
+                  className="w-[340px] shrink-0 flex flex-col overflow-y-auto rounded-2xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-800/80"
                   style={{ maxHeight: "calc(100vh - 300px)", boxShadow: "0 1px 3px rgb(0 0 0 / 0.04)" }}
                 >
                   <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-700/50 shrink-0 flex items-center justify-between">
@@ -897,14 +934,12 @@ export function TestimonialManager() {
                     />
                   ) : (
                     <div
-                      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/20 text-center"
+                      className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 dark:border-slate-700/60 bg-white/50 dark:bg-slate-800/20 text-center animate-in fade-in-0 slide-in-from-bottom-2 duration-500 space-y-3"
                       style={{ minHeight: 380 }}
                     >
-                      <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
-                        <Trophy size={26} className="text-slate-300 dark:text-slate-600" />
-                      </div>
-                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Select an award</p>
-                      <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Click any item in the list to view details</p>
+                      <Trophy size={48} className="text-slate-300 dark:text-slate-700" />
+                      <p className="text-base font-medium text-slate-700 dark:text-slate-300">Select an award</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">Click any item in the list to view details</p>
                     </div>
                   )}
                 </div>
@@ -1229,8 +1264,8 @@ function AwardDetail({
           {/* Badge image */}
           <div className="shrink-0">
             {badgeUrl ? (
-              <div className="relative w-[72px] h-[72px]">
-                <img src={badgeUrl} alt="Award badge" className="w-full h-full object-contain rounded-xl border border-slate-200/60 dark:border-slate-700/40 bg-slate-50 dark:bg-slate-900/40" />
+              <div className="group relative w-[72px] h-[72px] overflow-hidden rounded-xl">
+                <img src={badgeUrl} alt="Award badge" className="w-full h-full object-contain rounded-xl border border-slate-200/60 dark:border-slate-700/40 bg-slate-50 dark:bg-slate-900/40 transition-transform duration-500 ease-out group-hover:scale-105" />
                 {isAdmin && (
                   <button onClick={handleBadgeDelete} className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-sm transition-colors" title="Remove badge">
                     <X size={9} />
@@ -1393,9 +1428,9 @@ function AwardFormModal({ award, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={onClose}>
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60"
+        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ boxShadow: "0 0 0 1px rgb(0 0 0 / 0.03), 0 8px 32px rgb(0 0 0 / 0.12)" }}
         onClick={e => e.stopPropagation()}
       >
@@ -1554,9 +1589,9 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in-0 duration-200" onClick={onClose}>
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60"
+        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto border border-slate-200/60 dark:border-slate-700/60 animate-in fade-in-0 zoom-in-95 slide-in-from-bottom-2 duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
         style={{ boxShadow: "0 0 0 1px rgb(0 0 0 / 0.03), 0 8px 32px rgb(0 0 0 / 0.12)" }}
         onClick={e => e.stopPropagation()}
       >

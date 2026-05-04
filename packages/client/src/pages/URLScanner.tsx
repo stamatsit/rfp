@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   Globe,
   ArrowLeft,
@@ -16,20 +17,15 @@ import {
   Trash2,
   Sparkles,
   X,
-  Send,
   Printer,
   FileText,
   Shield,
   Eye,
   Layout,
-  Search,
-  Map as MapIcon,
   Menu,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
-import { CreateReportModal } from "@/components/CreateReportModal"
-import { useIsAdmin } from "@/contexts/AuthContext"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,19 +38,14 @@ type Category =
   | "images"
   | "landmarks"
   | "forms"
-  | "document"
-  | "links"
   | "performance"
   | "contrast"
   | "security"
-  | "schema"
   | "structure"
 
 interface ScanOptions {
   wcagAudit: boolean
   headings: boolean
-  seo: boolean
-  links: boolean
   wcagLevel: "A" | "AA" | "AAA"
 }
 
@@ -79,24 +70,6 @@ interface HeadingNode {
   line?: number
   children?: HeadingNode[]
   issues: string[]
-}
-
-interface SchemaEntity {
-  type: string
-  source: string
-  properties: Record<string, unknown>
-  missingRequired?: string[]
-  issues?: (string | ScanIssue)[]
-  raw?: string
-}
-
-interface SchemaReport {
-  entities: SchemaEntity[]
-  totalFound: number
-  hasJsonLd: boolean
-  hasMicrodata: boolean
-  hasRdfa: boolean
-  issues: ScanIssue[]
 }
 
 interface SiteStructureLink {
@@ -155,18 +128,10 @@ interface ScanReport {
     ogTags: Record<string, string>
     canonical?: string
   }
-  linkSummary?: {
-    total: number
-    healthy: number
-    broken: number
-    redirects: number
-    timeouts: number
-  }
   summary?: {
     topPriorities: string[]
     whatsWorking: string[]
   }
-  schema?: SchemaReport
   siteStructure?: SiteStructure
 }
 
@@ -183,24 +148,8 @@ interface RecentScan {
   scannedAt: string
 }
 
-interface CrawlPageResult {
-  url: string
-  score: number
-  issues: number
-  errors: number
-}
-
-interface CrawlSummary {
-  totalPages: number
-  avgScore: number
-  totalIssues: number
-  totalErrors: number
-  commonIssues: Array<{ ruleId: string; message: string; count: number; severity: string }>
-  pages: CrawlPageResult[]
-}
-
-type View = "home" | "scanning" | "results" | "detail" | "sitemap-browse" | "crawling" | "crawl-results"
-type ResultTab = "issues" | "headings" | "links" | "schema" | "structure" | "history"
+type View = "home" | "scanning" | "results" | "detail"
+type ResultTab = "issues" | "headings" | "structure" | "history"
 type FilterSeverity = "all" | "error" | "warning" | "info"
 
 const RECENT_SCANS_KEY = "scanner-recent-scans"
@@ -293,13 +242,10 @@ function categoryDisplayName(cat: string): string {
     images: "Accessibility",
     landmarks: "Accessibility",
     forms: "Accessibility",
-    document: "SEO",
-    links: "Links",
     performance: "Performance",
     contrast: "Accessibility",
     accessibility: "Accessibility",
     structure: "Structure",
-    seo: "SEO",
     security: "Security",
   }
   return map[cat] || cat
@@ -313,71 +259,6 @@ function normalizeUrl(input: string): string {
   return url
 }
 
-/** Minimal markdown-to-HTML: bold, inline code, code blocks, lists */
-function simpleMarkdown(text: string): string {
-  // Escape HTML
-  let html = text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-
-  // Code blocks: ```...```
-  html = html.replace(
-    /```(\w*)\n?([\s\S]*?)```/g,
-    (_m, _lang, code) =>
-      `<pre class="bg-slate-900 dark:bg-slate-950 text-slate-100 rounded-lg p-3 my-2 overflow-x-auto text-[13px] leading-relaxed"><code>${code.trim()}</code></pre>`,
-  )
-
-  // Inline code: `...`
-  html = html.replace(
-    /`([^`]+)`/g,
-    '<code class="bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-1.5 py-0.5 rounded text-[13px]">$1</code>',
-  )
-
-  // Bold: **...**
-  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-
-  // Split into lines for list processing
-  const lines = html.split("\n")
-  const result: string[] = []
-  let inUl = false
-  let inOl = false
-
-  for (const line of lines) {
-    const ulMatch = line.match(/^- (.+)/)
-    const olMatch = line.match(/^\d+\.\s+(.+)/)
-
-    if (ulMatch) {
-      if (!inUl) {
-        if (inOl) { result.push("</ol>"); inOl = false }
-        result.push('<ul class="list-disc list-inside space-y-1 my-1">')
-        inUl = true
-      }
-      result.push(`<li>${ulMatch[1]}</li>`)
-    } else if (olMatch) {
-      if (!inOl) {
-        if (inUl) { result.push("</ul>"); inUl = false }
-        result.push('<ol class="list-decimal list-inside space-y-1 my-1">')
-        inOl = true
-      }
-      result.push(`<li>${olMatch[1]}</li>`)
-    } else {
-      if (inUl) { result.push("</ul>"); inUl = false }
-      if (inOl) { result.push("</ol>"); inOl = false }
-      // Skip empty lines inside <pre> blocks, but keep paragraph breaks
-      if (line.trim() === "") {
-        result.push("<br/>")
-      } else {
-        result.push(line)
-      }
-    }
-  }
-  if (inUl) result.push("</ul>")
-  if (inOl) result.push("</ol>")
-
-  return result.join("\n")
-}
-
 // Category grouping config for issue list
 const CATEGORY_GROUPS: {
   id: string
@@ -388,9 +269,7 @@ const CATEGORY_GROUPS: {
 }[] = [
   { id: "accessibility", label: "Accessibility", icon: Eye, categories: ["images", "contrast", "forms", "landmarks"], color: "text-purple-500" },
   { id: "structure", label: "Structure", icon: Layout, categories: ["headings", "structure"], color: "text-blue-500" },
-  { id: "seo", label: "SEO", icon: Search, categories: ["document", "schema"], color: "text-emerald-500" },
   { id: "security", label: "Security", icon: Shield, categories: ["security"], color: "text-amber-500" },
-  { id: "links", label: "Links", icon: Globe, categories: ["links"], color: "text-cyan-500" },
   { id: "other", label: "Other", icon: FileText, categories: ["performance"], color: "text-slate-500" },
 ]
 
@@ -411,12 +290,6 @@ function groupIssuesByCategory(issues: ScanIssue[]): { group: typeof CATEGORY_GR
   return result
 }
 
-const DEFAULT_AI_PROMPTS = [
-  "What should I fix first?",
-  "Explain the heading hierarchy issues",
-  "Write the fix for the missing alt texts",
-  "Summarize this scan for an email",
-]
 
 // ---------------------------------------------------------------------------
 // ScoreRing Component
@@ -507,7 +380,7 @@ function CategoryCard({
   return (
     <button
       onClick={onClick}
-      className={`bg-white dark:bg-slate-900 border rounded-2xl p-3 text-center transition-all hover:shadow-md ${
+      className={`bg-white dark:bg-slate-900 border rounded-2xl p-3 text-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${
         active
           ? "border-blue-500 dark:border-blue-400 ring-1 ring-blue-500/20"
           : "border-black/[0.06] dark:border-white/[0.06] hover:border-slate-300 dark:hover:border-slate-600"
@@ -694,123 +567,13 @@ function HeadingTreeView({ tree }: { tree: HeadingNode[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// AI Chat Panel (shared between results and detail views)
-// ---------------------------------------------------------------------------
-
-function AiChatPanel({
-  show,
-  onClose,
-  messages,
-  input,
-  onInputChange,
-  onSend,
-  isLoading,
-  suggestedPrompts,
-}: {
-  show: boolean
-  onClose: () => void
-  messages: Array<{ role: "user" | "assistant"; content: string }>
-  input: string
-  onInputChange: (v: string) => void
-  onSend: (query: string) => void
-  isLoading: boolean
-  suggestedPrompts: string[]
-}) {
-  const chatEndRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (chatEndRef.current) chatEndRef.current.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
-
-  return (
-    <>
-      <div
-        className={`fixed top-0 right-0 h-full w-[400px] max-w-[90vw] z-50 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-700 shadow-2xl flex flex-col transition-transform duration-300 ${
-          show ? "translate-x-0" : "translate-x-full"
-        }`}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
-          <div className="flex items-center gap-2">
-            <Sparkles size={18} className="text-purple-500" />
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-white">Accessibility AI</h2>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-          {messages.length === 0 && !isLoading && (
-            <div className="text-center py-8">
-              <Sparkles size={32} className="text-purple-500/30 mx-auto mb-3" />
-              <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">Ask anything about your scan results</p>
-              <div className="flex flex-wrap gap-2 justify-center">
-                {suggestedPrompts.map((prompt) => (
-                  <button key={prompt} onClick={() => onSend(prompt)} className="border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
-                    {prompt}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] text-sm leading-relaxed ${msg.role === "user" ? "bg-blue-600 text-white rounded-2xl rounded-br-md px-4 py-2" : "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 rounded-2xl rounded-bl-md px-4 py-2"}`}>
-                {msg.role === "assistant" ? (
-                  msg.content ? (
-                    <div className="ai-markdown-content prose-sm" dangerouslySetInnerHTML={{ __html: simpleMarkdown(msg.content) }} />
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  )
-                ) : (
-                  msg.content
-                )}
-              </div>
-            </div>
-          ))}
-
-          {/* Suggested prompts after messages */}
-          {messages.length > 0 && !isLoading && suggestedPrompts.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {suggestedPrompts.map((prompt) => (
-                <button key={prompt} onClick={() => onSend(prompt)} className="border border-slate-200 dark:border-slate-700 rounded-full px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left">
-                  {prompt}
-                </button>
-              ))}
-            </div>
-          )}
-          <div ref={chatEndRef} />
-        </div>
-
-        {/* Input */}
-        <div className="border-t border-slate-200 dark:border-slate-700 px-4 py-3">
-          <form onSubmit={(e) => { e.preventDefault(); onSend(input) }} className="flex items-center gap-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
-            <input type="text" value={input} onChange={(e) => onInputChange(e.target.value)} placeholder="Ask about your scan results..." className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500" disabled={isLoading} />
-            <button type="submit" disabled={!input.trim() || isLoading} className="text-blue-600 dark:text-blue-400 disabled:text-slate-300 dark:disabled:text-slate-600 transition-colors flex-shrink-0">
-              {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Backdrop on mobile */}
-      {show && <div className="fixed inset-0 bg-black/20 z-40 sm:hidden" onClick={onClose} />}
-    </>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
 export function URLScanner() {
+  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+
   // View management
   const [view, setView] = useState<View>("home")
   const [resultTab, setResultTab] = useState<ResultTab>("issues")
@@ -821,8 +584,6 @@ export function URLScanner() {
   const [options, setOptions] = useState<ScanOptions>({
     wcagAudit: true,
     headings: true,
-    seo: true,
-    links: false,
     wcagLevel: "AA",
   })
 
@@ -846,35 +607,21 @@ export function URLScanner() {
   // Abort controller for cancelling scans
   const abortRef = useRef<AbortController | null>(null)
 
-  // Create Client Report modal (admin only)
-  const isAdmin = useIsAdmin()
-  const [showReportModal, setShowReportModal] = useState(false)
+  // AI Feature: Issue Doctor (fix cache)
+  const [aiFixCache, setAiFixCache] = useState<Map<string, {
+    explanation: string; beforeCode: string; afterCode: string; watchFor: string
+  }>>(new Map())
+  const [aiFixLoading, setAiFixLoading] = useState<Set<string>>(new Set())
+  const [aiFixExpanded, setAiFixExpanded] = useState<Set<string>>(new Set())
 
-  // AI Chat state
-  const [showAiPanel, setShowAiPanel] = useState(false)
-  const [aiMessages, setAiMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([])
-  const [aiInput, setAiInput] = useState("")
-  const [isAiLoading, setIsAiLoading] = useState(false)
-  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>(DEFAULT_AI_PROMPTS)
-
-  // Schema raw toggle state (tracks which entity indices are expanded)
-  const [expandedSchemaRaw, setExpandedSchemaRaw] = useState<Set<number>>(new Set())
-  const aiAbortRef = useRef<AbortController | null>(null)
+  // AI Feature: Alt Text Generator
+  const [altTextCache, setAltTextCache] = useState<Map<string, { altText: string; isDecorative: boolean }>>(new Map())
+  const [altTextLoading, setAltTextLoading] = useState<Set<string>>(new Set())
+  const [altTextExpanded, setAltTextExpanded] = useState<Set<string>>(new Set())
 
   // Issue grouping: collapsed groups and active category filter
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set(CATEGORY_GROUPS.map((g) => g.id)))
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<string | null>(null)
-
-  // Sitemap browse state
-  const [sitemapUrls, setSitemapUrls] = useState<string[]>([])
-  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set())
-  const [sitemapLoading, setSitemapLoading] = useState(false)
-  const [sitemapSearch, setSitemapSearch] = useState("")
-
-  // Crawl state
-  const [crawlProgress, setCrawlProgress] = useState<{ index: number; total: number; url: string; status: string }[]>([])
-  const [crawlSummary, setCrawlSummary] = useState<CrawlSummary | null>(null)
-  const crawlAbortRef = useRef<AbortController | null>(null)
 
   // Close export menu on outside click
   useEffect(() => {
@@ -901,10 +648,12 @@ export function URLScanner() {
       setView("scanning")
       setResultTab("issues")
       setFilterSeverity("all")
-      setAiMessages([])
-      setShowAiPanel(false)
-      setSuggestedPrompts(DEFAULT_AI_PROMPTS)
-      if (aiAbortRef.current) aiAbortRef.current.abort()
+      setAiFixCache(new Map())
+      setAiFixLoading(new Set())
+      setAiFixExpanded(new Set())
+      setAltTextCache(new Map())
+      setAltTextLoading(new Set())
+      setAltTextExpanded(new Set())
 
       const steps: ScanStep[] = [
         { id: "fetch", label: "Fetching page...", status: "active" },
@@ -914,7 +663,6 @@ export function URLScanner() {
           label: "Checking accessibility...",
           status: "pending",
         },
-        { id: "links", label: "Validating links...", status: "pending" },
         { id: "scoring", label: "Building report...", status: "pending" },
       ]
       setScanSteps(steps)
@@ -1036,6 +784,18 @@ export function URLScanner() {
     [options],
   )
 
+  // ----- Auto-run from ?url= query param (portal hand-off) -----
+  const autoRunRef = useRef(false)
+  useEffect(() => {
+    if (autoRunRef.current) return
+    const paramUrl = searchParams.get("url")
+    if (paramUrl) {
+      autoRunRef.current = true
+      setUrlInput(paramUrl)
+      scanUrl(paramUrl)
+    }
+  }, [searchParams, scanUrl])
+
   // ----- Export helpers -----
   const exportJSON = useCallback(() => {
     if (!report) return
@@ -1094,7 +854,6 @@ export function URLScanner() {
     const cats = [
       { label: "Accessibility", score: Math.round((getScore("images") + getScore("contrast") + getScore("forms") + getScore("landmarks")) / 4), color: "#8b5cf6" },
       { label: "Structure", score: Math.round((getScore("headings") + getScore("structure")) / 2), color: "#3b82f6" },
-      { label: "SEO", score: Math.round((getScore("document") * 2 + getScore("schema")) / 3), color: "#10b981" },
       { label: "Security", score: getScore("security"), color: "#f59e0b" },
     ]
     const errorCount = report.issues.filter((i) => i.severity === "error").length
@@ -1592,52 +1351,6 @@ export function URLScanner() {
     letter-spacing: 0.5px;
   }
 
-  /* ---- Schema section ---- */
-  .schema-entity {
-    border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    margin: 8px 0;
-    page-break-inside: avoid;
-    overflow: hidden;
-  }
-  .schema-entity-header {
-    padding: 8px 12px;
-    background: #f8fafc;
-    font-size: 12.5px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    border-bottom: 1px solid #e2e8f0;
-  }
-  .schema-source {
-    font-size: 10px;
-    font-weight: 500;
-    color: #64748b;
-    background: #f1f5f9;
-    padding: 2px 6px;
-    border-radius: 3px;
-  }
-  .schema-props {
-    padding: 8px 12px;
-    font-size: 11.5px;
-    color: #475569;
-  }
-  .schema-props div {
-    padding: 2px 0;
-  }
-  .schema-props .prop-key {
-    color: #64748b;
-    font-weight: 600;
-  }
-  .schema-issue-item {
-    padding: 4px 12px;
-    font-size: 11.5px;
-    color: #dc2626;
-    background: #fef2f2;
-    border-top: 1px solid #fecaca;
-  }
-
   /* ---- Site structure ---- */
   .struct-grid {
     display: grid;
@@ -1702,7 +1415,6 @@ export function URLScanner() {
     .issue { break-inside: avoid; }
     .score-hero { break-inside: avoid; }
     .summary-grid { break-inside: avoid; }
-    .schema-entity { break-inside: avoid; }
     .sec-table { break-inside: avoid; }
     .heading-tree { break-inside: avoid; }
     .link-cards { break-inside: avoid; }
@@ -1784,17 +1496,13 @@ ${grouped.map(({ group, issues: gi }) => {
   const iconColors: Record<string, string> = {
     accessibility: "#8b5cf6",
     structure: "#3b82f6",
-    seo: "#10b981",
     security: "#f59e0b",
-    links: "#06b6d4",
     other: "#64748b",
   }
   const iconLetters: Record<string, string> = {
     accessibility: "A",
     structure: "S",
-    seo: "E",
     security: "K",
-    links: "L",
     other: "O",
   }
   const errs = gi.filter((i) => i.severity === "error").length
@@ -1834,7 +1542,7 @@ ${report.headingTree.length > 0 ? `
 
 <!-- =============== META TAGS =============== -->
 ${metaRows.length > 0 ? `
-<h2>Meta Tags &amp; SEO Data</h2>
+<h2>Meta Tags</h2>
 <table class="meta-table">
   ${metaRows.map(([label, val]) => `<tr><td>${label}</td><td>${val}</td></tr>`).join("")}
 </table>` : ""}
@@ -1863,75 +1571,6 @@ ${report.securityHeaders ? (() => {
   </tbody>
 </table>`
 })() : ""}
-
-<!-- =============== LINK SUMMARY =============== -->
-${report.linkSummary ? `
-<h2>Link Analysis</h2>
-<div class="link-cards">
-  <div class="link-card">
-    <div class="lc-val" style="color:#3b82f6">${report.linkSummary.total}</div>
-    <div class="lc-label">Total</div>
-  </div>
-  <div class="link-card">
-    <div class="lc-val" style="color:#16a34a">${report.linkSummary.healthy}</div>
-    <div class="lc-label">Healthy</div>
-  </div>
-  <div class="link-card">
-    <div class="lc-val" style="color:#dc2626">${report.linkSummary.broken}</div>
-    <div class="lc-label">Broken</div>
-  </div>
-  <div class="link-card">
-    <div class="lc-val" style="color:#d97706">${report.linkSummary.redirects}</div>
-    <div class="lc-label">Redirects</div>
-  </div>
-  <div class="link-card">
-    <div class="lc-val" style="color:#94a3b8">${report.linkSummary.timeouts}</div>
-    <div class="lc-label">Timeouts</div>
-  </div>
-</div>` : ""}
-
-<!-- =============== SCHEMA =============== -->
-${report.schema && (report.schema.entities.length > 0 || report.schema.issues.length > 0) ? `
-<h2>Schema Markup</h2>
-<div style="font-size:12px;color:#64748b;margin-bottom:10px">
-  ${report.schema.totalFound} entit${report.schema.totalFound === 1 ? "y" : "ies"} found
-  ${report.schema.hasJsonLd ? ' &middot; <span style="color:#10b981;font-weight:600">JSON-LD</span>' : ""}
-  ${report.schema.hasMicrodata ? ' &middot; <span style="color:#3b82f6;font-weight:600">Microdata</span>' : ""}
-  ${report.schema.hasRdfa ? ' &middot; <span style="color:#8b5cf6;font-weight:600">RDFa</span>' : ""}
-</div>
-${report.schema.entities.map((entity) => {
-  const props = Object.entries(entity.properties).slice(0, 8)
-  return `
-  <div class="schema-entity">
-    <div class="schema-entity-header">
-      <span style="color:#6366f1">@</span> ${esc(entity.type)}
-      <span class="schema-source">${esc(entity.source)}</span>
-    </div>
-    ${props.length > 0 ? `
-    <div class="schema-props">
-      ${props.map(([k, v]) => `<div><span class="prop-key">${esc(k)}:</span> ${esc(String(v)).substring(0, 100)}</div>`).join("")}
-      ${Object.keys(entity.properties).length > 8 ? `<div style="color:#94a3b8;font-style:italic">+ ${Object.keys(entity.properties).length - 8} more properties</div>` : ""}
-    </div>` : ""}
-    ${entity.missingRequired && entity.missingRequired.length > 0 ? `
-    <div class="schema-issue-item">Missing required: ${entity.missingRequired.map((m) => esc(m)).join(", ")}</div>` : ""}
-    ${entity.issues && entity.issues.length > 0 ? entity.issues.map((iss) => {
-      const msg = typeof iss === "string" ? iss : iss.message
-      return `<div class="schema-issue-item">${esc(msg)}</div>`
-    }).join("") : ""}
-  </div>`
-}).join("")}
-${report.schema.issues.length > 0 ? `
-<div style="margin-top:12px">
-  <h3>Schema Issues</h3>
-  ${report.schema.issues.map((iss) => `
-  <div class="issue" style="border:none;padding:4px 0">
-    <div class="sev-dot sev-${iss.severity}"></div>
-    <div class="issue-content">
-      <div class="issue-msg">${esc(iss.message)}</div>
-    </div>
-  </div>`).join("")}
-</div>` : ""}
-` : ""}
 
 <!-- =============== SITE STRUCTURE =============== -->
 ${report.siteStructure ? (() => {
@@ -1996,271 +1635,131 @@ ${report.siteStructure.navigation.length > 0 ? `
     }
   }, [report])
 
-  // ----- AI Chat -----
-  const sendAiMessage = useCallback(
-    async (query: string) => {
-      if (!query.trim() || !report) return
+  // ----- AI Feature: Issue Doctor -----
+  const issueKey = useCallback((issue: ScanIssue) => `${issue.ruleId}::${issue.selector || ""}::${issue.element?.slice(0, 50) || ""}`, [])
 
-      // Abort previous AI request if running
-      if (aiAbortRef.current) aiAbortRef.current.abort()
-      const controller = new AbortController()
-      aiAbortRef.current = controller
+  const fetchAiFix = useCallback(
+    async (issue: ScanIssue) => {
+      if (!report) return
+      const key = issueKey(issue)
 
-      const userMsg = { role: "user" as const, content: query.trim() }
-      const assistantMsg = { role: "assistant" as const, content: "" }
+      // Already cached
+      if (aiFixCache.has(key)) {
+        setAiFixExpanded(prev => { const next = new Set(prev); next.add(key); return next })
+        return
+      }
 
-      setAiMessages((prev) => [...prev, userMsg, assistantMsg])
-      setAiInput("")
-      setIsAiLoading(true)
-      setSuggestedPrompts([])
+      setAiFixLoading(prev => { const next = new Set(prev); next.add(key); return next })
+      setAiFixExpanded(prev => { const next = new Set(prev); next.add(key); return next })
 
       try {
         const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-        const conversationHistory = [...aiMessages, userMsg]
-        const response = await fetch("/api/scanner/ai", {
+        const response = await fetch("/api/scanner/ai/fix-issue", {
           method: "POST",
           headers,
           credentials: "include",
           body: JSON.stringify({
-            query: query.trim(),
-            scanReport: report,
-            conversationHistory,
-            focusedIssue: selectedIssue,
+            url: report.url,
+            issue,
+            pageContext: {
+              title: report.meta?.title,
+              lang: report.meta?.lang,
+            },
           }),
-          signal: controller.signal,
         })
 
-        if (!response.ok) {
-          const text = await response.text()
-          let msg = "AI request failed"
-          try {
-            const j = JSON.parse(text)
-            msg = j.error || j.message || msg
-          } catch {
-            if (text) msg = text
-          }
-          setAiMessages((prev) => {
-            const updated = [...prev]
-            const last = updated[updated.length - 1]
-            if (last?.role === "assistant") {
-              last.content = `Error: ${msg}`
-            }
-            return [...updated]
+        if (response.ok) {
+          const data = await response.json()
+          setAiFixCache(prev => {
+            const next = new Map(prev)
+            next.set(key, data)
+            return next
           })
-          setIsAiLoading(false)
-          return
         }
-
-        const reader = response.body!.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-
-          const blocks = buffer.split("\n\n")
-          buffer = blocks.pop() || ""
-
-          for (const block of blocks) {
-            const eventMatch = block.match(/^event:\s*(.+)$/m)
-            const dataMatch = block.match(/^data:\s*(.+)$/m)
-            if (!eventMatch || !dataMatch) continue
-
-            const event = eventMatch[1]!
-            let data: Record<string, unknown>
-            try {
-              data = JSON.parse(dataMatch[1]!)
-            } catch {
-              continue
-            }
-
-            if (event === "chunk") {
-              setAiMessages((prev) => {
-                const updated = [...prev]
-                const last = updated[updated.length - 1]
-                if (last?.role === "assistant") {
-                  last.content += data.text as string
-                }
-                return [...updated]
-              })
-            } else if (event === "done") {
-              setIsAiLoading(false)
-              const followUps = data.followUpPrompts as string[] | undefined
-              if (followUps?.length) {
-                setSuggestedPrompts(followUps)
-              } else {
-                setSuggestedPrompts(DEFAULT_AI_PROMPTS)
-              }
-            } else if (event === "error") {
-              setIsAiLoading(false)
-              setAiMessages((prev) => {
-                const updated = [...prev]
-                const last = updated[updated.length - 1]
-                if (last?.role === "assistant") {
-                  last.content = `Error: ${(data.message as string) || "Something went wrong"}`
-                }
-                return [...updated]
-              })
-            }
-          }
-        }
-        // If stream ended without a done event
-        setIsAiLoading(false)
-      } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setIsAiLoading(false)
-        setAiMessages((prev) => {
-          const updated = [...prev]
-          const last = updated[updated.length - 1]
-          if (last?.role === "assistant") {
-            last.content = `Error: ${err instanceof Error ? err.message : "An unexpected error occurred"}`
-          }
-          return [...updated]
-        })
-      }
-    },
-    [report, selectedIssue, aiMessages],
-  )
-
-  const openAiWithIssue = useCallback(
-    (issue: ScanIssue) => {
-      setSelectedIssue(issue)
-      setShowAiPanel(true)
-      sendAiMessage("Explain this issue and show me how to fix it")
-    },
-    [sendAiMessage],
-  )
-
-  // ----- Fetch Sitemap (browse mode) -----
-  const fetchSitemap = useCallback(
-    async (url: string) => {
-      const normalized = normalizeUrl(url)
-      if (!normalized) return
-
-      setError(null)
-      setSitemapLoading(true)
-      setSitemapUrls([])
-      setSelectedUrls(new Set())
-      setSitemapSearch("")
-      setView("sitemap-browse")
-
-      try {
-        const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-        const response = await fetch("/api/scanner/sitemap", {
-          method: "POST",
-          headers,
-          credentials: "include",
-          body: JSON.stringify({ url: normalized }),
-        })
-
-        if (!response.ok) {
-          const text = await response.text()
-          let msg = "Failed to fetch sitemap"
-          try { const j = JSON.parse(text); msg = j.error || msg } catch { if (text) msg = text }
-          setError(msg)
-          setView("home")
-          return
-        }
-
-        const data = await response.json()
-        const urls: string[] = data.urls ?? []
-        setSitemapUrls(urls)
-        setSelectedUrls(new Set(urls)) // select all by default
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to fetch sitemap")
-        setView("home")
+      } catch {
+        // Silently fail -- panel will show nothing
       } finally {
-        setSitemapLoading(false)
+        setAiFixLoading(prev => { const next = new Set(prev); next.delete(key); return next })
       }
     },
-    [],
+    [report, aiFixCache, issueKey],
   )
 
-  // ----- Crawl Site (with optional pre-selected URLs) -----
-  const startCrawl = useCallback(
-    async (url: string, specificUrls?: string[]) => {
-      const normalized = normalizeUrl(url)
-      if (!normalized) return
+  const toggleAiFix = useCallback(
+    (issue: ScanIssue) => {
+      const key = issueKey(issue)
+      if (aiFixExpanded.has(key)) {
+        setAiFixExpanded(prev => { const next = new Set(prev); next.delete(key); return next })
+      } else {
+        fetchAiFix(issue)
+      }
+    },
+    [issueKey, aiFixExpanded, fetchAiFix],
+  )
 
-      setError(null)
-      setCrawlSummary(null)
-      setCrawlProgress([])
-      setView("crawling")
+  // ----- AI Feature: Alt Text Generator -----
+  const altTextIssueRules = new Set(["img-alt-missing", "img-link-alt-missing", "input-image-alt-missing"])
 
-      if (crawlAbortRef.current) crawlAbortRef.current.abort()
-      const controller = new AbortController()
-      crawlAbortRef.current = controller
+  const extractImageUrl = useCallback((element?: string): string | null => {
+    if (!element) return null
+    const srcMatch = element.match(/src=["']([^"']+)["']/)
+    return srcMatch ? srcMatch[1]! : null
+  }, [])
+
+  const fetchAltText = useCallback(
+    async (issue: ScanIssue) => {
+      if (!report) return
+      const key = issueKey(issue)
+      const imageUrl = extractImageUrl(issue.element)
+      if (!imageUrl) return
+
+      if (altTextCache.has(key)) {
+        setAltTextExpanded(prev => { const next = new Set(prev); next.add(key); return next })
+        return
+      }
+
+      setAltTextLoading(prev => { const next = new Set(prev); next.add(key); return next })
+      setAltTextExpanded(prev => { const next = new Set(prev); next.add(key); return next })
 
       try {
         const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-        const response = await fetch("/api/scanner/crawl", {
+        const response = await fetch("/api/scanner/ai/alt-text", {
           method: "POST",
           headers,
           credentials: "include",
           body: JSON.stringify({
-            url: normalized,
-            urls: specificUrls,
-            maxPages: specificUrls ? specificUrls.length : 20,
-            options: { wcagLevel: options.wcagLevel },
+            pageUrl: report.url,
+            imageUrl,
           }),
-          signal: controller.signal,
         })
 
-        if (!response.ok) {
-          const text = await response.text()
-          let msg = "Crawl failed"
-          try { const j = JSON.parse(text); msg = j.error || msg } catch { if (text) msg = text }
-          setError(msg)
-          setView("home")
-          return
+        if (response.ok) {
+          const data = await response.json()
+          setAltTextCache(prev => {
+            const next = new Map(prev)
+            next.set(key, data)
+            return next
+          })
         }
-
-        const reader = response.body!.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ""
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-
-          const parts = buffer.split("\n\n")
-          buffer = parts.pop() || ""
-
-          for (const part of parts) {
-            for (const line of part.split("\n")) {
-              if (!line.startsWith("data: ")) continue
-              try {
-                const data = JSON.parse(line.slice(6))
-                if (data.step === "scanning") {
-                  setCrawlProgress((prev) => {
-                    const updated = [...prev]
-                    const existing = updated.findIndex((p) => p.index === data.index)
-                    const entry = { index: data.index, total: data.total, url: data.url, status: data.status }
-                    if (existing >= 0) updated[existing] = entry
-                    else updated.push(entry)
-                    return updated
-                  })
-                } else if (data.step === "complete") {
-                  setCrawlSummary(data.summary as CrawlSummary)
-                  setView("crawl-results")
-                } else if (data.step === "error") {
-                  setError(data.message || "Crawl failed")
-                  setView("home")
-                }
-              } catch { /* ignore parse errors */ }
-            }
-          }
-        }
-      } catch (err: unknown) {
-        if (err instanceof DOMException && err.name === "AbortError") return
-        setError(err instanceof Error ? err.message : "Crawl failed")
-        setView("home")
+      } catch {
+        // Silently fail
+      } finally {
+        setAltTextLoading(prev => { const next = new Set(prev); next.delete(key); return next })
       }
     },
-    [options],
+    [report, altTextCache, issueKey, extractImageUrl],
+  )
+
+  const toggleAltText = useCallback(
+    (issue: ScanIssue) => {
+      const key = issueKey(issue)
+      if (altTextExpanded.has(key)) {
+        setAltTextExpanded(prev => { const next = new Set(prev); next.delete(key); return next })
+      } else {
+        fetchAltText(issue)
+      }
+    },
+    [issueKey, altTextExpanded, fetchAltText],
   )
 
   // ----- Derived -----
@@ -2280,14 +1779,13 @@ ${report.siteStructure.navigation.length > 0 ? `
     ? report.issues.filter((i) => i.severity === "info").length
     : 0
 
-  // Build 4 meaningful grouped category scores matching the server's weighting
+  // Build 3 meaningful grouped category scores matching the server's weighting
   const displayCategories: { label: string; score: number }[] = report
     ? (() => {
         const getScore = (cat: string) => report.categoryScores.find((c) => c.category === cat)?.score ?? 100
         return [
           { label: "Accessibility", score: Math.round((getScore("images") + getScore("contrast") + getScore("forms") + getScore("landmarks")) / 4) },
           { label: "Structure", score: Math.round((getScore("headings") + getScore("structure")) / 2) },
-          { label: "SEO", score: Math.round((getScore("document") * 2 + getScore("schema")) / 3) },
           { label: "Security", score: getScore("security") },
         ]
       })()
@@ -2298,7 +1796,7 @@ ${report.siteStructure.navigation.length > 0 ? `
   // ---------------------------------------------------------------------------
   if (view === "home") {
     return (
-      <div className="min-h-screen bg-[#fafbfc] dark:bg-[hsl(224,20%,8%)]">
+      <div className="min-h-screen bg-[#fafbfc] dark:bg-[hsl(224,20%,8%)] animate-in fade-in-0 duration-300">
         <AppHeader title="URL Scanner" />
 
         {/* Hero section with gradient background */}
@@ -2319,7 +1817,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                   URL Scanner
                 </h1>
                 <p className="text-[15px] text-slate-500 dark:text-slate-400 max-w-md mx-auto leading-relaxed">
-                  Paste any URL to audit accessibility, SEO, schema markup, and security headers in seconds.
+                  Paste any URL to audit accessibility, structure, and security headers in seconds.
                 </p>
               </div>
 
@@ -2347,24 +1845,15 @@ ${report.siteStructure.navigation.length > 0 ? `
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   placeholder="https://example.com"
-                  className="flex-1 bg-transparent text-slate-900 dark:text-white py-3 px-2 outline-none placeholder:text-slate-400/50 dark:placeholder:text-slate-500/40 text-[15px]"
+                  className="flex-1 bg-transparent text-slate-900 dark:text-white py-3 px-2 outline-none placeholder:text-slate-400/50 dark:placeholder:text-slate-500/40 text-[15px] transition-colors duration-150"
                   required
                 />
                 <button
                   type="submit"
                   disabled={!urlInput.trim()}
-                  className="text-white font-semibold px-7 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_8px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]"
+                  className="text-white font-semibold px-7 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 bg-gradient-to-b from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500 active:scale-[0.98] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_8px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
                 >
                   Scan
-                </button>
-                <button
-                  type="button"
-                  disabled={!urlInput.trim()}
-                  onClick={() => fetchSitemap(urlInput)}
-                  className="text-blue-600 dark:text-blue-400 font-medium px-4 py-3 rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-50 dark:hover:bg-blue-950/30 flex items-center gap-1.5 text-sm"
-                >
-                  <MapIcon size={15} />
-                  Crawl Site
                 </button>
               </form>
 
@@ -2373,8 +1862,6 @@ ${report.siteStructure.navigation.length > 0 ? `
                 {[
                   { key: "wcagAudit" as const, label: "WCAG Audit" },
                   { key: "headings" as const, label: "Headings" },
-                  { key: "seo" as const, label: "SEO" },
-                  { key: "links" as const, label: "Links" },
                 ].map((opt) => (
                   <label key={opt.key} className="flex items-center gap-1.5 cursor-pointer hover:text-slate-700 dark:hover:text-slate-200 transition-colors select-none">
                     <input
@@ -2401,9 +1888,8 @@ ${report.siteStructure.navigation.length > 0 ? `
               <div className="flex flex-wrap items-center justify-center gap-2 mb-12 animate-in fade-in duration-700 delay-200">
                 {[
                   { icon: Eye, label: "Accessibility", color: "text-purple-500 bg-purple-50 dark:bg-purple-950/30 border-purple-200/50 dark:border-purple-800/30" },
-                  { icon: Search, label: "SEO & Schema", color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200/50 dark:border-emerald-800/30" },
-                  { icon: Shield, label: "Security", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/30" },
                   { icon: Layout, label: "Structure", color: "text-blue-600 bg-blue-50 dark:bg-blue-950/30 border-blue-200/50 dark:border-blue-800/30" },
+                  { icon: Shield, label: "Security", color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200/50 dark:border-amber-800/30" },
                 ].map((f) => (
                   <div key={f.label} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium border ${f.color}`}>
                     <f.icon size={12} strokeWidth={2} />
@@ -2430,7 +1916,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                     Clear
                   </button>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 stagger-children">
                   {recentScans.map((scan) => (
                     <button
                       key={scan.url + scan.scannedAt}
@@ -2438,7 +1924,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                         setUrlInput(scan.url)
                         scanUrl(scan.url)
                       }}
-                      className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-4 flex items-center justify-between hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left"
+                      className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-4 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg hover:border-slate-300 dark:hover:border-slate-600 active:translate-y-0 active:shadow-md w-full text-left focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
                     >
                       <div>
                         <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
@@ -2484,7 +1970,7 @@ ${report.siteStructure.navigation.length > 0 ? `
   // ---------------------------------------------------------------------------
   if (view === "scanning") {
     return (
-      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
+      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)] animate-in fade-in-0 duration-300">
         <AppHeader title="URL Scanner" />
         <div className="flex items-start justify-center pt-[20vh]">
           <div className="w-full max-w-md px-6">
@@ -2497,7 +1983,7 @@ ${report.siteStructure.navigation.length > 0 ? `
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 stagger-children">
               {scanSteps.map((step) => (
                 <div key={step.id} className="flex items-center gap-3">
                   <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
@@ -2555,347 +2041,6 @@ ${report.siteStructure.navigation.length > 0 ? `
     )
   }
 
-  // ---------------------------------------------------------------------------
-  // RENDER: Sitemap Browser (select pages to scan)
-  // ---------------------------------------------------------------------------
-  if (view === "sitemap-browse") {
-    // Group URLs by path section
-    const grouped: { section: string; urls: string[] }[] = (() => {
-      const sectionMap = new Map<string, string[]>()
-      const filtered = sitemapSearch
-        ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase()))
-        : sitemapUrls
-
-      for (const url of filtered) {
-        try {
-          const parsed = new URL(url)
-          const parts = parsed.pathname.split("/").filter(Boolean)
-          const section = parts.length > 1 ? `/${parts[0]}/` : "/"
-          if (!sectionMap.has(section)) sectionMap.set(section, [])
-          sectionMap.get(section)!.push(url)
-        } catch {
-          if (!sectionMap.has("/")) sectionMap.set("/", [])
-          sectionMap.get("/")!.push(url)
-        }
-      }
-
-      return Array.from(sectionMap.entries())
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([section, urls]) => ({ section, urls }))
-    })()
-
-    const totalFiltered = grouped.reduce((s, g) => s + g.urls.length, 0)
-
-    return (
-      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
-        <AppHeader title="URL Scanner" />
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => setView("home")}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Select Pages to Scan</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {sitemapLoading ? "Fetching sitemap..." : `${sitemapUrls.length} pages found in sitemap`}
-              </p>
-            </div>
-            <button
-              onClick={() => startCrawl(urlInput, Array.from(selectedUrls))}
-              disabled={selectedUrls.size === 0}
-              className="px-5 py-2 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              Scan {selectedUrls.size} Page{selectedUrls.size !== 1 ? "s" : ""}
-            </button>
-          </div>
-
-          {sitemapLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 size={24} className="text-blue-500 animate-spin" />
-              <span className="ml-3 text-sm text-slate-500 dark:text-slate-400">Discovering pages...</span>
-            </div>
-          ) : (
-            <>
-              {/* Toolbar: search + select all/none */}
-              <div className="flex items-center gap-3 mb-5">
-                <div className="flex-1 flex items-center gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2">
-                  <Search size={14} className="text-slate-400" />
-                  <input
-                    type="text"
-                    value={sitemapSearch}
-                    onChange={(e) => setSitemapSearch(e.target.value)}
-                    placeholder="Filter pages..."
-                    className="flex-1 bg-transparent text-sm text-slate-900 dark:text-white outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500"
-                  />
-                  {sitemapSearch && (
-                    <button onClick={() => setSitemapSearch("")} className="text-slate-400 hover:text-slate-600">
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
-                <button
-                  onClick={() => {
-                    const filtered = sitemapSearch ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase())) : sitemapUrls
-                    const allSelected = filtered.every((u) => selectedUrls.has(u))
-                    setSelectedUrls((prev) => {
-                      const next = new Set(prev)
-                      for (const u of filtered) {
-                        if (allSelected) next.delete(u)
-                        else next.add(u)
-                      }
-                      return next
-                    })
-                  }}
-                  className="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap"
-                >
-                  {sitemapUrls.length > 0 && (sitemapSearch ? sitemapUrls.filter((u) => u.toLowerCase().includes(sitemapSearch.toLowerCase())) : sitemapUrls).every((u) => selectedUrls.has(u))
-                    ? "Deselect All"
-                    : "Select All"}
-                </button>
-                <span className="text-xs text-slate-400 whitespace-nowrap">{selectedUrls.size} / {totalFiltered}</span>
-              </div>
-
-              {/* Grouped sections */}
-              <div className="space-y-4">
-                {grouped.map(({ section, urls }) => {
-                  const sectionSelected = urls.filter((u) => selectedUrls.has(u)).length
-                  const allSectionSelected = sectionSelected === urls.length
-
-                  return (
-                    <div key={section} className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden">
-                      {/* Section header */}
-                      <div className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.04] dark:border-white/[0.04] bg-slate-50/50 dark:bg-slate-800/30">
-                        <input
-                          type="checkbox"
-                          checked={allSectionSelected}
-                          onChange={() => {
-                            setSelectedUrls((prev) => {
-                              const next = new Set(prev)
-                              for (const u of urls) {
-                                if (allSectionSelected) next.delete(u)
-                                else next.add(u)
-                              }
-                              return next
-                            })
-                          }}
-                          className="accent-blue-600 w-4 h-4"
-                        />
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-200 font-mono">{section}</span>
-                        <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">
-                          {sectionSelected}/{urls.length}
-                        </span>
-                      </div>
-
-                      {/* URL list */}
-                      <div className="max-h-[300px] overflow-y-auto">
-                        {urls.map((url) => {
-                          const path = (() => { try { return new URL(url).pathname } catch { return url } })()
-                          return (
-                            <label
-                              key={url}
-                              className="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer border-b border-black/[0.02] dark:border-white/[0.02] last:border-0"
-                            >
-                              <input
-                                type="checkbox"
-                                checked={selectedUrls.has(url)}
-                                onChange={() => {
-                                  setSelectedUrls((prev) => {
-                                    const next = new Set(prev)
-                                    if (next.has(url)) next.delete(url)
-                                    else next.add(url)
-                                    return next
-                                  })
-                                }}
-                                className="accent-blue-600 w-3.5 h-3.5 flex-shrink-0"
-                              />
-                              <span className="text-sm text-slate-600 dark:text-slate-300 truncate">{path}</span>
-                            </label>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-
-              {sitemapUrls.length === 0 && !sitemapLoading && (
-                <div className="text-center py-16 text-sm text-slate-500 dark:text-slate-400">
-                  No sitemap found for this site. Try scanning the URL directly instead.
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ---------------------------------------------------------------------------
-  // RENDER: Crawling (multi-page progress)
-  // ---------------------------------------------------------------------------
-  if (view === "crawling") {
-    const done = crawlProgress.filter((p) => p.status === "done" || p.status === "error").length
-    const total = crawlProgress.length > 0 ? crawlProgress[0]!.total : 0
-
-    return (
-      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
-        <AppHeader title="URL Scanner" />
-        <div className="flex items-start justify-center pt-[15vh]">
-          <div className="w-full max-w-lg px-6">
-            <div className="text-center mb-8">
-              <h2 className="text-xl font-semibold text-slate-900 dark:text-white mb-2">Crawling Site...</h2>
-              <p className="text-sm text-slate-500 dark:text-slate-400">{normalizeUrl(urlInput)}</p>
-              {total > 0 && (
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{done} of {total} pages scanned</p>
-              )}
-            </div>
-
-            {/* Progress bar */}
-            {total > 0 && (
-              <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 mb-6">
-                <div className="h-full rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${(done / total) * 100}%` }} />
-              </div>
-            )}
-
-            {/* Page list */}
-            <div className="space-y-2 max-h-[40vh] overflow-y-auto">
-              {crawlProgress.map((p) => (
-                <div key={p.index} className="flex items-center gap-3 text-sm">
-                  <div className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-                    {p.status === "done" && <Check size={16} className="text-emerald-500" strokeWidth={3} />}
-                    {p.status === "running" && <Loader2 size={16} className="text-blue-500 animate-spin" />}
-                    {p.status === "error" && <AlertCircle size={16} className="text-red-500" />}
-                  </div>
-                  <span className={`truncate ${p.status === "running" ? "text-slate-900 dark:text-white font-medium" : "text-slate-500 dark:text-slate-400"}`}>
-                    {p.url.replace(/^https?:\/\//, "")}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-8 text-center">
-              <button
-                onClick={() => { if (crawlAbortRef.current) crawlAbortRef.current.abort(); setView("home") }}
-                className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ---------------------------------------------------------------------------
-  // RENDER: Crawl Results
-  // ---------------------------------------------------------------------------
-  if (view === "crawl-results" && crawlSummary) {
-    return (
-      <div className="min-h-screen bg-white dark:bg-[hsl(224,20%,8%)]">
-        <AppHeader title="URL Scanner" />
-        <div className="max-w-4xl mx-auto px-6 py-8">
-          {/* Back */}
-          <div className="flex items-center gap-3 mb-8">
-            <button
-              onClick={() => { setCrawlSummary(null); setView("home") }}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div className="flex-1">
-              <h1 className="text-lg font-semibold text-slate-900 dark:text-white">Site Crawl Results</h1>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{crawlSummary.totalPages} pages scanned</p>
-            </div>
-          </div>
-
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-            <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-5 text-center">
-              <div className={`text-3xl font-bold ${scoreTextClass(crawlSummary.avgScore)}`}>{crawlSummary.avgScore}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Avg Score</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-5 text-center">
-              <div className="text-3xl font-bold text-slate-800 dark:text-white">{crawlSummary.totalPages}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Pages</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-5 text-center">
-              <div className="text-3xl font-bold text-red-500">{crawlSummary.totalErrors}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Errors</div>
-            </div>
-            <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-5 text-center">
-              <div className="text-3xl font-bold text-amber-500">{crawlSummary.totalIssues}</div>
-              <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Issues</div>
-            </div>
-          </div>
-
-          {/* Common issues across pages */}
-          {crawlSummary.commonIssues.length > 0 && (
-            <div className="mb-8">
-              <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-3">Most Common Issues Across Pages</h2>
-              <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden">
-                {crawlSummary.commonIssues.map((issue, i) => (
-                  <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-black/[0.03] dark:border-white/[0.03] last:border-0">
-                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${issue.severity === "error" ? "bg-red-500" : issue.severity === "warning" ? "bg-amber-500" : "bg-blue-400"}`} />
-                    <span className="text-sm text-slate-800 dark:text-slate-200 flex-1">{issue.message}</span>
-                    <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                      {issue.count} page{issue.count !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Per-page results table */}
-          <h2 className="text-sm font-semibold text-slate-800 dark:text-white mb-3">Page Scores</h2>
-          <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-black/[0.06] dark:border-white/[0.06] text-left">
-                  <th className="px-5 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400">Page</th>
-                  <th className="px-5 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400 text-right">Score</th>
-                  <th className="px-5 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400 text-right">Errors</th>
-                  <th className="px-5 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400 text-right">Issues</th>
-                  <th className="px-5 py-2.5 text-xs font-medium text-slate-500 dark:text-slate-400"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {crawlSummary.pages
-                  .sort((a, b) => a.score - b.score)
-                  .map((page, i) => (
-                  <tr key={i} className="border-b border-black/[0.03] dark:border-white/[0.03] last:border-0">
-                    <td className="px-5 py-2.5 text-slate-800 dark:text-slate-200 truncate max-w-[300px]">
-                      {page.url.replace(/^https?:\/\//, "")}
-                    </td>
-                    <td className={`px-5 py-2.5 text-right font-bold tabular-nums ${scoreTextClass(page.score)}`}>
-                      {page.score}
-                    </td>
-                    <td className="px-5 py-2.5 text-right tabular-nums text-red-500">{page.errors || "—"}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums text-slate-500 dark:text-slate-400">{page.issues}</td>
-                    <td className="px-5 py-2.5 text-right">
-                      <button
-                        onClick={() => { setUrlInput(page.url); scanUrl(page.url) }}
-                        className="text-xs text-blue-500 hover:underline"
-                      >
-                        Scan
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // ---------------------------------------------------------------------------
   // RENDER: Issue Detail
   // ---------------------------------------------------------------------------
   if (view === "detail" && selectedIssue) {
@@ -2935,18 +2080,9 @@ ${report.siteStructure.navigation.length > 0 ? `
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-                {selectedIssue.message}
-              </h1>
-              <button
-                onClick={() => openAiWithIssue(selectedIssue)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex-shrink-0"
-              >
-                <Sparkles size={12} />
-                Ask AI
-              </button>
-            </div>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+              {selectedIssue.message}
+            </h1>
             {selectedIssue.suggestion && (
               <p className="text-slate-500 dark:text-slate-400">
                 {selectedIssue.suggestion}
@@ -2985,6 +2121,139 @@ ${report.siteStructure.navigation.length > 0 ? `
               </div>
             </div>
           )}
+
+          {/* AI Issue Doctor panel (detail view) */}
+          {(() => {
+            const detailKey = issueKey(selectedIssue)
+            const detailFixExpanded = aiFixExpanded.has(detailKey)
+            const detailFixLoading = aiFixLoading.has(detailKey)
+            const detailFixData = aiFixCache.get(detailKey)
+            const detailIsAlt = altTextIssueRules.has(selectedIssue.ruleId)
+            const detailAltExpanded = altTextExpanded.has(detailKey)
+            const detailAltLoading = altTextLoading.has(detailKey)
+            const detailAltData = altTextCache.get(detailKey)
+
+            return (
+              <div className="space-y-3 mb-8">
+                {/* Action buttons */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => toggleAiFix(selectedIssue)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/15 ${
+                      detailFixExpanded
+                        ? "bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20"
+                        : "text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-purple-600 dark:hover:text-purple-400 hover:border-purple-500/30 hover:bg-purple-500/5"
+                    }`}
+                  >
+                    <Sparkles size={12} />
+                    {detailFixExpanded ? "Hide AI Fix" : "Get AI Fix"}
+                  </button>
+                  {detailIsAlt && (
+                    <button
+                      onClick={() => toggleAltText(selectedIssue)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 ${
+                        detailAltExpanded
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20"
+                          : "text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:text-blue-600 dark:hover:text-blue-400 hover:border-blue-500/30 hover:bg-blue-500/5"
+                      }`}
+                    >
+                      <Sparkles size={12} />
+                      {detailAltExpanded ? "Hide Alt Text" : "Generate Alt Text"}
+                    </button>
+                  )}
+                </div>
+
+                {/* AI Fix panel */}
+                {detailFixExpanded && (
+                  <div className="bg-gradient-to-br from-purple-50/50 to-white dark:from-purple-950/20 dark:to-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                    {detailFixLoading && !detailFixData && (
+                      <div className="space-y-3">
+                        <div className="shimmer h-3 w-full rounded" />
+                        <div className="shimmer h-3 w-5/6 rounded" />
+                        <div className="shimmer h-20 w-full rounded-lg" />
+                        <div className="shimmer h-20 w-full rounded-lg" />
+                      </div>
+                    )}
+                    {detailFixData && (
+                      <div className="space-y-4">
+                        <div>
+                          <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1.5">Why This Matters</div>
+                          <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">{detailFixData.explanation}</p>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2">The Fix</div>
+                          <div className="space-y-2">
+                            <div>
+                              <div className="text-[10px] text-red-500/80 font-medium mb-1">Before</div>
+                              <pre className="bg-red-500/[0.04] dark:bg-red-500/[0.06] border border-red-500/10 rounded-xl p-3 overflow-x-auto"><code className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-all">{detailFixData.beforeCode}</code></pre>
+                            </div>
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] text-emerald-500/80 font-medium">After</span>
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(detailFixData.afterCode)}
+                                  className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                >
+                                  <Copy size={10} />
+                                  Copy
+                                </button>
+                              </div>
+                              <pre className="bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06] border border-emerald-500/10 rounded-xl p-3 overflow-x-auto"><code className="text-[13px] leading-relaxed text-slate-700 dark:text-slate-300 whitespace-pre-wrap break-all">{detailFixData.afterCode}</code></pre>
+                            </div>
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Also Watch For</div>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{detailFixData.watchFor}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Alt Text panel */}
+                {detailIsAlt && detailAltExpanded && (
+                  <div className="bg-gradient-to-br from-blue-50/50 to-white dark:from-blue-950/20 dark:to-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl p-5 animate-in fade-in-0 slide-in-from-top-2 duration-200">
+                    {detailAltLoading && !detailAltData && (
+                      <div className="space-y-2">
+                        <div className="shimmer h-3 w-3/4 rounded" />
+                        <div className="shimmer h-3 w-1/2 rounded" />
+                      </div>
+                    )}
+                    {detailAltData && (
+                      detailAltData.isDecorative ? (
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm text-slate-500 dark:text-slate-400">This image appears to be decorative. Use</span>
+                          <code className="text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-mono">alt=""</code>
+                          <button
+                            onClick={() => navigator.clipboard.writeText('alt=""')}
+                            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                          >
+                            <Copy size={12} />
+                            Copy
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-2">Suggested Alt Text</div>
+                          <div className="flex items-center gap-2 bg-blue-500/[0.04] dark:bg-blue-500/[0.06] border border-blue-500/10 rounded-xl px-4 py-2.5">
+                            <code className="text-sm text-slate-700 dark:text-slate-300 flex-1 font-mono">alt="{detailAltData.altText}"</code>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(detailAltData.altText)}
+                              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors flex-shrink-0"
+                            >
+                              <Copy size={12} />
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* How to Fix */}
           {selectedIssue.howToFix && selectedIssue.howToFix.length > 0 && (
@@ -3053,7 +2322,6 @@ ${report.siteStructure.navigation.length > 0 ? `
             )}
         </div>
 
-        <AiChatPanel show={showAiPanel} onClose={() => setShowAiPanel(false)} messages={aiMessages} input={aiInput} onInputChange={setAiInput} onSend={sendAiMessage} isLoading={isAiLoading} suggestedPrompts={suggestedPrompts} />
       </div>
     )
   }
@@ -3069,8 +2337,6 @@ ${report.siteStructure.navigation.length > 0 ? `
           const sidebarTabs = [
             { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
             { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
-            { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
-            { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
             { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
             { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
           ]
@@ -3108,8 +2374,6 @@ ${report.siteStructure.navigation.length > 0 ? `
                 {[
                   { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
                   { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
-                  { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
-                  { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
                   { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
                   { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
                 ].map((tab) => (
@@ -3141,8 +2405,6 @@ ${report.siteStructure.navigation.length > 0 ? `
             {[
               { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
               { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
-              { id: "links" as ResultTab, label: "Links", count: report.linkSummary?.total ?? 0, icon: Globe, hasErrors: (report.linkSummary?.broken ?? 0) > 0 },
-              { id: "schema" as ResultTab, label: "Schema", count: report.schema?.totalFound ?? 0, icon: Search, hasErrors: false },
               { id: "structure" as ResultTab, label: "Structure", count: 0, icon: Eye, hasErrors: false },
               { id: "history" as ResultTab, label: "History", count: 0, icon: Clock, hasErrors: false },
             ].map((tab) => (
@@ -3235,27 +2497,6 @@ ${report.siteStructure.navigation.length > 0 ? `
               )}
             </div>
 
-            {/* Ask AI */}
-            <button
-              onClick={() => setShowAiPanel(true)}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-purple-600 dark:text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 transition-all flex items-center gap-1.5"
-            >
-              <Sparkles size={14} />
-              Ask AI
-            </button>
-
-            {/* Create Client Report (admin only) */}
-            {isAdmin && (
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-gradient-to-br from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 transition-all flex items-center gap-1.5 shadow-sm"
-                title="Turn this scan into a polished gap analysis"
-              >
-                <FileText size={14} />
-                Create Client Report
-              </button>
-            )}
-
             {/* Rescan */}
             <button
               onClick={() => scanUrl(report.url)}
@@ -3277,7 +2518,7 @@ ${report.siteStructure.navigation.length > 0 ? `
             </div>
 
             {/* Category cards — click to filter issues */}
-            <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="flex-1 grid grid-cols-3 gap-3">
               {displayCategories.map((cat) => (
                 <CategoryCard
                   key={cat.label}
@@ -3295,12 +2536,38 @@ ${report.siteStructure.navigation.length > 0 ? `
                   }}
                 />
               ))}
-              {/* If fewer than 4 categories, fill remaining */}
               {displayCategories.length === 0 && (
-                <div className="col-span-4 text-center text-sm text-slate-500 dark:text-slate-400 py-6">
+                <div className="col-span-3 text-center text-sm text-slate-500 dark:text-slate-400 py-6">
                   No category scores available.
                 </div>
               )}
+            </div>
+          </div>
+
+          {/* How scoring works + snapshot launch */}
+          <div className="flex flex-wrap items-center justify-end gap-3 mb-5">
+            <div className="flex items-center gap-3">
+              <a
+                href="/scoring.html"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+              >
+                How is this scored?
+                <svg width="10" height="10" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <path d="M3 1h8v8M11 1L1 11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </a>
+              <button
+                onClick={() => {
+                  sessionStorage.setItem("accessibility-snapshot-data", JSON.stringify({ report }))
+                  navigate("/scanner/snapshot")
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-700 transition-all duration-150 active:scale-[0.97]"
+              >
+                <FileText size={14} />
+                View Snapshot
+              </button>
             </div>
           </div>
 
@@ -3359,14 +2626,6 @@ ${report.siteStructure.navigation.length > 0 ? `
                   label: `Issues (${report.issues.length})`,
                 },
                 { id: "headings" as ResultTab, label: "Headings" },
-                {
-                  id: "links" as ResultTab,
-                  label: `Links${report.linkSummary ? ` (${report.linkSummary.total})` : ""}`,
-                },
-                {
-                  id: "schema" as ResultTab,
-                  label: `Schema${report.schema?.totalFound ? ` (${report.schema.totalFound})` : ""}`,
-                },
                 { id: "structure" as ResultTab, label: "Structure" },
                 { id: "history" as ResultTab, label: "History" },
               ] as const
@@ -3493,33 +2752,178 @@ ${report.siteStructure.navigation.length > 0 ? `
                           {/* Group items */}
                           {!isCollapsed && (
                             <div className="space-y-2 ml-1 pl-5 border-l-2 border-slate-100 dark:border-slate-800">
-                              {groupIssues.map((issue, i) => (
-                                <button
-                                  key={`${group.id}-${issue.ruleId}-${i}`}
-                                  onClick={() => {
-                                    setSelectedIssue(issue)
-                                    setView("detail")
-                                  }}
-                                  className={`bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-3 flex items-start gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left ${
+                              {groupIssues.map((issue, i) => {
+                                const iKey = issueKey(issue)
+                                const isFixExpanded = aiFixExpanded.has(iKey)
+                                const isFixLoading = aiFixLoading.has(iKey)
+                                const fixData = aiFixCache.get(iKey)
+                                const isAltIssue = altTextIssueRules.has(issue.ruleId)
+                                const isAltExpanded = altTextExpanded.has(iKey)
+                                const isAltLoading = altTextLoading.has(iKey)
+                                const altData = altTextCache.get(iKey)
+
+                                return (
+                                <div key={`${group.id}-${issue.ruleId}-${i}`} className="space-y-0">
+                                  <div className={`bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden transition-all duration-300 ${
                                     issue.severity === "error" ? "border-l-[3px] border-l-red-500" :
                                     issue.severity === "warning" ? "border-l-[3px] border-l-amber-500" :
                                     "border-l-[3px] border-l-blue-400"
-                                  }`}
-                                >
-                                  <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${severityDotClass(issue.severity)}`} />
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{issue.message}</div>
-                                    <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                      {issue.selector && <>{issue.selector} &middot; </>}
-                                      {issue.line != null && <>Line {issue.line} &middot; </>}
-                                      {issue.wcagCriteria ? <>WCAG {issue.wcagCriteria}</> : issue.ruleId}
+                                  }`}>
+                                    {/* Main issue row */}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedIssue(issue)
+                                        setView("detail")
+                                      }}
+                                      className="px-5 py-3 flex items-start gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors w-full text-left"
+                                    >
+                                      <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${severityDotClass(issue.severity)}`} />
+                                      <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{issue.message}</div>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                                          {issue.selector && <>{issue.selector} &middot; </>}
+                                          {issue.line != null && <>Line {issue.line} &middot; </>}
+                                          {issue.wcagCriteria ? <>WCAG {issue.wcagCriteria}</> : issue.ruleId}
+                                        </div>
+                                        {issue.suggestion && (
+                                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{issue.suggestion}</div>
+                                        )}
+                                      </div>
+                                    </button>
+
+                                    {/* AI action buttons row */}
+                                    <div className="flex items-center gap-2 px-5 py-1.5 border-t border-black/[0.03] dark:border-white/[0.03] bg-slate-50/50 dark:bg-slate-800/20">
+                                      <button
+                                        onClick={(e) => { e.stopPropagation(); toggleAiFix(issue) }}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/15 ${
+                                          isFixExpanded
+                                            ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
+                                            : "text-slate-400 dark:text-slate-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-500/5"
+                                        }`}
+                                      >
+                                        <Sparkles size={11} />
+                                        {isFixExpanded ? "Hide Fix" : "Get AI Fix"}
+                                      </button>
+                                      {isAltIssue && (
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); toggleAltText(issue) }}
+                                          className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 ${
+                                            isAltExpanded
+                                              ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                                              : "text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/5"
+                                          }`}
+                                        >
+                                          <Sparkles size={11} />
+                                          {isAltExpanded ? "Hide Alt Text" : "Generate Alt Text"}
+                                        </button>
+                                      )}
                                     </div>
-                                    {issue.suggestion && (
-                                      <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{issue.suggestion}</div>
+
+                                    {/* AI Fix expanded panel */}
+                                    {isFixExpanded && (
+                                      <div className="border-t border-black/[0.04] dark:border-white/[0.04] bg-gradient-to-b from-purple-50/30 to-white dark:from-purple-950/10 dark:to-slate-900 px-5 py-4 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                                        {isFixLoading && !fixData && (
+                                          <div className="space-y-2.5">
+                                            <div className="shimmer h-3 w-full rounded" />
+                                            <div className="shimmer h-3 w-5/6 rounded" />
+                                            <div className="shimmer h-16 w-full rounded-lg" />
+                                            <div className="shimmer h-16 w-full rounded-lg" />
+                                          </div>
+                                        )}
+                                        {fixData && (
+                                          <div className="space-y-3.5">
+                                            {/* Why this matters */}
+                                            <div>
+                                              <div className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Why This Matters</div>
+                                              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{fixData.explanation}</p>
+                                            </div>
+                                            {/* The fix: before/after */}
+                                            <div>
+                                              <div className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1.5">The Fix</div>
+                                              <div className="space-y-1.5">
+                                                <div>
+                                                  <div className="text-[10px] text-red-500/80 font-medium mb-0.5">Before</div>
+                                                  <pre className="bg-red-500/[0.04] dark:bg-red-500/[0.06] border border-red-500/10 dark:border-red-500/10 rounded-lg p-2.5 overflow-x-auto"><code className="text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 break-all whitespace-pre-wrap">{fixData.beforeCode}</code></pre>
+                                                </div>
+                                                <div>
+                                                  <div className="flex items-center justify-between mb-0.5">
+                                                    <span className="text-[10px] text-emerald-500/80 font-medium">After</span>
+                                                    <button
+                                                      onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        navigator.clipboard.writeText(fixData.afterCode)
+                                                      }}
+                                                      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                                    >
+                                                      <Copy size={10} />
+                                                      Copy
+                                                    </button>
+                                                  </div>
+                                                  <pre className="bg-emerald-500/[0.04] dark:bg-emerald-500/[0.06] border border-emerald-500/10 dark:border-emerald-500/10 rounded-lg p-2.5 overflow-x-auto"><code className="text-[12px] leading-relaxed text-slate-700 dark:text-slate-300 break-all whitespace-pre-wrap">{fixData.afterCode}</code></pre>
+                                                </div>
+                                              </div>
+                                            </div>
+                                            {/* Also watch for */}
+                                            <div>
+                                              <div className="text-[10px] font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1">Also Watch For</div>
+                                              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">{fixData.watchFor}</p>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Alt Text expanded panel */}
+                                    {isAltIssue && isAltExpanded && (
+                                      <div className="border-t border-black/[0.04] dark:border-white/[0.04] bg-gradient-to-b from-blue-50/30 to-white dark:from-blue-950/10 dark:to-slate-900 px-5 py-4 animate-in fade-in-0 slide-in-from-top-1 duration-200">
+                                        {isAltLoading && !altData && (
+                                          <div className="space-y-2">
+                                            <div className="shimmer h-3 w-3/4 rounded" />
+                                            <div className="shimmer h-3 w-1/2 rounded" />
+                                          </div>
+                                        )}
+                                        {altData && (
+                                          <div>
+                                            {altData.isDecorative ? (
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-xs text-slate-500 dark:text-slate-400">This image appears to be decorative. Use</span>
+                                                <code className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded font-mono">alt=""</code>
+                                                <button
+                                                  onClick={(e) => {
+                                                    e.stopPropagation()
+                                                    navigator.clipboard.writeText('alt=""')
+                                                  }}
+                                                  className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1"
+                                                >
+                                                  <Copy size={10} />
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <div>
+                                                <div className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wider mb-1.5">Suggested Alt Text</div>
+                                                <div className="flex items-center gap-2 bg-blue-500/[0.04] dark:bg-blue-500/[0.06] border border-blue-500/10 dark:border-blue-500/10 rounded-lg px-3 py-2">
+                                                  <code className="text-xs text-slate-700 dark:text-slate-300 flex-1 font-mono">alt="{altData.altText}"</code>
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation()
+                                                      navigator.clipboard.writeText(altData.altText)
+                                                    }}
+                                                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors flex-shrink-0"
+                                                  >
+                                                    <Copy size={10} />
+                                                    Copy
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )}
+                                      </div>
                                     )}
                                   </div>
-                                </button>
-                              ))}
+                                </div>
+                                )
+                              })}
                             </div>
                           )}
                         </div>
@@ -3533,293 +2937,6 @@ ${report.siteStructure.navigation.length > 0 ? `
 
           {resultTab === "headings" && (
             <HeadingTreeView tree={report.headingTree} />
-          )}
-
-          {resultTab === "links" && (
-            <div>
-              {report.linkSummary ? (
-                <div className="space-y-4">
-                  {/* Link summary cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-4 text-center">
-                      <div className="text-xl font-bold text-slate-800 dark:text-white">
-                        {report.linkSummary.total}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        Total Links
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-4 text-center">
-                      <div className="text-xl font-bold text-emerald-500">
-                        {report.linkSummary.healthy}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        Healthy
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-4 text-center">
-                      <div className="text-xl font-bold text-red-500">
-                        {report.linkSummary.broken}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        Broken
-                      </div>
-                    </div>
-                    <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl p-4 text-center">
-                      <div className="text-xl font-bold text-amber-500">
-                        {report.linkSummary.redirects +
-                          report.linkSummary.timeouts}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400">
-                        Redirects / Timeouts
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Link-related issues */}
-                  {(() => {
-                    const linkIssues = report.issues.filter(
-                      (i) => i.category === "links",
-                    )
-                    if (linkIssues.length === 0) {
-                      return (
-                        <div className="text-center py-12 text-sm text-slate-500 dark:text-slate-400">
-                          All links are healthy.
-                        </div>
-                      )
-                    }
-                    return (
-                      <div className="space-y-2">
-                        {linkIssues.map((issue, i) => (
-                          <button
-                            key={`link-${i}`}
-                            onClick={() => {
-                              setSelectedIssue(issue)
-                              setView("detail")
-                            }}
-                            className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-4 flex items-start gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left"
-                          >
-                            <div
-                              className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${severityDotClass(issue.severity)}`}
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                {issue.message}
-                              </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                                {issue.element || issue.selector || issue.ruleId}
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    )
-                  })()}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-                    Link checking was not enabled for this scan.
-                  </p>
-                  <button
-                    onClick={() => {
-                      setOptions((o) => ({ ...o, links: true }))
-                      scanUrl(report.url)
-                    }}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Rescan with link checking enabled
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ---- Schema Tab ---- */}
-          {resultTab === "schema" && (
-            <div>
-              {(() => {
-                const schema = report.schema
-                const entities = schema?.entities ?? []
-                const totalFound = schema?.totalFound ?? entities.length
-                const jsonLdCount = entities.filter((e) => e.source?.toLowerCase() === "json-ld").length
-                const microdataCount = entities.filter((e) => e.source?.toLowerCase() === "microdata").length
-                const rdfaCount = entities.filter((e) => e.source?.toLowerCase() === "rdfa").length
-
-                if (totalFound === 0 && entities.length === 0) {
-                  return (
-                    <div className="text-center py-12">
-                      <FileText size={32} className="text-slate-300 dark:text-slate-600 mx-auto mb-4" />
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                        No structured data found
-                      </p>
-                      <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6">
-                        Adding JSON-LD schema markup helps search engines understand your page content, improve rich results, and boost SEO visibility.
-                      </p>
-                      <div className="bg-slate-50 dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-xl p-4 max-w-md mx-auto text-left">
-                        <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 mb-2">Quick start: add this to your &lt;head&gt;</p>
-                        <pre className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 overflow-x-auto"><code>{`<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  "name": "Your Organization",
-  "url": "https://example.com",
-  "logo": "https://example.com/logo.png"
-}
-</script>`}</code></pre>
-                      </div>
-                    </div>
-                  )
-                }
-
-                const sourceParts: string[] = []
-                if (jsonLdCount > 0) sourceParts.push(`${jsonLdCount} via JSON-LD`)
-                if (microdataCount > 0) sourceParts.push(`${microdataCount} via Microdata`)
-                if (rdfaCount > 0) sourceParts.push(`${rdfaCount} via RDFa`)
-
-                return (
-                  <div className="space-y-4">
-                    {/* Summary line */}
-                    <p className="text-sm text-slate-500 dark:text-slate-400">
-                      {totalFound} structured data entit{totalFound === 1 ? "y" : "ies"} found
-                      {sourceParts.length > 0 && ` \u2014 ${sourceParts.join(", ")}`}
-                    </p>
-
-                    {/* Entity cards */}
-                    {entities.map((entity, idx) => {
-                      const isRawExpanded = expandedSchemaRaw.has(idx)
-                      const propEntries = Object.entries(entity.properties ?? {})
-
-                      return (
-                        <div
-                          key={idx}
-                          className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl overflow-hidden"
-                        >
-                          {/* Header */}
-                          <div className="px-5 py-3 flex items-center gap-2 border-b border-black/[0.06] dark:border-white/[0.06]">
-                            <span className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-xs font-medium px-2 py-0.5 rounded">
-                              {entity.type}
-                            </span>
-                            <span className="bg-slate-100 dark:bg-slate-800 text-xs px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">
-                              {entity.source}
-                            </span>
-                          </div>
-
-                          {/* Properties grid */}
-                          {propEntries.length > 0 && (
-                            <div className="px-5 py-3 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm max-h-[300px] overflow-y-auto">
-                              {propEntries.map(([key, value]) => (
-                                <div key={key} className="contents">
-                                  <span className="text-right text-slate-400 dark:text-slate-500 text-xs pt-0.5">{key}</span>
-                                  <span className="text-slate-800 dark:text-slate-200 truncate text-xs">
-                                    {typeof value === "string"
-                                      ? value
-                                      : typeof value === "object" && value !== null
-                                        ? JSON.stringify(value).slice(0, 120)
-                                        : String(value ?? "")}
-                                  </span>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Missing required properties */}
-                          {entity.missingRequired && entity.missingRequired.length > 0 && (
-                            <div className="px-5 py-2 border-t border-black/[0.04] dark:border-white/[0.04]">
-                              <div className="flex flex-wrap gap-1.5">
-                                {entity.missingRequired.map((prop) => (
-                                  <span
-                                    key={prop}
-                                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs px-2 py-0.5 rounded"
-                                  >
-                                    {prop} — missing
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Entity-level issues */}
-                          {entity.issues && entity.issues.length > 0 && (
-                            <div className="px-5 py-2 border-t border-black/[0.04] dark:border-white/[0.04] space-y-1">
-                              {entity.issues.map((issue, iIdx) => {
-                                // Issues can be string[] (rule IDs) from server or ScanIssue objects
-                                const isString = typeof issue === "string"
-                                const label = isString ? (issue as string).replace(/-/g, " ").replace("schema ", "") : (issue as ScanIssue).message
-                                const severity = isString ? "warning" : (issue as ScanIssue).severity
-                                return (
-                                  <div key={iIdx} className="flex items-start gap-2 text-xs">
-                                    <div className={`w-1.5 h-1.5 rounded-full mt-1 flex-shrink-0 ${severityDotClass(severity as Severity)}`} />
-                                    <span className="text-slate-600 dark:text-slate-400">{label}</span>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          )}
-
-                          {/* Show raw toggle */}
-                          {entity.raw && (
-                            <div className="border-t border-black/[0.04] dark:border-white/[0.04]">
-                              <button
-                                onClick={() => {
-                                  setExpandedSchemaRaw((prev) => {
-                                    const next = new Set(prev)
-                                    if (next.has(idx)) next.delete(idx)
-                                    else next.add(idx)
-                                    return next
-                                  })
-                                }}
-                                className="px-5 py-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors flex items-center gap-1 w-full"
-                              >
-                                {isRawExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                                {isRawExpanded ? "Hide raw" : "Show raw"}
-                              </button>
-                              {isRawExpanded && (
-                                <pre className="px-5 pb-3 text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 overflow-x-auto max-h-60 bg-slate-50 dark:bg-slate-950/50">
-                                  <code>{entity.raw}</code>
-                                </pre>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-
-                    {/* Schema issues section */}
-                    {schema?.issues && schema.issues.length > 0 && (
-                      <div className="mt-6">
-                        <h3 className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-3">
-                          Schema Issues
-                        </h3>
-                        <div className="space-y-2">
-                          {schema.issues.map((issue, i) => (
-                            <button
-                              key={`schema-issue-${i}`}
-                              onClick={() => {
-                                setSelectedIssue(issue)
-                                setView("detail")
-                              }}
-                              className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.06] rounded-2xl px-5 py-4 flex items-start gap-3 hover:border-slate-300 dark:hover:border-slate-600 transition-colors w-full text-left"
-                            >
-                              <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${severityDotClass(issue.severity)}`} />
-                              <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                  {issue.message}
-                                </div>
-                                <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                                  {issue.selector && <>{issue.selector} &middot; </>}
-                                  {issue.ruleId}
-                                </div>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })()}
-            </div>
           )}
 
           {/* ---- Structure Tab ---- */}
@@ -4130,13 +3247,6 @@ ${report.siteStructure.navigation.length > 0 ? `
         </div>{/* close main content */}
         </div>{/* close flex wrapper */}
 
-        <AiChatPanel show={showAiPanel} onClose={() => setShowAiPanel(false)} messages={aiMessages} input={aiInput} onInputChange={setAiInput} onSend={sendAiMessage} isLoading={isAiLoading} suggestedPrompts={suggestedPrompts} />
-
-        <CreateReportModal
-          isOpen={showReportModal}
-          onClose={() => setShowReportModal(false)}
-          scannedUrl={report.url}
-        />
       </div>
     )
   }

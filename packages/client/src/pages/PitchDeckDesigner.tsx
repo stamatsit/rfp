@@ -177,7 +177,7 @@ export function PitchDeckDesigner() {
         onSelect={(type) => deck.addSlide(type, deck.selectedIndex)}
       />
 
-      <div className="h-screen bg-slate-50/80 dark:bg-[#070c16] flex flex-col overflow-hidden">
+      <div className="h-screen bg-slate-50/80 dark:bg-[#070c16] flex flex-col overflow-hidden animate-in fade-in-0 duration-300">
         <AppHeader title="Pitch Deck Designer" />
         <DeckToolbar
           deck={deck}

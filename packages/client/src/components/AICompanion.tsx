@@ -380,7 +380,7 @@ export function AICompanion() {
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
-          className="fixed bottom-6 right-6 z-[900] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200 hover:scale-110 hover:shadow-xl active:scale-95 group"
+          className="fixed bottom-6 right-6 z-[900] w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-110 hover:shadow-xl active:scale-95 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 group"
           style={{ background: theme.botGradient }}
           title="AI Companion (⌘.)"
         >
@@ -395,7 +395,7 @@ export function AICompanion() {
       {isOpen && (
         <div
           ref={panelRef}
-          className={`fixed z-[900] transition-all duration-200 ${
+          className={`fixed z-[900] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isAnimatingIn ? "opacity-100 scale-100" : "opacity-0 scale-95"
           }`}
           style={{ width: 400, transformOrigin: "bottom right" }}
@@ -562,7 +562,7 @@ export function AICompanion() {
                           <button
                             key={prompt}
                             onClick={() => handleSubmit(prompt)}
-                            className="flex items-center gap-2 px-3 py-2 text-left text-[12px] text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/20 hover:border-sky-200 dark:hover:border-sky-700/40 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-left text-[12px] text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-sky-50 dark:hover:bg-sky-900/20 hover:border-sky-200 dark:hover:border-sky-700/40 transition-all duration-150 ease-out focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                           >
                             <ChevronRight size={12} className="text-sky-400 flex-shrink-0" />
                             {prompt}
@@ -653,13 +653,13 @@ export function AICompanion() {
                       onKeyDown={handleKeyDown}
                       placeholder="Ask about data, proposals, case studies, or how-to..."
                       rows={1}
-                      className="flex-1 resize-none text-[12.5px] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-300 dark:focus:ring-sky-600 focus:border-transparent"
+                      className="flex-1 resize-none text-[12.5px] px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10"
                       style={{ maxHeight: 80 }}
                     />
                     {chat.isStreaming ? (
                       <button
                         onClick={() => chat.abortStream()}
-                        className="flex-shrink-0 p-2 rounded-xl bg-slate-500 hover:bg-slate-600 text-white transition-all duration-150 shadow-sm"
+                        className="flex-shrink-0 p-2 rounded-xl bg-slate-500 hover:bg-slate-600 text-white transition-all duration-150 shadow-sm active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
                         title="Stop generating"
                       >
                         <Square size={14} fill="currentColor" />
@@ -668,7 +668,7 @@ export function AICompanion() {
                       <button
                         onClick={() => handleSubmit()}
                         disabled={!chat.inputValue.trim() || chat.isLoading}
-                        className={`flex-shrink-0 p-2 rounded-xl ${theme.sendButtonGradient} ${theme.sendButtonHoverGradient} text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 ${theme.sendButtonShadow}`}
+                        className={`flex-shrink-0 p-2 rounded-xl ${theme.sendButtonGradient} ${theme.sendButtonHoverGradient} text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${theme.sendButtonShadow}`}
                       >
                         <Send size={14} />
                       </button>

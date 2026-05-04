@@ -73,7 +73,8 @@ export function NavRail() {
             key={item.to}
             onClick={() => navigate(item.to)}
             title={item.label}
-            className={`relative flex items-center justify-center h-11 w-full mx-auto transition-colors duration-150
+            className={`relative flex items-center justify-center h-11 w-full mx-auto transition-all duration-150 ease-out
+              focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
               ${isActive
                 ? "text-slate-900 dark:text-white"
                 : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/50"

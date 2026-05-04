@@ -40,7 +40,7 @@ export function Support() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-fade-in">
       <AppHeader />
 
       {/* Back Navigation */}
@@ -48,7 +48,7 @@ export function Support() {
         <div className="max-w-2xl mx-auto">
           <Link
             to="/"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+            className="inline-flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
           >
             <ArrowLeft size={16} />
             Back to Home
@@ -59,7 +59,7 @@ export function Support() {
       {/* Main Content */}
       <main className="flex-1 px-6 py-8">
         <div className="max-w-2xl mx-auto">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-8">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-sm p-8">
             {/* Header */}
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
@@ -73,7 +73,7 @@ export function Support() {
 
             {submitted ? (
               /* Success State */
-              <div className="text-center py-8">
+              <div className="text-center py-8 animate-fade-in-up">
                 <div className="w-16 h-16 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center mx-auto mb-4">
                   <CheckCircle className="text-emerald-600 dark:text-emerald-400" size={32} />
                 </div>
@@ -104,17 +104,18 @@ export function Support() {
                       onChange={(e) => setMessage(e.target.value)}
                       placeholder="Describe what you need help with..."
                       rows={8}
-                      className="w-full px-4 py-3 border border-slate-200/80 dark:border-slate-700 rounded-xl
+                      className="w-full px-4 py-3 border border-black/[0.06] dark:border-white/[0.08] rounded-xl
                                bg-white dark:bg-slate-800
-                               focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400
-                               transition-all duration-200 resize-none text-slate-900 dark:text-white
+                               hover:border-slate-300 dark:hover:border-slate-600
+                               focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10
+                               transition-colors duration-150 resize-none text-slate-900 dark:text-white
                                placeholder:text-slate-400 dark:placeholder:text-slate-500"
                       required
                     />
                   </div>
 
                   {error && (
-                    <p className="text-sm text-red-600 text-center">{error}</p>
+                    <p className="text-sm text-red-600 text-center animate-fade-in-up">{error}</p>
                   )}
 
                   <div className="pt-2">
@@ -139,7 +140,7 @@ export function Support() {
       </main>
 
       {/* Footer */}
-      <footer className="py-5 px-6 border-t border-slate-200/40 dark:border-slate-800/40 bg-white/60 dark:bg-slate-900/60 transition-colors">
+      <footer className="py-5 px-6 border-t border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-slate-900/60 transition-colors">
         <div className="max-w-2xl mx-auto text-center">
           <p className="text-[13px] text-slate-400 dark:text-slate-500 transition-colors">
             &copy; {new Date().getFullYear()} Stamats

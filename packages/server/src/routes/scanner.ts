@@ -3,9 +3,9 @@
  */
 import { Router, type Request, type Response } from "express"
 import OpenAI from "openai"
+import * as cheerio from "cheerio"
 import { scanUrl } from "../services/scannerService.js"
-import { streamCompletion, truncateHistory } from "../services/utils/streamHelper.js"
-import type { ScanOptions, ScanReport, ScanIssue } from "../types/scanner.js"
+import type { ScanOptions } from "../types/scanner.js"
 
 const router = Router()
 
@@ -53,7 +53,6 @@ router.post("/scan", async (req: Request, res: Response) => {
   // Client sends { url, options: { links, wcagLevel, ... } } — read from nested options object
   const clientOpts = req.body?.options ?? req.body ?? {}
   const options: ScanOptions = {
-    checkLinks: clientOpts.links === true || clientOpts.checkLinks === true,
     wcagLevel: ["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA",
     timeout: typeof clientOpts.timeout === "number" ? Math.min(Math.max(clientOpts.timeout, 5000), 30000) : 15000,
   }
@@ -98,343 +97,104 @@ router.post("/scan", async (req: Request, res: Response) => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// HTML entity decoding for URLs extracted from sitemaps
-// ---------------------------------------------------------------------------
-function decodeXmlEntities(str: string): string {
-  return str
-    .replace(/&amp;/g, "&")
-    .replace(/&#38;/g, "&")
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-}
 
 // ---------------------------------------------------------------------------
-// Shared: fetch and parse sitemap URLs from a site
+// POST /headings — lightweight heading-structure checker
 // ---------------------------------------------------------------------------
-
-type DiscoverProgress = (event: {
-  type: "status" | "discovered" | "done" | "error"
-  message?: string
-  url?: string
-  total?: number
-  source?: "sitemap" | "robots" | "fallback"
-}) => void
-
-const SITEMAP_FETCH_TIMEOUT = 5000
-
-async function discoverSitemapUrls(
-  baseUrl: string,
-  maxUrls = 500,
-  onProgress?: DiscoverProgress,
-): Promise<{ urls: string[]; source: "sitemap" | "robots" | "fallback" }> {
-  const parsedBase = new URL(baseUrl)
-  const origin = parsedBase.origin
-  const allUrls: string[] = []
-
-  const fetchSitemapUrls = async (
-    url: string,
-  ): Promise<string[]> => {
-    if (!isPublicUrl(url)) return []
-    const resp = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-      signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT),
-    })
-    if (!resp.ok) return []
-    const text = await resp.text()
-
-    const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
-
-    if (isSitemapIndex) {
-      const childSitemaps: string[] = []
-      const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-      let match
-      while ((match = sitemapLocRegex.exec(text)) !== null) {
-        childSitemaps.push(decodeXmlEntities(match[1]!.trim()))
-      }
-      const pageUrls: string[] = []
-      for (let i = 0; i < childSitemaps.length; i++) {
-        if (pageUrls.length >= maxUrls) break
-        onProgress?.({
-          type: "status",
-          message: `Reading ${i + 1} of ${childSitemaps.length} child sitemaps…`,
-        })
-        try {
-          const childUrls = await fetchSitemapUrls(childSitemaps[i]!)
-          pageUrls.push(...childUrls)
-        } catch { /* skip failed child sitemaps */ }
-      }
-      return pageUrls
-    }
-
-    // Regular sitemap — extract <url><loc> page URLs
-    const urls: string[] = []
-    const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-    let match
-    while ((match = locRegex.exec(text)) !== null) {
-      const u = decodeXmlEntities(match[1]!.trim())
-      if (u.startsWith("http") && isPublicUrl(u)) {
-        urls.push(u)
-        onProgress?.({ type: "discovered", url: u, total: allUrls.length + urls.length })
-      }
-    }
-    // Fallback: if no <url><loc> matches, try plain <loc>
-    if (urls.length === 0) {
-      const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
-      while ((match = plainLocRegex.exec(text)) !== null) {
-        const u = decodeXmlEntities(match[1]!.trim())
-        if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
-          urls.push(u)
-          onProgress?.({ type: "discovered", url: u, total: allUrls.length + urls.length })
-        }
-      }
-    }
-    return urls
+router.post("/headings", async (req: Request, res: Response) => {
+  let targetUrl: string = (req.body?.url ?? "").trim()
+  if (!targetUrl) {
+    return res.status(400).json({ error: "URL is required" })
   }
 
-  // 1. Try /sitemap.xml directly
-  onProgress?.({ type: "status", message: "Reading sitemap…" })
-  try {
-    const sitemapUrl = `${origin}/sitemap.xml`
-    const urls = await fetchSitemapUrls(sitemapUrl)
-    if (urls.length > 0) {
-      const deduped = [...new Set(urls)].slice(0, maxUrls)
-      return { urls: deduped, source: "sitemap" }
-    }
-  } catch { /* fall through to robots.txt */ }
-
-  // 2. Try robots.txt for Sitemap: declarations
-  onProgress?.({ type: "status", message: "Checking robots.txt…" })
-  try {
-    const robotsUrl = `${origin}/robots.txt`
-    if (isPublicUrl(robotsUrl)) {
-      const robotsResp = await fetch(robotsUrl, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-        signal: AbortSignal.timeout(SITEMAP_FETCH_TIMEOUT),
-      })
-      if (robotsResp.ok) {
-        const robotsText = await robotsResp.text()
-        const sitemapDeclRegex = /^Sitemap:\s*(\S+)/gim
-        const declaredSitemaps: string[] = []
-        let rm
-        while ((rm = sitemapDeclRegex.exec(robotsText)) !== null) {
-          const candidate = rm[1]!.trim()
-          if (isPublicUrl(candidate)) declaredSitemaps.push(candidate)
-        }
-        for (const sm of declaredSitemaps) {
-          onProgress?.({ type: "status", message: `Reading sitemap from robots.txt…` })
-          try {
-            const urls = await fetchSitemapUrls(sm)
-            allUrls.push(...urls)
-          } catch { /* skip failed sitemap */ }
-        }
-        if (allUrls.length > 0) {
-          const deduped = [...new Set(allUrls)].slice(0, maxUrls)
-          return { urls: deduped, source: "robots" }
-        }
-      }
-    }
-  } catch { /* fall through to fallback */ }
-
-  // 3. Fallback — no sitemap found
-  return { urls: [], source: "fallback" }
-}
-
-// ---------------------------------------------------------------------------
-// POST /sitemap — Discover sitemap URLs (no scanning, just returns the list)
-// ---------------------------------------------------------------------------
-router.post("/sitemap", async (req: Request, res: Response) => {
-  let baseUrl: string = (req.body?.url ?? "").trim()
-  if (!baseUrl) return res.status(400).json({ error: "URL is required" })
-
-  if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
-  if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
-
-  try {
-    const result = await discoverSitemapUrls(baseUrl)
-    if (result.urls.length === 0) {
-      return res.json({ urls: [baseUrl], source: "fallback" })
-    }
-    return res.json({ urls: result.urls, source: result.source })
-  } catch (err: any) {
-    console.error("[Scanner] Sitemap discovery failed:", err.message)
-    return res.json({ urls: [baseUrl], source: "fallback" })
+  if (!/^https?:\/\//i.test(targetUrl)) {
+    targetUrl = `https://${targetUrl}`
   }
-})
 
-// ---------------------------------------------------------------------------
-// GET /sitemap-stream — SSE-streamed sitemap discovery
-// ---------------------------------------------------------------------------
-router.get("/sitemap-stream", async (req: Request, res: Response) => {
-  let baseUrl: string = (typeof req.query.url === "string" ? req.query.url : "").trim()
-  if (!baseUrl) return res.status(400).json({ error: "url query parameter is required" })
-
-  if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
-  if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
-
-  res.setHeader("Content-Type", "text/event-stream")
-  res.setHeader("Cache-Control", "no-cache")
-  res.setHeader("Connection", "keep-alive")
-  res.setHeader("X-Accel-Buffering", "no")
-  res.flushHeaders()
-
-  let aborted = false
-  req.on("close", () => { aborted = true })
-
-  const sendSSE = (event: string, data: Record<string, unknown>) => {
-    if (aborted) return
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+  if (!isPublicUrl(targetUrl)) {
+    return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
   }
 
   try {
-    const result = await discoverSitemapUrls(baseUrl, 2000, (evt) => {
-      if (aborted) return
-      if (evt.type === "discovered") {
-        sendSSE("discovered", { url: evt.url, total: evt.total })
-      } else if (evt.type === "status") {
-        sendSSE("status", { message: evt.message })
-      }
-    })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15000)
 
-    if (!aborted) {
-      if (result.urls.length === 0) {
-        sendSSE("done", { total: 0, source: "fallback" })
-      } else {
-        sendSSE("done", { total: result.urls.length, source: result.source })
-      }
-    }
-  } catch (err: any) {
-    console.error("[Scanner] SSE sitemap discovery failed:", err.message)
-    if (!aborted) {
-      sendSSE("error", { message: err.message ?? "Sitemap discovery failed" })
-    }
-  } finally {
-    if (!aborted) res.end()
-  }
-})
-
-// ---------------------------------------------------------------------------
-// POST /crawl — Scan specific pages (SSE streaming)
-// ---------------------------------------------------------------------------
-router.post("/crawl", async (req: Request, res: Response) => {
-  // Accept either a specific URL list or a base URL for sitemap discovery
-  let urlsToScan: string[] = Array.isArray(req.body?.urls) ? req.body.urls.filter((u: any) => typeof u === "string" && isPublicUrl(u)) : []
-  let baseUrl: string = (req.body?.url ?? "").trim()
-
-  if (urlsToScan.length === 0 && !baseUrl) return res.status(400).json({ error: "URL or urls[] is required" })
-  if (baseUrl && !/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
-  if (baseUrl && !isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
-
-  const maxPages = Math.min(Math.max(req.body?.maxPages ?? 20, 1), 200)
-  const clientOpts = req.body?.options ?? {}
-  const options: ScanOptions = {
-    checkLinks: false,
-    wcagLevel: ["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA",
-    timeout: 15000,
-  }
-
-  // SSE setup
-  res.setHeader("Content-Type", "text/event-stream")
-  res.setHeader("Cache-Control", "no-cache")
-  res.setHeader("Connection", "keep-alive")
-  res.setHeader("X-Accel-Buffering", "no")
-  res.flushHeaders()
-
-  const sendEvent = (data: Record<string, any>) => {
-    res.write(`data: ${JSON.stringify(data)}\n\n`)
-  }
-
-  let aborted = false
-  req.on("close", () => { aborted = true })
-
-  try {
-    // If no explicit URL list, discover from sitemap
-    if (urlsToScan.length === 0) {
-      sendEvent({ step: "sitemap", status: "running", message: "Fetching sitemap..." })
-      try {
-        const result = await discoverSitemapUrls(baseUrl, maxPages)
-        urlsToScan = result.urls
-      } catch { /* fallback below */ }
-
-      if (urlsToScan.length === 0) {
-        urlsToScan = [baseUrl]
-        sendEvent({ step: "sitemap", status: "done", message: "No sitemap found — scanning provided URL", urlCount: 1 })
-      } else {
-        urlsToScan = urlsToScan.slice(0, maxPages)
-        sendEvent({ step: "sitemap", status: "done", message: `Found ${urlsToScan.length} URLs`, urlCount: urlsToScan.length })
-      }
-    } else {
-      urlsToScan = urlsToScan.slice(0, maxPages)
-      sendEvent({ step: "sitemap", status: "done", message: `Scanning ${urlsToScan.length} selected pages`, urlCount: urlsToScan.length })
-    }
-
-    if (aborted) return
-
-    // Step 2: Scan each page
-    const results: Array<{ url: string; overallScore: number; issues: number; errors: number; report?: ScanReport }> = []
-
-    for (let i = 0; i < urlsToScan.length; i++) {
-      if (aborted) return
-      const pageUrl = urlsToScan[i]!
-      sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "running" })
-
-      try {
-        const report = await scanUrl(pageUrl, options)
-        const errorCount = report.issues.filter((i) => i.severity === "error").length
-        results.push({ url: pageUrl, overallScore: report.overallScore, issues: report.issues.length, errors: errorCount, report })
-        sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "done", score: report.overallScore, issues: report.issues.length, errors: errorCount })
-      } catch (err: any) {
-        results.push({ url: pageUrl, overallScore: 0, issues: 0, errors: 0 })
-        sendEvent({ step: "scanning", index: i, total: urlsToScan.length, url: pageUrl, status: "error", message: err.message })
-      }
-    }
-
-    if (aborted) return
-
-    // Step 3: Build aggregate summary
-    const totalPages = results.length
-    const avgScore = totalPages > 0 ? Math.round(results.reduce((s, r) => s + r.overallScore, 0) / totalPages) : 0
-    const totalIssues = results.reduce((s, r) => s + r.issues, 0)
-    const totalErrors = results.reduce((s, r) => s + r.errors, 0)
-
-    // Aggregate common issues across pages
-    const issueCounts = new Map<string, { message: string; count: number; severity: string }>()
-    for (const r of results) {
-      if (!r.report) continue
-      for (const issue of r.report.issues) {
-        const key = issue.ruleId
-        const existing = issueCounts.get(key)
-        if (existing) {
-          existing.count++
-        } else {
-          issueCounts.set(key, { message: issue.message, count: 1, severity: issue.severity })
-        }
-      }
-    }
-    const commonIssues = Array.from(issueCounts.entries())
-      .sort(([, a], [, b]) => b.count - a.count)
-      .slice(0, 15)
-      .map(([ruleId, data]) => ({ ruleId, ...data }))
-
-    sendEvent({
-      step: "complete",
-      summary: {
-        totalPages,
-        avgScore,
-        totalIssues,
-        totalErrors,
-        commonIssues,
-        pages: results.map(({ url, overallScore, issues, errors }) => ({ url, score: overallScore, issues, errors })),
+    const response = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (compatible; BlueprintScanner/1.0; +https://blueprint-ai.co)",
+        Accept: "text/html,application/xhtml+xml",
       },
     })
+    clearTimeout(timeout)
+
+    if (!response.ok) {
+      return res.status(400).json({ error: `Failed to fetch page (HTTP ${response.status})` })
+    }
+
+    const html = await response.text()
+    const $ = cheerio.load(html)
+
+    // Extract headings in document order
+    const headings: { level: number; text: string }[] = []
+    $("h1, h2, h3, h4, h5, h6").each((_i, el) => {
+      const tagName = $(el).prop("tagName")?.toLowerCase() ?? ""
+      const level = parseInt(tagName.replace("h", ""), 10)
+      if (level >= 1 && level <= 6) {
+        const text = $(el).text().trim().slice(0, 200)
+        headings.push({ level, text })
+      }
+    })
+
+    // Analyze
+    const violations: { index: number; type: "skip" | "missing-h1" | "no-headings"; message: string }[] = []
+
+    if (headings.length === 0) {
+      violations.push({
+        index: -1,
+        type: "no-headings",
+        message: "No heading elements found on this page. Every page should have at least one heading to describe its content.",
+      })
+      return res.json({ url: targetUrl, headings, violations, hasH1: false, passed: false })
+    }
+
+    // Skip violations
+    for (let i = 1; i < headings.length; i++) {
+      const prev = headings[i - 1]!
+      const curr = headings[i]!
+      const delta = curr.level - prev.level
+      if (delta > 1) {
+        const missing =
+          delta > 2
+            ? `h${prev.level + 1} through h${curr.level - 1} missing in between`
+            : `h${prev.level + 1} missing in between`
+        violations.push({
+          index: i,
+          type: "skip",
+          message: `Heading skipped from h${prev.level} to h${curr.level} (${missing})`,
+        })
+      }
+    }
+
+    // Missing h1 check
+    const hasH1 = headings.some((h) => h.level === 1)
+    if (!hasH1) {
+      violations.push({
+        index: -1,
+        type: "missing-h1",
+        message: "Page is missing an h1 element entirely. Every page should have exactly one top-level heading.",
+      })
+    }
+
+    const skipViolations = violations.filter((v) => v.type === "skip")
+    const passed = headings.length > 0 && hasH1 && skipViolations.length === 0
+
+    return res.json({ url: targetUrl, headings, violations, hasH1, passed })
   } catch (err: any) {
-    console.error("[Scanner] Crawl failed:", err)
-    if (!aborted) sendEvent({ step: "error", message: err.message ?? "Crawl failed" })
-  } finally {
-    if (!aborted) res.end()
+    if (err.name === "AbortError") {
+      return res.status(400).json({ error: "Request timed out after 15 seconds" })
+    }
+    return res.status(400).json({ error: err.message ?? "Failed to fetch page" })
   }
 })
 
@@ -449,196 +209,142 @@ function getOpenAI(): OpenAI | null {
 }
 
 // ---------------------------------------------------------------------------
-// AI helpers
+// POST /ai/fix-issue — AI-generated fix for a single issue
 // ---------------------------------------------------------------------------
-function buildScanContext(report: ScanReport, focusedIssue?: ScanIssue): string {
-  const lines: string[] = []
-
-  // Basic info
-  lines.push(`## Scanned URL: ${report.url}`)
-  lines.push(`Scanned at: ${report.scannedAt}`)
-  lines.push(`Overall score: ${report.overallScore}/100`)
-  lines.push("")
-
-  // Category scores
-  lines.push("## Category Scores")
-  for (const cs of report.categoryScores) {
-    lines.push(`- ${cs.category}: ${cs.score}/100 (${cs.errors} errors, ${cs.warnings} warnings, ${cs.infos} info)`)
-  }
-  lines.push("")
-
-  // Issues
-  lines.push(`## Issues (${report.issues.length} total)`)
-  for (const issue of report.issues) {
-    let entry = `- [${issue.severity.toUpperCase()}] ${issue.ruleId}: ${issue.message}`
-    if (issue.element) entry += `\n  Element: ${issue.element}`
-    if (issue.suggestion) entry += `\n  Suggestion: ${issue.suggestion}`
-    if (issue.wcagCriteria) entry += `\n  WCAG: ${issue.wcagCriteria} (Level ${issue.wcagLevel ?? "AA"})`
-    lines.push(entry)
-  }
-  lines.push("")
-
-  // Heading tree
-  if (report.headingTree.length > 0) {
-    lines.push("## Heading Structure")
-    for (const h of report.headingTree) {
-      const indent = "  ".repeat(h.level - 1)
-      let entry = `${indent}H${h.level}: ${h.text}`
-      if (h.issues.length > 0) entry += ` [Issues: ${h.issues.join(", ")}]`
-      lines.push(entry)
-    }
-    lines.push("")
-  }
-
-  // Security headers
-  lines.push(`## Security Headers — Grade: ${report.securityHeaders.grade}`)
-  for (const [header, info] of Object.entries(report.securityHeaders.headers)) {
-    lines.push(`- ${header}: ${info.present ? `present (${info.value ?? "set"})` : "MISSING"}`)
-  }
-  lines.push("")
-
-  // Meta tags
-  lines.push("## Meta Tags")
-  if (report.meta.title) lines.push(`- Title: ${report.meta.title}`)
-  if (report.meta.description) lines.push(`- Description: ${report.meta.description}`)
-  if (report.meta.lang) lines.push(`- Language: ${report.meta.lang}`)
-  if (report.meta.charset) lines.push(`- Charset: ${report.meta.charset}`)
-  if (report.meta.viewport) lines.push(`- Viewport: ${report.meta.viewport}`)
-  if (report.meta.canonical) lines.push(`- Canonical: ${report.meta.canonical}`)
-  const ogKeys = Object.keys(report.meta.ogTags)
-  if (ogKeys.length > 0) {
-    lines.push(`- OG tags: ${ogKeys.map(k => `${k}="${report.meta.ogTags[k]}"`).join(", ")}`)
-  }
-  lines.push("")
-
-  // Link summary
-  if (report.linkSummary) {
-    lines.push("## Link Check Summary")
-    lines.push(`- Total: ${report.linkSummary.total}, Healthy: ${report.linkSummary.healthy}, Broken: ${report.linkSummary.broken}, Redirects: ${report.linkSummary.redirects}, Timeouts: ${report.linkSummary.timeouts}`)
-    lines.push("")
-  }
-
-  // Schema / Structured Data
-  if (report.schema) {
-    lines.push("## Structured Data (Schema.org)")
-    lines.push(`- Total entities found: ${report.schema.totalFound}`)
-    lines.push(`- JSON-LD: ${report.schema.hasJsonLd ? "Yes" : "No"}, Microdata: ${report.schema.hasMicrodata ? "Yes" : "No"}, RDFa: ${report.schema.hasRdfa ? "Yes" : "No"}`)
-    for (const entity of report.schema.entities.slice(0, 10)) {
-      let entry = `- [${entity.source}] ${entity.type}`
-      if (entity.issues.length > 0) entry += ` (Issues: ${entity.issues.join(", ")})`
-      lines.push(entry)
-    }
-    if (report.schema.entities.length > 10) {
-      lines.push(`- ... and ${report.schema.entities.length - 10} more entities`)
-    }
-    lines.push("")
-  }
-
-  // Site Structure
-  if (report.siteStructure) {
-    const s = report.siteStructure
-    lines.push("## Site Structure")
-    lines.push(`- Internal links: ${s.internalLinks.length}, External links: ${s.externalLinks.length}`)
-    lines.push(`- Navigation links: ${s.navigation.length}`)
-    const h = s.pageHierarchy
-    lines.push(`- Semantic elements: nav=${h.hasNav}, main=${h.hasMain}, footer=${h.hasFooter}, aside=${h.hasAside}, breadcrumb=${h.hasBreadcrumb}`)
-    lines.push(`- Heading count: ${h.headingCount}, Sections: ${h.sections.length}`)
-    if (s.navigation.length > 0) {
-      lines.push(`- Top nav links: ${s.navigation.slice(0, 8).map(n => `"${n.text}"`).join(", ")}`)
-    }
-    lines.push("")
-  }
-
-  // Focused issue
-  if (focusedIssue) {
-    lines.push("## THE USER IS CURRENTLY LOOKING AT THIS ISSUE:")
-    lines.push(`Rule: ${focusedIssue.ruleId}`)
-    lines.push(`Severity: ${focusedIssue.severity}`)
-    lines.push(`Message: ${focusedIssue.message}`)
-    if (focusedIssue.element) lines.push(`Element: ${focusedIssue.element}`)
-    if (focusedIssue.selector) lines.push(`Selector: ${focusedIssue.selector}`)
-    if (focusedIssue.suggestion) lines.push(`Suggestion: ${focusedIssue.suggestion}`)
-    if (focusedIssue.wcagCriteria) lines.push(`WCAG: ${focusedIssue.wcagCriteria} (Level ${focusedIssue.wcagLevel ?? "AA"})`)
-    lines.push("")
-  }
-
-  return lines.join("\n")
-}
-
-function parseFollowUpPrompts(response: string): { cleanResponse: string; prompts: string[] } {
-  const prompts: string[] = []
-  const clean = response
-    .replace(/FOLLOW_UP:\s*(.+)/g, (_, p) => {
-      prompts.push(p.trim())
-      return ""
-    })
-    .trim()
-  return { cleanResponse: clean, prompts }
-}
-
-const SCANNER_SYSTEM_PROMPT = `You are a web accessibility expert assistant. You help users understand their website scan results and fix accessibility, SEO, and security issues.
-
-You have access to a detailed scan report for the user's website (provided below). Use it to answer their questions accurately.
-
-Guidelines:
-- Explain issues in plain, non-technical English when possible, then provide the technical details.
-- Provide concrete HTML code fixes using markdown code blocks. When showing fixes, show a "Before" and "After" example so the user can see exactly what to change.
-- Reference specific WCAG success criteria (e.g., WCAG 2.1 SC 1.1.1 Non-text Content) and briefly explain what the criterion requires and why it matters.
-- Prioritize fixes by impact — critical accessibility barriers first, then warnings, then best-practice improvements.
-- Be concise and actionable. Avoid lengthy preambles.
-- If the user asks about a specific issue, focus your answer on that issue but mention related issues if relevant.
-- When discussing security headers, explain both what the header does and the risk of not having it.
-
-At the end of your response, suggest 2-3 natural follow-up questions the user might want to ask. Format each on its own line as:
-FOLLOW_UP: <question text>
-`
-
-// ---------------------------------------------------------------------------
-// POST /ai — AI chat about scan results (SSE streaming)
-// ---------------------------------------------------------------------------
-router.post("/ai", async (req: Request, res: Response) => {
+router.post("/ai/fix-issue", async (req: Request, res: Response) => {
   const openai = getOpenAI()
   if (!openai) {
     return res.status(503).json({ error: "AI service is not configured" })
   }
 
-  const { query, scanReport, conversationHistory, focusedIssue } = req.body ?? {}
-
-  if (!query || typeof query !== "string" || !query.trim()) {
-    return res.status(400).json({ error: "query is required" })
-  }
-  if (!scanReport || typeof scanReport !== "object" || !scanReport.url) {
-    return res.status(400).json({ error: "scanReport is required" })
+  const { url, issue, pageContext } = req.body ?? {}
+  if (!issue || typeof issue !== "object" || !issue.ruleId) {
+    return res.status(400).json({ error: "issue is required" })
   }
 
-  // Build the system prompt with scan context
-  const scanContext = buildScanContext(scanReport as ScanReport, focusedIssue as ScanIssue | undefined)
-  const systemPrompt = `${SCANNER_SYSTEM_PROMPT}\n---\n\n# Scan Report Context\n${scanContext}`
+  const systemPrompt = `You are an accessibility expert. Given an accessibility issue found on a web page, return a JSON object with exactly these fields:
+- "explanation": A 2-sentence plain-English explanation of why this matters and which users are affected.
+- "beforeCode": The problematic HTML code (the element as-is). If no element HTML is provided, write a realistic example that would trigger this issue.
+- "afterCode": The corrected HTML code showing the fix applied.
+- "watchFor": One related thing to watch for on the same page (1 sentence).
 
-  // Prepare conversation history
-  const history: Array<{ role: "user" | "assistant"; content: string }> = Array.isArray(conversationHistory)
-    ? conversationHistory
-        .filter((m: any) => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-        .map((m: any) => ({ role: m.role as "user" | "assistant", content: m.content as string }))
-    : []
+Output ONLY valid JSON. No markdown, no code fences, no extra text.`
 
-  const trimmedHistory = truncateHistory(history)
+  const userContent = [
+    `Page URL: ${url || "unknown"}`,
+    `Rule ID: ${issue.ruleId}`,
+    `Category: ${issue.category || "unknown"}`,
+    `Severity: ${issue.severity || "unknown"}`,
+    `Message: ${issue.message || ""}`,
+    issue.element ? `Element HTML: ${issue.element}` : "",
+    issue.selector ? `Selector: ${issue.selector}` : "",
+    issue.suggestion ? `Existing suggestion: ${issue.suggestion}` : "",
+    issue.wcagCriteria ? `WCAG Criteria: ${issue.wcagCriteria}${issue.wcagLevel ? ` (Level ${issue.wcagLevel})` : ""}` : "",
+    pageContext?.title ? `Page title: ${pageContext.title}` : "",
+    pageContext?.lang ? `Page language: ${pageContext.lang}` : "",
+  ].filter(Boolean).join("\n")
 
-  const messages: OpenAI.ChatCompletionMessageParam[] = [
-    { role: "system", content: systemPrompt },
-    ...trimmedHistory,
-    { role: "user", content: query.trim() },
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userContent },
+      ],
+      temperature: 0.3,
+      max_tokens: 1000,
+    })
+
+    const raw = completion.choices[0]?.message?.content ?? ""
+    // Strip code fences if the model wrapped its output
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim()
+
+    let parsed: { explanation: string; beforeCode: string; afterCode: string; watchFor: string }
+    try {
+      parsed = JSON.parse(cleaned)
+    } catch {
+      return res.status(502).json({ error: "AI returned invalid JSON", raw: cleaned })
+    }
+
+    return res.json(parsed)
+  } catch (err: any) {
+    console.error("[Scanner AI] fix-issue error:", err?.message || err)
+    return res.status(502).json({ error: err?.message ?? "AI request failed" })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// POST /ai/alt-text — AI-generated alt text using vision (gpt-4o)
+// ---------------------------------------------------------------------------
+router.post("/ai/alt-text", async (req: Request, res: Response) => {
+  const openai = getOpenAI()
+  if (!openai) {
+    return res.status(503).json({ error: "AI service is not configured" })
+  }
+
+  const { pageUrl, imageUrl, surroundingText } = req.body ?? {}
+  if (!imageUrl || typeof imageUrl !== "string") {
+    return res.status(400).json({ error: "imageUrl is required" })
+  }
+
+  // Resolve relative URLs
+  let resolvedUrl = imageUrl
+  try {
+    if (pageUrl && !/^https?:\/\//i.test(imageUrl)) {
+      resolvedUrl = new URL(imageUrl, pageUrl).href
+    }
+  } catch {
+    // Keep as-is if resolution fails
+  }
+
+  if (!isPublicUrl(resolvedUrl)) {
+    return res.status(400).json({ error: "Image URL must be a public HTTP/HTTPS address" })
+  }
+
+  const userContent: OpenAI.ChatCompletionContentPart[] = [
+    {
+      type: "text",
+      text: `Write concise, descriptive alt text for this image (max 120 characters, no "image of..." prefix, focus on meaningful content). If the image is purely decorative (e.g., a spacer, border, or abstract pattern with no informational value), return an empty string.${surroundingText ? `\n\nSurrounding page text for context: "${surroundingText}"` : ""}
+
+Output ONLY valid JSON: { "altText": "...", "isDecorative": false }`,
+    },
+    {
+      type: "image_url",
+      image_url: { url: resolvedUrl, detail: "low" },
+    },
   ]
 
-  await streamCompletion({
-    openai,
-    messages,
-    temperature: 0.4,
-    maxTokens: 3000,
-    metadata: { type: "scanner-ai" },
-    parseFollowUpPrompts,
-    res,
-  })
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "user", content: userContent },
+      ],
+      temperature: 0.2,
+      max_tokens: 200,
+    })
+
+    const raw = completion.choices[0]?.message?.content ?? ""
+    const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim()
+
+    let parsed: { altText: string; isDecorative: boolean }
+    try {
+      parsed = JSON.parse(cleaned)
+    } catch {
+      // Fallback: use raw text as alt text
+      parsed = { altText: raw.slice(0, 120), isDecorative: false }
+    }
+
+    // Cap alt text length
+    if (parsed.altText && parsed.altText.length > 200) {
+      parsed.altText = parsed.altText.slice(0, 197) + "..."
+    }
+
+    return res.json(parsed)
+  } catch (err: any) {
+    console.error("[Scanner AI] alt-text error:", err?.message || err)
+    return res.status(502).json({ error: err?.message ?? "AI request failed" })
+  }
 })
 
 export default router

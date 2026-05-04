@@ -19,7 +19,6 @@ import pitchDeckRouter from "./pitchDeck.js"
 import meetingsRouter from "./meetings.js"
 import scannerRouter from "./scanner.js"
 import screenshotRouter from "./screenshot.js"
-import reportsRouter from "./reports.js"
 
 const router = Router()
 
@@ -43,6 +42,5 @@ router.use("/pitch-deck", pitchDeckRouter)
 router.use("/meetings", meetingsRouter)
 router.use("/scanner", scannerRouter)
 router.use("/screenshot", screenshotRouter)
-router.use("/reports", reportsRouter)
 
 export default router

@@ -405,11 +405,11 @@ export function HomePage() {
   }, [handleSettingsChange])
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
       <AppHeader />
 
       {/* Hero */}
-      <section className="pt-16 pb-10 px-6">
+      <section className="pt-16 pb-10 px-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-baseline justify-between gap-4 mb-2.5">
             <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.1em] uppercase animate-fade-in transition-colors">
@@ -500,7 +500,7 @@ export function HomePage() {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 px-6 border-t border-slate-200/30 dark:border-slate-800/30 transition-colors">
+      <footer className="py-4 px-6 border-t border-black/[0.06] dark:border-white/[0.08] transition-colors">
         <div className="max-w-4xl mx-auto text-center">
           <p className="text-[11px] text-slate-300 dark:text-slate-700 tracking-[0.04em] transition-colors">
             © {new Date().getFullYear()} Stamats

@@ -1,10 +1,9 @@
 // URL Scanner types
 
 export type Severity = "error" | "warning" | "info"
-export type Category = "headings" | "images" | "landmarks" | "forms" | "document" | "links" | "performance" | "contrast" | "security" | "schema" | "structure"
+export type Category = "headings" | "images" | "landmarks" | "forms" | "performance" | "contrast" | "security" | "structure"
 
 export interface ScanOptions {
-  checkLinks?: boolean
   wcagLevel?: "A" | "AA" | "AAA"
   timeout?: number
 }
@@ -40,14 +39,6 @@ export interface CategoryScore {
 export interface ScanSummary {
   topPriorities: string[]
   whatsWorking: string[]
-}
-
-export interface SchemaEntity {
-  type: string               // e.g. "Organization", "WebPage", "BreadcrumbList"
-  source: "json-ld" | "microdata" | "rdfa"
-  properties: Record<string, unknown>
-  issues: string[]           // validation issues for this entity
-  raw: string                // the raw JSON-LD or HTML snippet
 }
 
 export interface SiteStructure {
@@ -88,24 +79,9 @@ export interface ScanReport {
     ogTags: Record<string, string>
     canonical?: string
   }
-  linkSummary?: {
-    total: number
-    healthy: number
-    broken: number
-    redirects: number
-    timeouts: number
-  }
   securityHeaders: {
     grade: string
     headers: Record<string, { present: boolean; value?: string }>
-  }
-  schema: {
-    entities: SchemaEntity[]
-    totalFound: number
-    hasJsonLd: boolean
-    hasMicrodata: boolean
-    hasRdfa: boolean
-    issues: ScanIssue[]
   }
   siteStructure: SiteStructure
 }

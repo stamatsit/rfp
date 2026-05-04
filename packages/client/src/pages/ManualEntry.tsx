@@ -228,7 +228,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
   ]
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-fade-in">
       <AppHeader />
 
       {/* Content */}
@@ -262,7 +262,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
 
           {/* Error Banner */}
           {error && (
-            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm">
+            <div className="mb-6 p-4 bg-gradient-to-r from-red-50 to-red-50/80 border border-red-200 rounded-2xl flex items-start gap-3 shadow-sm animate-fade-in-up">
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertCircle className="text-red-600" size={20} />
               </div>
@@ -275,8 +275,8 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
 
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Main Content Card */}
-            <Card className="border-slate-200/80 dark:border-slate-700 dark:bg-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800 border-b border-slate-100 dark:border-slate-700 px-6 py-5">
+            <Card className="border-black/[0.06] dark:border-white/[0.08] dark:bg-slate-800 shadow-sm dark:shadow-none rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800 border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-5">
                 <CardTitle className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                   <MessageSquare size={18} className="text-blue-500" />
                   Question & Answer
@@ -330,8 +330,8 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
             </Card>
 
             {/* Metadata Card */}
-            <Card className="border-slate-200/80 dark:border-slate-700 dark:bg-slate-800 shadow-xl shadow-slate-200/50 dark:shadow-none rounded-2xl overflow-hidden">
-              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800 border-b border-slate-100 dark:border-slate-700 px-6 py-5">
+            <Card className="border-black/[0.06] dark:border-white/[0.08] dark:bg-slate-800 shadow-sm dark:shadow-none rounded-2xl overflow-hidden">
+              <CardHeader className="bg-gradient-to-r from-slate-50 to-slate-100/50 dark:from-slate-800 dark:to-slate-800 border-b border-black/[0.06] dark:border-white/[0.08] px-6 py-5">
                 <CardTitle className="text-lg font-semibold text-slate-800 dark:text-white flex items-center gap-2">
                   <FolderOpen size={18} className="text-purple-500" />
                   Organization
@@ -388,7 +388,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                     <button
                       type="button"
                       onClick={() => setStatus("Draft")}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-150 ease-out flex items-center justify-center gap-2 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${
                         status === "Draft"
                           ? "border-amber-400 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
                           : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500"
@@ -400,7 +400,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                     <button
                       type="button"
                       onClick={() => setStatus("Approved")}
-                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-200 flex items-center justify-center gap-2 ${
+                      className={`flex-1 py-3 px-4 rounded-xl border-2 transition-all duration-150 ease-out flex items-center justify-center gap-2 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 ${
                         status === "Approved"
                           ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
                           : "border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-500"

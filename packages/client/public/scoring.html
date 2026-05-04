@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>URL Scanner — Scoring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink: #1d1d1f;
+    --ink-2: #424245;
+    --muted: #6e6e73;
+    --line: rgba(0, 0, 0, 0.08);
+    --line-dark: rgba(255, 255, 255, 0.12);
+    --bg: #ffffff;
+    --bg-soft: #f5f5f7;
+    --bg-dark: #000000;
+    --accent: #0071e3;
+    --accent-hover: #0077ed;
+    --green: #30d158;
+    --amber: #ff9f0a;
+    --red:   #ff453a;
+    --green-deep: #00875a;
+    --amber-deep: #b15c00;
+    --red-deep:   #c1271d;
+  }
+
+  html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family:
+      "SF Pro Display", "SF Pro Text",
+      -apple-system, BlinkMacSystemFont,
+      "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    text-rendering: optimizeLegibility;
+    line-height: 1.47059;
+    font-size: 17px;
+    font-weight: 400;
+    letter-spacing: -0.022em;
+    overflow-x: hidden;
+  }
+  .mono {
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+    letter-spacing: 0;
+  }
+
+  /* ---------- Sticky nav ---------- */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(255,255,255,0.72);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+  }
+  .nav-inner {
+    max-width: 980px; margin: 0 auto;
+    padding: 0 22px;
+    height: 48px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px;
+  }
+  .nav-title { font-weight: 600; color: var(--ink); }
+  .nav-meta { color: var(--muted); font-size: 12px; letter-spacing: 0; }
+
+  /* ---------- Layout ---------- */
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 22px; }
+  .narrow { max-width: 700px; margin: 0 auto; padding: 0 22px; }
+
+  section { padding: 140px 0; }
+  section.tight { padding: 100px 0; }
+
+  /* ---------- Section eyebrow ---------- */
+  .eyebrow {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .eyebrow.on-dark { color: #2997ff; }
+
+  /* ---------- Display headings ---------- */
+  h1, h2, h3 { color: var(--ink); }
+  h1 {
+    font-size: clamp(44px, 7.2vw, 96px);
+    font-weight: 700;
+    letter-spacing: -0.045em;
+    line-height: 1.05;
+  }
+  h2 {
+    font-size: clamp(32px, 4.6vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.038em;
+    line-height: 1.07143;
+    max-width: none;
+  }
+  h3 {
+    font-size: clamp(22px, 2.4vw, 28px);
+    font-weight: 600;
+    letter-spacing: -0.024em;
+    line-height: 1.14286;
+  }
+
+  .lead {
+    font-size: clamp(19px, 1.8vw, 23px);
+    line-height: 1.42105;
+    color: var(--ink-2);
+    font-weight: 400;
+    letter-spacing: -0.018em;
+    margin-top: 22px;
+  }
+  .lead.on-dark { color: #a1a1a6; }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding: 120px 0 140px;
+    text-align: center;
+  }
+  .hero h1 { margin: 0 auto; max-width: 880px; }
+  .hero .lead { margin: 28px auto 0; max-width: 640px; }
+  .hero-stat {
+    margin-top: 80px;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .hero-stat .num {
+    font-size: 17px; font-weight: 600; color: var(--ink);
+  }
+
+  /* ---------- Center column for body sections ---------- */
+  .center { text-align: center; }
+
+  /* ---------- Section header (centered) ---------- */
+  .section-head {
+    text-align: center;
+    margin: 0 auto;
+    max-width: 880px;
+  }
+  .section-head h2 {
+    max-width: none;
+  }
+  .section-head .lead {
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* ---------- Steps (Apple-style numbered list) ---------- */
+  .steps {
+    margin-top: 88px;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .step {
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 28px;
+    padding: 28px 0;
+    border-bottom: 1px solid var(--line);
+    align-items: baseline;
+  }
+  .step:last-child { border-bottom: none; }
+  .step .num {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .step .title {
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .step .desc {
+    font-size: 17px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: -0.018em;
+    line-height: 1.5;
+  }
+
+  /* ---------- DARK SECTION ---------- */
+  .dark {
+    background: var(--bg-dark);
+    color: #f5f5f7;
+  }
+  .dark h1, .dark h2, .dark h3 { color: #f5f5f7; }
+  .dark .muted { color: #86868b; }
+
+  /* ---------- The formula moment ---------- */
+  .formula-moment {
+    margin-top: 88px;
+    text-align: center;
+  }
+  .formula-text {
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 500;
+    line-height: 1.6;
+    letter-spacing: -0.01em;
+    color: #f5f5f7;
+    display: inline-block;
+    text-align: left;
+  }
+  .formula-text .start { color: #ffffff; font-weight: 600; }
+  .formula-text .err { color: #ff6961; }
+  .formula-text .warn { color: #ffd60a; }
+  .formula-text .info { color: #64d2ff; }
+  .formula-text .op { color: #6e6e73; }
+
+  /* ---------- Penalty grid ---------- */
+  .penalty {
+    margin-top: 96px;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--line-dark);
+    border: 1px solid var(--line-dark);
+    border-radius: 18px;
+    overflow: hidden;
+  }
+  .penalty-cell {
+    background: #000;
+    padding: 36px 28px;
+    text-align: center;
+  }
+  .penalty-cell .label {
+    font-size: 13px;
+    color: #86868b;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-weight: 500;
+  }
+  .penalty-cell .value {
+    font-size: clamp(40px, 4vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    margin-top: 14px;
+    line-height: 1;
+  }
+  .penalty-cell .desc {
+    font-size: 14px;
+    color: #86868b;
+    margin-top: 14px;
+    letter-spacing: -0.014em;
+  }
+  .v-red { color: #ff6961; }
+  .v-amber { color: #ffd60a; }
+  .v-blue { color: #64d2ff; }
+
+  /* ---------- Categories grid ---------- */
+  .cats {
+    margin-top: 88px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    overflow: hidden;
+  }
+  .cat {
+    background: #fff;
+    padding: 28px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cat .name {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.018em;
+    color: var(--ink);
+  }
+  .cat .group {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .cat.span-2 { grid-column: span 2; background: var(--bg-soft); }
+  .cat.span-2 .name { color: var(--muted); font-weight: 500; font-style: italic; }
+
+  /* ---------- Buckets (light section) ---------- */
+  .light-soft { background: var(--bg-soft); }
+
+  .buckets {
+    margin-top: 88px;
+    display: grid;
+    gap: 1px;
+    background: var(--line);
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    overflow: hidden;
+  }
+  .bucket {
+    background: #fff;
+    padding: 36px 40px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 24px;
+    align-items: center;
+  }
+  .bucket .b-name {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.022em;
+  }
+  .bucket .b-desc {
+    font-size: 15px;
+    color: var(--muted);
+    margin-top: 4px;
+    letter-spacing: -0.014em;
+  }
+  .bucket .b-weight {
+    font-size: clamp(40px, 5vw, 56px);
+    font-weight: 700;
+    letter-spacing: -0.04em;
+    line-height: 1;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .bucket .b-weight .pct {
+    font-size: 0.55em;
+    color: var(--muted);
+    margin-left: 4px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+  }
+
+  /* ---------- Color rule ---------- */
+  .rating {
+    margin-top: 88px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .rating-card {
+    border-radius: 22px;
+    padding: 56px 36px 48px;
+    text-align: center;
+    color: #fff;
+    position: relative;
+    overflow: hidden;
+  }
+  .rating-card .range {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+  .rating-card .label {
+    font-size: clamp(36px, 4vw, 48px);
+    font-weight: 700;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    margin-top: 18px;
+  }
+  .rating-card .desc {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-top: 18px;
+    letter-spacing: -0.014em;
+  }
+  .r-red    { background: #ff453a; }
+  .r-amber  { background: #ff9f0a; }
+  .r-green  { background: #30d158; }
+
+  /* ---------- Worked example ---------- */
+  .example-wrap {
+    margin-top: 88px;
+  }
+  .example {
+    border: 1px solid var(--line-dark);
+    border-radius: 22px;
+    overflow: hidden;
+    background: #0a0a0a;
+  }
+  .ex-step {
+    padding: 44px 48px;
+    border-bottom: 1px solid var(--line-dark);
+  }
+  .ex-step:last-child { border-bottom: none; }
+  .ex-num {
+    font-size: 13px;
+    font-weight: 600;
+    color: #86868b;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+  .ex-title {
+    font-size: 24px;
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    color: #f5f5f7;
+  }
+  .ex-body {
+    margin-top: 12px;
+    font-size: 17px;
+    color: #a1a1a6;
+    letter-spacing: -0.018em;
+    max-width: 56ch;
+  }
+  .ex-math {
+    margin-top: 28px;
+    font-family: "JetBrains Mono", "SF Mono", ui-monospace, Menlo, monospace;
+    font-size: 17px;
+    line-height: 2;
+    color: #d2d2d7;
+    letter-spacing: 0;
+  }
+  .ex-math .key { color: #64d2ff; }
+  .ex-math .total { color: #30d158; font-weight: 600; }
+  .ex-math .comment { color: #6e6e73; }
+  .ex-math .rule {
+    display: block;
+    color: #424245;
+    margin: 4px 0;
+  }
+
+  /* ---------- Final result ---------- */
+  .final {
+    text-align: center;
+    margin-top: 100px;
+  }
+  .final-ring {
+    width: 240px; height: 240px;
+    margin: 0 auto;
+    position: relative;
+  }
+  .final-ring svg { transform: rotate(-90deg); display: block; }
+  .final-num {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 88px;
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    color: #f5f5f7;
+    font-variant-numeric: tabular-nums;
+  }
+  .final-caption {
+    margin-top: 36px;
+    font-size: 21px;
+    color: #a1a1a6;
+    letter-spacing: -0.022em;
+  }
+  .final-caption strong {
+    color: #30d158;
+    font-weight: 600;
+  }
+
+  /* ---------- Takeaways ---------- */
+  .takeaways {
+    margin-top: 88px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  .takeaway {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 22px;
+    padding: 48px 40px;
+  }
+  .takeaway-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 18px;
+  }
+  .takeaway-title {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.028em;
+    line-height: 1.14;
+  }
+  .takeaway-body {
+    margin-top: 14px;
+    font-size: 17px;
+    color: var(--muted);
+    line-height: 1.5;
+    letter-spacing: -0.018em;
+  }
+
+  /* ---------- Honest limit note ---------- */
+  .limit-note {
+    margin-top: 88px;
+    background: #fffbf0;
+    border: 1px solid rgba(255, 159, 10, 0.25);
+    border-radius: 22px;
+    padding: 36px 40px;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+  .limit-icon {
+    width: 40px; height: 40px;
+    border-radius: 12px;
+    background: #ff9f0a;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .limit-eyebrow {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #b15c00;
+    margin-bottom: 10px;
+  }
+  .limit-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.022em;
+    color: var(--ink);
+  }
+  .limit-body {
+    margin-top: 10px;
+    font-size: 16px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    letter-spacing: -0.018em;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    padding: 60px 0;
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--line);
+    background: var(--bg-soft);
+    letter-spacing: -0.014em;
+  }
+
+  /* ---------- Reveal animation ---------- */
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .reveal { opacity: 1; transform: none; transition: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 720px) {
+    section { padding: 88px 0; }
+    .hero { padding: 72px 0 88px; }
+    .step { grid-template-columns: 40px 1fr; gap: 18px; padding: 22px 0; }
+    .step .title { font-size: 19px; }
+    .cats { grid-template-columns: repeat(2, 1fr); }
+    .cat.span-2 { grid-column: span 2; }
+    .penalty { grid-template-columns: 1fr; }
+    .bucket { padding: 28px 24px; grid-template-columns: 1fr; gap: 12px; }
+    .bucket .b-weight { font-size: 44px; text-align: left; }
+    .rating { grid-template-columns: 1fr; gap: 12px; }
+    .ex-step { padding: 32px 24px; }
+    .ex-math { font-size: 14px; }
+    .takeaways { grid-template-columns: 1fr; }
+    .takeaway { padding: 36px 28px; }
+    .takeaway-title { font-size: 24px; }
+    .limit-note { padding: 28px 24px; grid-template-columns: 1fr; gap: 16px; }
+    .final-ring { width: 180px; height: 180px; }
+    .final-num { font-size: 64px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ========== STICKY NAV ========== -->
+<nav class="nav">
+  <div class="nav-inner">
+    <span class="nav-title">URL Scanner</span>
+    <span class="nav-meta">Scoring Guide</span>
+  </div>
+</nav>
+
+<!-- ========== HERO ========== -->
+<header class="hero">
+  <div class="wrap">
+    <span class="eyebrow reveal">An Internal Guide</span>
+    <h1 class="reveal">Every scan ends with one number.</h1>
+    <p class="lead reveal">
+      Here's exactly how the URL Scanner turns a website
+      into a single 0–100 score — explained simply, in five short sections.
+    </p>
+  </div>
+</header>
+
+<!-- ========== SECTION 1 — THE SCAN ========== -->
+<section class="light-soft">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">The Scan</span>
+      <h2>Five steps. Roughly a second.</h2>
+      <p class="lead">
+        When you press scan, the page goes through five quick stages.
+        Each one streams progress to the screen as it happens.
+      </p>
+    </div>
+
+    <div class="steps reveal">
+      <div class="step">
+        <div class="num">01</div>
+        <div>
+          <div class="title">Fetch the page</div>
+          <div class="desc">Download the HTML. Times out at 15 seconds.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">02</div>
+        <div>
+          <div class="title">Analyze the structure</div>
+          <div class="desc">Headings, images, forms, schema, security, and meta — all at once.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">03</div>
+        <div>
+          <div class="title">Run the accessibility audit</div>
+          <div class="desc">axe-core checks the page against WCAG AA standards.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">04</div>
+        <div>
+          <div class="title">Check the links</div>
+          <div class="desc">Optional. Probe every link for broken or timing-out URLs.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="num">05</div>
+        <div>
+          <div class="title">Score everything</div>
+          <div class="desc">Combine every issue into category scores, then a single overall score.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 1.5 — WHAT GETS CHECKED ========== -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">What Gets Checked</span>
+      <h2>Eleven categories. One score each.</h2>
+      <p class="lead">
+        Every problem the scanner finds is filed under one of these.
+        Each gets its own 0–100 score before they roll up into the overall.
+      </p>
+    </div>
+
+    <div class="cats reveal">
+      <div class="cat">
+        <span class="group">Accessibility</span>
+        <span class="name">Images</span>
+      </div>
+      <div class="cat">
+        <span class="group">Accessibility</span>
+        <span class="name">Contrast</span>
+      </div>
+      <div class="cat">
+        <span class="group">Structure</span>
+        <span class="name">Headings</span>
+      </div>
+      <div class="cat">
+        <span class="group">Structure</span>
+        <span class="name">Landmarks</span>
+      </div>
+      <div class="cat">
+        <span class="group">Structure</span>
+        <span class="name">Forms</span>
+      </div>
+      <div class="cat">
+        <span class="group">Structure</span>
+        <span class="name">Site Structure</span>
+      </div>
+      <div class="cat">
+        <span class="group">SEO</span>
+        <span class="name">Document</span>
+      </div>
+      <div class="cat">
+        <span class="group">SEO</span>
+        <span class="name">Schema</span>
+      </div>
+      <div class="cat">
+        <span class="group">Security</span>
+        <span class="name">Headers</span>
+      </div>
+      <div class="cat">
+        <span class="group">Links</span>
+        <span class="name">Health</span>
+      </div>
+      <div class="cat span-2">
+        <span class="group">Tracked</span>
+        <span class="name">Performance · not yet weighted</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 2 — THE FORMULA (DARK) ========== -->
+<section class="dark">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow on-dark">The Formula</span>
+      <h2>Every category starts at 100.</h2>
+      <p class="lead on-dark">
+        Issues subtract from there. One simple rule, applied to all 11 categories.
+      </p>
+    </div>
+
+    <div class="formula-moment reveal">
+      <div class="formula-text">
+        <span class="start">100</span><br>
+        <span class="op">−</span> <span class="err">errors × 15</span><br>
+        <span class="op">−</span> <span class="warn">warnings × 5</span><br>
+        <span class="op">−</span> <span class="info">infos × 1</span>
+      </div>
+    </div>
+
+    <div class="penalty reveal">
+      <div class="penalty-cell">
+        <div class="label">Each Error</div>
+        <div class="value v-red">−15</div>
+        <div class="desc">Critical or serious. Broken for many users.</div>
+      </div>
+      <div class="penalty-cell">
+        <div class="label">Each Warning</div>
+        <div class="value v-amber">−5</div>
+        <div class="desc">Moderate. Needs attention soon.</div>
+      </div>
+      <div class="penalty-cell">
+        <div class="label">Each Info</div>
+        <div class="value v-blue">−1</div>
+        <div class="desc">Minor. Nice to fix.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 3 — THE BUCKETS ========== -->
+<section>
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">The Overall Score</span>
+      <h2>Five buckets. Five weights.</h2>
+      <p class="lead">
+        The category scores collapse into five buckets. Weighted, summed, rounded.
+        That's the big number in the ring.
+      </p>
+    </div>
+
+    <div class="buckets reveal">
+      <div class="bucket">
+        <div>
+          <div class="b-name">Accessibility</div>
+          <div class="b-desc">Images, contrast</div>
+        </div>
+        <div class="b-weight">35<span class="pct">%</span></div>
+      </div>
+      <div class="bucket">
+        <div>
+          <div class="b-name">SEO</div>
+          <div class="b-desc">Document tags, schema</div>
+        </div>
+        <div class="b-weight">25<span class="pct">%</span></div>
+      </div>
+      <div class="bucket">
+        <div>
+          <div class="b-name">Structure</div>
+          <div class="b-desc">Headings, landmarks, forms</div>
+        </div>
+        <div class="b-weight">20<span class="pct">%</span></div>
+      </div>
+      <div class="bucket">
+        <div>
+          <div class="b-name">Security</div>
+          <div class="b-desc">HTTP security headers</div>
+        </div>
+        <div class="b-weight">10<span class="pct">%</span></div>
+      </div>
+      <div class="bucket">
+        <div>
+          <div class="b-name">Links</div>
+          <div class="b-desc">Broken or timing-out URLs</div>
+        </div>
+        <div class="b-weight">10<span class="pct">%</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 4 — THE COLOR ========== -->
+<section class="light-soft">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">The Color</span>
+      <h2>Three colors. One rule.</h2>
+      <p class="lead">
+        Same thresholds for the ring, the tiles, the bars,
+        and every score in the report.
+      </p>
+    </div>
+
+    <div class="rating reveal">
+      <div class="rating-card r-red">
+        <div class="range">0 – 69</div>
+        <div class="label">Red</div>
+        <div class="desc">Poor</div>
+      </div>
+      <div class="rating-card r-amber">
+        <div class="range">70 – 89</div>
+        <div class="label">Amber</div>
+        <div class="desc">Needs work</div>
+      </div>
+      <div class="rating-card r-green">
+        <div class="range">90 – 100</div>
+        <div class="label">Green</div>
+        <div class="desc">Healthy</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== SECTION 5 — WORKED EXAMPLE (DARK) ========== -->
+<section class="dark">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow on-dark">A Real Example</span>
+      <h2>From issues to a final score.</h2>
+      <p class="lead on-dark">
+        One scan, all the way through.
+      </p>
+    </div>
+
+    <div class="example-wrap reveal">
+      <div class="example">
+        <div class="ex-step">
+          <div class="ex-num">Step 01</div>
+          <div class="ex-title">Score each category</div>
+          <div class="ex-body">
+            The scanner found a few image problems and one missing landmark.
+            Each category got a score using the formula on the previous page.
+          </div>
+          <div class="ex-math">
+            <span class="key">images</span> &nbsp;&nbsp;&nbsp;= 65 &nbsp;<span class="comment">// 2 errors, 1 warning</span><br>
+            <span class="key">contrast</span> &nbsp;= 100<br>
+            <span class="key">headings</span> &nbsp;= 95<br>
+            <span class="key">landmarks</span> = 85<br>
+            <span class="key">document</span> &nbsp;= 95<br>
+            <span class="key">security</span> &nbsp;= 90<br>
+            <span class="key">links</span> &nbsp;&nbsp;&nbsp;&nbsp;= 95
+          </div>
+        </div>
+
+        <div class="ex-step">
+          <div class="ex-num">Step 02</div>
+          <div class="ex-title">Collapse into buckets</div>
+          <div class="ex-body">
+            The categories average together into five buckets — Accessibility, SEO,
+            Structure, Security, and Links.
+          </div>
+          <div class="ex-math">
+            <span class="key">Accessibility</span> = 82.5<br>
+            <span class="key">SEO</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 95<br>
+            <span class="key">Structure</span> &nbsp; = 95<br>
+            <span class="key">Security</span> &nbsp;&nbsp;= 90<br>
+            <span class="key">Links</span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; = 95
+          </div>
+        </div>
+
+        <div class="ex-step">
+          <div class="ex-num">Step 03</div>
+          <div class="ex-title">Apply the weights</div>
+          <div class="ex-body">
+            Each bucket gets multiplied by its weight, then everything adds up.
+          </div>
+          <div class="ex-math">
+            82.5 &nbsp;× 35% &nbsp;= 28.875<br>
+            95.0 &nbsp;× 25% &nbsp;= 23.750<br>
+            95.0 &nbsp;× 20% &nbsp;= 19.000<br>
+            90.0 &nbsp;× 10% &nbsp;= &nbsp;9.000<br>
+            95.0 &nbsp;× 10% &nbsp;= &nbsp;9.500<br>
+            <span class="rule">─────────────────</span>
+            <span class="total">Total &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;= 90</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="final reveal">
+      <div class="final-ring">
+        <svg width="240" height="240" viewBox="0 0 240 240">
+          <circle cx="120" cy="120" r="104" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>
+          <circle cx="120" cy="120" r="104" fill="none" stroke="#30d158" stroke-width="14"
+                  stroke-linecap="round"
+                  stroke-dasharray="653.45"
+                  stroke-dashoffset="65.34"/>
+        </svg>
+        <div class="final-num">90</div>
+      </div>
+      <div class="final-caption">Final score: <strong>90 / 100</strong></div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== TAKEAWAYS ========== -->
+<section class="tight">
+  <div class="wrap">
+    <div class="section-head reveal">
+      <span class="eyebrow">Remember This</span>
+      <h2>Two things worth knowing.</h2>
+    </div>
+
+    <div class="limit-note reveal">
+      <div class="limit-icon">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 1l9 17H1L10 1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M10 7v5M10 14.5v.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="limit-eyebrow">One Honest Limit</div>
+        <div class="limit-title">Color contrast isn't checked yet.</div>
+        <div class="limit-body">
+          Color contrast — the most common accessibility issue on the web — requires
+          a real browser to compute rendered styles. Our scanner runs without a browser
+          for speed, so contrast scoring is skipped. Treat the score as "everything except contrast."
+          A future update will add a separate contrast pass.
+        </div>
+      </div>
+    </div>
+
+    <div class="takeaways reveal" style="margin-top: 24px;">
+      <div class="takeaway">
+        <div class="takeaway-eyebrow">Rule of Thumb</div>
+        <div class="takeaway-title">Errors hurt 3× more than warnings.</div>
+        <div class="takeaway-body">
+          Fixing one error moves the score the same as fixing three warnings.
+          When you're triaging, sort by severity first.
+        </div>
+      </div>
+      <div class="takeaway">
+        <div class="takeaway-eyebrow">Highest Leverage</div>
+        <div class="takeaway-title">Accessibility is 35% of the overall.</div>
+        <div class="takeaway-body">
+          It's the heaviest bucket by far. If you can only fix one thing on a site,
+          fixing accessibility moves the needle fastest.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">URL Scanner · Internal scoring guide</div>
+</footer>
+
+<script>
+  // Reveal-on-scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((e) => {
+      if (e.isIntersecting) {
+        e.target.classList.add('is-visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { rootMargin: "0px 0px -10% 0px", threshold: 0.05 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>

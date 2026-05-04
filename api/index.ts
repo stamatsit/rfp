@@ -7586,137 +7586,6 @@ Only include quotes where the client is clearly saying something positive or not
         return res.json({ hasAccess: true })
       }
 
-      // ── SSE sitemap discovery ──────────────────────────────
-      if (path === "/scanner/sitemap-stream" && method === "GET") {
-        const rawUrl = (typeof req.query?.url === "string" ? req.query.url : "").trim()
-        if (!rawUrl) return res.status(400).json({ error: "url query parameter is required" })
-
-        const normalized = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`
-        if (!isPublicUrl(normalized)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
-
-        res.setHeader("Content-Type", "text/event-stream")
-        res.setHeader("Cache-Control", "no-cache")
-        res.setHeader("Connection", "keep-alive")
-        res.setHeader("X-Accel-Buffering", "no")
-
-        const sendSSE = (event: string, data: Record<string, any>) => {
-          res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-        }
-
-        try {
-          const parsedBase = new URL(normalized)
-          const origin = parsedBase.origin
-
-          // Inline sitemap discovery with SSE progress — mirrors scanner.ts logic
-          const SITEMAP_TIMEOUT = 5000
-
-          function decodeXmlEntities(str: string): string {
-            return str
-              .replace(/&amp;/g, "&").replace(/&#38;/g, "&")
-              .replace(/&apos;/g, "'").replace(/&#39;/g, "'")
-              .replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-          }
-
-          const fetchSitemapUrls = async (url: string): Promise<string[]> => {
-            if (!isPublicUrl(url)) return []
-            const resp = await fetch(url, {
-              headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-              signal: AbortSignal.timeout(SITEMAP_TIMEOUT),
-            })
-            if (!resp.ok) return []
-            const text = await resp.text()
-            const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
-
-            if (isSitemapIndex) {
-              const childSitemaps: string[] = []
-              const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-              let match
-              while ((match = sitemapLocRegex.exec(text)) !== null) {
-                childSitemaps.push(decodeXmlEntities(match[1]!.trim()))
-              }
-              const pageUrls: string[] = []
-              for (let i = 0; i < childSitemaps.length; i++) {
-                if (pageUrls.length >= 2000) break
-                sendSSE("status", { message: `Reading ${i + 1} of ${childSitemaps.length} child sitemaps…` })
-                try {
-                  const childUrls = await fetchSitemapUrls(childSitemaps[i]!)
-                  pageUrls.push(...childUrls)
-                } catch { /* skip */ }
-              }
-              return pageUrls
-            }
-
-            const urls: string[] = []
-            const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
-            let match
-            while ((match = locRegex.exec(text)) !== null) {
-              const u = decodeXmlEntities(match[1]!.trim())
-              if (u.startsWith("http") && isPublicUrl(u)) {
-                urls.push(u)
-                sendSSE("discovered", { url: u, total: urls.length })
-              }
-            }
-            if (urls.length === 0) {
-              const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
-              while ((match = plainLocRegex.exec(text)) !== null) {
-                const u = decodeXmlEntities(match[1]!.trim())
-                if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
-                  urls.push(u)
-                  sendSSE("discovered", { url: u, total: urls.length })
-                }
-              }
-            }
-            return urls
-          }
-
-          // 1. Try /sitemap.xml
-          sendSSE("status", { message: "Reading sitemap…" })
-          let allUrls: string[] = []
-          let source: "sitemap" | "robots" | "fallback" = "fallback"
-          try {
-            allUrls = await fetchSitemapUrls(`${origin}/sitemap.xml`)
-            if (allUrls.length > 0) source = "sitemap"
-          } catch { /* fall through */ }
-
-          // 2. Try robots.txt
-          if (allUrls.length === 0) {
-            sendSSE("status", { message: "Checking robots.txt…" })
-            try {
-              const robotsUrl = `${origin}/robots.txt`
-              if (isPublicUrl(robotsUrl)) {
-                const rResp = await fetch(robotsUrl, {
-                  headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
-                  signal: AbortSignal.timeout(SITEMAP_TIMEOUT),
-                })
-                if (rResp.ok) {
-                  const rText = await rResp.text()
-                  const smRegex = /^Sitemap:\s*(\S+)/gim
-                  let rm
-                  while ((rm = smRegex.exec(rText)) !== null) {
-                    const candidate = rm[1]!.trim()
-                    if (isPublicUrl(candidate)) {
-                      sendSSE("status", { message: "Reading sitemap from robots.txt…" })
-                      try {
-                        const u = await fetchSitemapUrls(candidate)
-                        allUrls.push(...u)
-                      } catch { /* skip */ }
-                    }
-                  }
-                  if (allUrls.length > 0) source = "robots"
-                }
-              }
-            } catch { /* fall through */ }
-          }
-
-          const deduped = [...new Set(allUrls)].slice(0, 2000)
-          sendSSE("done", { total: deduped.length, source })
-        } catch (err: any) {
-          console.error("[Scanner] SSE sitemap discovery failed:", err?.message || err)
-          sendSSE("error", { message: err.message ?? "Sitemap discovery failed" })
-        }
-        return res.end()
-      }
-
       if (path === "/scanner/scan" && method === "POST") {
         const targetUrl = (req.body?.url ?? "").trim()
         if (!targetUrl) return res.status(400).json({ error: "URL is required" })
@@ -7726,7 +7595,6 @@ Only include quotes where the client is clearly saying something positive or not
 
         const clientOpts = req.body?.options ?? req.body ?? {}
         const options = {
-          checkLinks: clientOpts.links === true || clientOpts.checkLinks === true,
           wcagLevel: (["A", "AA", "AAA"].includes(clientOpts.wcagLevel) ? clientOpts.wcagLevel : "AA") as "A" | "AA" | "AAA",
           timeout: typeof clientOpts.timeout === "number" ? Math.min(Math.max(clientOpts.timeout, 5000), 30000) : 15000,
         }
@@ -7753,6 +7621,224 @@ Only include quotes where the client is clearly saying something positive or not
           sendEvent({ step: "error", message: err.message ?? "Scan failed" })
         }
         return res.end()
+      }
+
+      // ── POST /scanner/ai/fix-issue — AI fix for a single issue ──
+      if (path === "/scanner/ai/fix-issue" && method === "POST") {
+        const openai = getOpenAI()
+        if (!openai) return res.status(503).json({ error: "AI service is not configured" })
+
+        const { url: issueUrl, issue, pageContext } = req.body ?? {}
+        if (!issue || typeof issue !== "object" || !issue.ruleId) {
+          return res.status(400).json({ error: "issue is required" })
+        }
+
+        const fixSystemPrompt = `You are an accessibility expert. Given an accessibility issue found on a web page, return a JSON object with exactly these fields:
+- "explanation": A 2-sentence plain-English explanation of why this matters and which users are affected.
+- "beforeCode": The problematic HTML code (the element as-is). If no element HTML is provided, write a realistic example that would trigger this issue.
+- "afterCode": The corrected HTML code showing the fix applied.
+- "watchFor": One related thing to watch for on the same page (1 sentence).
+
+Output ONLY valid JSON. No markdown, no code fences, no extra text.`
+
+        const fixUserContent = [
+          `Page URL: ${issueUrl || "unknown"}`,
+          `Rule ID: ${issue.ruleId}`,
+          `Category: ${issue.category || "unknown"}`,
+          `Severity: ${issue.severity || "unknown"}`,
+          `Message: ${issue.message || ""}`,
+          issue.element ? `Element HTML: ${issue.element}` : "",
+          issue.selector ? `Selector: ${issue.selector}` : "",
+          issue.suggestion ? `Existing suggestion: ${issue.suggestion}` : "",
+          issue.wcagCriteria ? `WCAG Criteria: ${issue.wcagCriteria}${issue.wcagLevel ? ` (Level ${issue.wcagLevel})` : ""}` : "",
+          pageContext?.title ? `Page title: ${pageContext.title}` : "",
+          pageContext?.lang ? `Page language: ${pageContext.lang}` : "",
+        ].filter(Boolean).join("\n")
+
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: fixSystemPrompt },
+              { role: "user", content: fixUserContent },
+            ],
+            temperature: 0.3,
+            max_tokens: 1000,
+          })
+
+          const raw = completion.choices[0]?.message?.content ?? ""
+          const cleaned = raw.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim()
+
+          let parsed: { explanation: string; beforeCode: string; afterCode: string; watchFor: string }
+          try {
+            parsed = JSON.parse(cleaned)
+          } catch {
+            return res.status(502).json({ error: "AI returned invalid JSON", raw: cleaned })
+          }
+          return res.json(parsed)
+        } catch (err: any) {
+          console.error("[Scanner AI] fix-issue error:", err?.message || err)
+          return res.status(502).json({ error: err?.message ?? "AI request failed" })
+        }
+      }
+
+      // ── POST /scanner/ai/alt-text — AI alt text via vision (gpt-4o) ──
+      if (path === "/scanner/ai/alt-text" && method === "POST") {
+        const openai = getOpenAI()
+        if (!openai) return res.status(503).json({ error: "AI service is not configured" })
+
+        const { pageUrl: altPageUrl, imageUrl: altImageUrl, surroundingText: altSurrText } = req.body ?? {}
+        if (!altImageUrl || typeof altImageUrl !== "string") {
+          return res.status(400).json({ error: "imageUrl is required" })
+        }
+
+        let resolvedImgUrl = altImageUrl
+        try {
+          if (altPageUrl && !/^https?:\/\//i.test(altImageUrl)) {
+            resolvedImgUrl = new URL(altImageUrl, altPageUrl).href
+          }
+        } catch { /* keep as-is */ }
+
+        if (!isPublicUrl(resolvedImgUrl)) {
+          return res.status(400).json({ error: "Image URL must be a public HTTP/HTTPS address" })
+        }
+
+        try {
+          const completion = await openai.chat.completions.create({
+            model: "gpt-4o",
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: `Write concise, descriptive alt text for this image (max 120 characters, no "image of..." prefix, focus on meaningful content). If the image is purely decorative (e.g., a spacer, border, or abstract pattern with no informational value), return an empty string.${altSurrText ? `\n\nSurrounding page text for context: "${altSurrText}"` : ""}\n\nOutput ONLY valid JSON: { "altText": "...", "isDecorative": false }`,
+                  },
+                  {
+                    type: "image_url",
+                    image_url: { url: resolvedImgUrl, detail: "low" },
+                  },
+                ] as any,
+              },
+            ],
+            temperature: 0.2,
+            max_tokens: 200,
+          })
+
+          const altRaw = completion.choices[0]?.message?.content ?? ""
+          const altCleaned = altRaw.replace(/^```(?:json)?\s*\n?/i, "").replace(/\n?```\s*$/, "").trim()
+
+          let altParsed: { altText: string; isDecorative: boolean }
+          try {
+            altParsed = JSON.parse(altCleaned)
+          } catch {
+            altParsed = { altText: altRaw.slice(0, 120), isDecorative: false }
+          }
+
+          if (altParsed.altText && altParsed.altText.length > 200) {
+            altParsed.altText = altParsed.altText.slice(0, 197) + "..."
+          }
+
+          return res.json(altParsed)
+        } catch (err: any) {
+          console.error("[Scanner AI] alt-text error:", err?.message || err)
+          return res.status(502).json({ error: err?.message ?? "AI request failed" })
+        }
+      }
+
+      // ── POST /scanner/headings — lightweight heading-structure checker ──
+      if (path === "/scanner/headings" && method === "POST") {
+        let headingsTargetUrl: string = (req.body?.url ?? "").trim()
+        if (!headingsTargetUrl) return res.status(400).json({ error: "URL is required" })
+
+        if (!/^https?:\/\//i.test(headingsTargetUrl)) {
+          headingsTargetUrl = `https://${headingsTargetUrl}`
+        }
+
+        if (!isPublicUrl(headingsTargetUrl)) {
+          return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+        }
+
+        try {
+          const abortCtrl = new AbortController()
+          const fetchTimeout = setTimeout(() => abortCtrl.abort(), 15000)
+
+          const pageRes = await fetch(headingsTargetUrl, {
+            signal: abortCtrl.signal,
+            headers: {
+              "User-Agent": "Mozilla/5.0 (compatible; BlueprintScanner/1.0; +https://blueprint-ai.co)",
+              Accept: "text/html,application/xhtml+xml",
+            },
+          })
+          clearTimeout(fetchTimeout)
+
+          if (!pageRes.ok) {
+            return res.status(400).json({ error: `Failed to fetch page (HTTP ${pageRes.status})` })
+          }
+
+          const html = await pageRes.text()
+
+          // Use cheerio to parse — dynamic import to avoid top-level bundling issues
+          const cheerioMod = await import("cheerio")
+          const $ = cheerioMod.load(html)
+
+          const headings: { level: number; text: string }[] = []
+          $("h1, h2, h3, h4, h5, h6").each((_i: number, el: any) => {
+            const tagName = $(el).prop("tagName")?.toLowerCase() ?? ""
+            const level = parseInt(tagName.replace("h", ""), 10)
+            if (level >= 1 && level <= 6) {
+              const text = $(el).text().trim().slice(0, 200)
+              headings.push({ level, text })
+            }
+          })
+
+          const violations: { index: number; type: string; message: string }[] = []
+
+          if (headings.length === 0) {
+            violations.push({
+              index: -1,
+              type: "no-headings",
+              message: "No heading elements found on this page. Every page should have at least one heading to describe its content.",
+            })
+            return res.json({ url: headingsTargetUrl, headings, violations, hasH1: false, passed: false })
+          }
+
+          for (let i = 1; i < headings.length; i++) {
+            const prev = headings[i - 1]
+            const curr = headings[i]
+            const delta = curr.level - prev.level
+            if (delta > 1) {
+              const missing =
+                delta > 2
+                  ? `h${prev.level + 1} through h${curr.level - 1} missing in between`
+                  : `h${prev.level + 1} missing in between`
+              violations.push({
+                index: i,
+                type: "skip",
+                message: `Heading skipped from h${prev.level} to h${curr.level} (${missing})`,
+              })
+            }
+          }
+
+          const hasH1 = headings.some((h: { level: number }) => h.level === 1)
+          if (!hasH1) {
+            violations.push({
+              index: -1,
+              type: "missing-h1",
+              message: "Page is missing an h1 element entirely. Every page should have exactly one top-level heading.",
+            })
+          }
+
+          const skipViolations = violations.filter((v) => v.type === "skip")
+          const passed = headings.length > 0 && hasH1 && skipViolations.length === 0
+
+          return res.json({ url: headingsTargetUrl, headings, violations, hasH1, passed })
+        } catch (err: any) {
+          if (err.name === "AbortError") {
+            return res.status(400).json({ error: "Request timed out after 15 seconds" })
+          }
+          return res.status(400).json({ error: err.message ?? "Failed to fetch page" })
+        }
       }
     }
 
