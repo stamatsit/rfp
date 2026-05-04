@@ -165,17 +165,11 @@ export function ScannerPortal() {
   // ---------------------------------------------------------------------------
   return (
     <div className="min-h-screen bg-[#f5f5f7] dark:bg-slate-950 animate-in fade-in-0 duration-300">
-      <AppHeader
-        title="Scanner"
-        breadcrumbs={[{ label: "Pick a check" }]}
-      />
+      <AppHeader title="Scanner" />
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         {/* Hero */}
         <div className="text-center mb-12">
-          <p className="text-[11px] font-semibold tracking-[0.14em] uppercase text-blue-600 dark:text-blue-400 mb-3.5">
-            Pick a check
-          </p>
           <h1 className="text-[38px] font-bold tracking-[-0.028em] leading-[1.08] text-slate-900 dark:text-white">
             Two ways to scan a page.
           </h1>
