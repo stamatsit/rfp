@@ -9,7 +9,232 @@ import OpenAI from "openai"
 import bcrypt from "bcryptjs"
 import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
 import mammoth from "mammoth"
+import xlsx from "xlsx"
 import { createRequire } from "module"
+
+// ─── Webinars + Client Portfolio helpers ────────────────────────
+// Inline duplicates of packages/server/src/lib/clientLookup + webinarCategorize + webinarXlsxParser
+// (api/index.ts is a separate serverless function; cannot import the Express package directly)
+
+const DOMAIN_RE = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/
+
+function extractDomain(email: string): string | null {
+  if (!email) return null
+  const at = email.indexOf("@")
+  if (at < 0 || at === email.length - 1) return null
+  const d = email.slice(at + 1).toLowerCase().trim()
+  return DOMAIN_RE.test(d) ? d : null
+}
+
+type WebinarCategory = "do-not-contact" | "client" | "employee" | "non-client"
+
+// Categorize an email using the live DB. Returns category + (optional) matched client_id.
+async function categorizeEmail(qc: any, email: string): Promise<{ category: WebinarCategory; clientId: string | null }> {
+  const domain = extractDomain(email)
+  if (!domain) return { category: "non-client", clientId: null }
+  // DNC wins
+  const dncRows = await qc`SELECT id FROM do_not_contact WHERE domain = ${domain} LIMIT 1`
+  if (dncRows.length > 0) return { category: "do-not-contact", clientId: null }
+  // Active client by email_domains[]
+  const clientRows = await qc`
+    SELECT id FROM clients
+    WHERE status = 'active' AND email_domains @> ${JSON.stringify([domain])}::jsonb
+    LIMIT 1`
+  if (clientRows.length > 0) return { category: "client", clientId: clientRows[0].id }
+  // Employee
+  if (domain === "stamats.com") return { category: "employee", clientId: null }
+  return { category: "non-client", clientId: null }
+}
+
+interface ParsedRegistrant {
+  firstName: string | null
+  lastName: string | null
+  email: string
+  registrationDate: Date | null
+  attendanceDate: Date | null
+  attended: boolean | null
+  notes: string | null
+  organizationRaw: string | null
+}
+
+interface ParsedWebinar {
+  title: string | null
+  webinarKey: string | null
+  webinarDate: Date | null
+  uploadKind: "registration" | "attendance"
+  rawRows: number
+  registrants: ParsedRegistrant[]
+}
+
+function parseWebinarXlsx(buffer: Buffer): ParsedWebinar {
+  const wb = xlsx.read(buffer, { type: "buffer", cellDates: true })
+  const sheetName = wb.SheetNames[0]
+  if (!sheetName) throw new Error("XLSX has no sheets")
+  const sheet = wb.Sheets[sheetName]!
+  const rows = xlsx.utils.sheet_to_json<any[]>(sheet, { header: 1, defval: "", raw: false })
+
+  const cellStr = (v: any) => v === null || v === undefined ? "" : String(v).trim()
+  const parseDate = (v: any): Date | null => {
+    if (!v) return null
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v
+    const d = new Date(cellStr(v))
+    return isNaN(d.getTime()) ? null : d
+  }
+
+  // Find header row (contains "First Name" / "Last Name" / "Email")
+  let headerIdx = -1
+  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+    const row = rows[i] ?? []
+    const lowered = row.map((c: any) => String(c).toLowerCase().trim())
+    const hits = ["first name", "last name", "email"].filter(k => lowered.includes(k)).length
+    if (hits >= 2) { headerIdx = i; break }
+  }
+  if (headerIdx < 0) throw new Error("Could not locate column header row")
+  const header = rows[headerIdx] ?? []
+
+  const colIdx = (...candidates: string[]) => {
+    const lowered = header.map((c: any) => String(c).toLowerCase().trim())
+    for (const c of candidates) {
+      const idx = lowered.indexOf(c.toLowerCase())
+      if (idx >= 0) return idx
+    }
+    return -1
+  }
+
+  const cFirst = colIdx("first name", "firstname")
+  const cLast = colIdx("last name", "lastname")
+  const cEmail = colIdx("email", "email address")
+  const cRegDate = colIdx("registration date", "registered date")
+  const cAttended = colIdx("attended", "attendance status")
+  const cJoinTime = colIdx("join time", "time joined", "attended at")
+  const cOrg = colIdx("organization", "company", "company / organization")
+  const cNotes = colIdx("notes:", "notes", "comments")
+  if (cEmail < 0) throw new Error("XLSX header row found but no Email column")
+
+  // Detect upload kind
+  const top = cellStr(rows[0]?.[0]).toLowerCase()
+  const uploadKind: "registration" | "attendance" =
+    top.includes("attendance") || cAttended >= 0 ? (top.includes("attendance") ? "attendance" : (cAttended >= 0 ? "attendance" : "registration")) : "registration"
+  // Actually: trust the top row primarily
+  const finalKind: "registration" | "attendance" = top.includes("attendance") ? "attendance" : "registration"
+
+  // Read metadata block
+  function readMeta(label: string): string {
+    const want = label.toLowerCase()
+    for (let i = 0; i < Math.min(rows.length, 14); i++) {
+      const row = rows[i] ?? []
+      for (let col = 0; col < row.length; col++) {
+        if (cellStr(row[col]).toLowerCase() === want) {
+          const next = rows[i + 1] ?? []
+          return cellStr(next[col])
+        }
+      }
+    }
+    return ""
+  }
+
+  const title = readMeta("webinar name") || null
+  const webinarKey = readMeta("webinar id") || null
+  const webinarDate = parseDate(readMeta("scheduled start date"))
+
+  const registrants: ParsedRegistrant[] = []
+  for (let i = headerIdx + 1; i < rows.length; i++) {
+    const row = rows[i] ?? []
+    const email = cellStr(row[cEmail]).toLowerCase()
+    if (!email || !email.includes("@")) continue
+
+    let attended: boolean | null = null
+    if (finalKind === "attendance" && cAttended >= 0) {
+      const v = cellStr(row[cAttended]).toLowerCase()
+      if (v.includes("attended") && !v.includes("not")) attended = true
+      else if (v === "yes") attended = true
+      else if (v === "no" || v.includes("not")) attended = false
+      else if (v) attended = true
+    }
+
+    registrants.push({
+      firstName: cFirst >= 0 ? cellStr(row[cFirst]) || null : null,
+      lastName: cLast >= 0 ? cellStr(row[cLast]) || null : null,
+      email,
+      registrationDate: cRegDate >= 0 ? parseDate(row[cRegDate]) : null,
+      attendanceDate: cJoinTime >= 0 ? parseDate(row[cJoinTime]) : null,
+      attended,
+      notes: cNotes >= 0 ? cellStr(row[cNotes]) || null : null,
+      organizationRaw: cOrg >= 0 ? cellStr(row[cOrg]) || null : null,
+    })
+  }
+  return { title, webinarKey, webinarDate, uploadKind: finalKind, rawRows: registrants.length, registrants }
+}
+
+function toCsvFromRows(rows: any[]): string {
+  const headers = ["firstName", "lastName", "email", "organizationRaw", "category", "attended", "followUpStatus", "followUpNotes", "registeredAt", "attendedAt"]
+  const escape = (v: any) => {
+    if (v === null || v === undefined) return ""
+    const s = String(v)
+    if (s.includes(",") || s.includes("\"") || s.includes("\n")) return `"${s.replace(/"/g, "\"\"")}"`
+    return s
+  }
+  const lines = [headers.join(",")]
+  for (const r of rows) lines.push(headers.map(h => escape(r[h])).join(","))
+  return lines.join("\n")
+}
+
+function safeFilename(s: string): string {
+  return s.replace(/[^a-z0-9\-_.]+/gi, "_").slice(0, 80) || "webinar"
+}
+
+function toDateString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
+// Parse multipart upload (xlsx file) into a Buffer
+async function readMultipartXlsx(req: VercelRequest): Promise<{ buffer: Buffer; filename: string }> {
+  const contentType = req.headers["content-type"] || ""
+  const boundaryMatch = contentType.match(/boundary=(.+)/)
+  if (!boundaryMatch) throw new Error("No multipart boundary")
+  const boundary = boundaryMatch[1]
+
+  let body: Buffer
+  if (Buffer.isBuffer(req.body)) body = req.body
+  else if (typeof req.body === "string") body = Buffer.from(req.body)
+  else {
+    // Stream the body
+    const chunks: Buffer[] = []
+    await new Promise<void>((resolve, reject) => {
+      ;(req as any).on("data", (c: Buffer) => chunks.push(c))
+      ;(req as any).on("end", () => resolve())
+      ;(req as any).on("error", reject)
+    })
+    body = Buffer.concat(chunks)
+  }
+
+  const boundaryBytes = Buffer.from(`--${boundary}`)
+  const parts = []
+  let start = 0
+  while (true) {
+    const idx = body.indexOf(boundaryBytes, start)
+    if (idx < 0) break
+    if (start > 0) parts.push(body.slice(start, idx - 2))  // strip trailing \r\n
+    start = idx + boundaryBytes.length
+    if (body.slice(start, start + 2).toString() === "--") break  // closing boundary
+    start += 2  // skip \r\n after boundary
+  }
+
+  for (const part of parts) {
+    const headerEnd = part.indexOf("\r\n\r\n")
+    if (headerEnd < 0) continue
+    const headers = part.slice(0, headerEnd).toString()
+    const fileMatch = headers.match(/Content-Disposition:.*?filename="([^"]+)"/i)
+    if (!fileMatch) continue
+    const filename = fileMatch[1]
+    const buffer = part.slice(headerEnd + 4)
+    return { buffer, filename }
+  }
+  throw new Error("No file part found in multipart body")
+}
 
 // --- SSRF guard ---
 function isPublicUrl(urlString: string): boolean {
@@ -3283,55 +3508,603 @@ ${contextStr}`
 
     // ─── Clients CRUD ──────────────────────────────────────────────
 
+    // Extended clients endpoints — return camelCase, support status/email_domains, ?status filter,
+    // cross-client domain-uniqueness check, DELETE returns orphanedDnc count.
     if (path === "/client-success/clients" && method === "GET") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const statusParam = typeof req.query?.status === "string" ? req.query.status : ""
+      const validStatuses = new Set(["active", "prospect", "former", "archived"])
       try {
-        const rows = await queryClient`SELECT * FROM clients ORDER BY name ASC`
+        const rows = validStatuses.has(statusParam)
+          ? await queryClient`
+              SELECT id, name, sector, notes, status,
+                     email_domains AS "emailDomains",
+                     created_at AS "createdAt",
+                     updated_at AS "updatedAt"
+              FROM clients WHERE status = ${statusParam} ORDER BY name ASC`
+          : await queryClient`
+              SELECT id, name, sector, notes, status,
+                     email_domains AS "emailDomains",
+                     created_at AS "createdAt",
+                     updated_at AS "updatedAt"
+              FROM clients ORDER BY name ASC`
         return res.json(rows)
       } catch (err: any) {
+        console.error("clients GET failed:", err)
         return res.status(500).json({ error: "Failed to get clients" })
       }
     }
 
     if (path === "/client-success/clients" && method === "POST") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
-      const { name, sector, notes } = req.body || {}
+      const { name, sector, notes, status, emailDomains } = req.body || {}
       if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+      const validStatuses = new Set(["active", "prospect", "former", "archived"])
+      const validSectors = new Set(["higher-ed", "healthcare", "other"])
+      const insertStatus = validStatuses.has(status) ? status : "active"
+      const insertSector = validSectors.has(sector) ? sector : "other"
+      const domains: string[] = Array.isArray(emailDomains)
+        ? Array.from(new Set(emailDomains.map((d: any) => String(d).toLowerCase().trim()).filter((d: string) => d.length > 0)))
+        : []
       try {
+        // Cross-client domain uniqueness
+        for (const d of domains) {
+          const conflict = await queryClient`
+            SELECT id, name FROM clients
+            WHERE email_domains @> ${JSON.stringify([d])}::jsonb LIMIT 1`
+          if (conflict.length > 0) {
+            return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict[0].name}"` })
+          }
+        }
         const [row] = await queryClient`
-          INSERT INTO clients (name, sector, notes)
-          VALUES (${name.trim()}, ${sector || "other"}, ${notes?.trim() || null})
-          RETURNING *`
+          INSERT INTO clients (name, sector, notes, status, email_domains)
+          VALUES (${name.trim()}, ${insertSector}, ${notes?.trim() || null}, ${insertStatus}, ${JSON.stringify(domains)}::jsonb)
+          RETURNING id, name, sector, notes, status,
+                    email_domains AS "emailDomains",
+                    created_at AS "createdAt",
+                    updated_at AS "updatedAt"`
         return res.status(201).json(row)
       } catch (err: any) {
+        console.error("clients POST failed:", err)
         return res.status(500).json({ error: "Failed to create client" })
       }
     }
 
     if (path?.match(/^\/client-success\/clients\/[^/]+$/) && method === "PUT") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
-      const id = path.split("/").pop()
-      const { name, sector, notes } = req.body || {}
+      const id = path.split("/").pop()!
+      const { name, sector, notes, status, emailDomains } = req.body || {}
       if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+      const validStatuses = new Set(["active", "prospect", "former", "archived"])
+      const validSectors = new Set(["higher-ed", "healthcare", "other"])
+      const updateStatus = validStatuses.has(status) ? status : "active"
+      const updateSector = validSectors.has(sector) ? sector : "other"
+      const domains: string[] = Array.isArray(emailDomains)
+        ? Array.from(new Set(emailDomains.map((d: any) => String(d).toLowerCase().trim()).filter((d: string) => d.length > 0)))
+        : []
       try {
+        for (const d of domains) {
+          const conflict = await queryClient`
+            SELECT id, name FROM clients
+            WHERE email_domains @> ${JSON.stringify([d])}::jsonb AND id <> ${id} LIMIT 1`
+          if (conflict.length > 0) {
+            return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict[0].name}"` })
+          }
+        }
         const [row] = await queryClient`
-          UPDATE clients SET name = ${name.trim()}, sector = ${sector || "other"}, notes = ${notes?.trim() || null}, updated_at = NOW()
-          WHERE id = ${id} RETURNING *`
+          UPDATE clients
+          SET name = ${name.trim()}, sector = ${updateSector}, notes = ${notes?.trim() || null},
+              status = ${updateStatus}, email_domains = ${JSON.stringify(domains)}::jsonb,
+              updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING id, name, sector, notes, status,
+                    email_domains AS "emailDomains",
+                    created_at AS "createdAt",
+                    updated_at AS "updatedAt"`
         if (!row) return res.status(404).json({ error: "Client not found" })
         return res.json(row)
       } catch (err: any) {
+        console.error("clients PUT failed:", err)
         return res.status(500).json({ error: "Failed to update client" })
       }
     }
 
     if (path?.match(/^\/client-success\/clients\/[^/]+$/) && method === "DELETE") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
-      const id = path.split("/").pop()
+      const id = path.split("/").pop()!
       try {
+        const dncRows = await queryClient`SELECT count(*)::int AS n FROM do_not_contact WHERE client_id = ${id}`
+        const orphanedDnc = Number(dncRows[0]?.n ?? 0)
         await queryClient`DELETE FROM clients WHERE id = ${id}`
-        return res.json({ success: true })
+        return res.json({ success: true, orphanedDnc })
       } catch (err: any) {
+        console.error("clients DELETE failed:", err)
         return res.status(500).json({ error: "Failed to delete client" })
+      }
+    }
+
+    // ─── Do Not Contact ─────────────────────────────────────────────
+    if (path === "/client-success/do-not-contact" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`
+          SELECT id, email, domain, institution, comment,
+                 client_id AS "clientId",
+                 created_at AS "createdAt",
+                 created_by AS "createdBy"
+          FROM do_not_contact ORDER BY created_at DESC`
+        return res.json(rows)
+      } catch (err: any) {
+        console.error("dnc GET failed:", err)
+        return res.status(500).json({ error: "Failed to list DNC entries" })
+      }
+    }
+
+    if (path === "/client-success/do-not-contact" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const { email, institution, comment, clientId } = req.body || {}
+      const domain = typeof email === "string" ? extractDomain(email) : null
+      if (!domain) return res.status(400).json({ error: "Invalid email — domain must be a valid format" })
+      if (typeof institution !== "string" || institution.trim() === "") {
+        return res.status(400).json({ error: "Institution name is required" })
+      }
+      if (clientId != null) {
+        if (typeof clientId !== "string") return res.status(400).json({ error: "Invalid clientId" })
+        const exists = await queryClient`SELECT id FROM clients WHERE id = ${clientId} LIMIT 1`
+        if (exists.length === 0) return res.status(400).json({ error: "Linked client not found" })
+      }
+      const createdBy = (req as any).session?.userName || "unknown"
+      try {
+        const [row] = await queryClient`
+          INSERT INTO do_not_contact (email, domain, institution, comment, client_id, created_by)
+          VALUES (${email.trim()}, ${domain}, ${institution.trim()},
+                  ${comment?.trim() || null}, ${clientId ?? null}, ${createdBy})
+          RETURNING id, email, domain, institution, comment,
+                    client_id AS "clientId",
+                    created_at AS "createdAt",
+                    created_by AS "createdBy"`
+        return res.status(201).json(row)
+      } catch (err: any) {
+        if (err?.code === "23505") {
+          return res.status(409).json({ error: "A DNC entry already exists for this email" })
+        }
+        console.error("dnc POST failed:", err)
+        return res.status(500).json({ error: "Failed to create DNC entry" })
+      }
+    }
+
+    if (path?.match(/^\/client-success\/do-not-contact\/[^/]+$/) && method === "DELETE") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/").pop()!
+      try {
+        const existing = await queryClient`SELECT * FROM do_not_contact WHERE id = ${id} LIMIT 1`
+        if (existing.length === 0) return res.status(404).json({ error: "DNC entry not found" })
+        const snap = existing[0]
+        const deletedBy = (req as any).session?.userName || "unknown"
+        const details = {
+          email: snap.email, domain: snap.domain, institution: snap.institution,
+          comment: snap.comment, clientId: snap.client_id,
+          createdAt: snap.created_at instanceof Date ? snap.created_at.toISOString() : snap.created_at,
+          createdBy: snap.created_by,
+          deletedAt: new Date().toISOString(),
+          deletedBy,
+        }
+        await queryClient.begin(async (tx: any) => {
+          await tx`INSERT INTO audit_log (action_type, entity_type, entity_id, details, actor)
+                   VALUES ('DELETE', 'DO_NOT_CONTACT', ${id}, ${JSON.stringify(details)}::jsonb, ${deletedBy})`
+          await tx`DELETE FROM do_not_contact WHERE id = ${id}`
+        })
+        return res.status(204).end()
+      } catch (err: any) {
+        console.error("dnc DELETE failed:", err)
+        return res.status(500).json({ error: "Failed to delete DNC entry" })
+      }
+    }
+
+    // ─── Webinars ────────────────────────────────────────────────────
+    // GET /webinars/people  (MUST come before /webinars/:id)
+    if (path === "/webinars/people" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const rows = await queryClient`
+          SELECT lower(email) AS email_lower,
+                 max(email) AS email,
+                 max(first_name) AS "firstName",
+                 max(last_name) AS "lastName",
+                 max(organization_raw) AS "organizationRaw",
+                 max(category) AS category,
+                 max(client_id) AS "clientId",
+                 count(DISTINCT webinar_id)::int AS "webinarCount",
+                 sum(CASE WHEN attended = true THEN 1 ELSE 0 END)::int AS "attendedCount",
+                 max(created_at) AS "lastSeen"
+          FROM webinar_registrants
+          GROUP BY lower(email)
+          ORDER BY count(DISTINCT webinar_id) DESC`
+        // drop the helper column
+        return res.json(rows.map((r: any) => ({ ...r, email_lower: undefined })))
+      } catch (err: any) {
+        console.error("webinars people failed:", err)
+        return res.status(500).json({ error: "Failed to load people view" })
+      }
+    }
+
+    // GET /webinars/stats  (MUST come before /webinars/:id)
+    if (path === "/webinars/stats" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const categoryCounts = await queryClient`
+          SELECT category, count(*)::int AS n
+          FROM webinar_registrants GROUP BY category`
+        const topOrgs = await queryClient`
+          SELECT r.client_id AS "clientId",
+                 c.name AS "clientName",
+                 r.organization_raw AS "organizationRaw",
+                 count(*)::int AS n
+          FROM webinar_registrants r
+          LEFT JOIN clients c ON c.id = r.client_id
+          WHERE r.category = 'client'
+          GROUP BY r.client_id, c.name, r.organization_raw
+          ORDER BY count(*) DESC
+          LIMIT 25`
+        return res.json({ categoryCounts, topOrgs })
+      } catch (err: any) {
+        console.error("webinars stats failed:", err)
+        return res.status(500).json({ error: "Failed to load stats" })
+      }
+    }
+
+    // GET /webinars  — list with per-category counts
+    if (path === "/webinars" && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const webinars = await queryClient`
+          SELECT id, title,
+                 webinar_date AS "webinarDate",
+                 source_key AS "sourceKey",
+                 created_at AS "createdAt",
+                 created_by AS "createdBy"
+          FROM webinars
+          ORDER BY webinar_date DESC NULLS LAST, created_at DESC`
+        if (webinars.length === 0) return res.json([])
+        const counts = await queryClient`
+          SELECT webinar_id, category, count(*)::int AS total,
+                 sum(CASE WHEN attended = true THEN 1 ELSE 0 END)::int AS attended
+          FROM webinar_registrants GROUP BY webinar_id, category`
+        const grouped = new Map<string, any>()
+        for (const c of counts) {
+          const entry = grouped.get(c.webinar_id) ?? { client: 0, "non-client": 0, employee: 0, "do-not-contact": 0, attended: 0, total: 0 }
+          entry[c.category] = Number(c.total)
+          entry.total += Number(c.total)
+          entry.attended += Number(c.attended) || 0
+          grouped.set(c.webinar_id, entry)
+        }
+        return res.json(webinars.map((w: any) => ({
+          ...w,
+          counts: grouped.get(w.id) ?? { client: 0, "non-client": 0, employee: 0, "do-not-contact": 0, attended: 0, total: 0 },
+        })))
+      } catch (err: any) {
+        console.error("webinars list failed:", err)
+        return res.status(500).json({ error: "Failed to list webinars" })
+      }
+    }
+
+    // POST /webinars/upload — multipart xlsx
+    if (path === "/webinars/upload" && method === "POST") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const { buffer, filename } = await readMultipartXlsx(req)
+        let parsed: ParsedWebinar
+        try {
+          parsed = parseWebinarXlsx(buffer)
+        } catch (e: any) {
+          return res.status(400).json({ error: `Could not parse file: ${e?.message ?? "unknown"}` })
+        }
+        const uploadedBy = (req as any).session?.userName || "unknown"
+        // Resolve or create webinar
+        let webinarId: string
+        if (parsed.webinarKey) {
+          const existing = await queryClient`
+            SELECT id FROM webinars WHERE source_key = ${parsed.webinarKey} LIMIT 1`
+          if (existing.length > 0) webinarId = existing[0].id
+        }
+        if (!webinarId!) {
+          const dateValue = parsed.webinarDate ? toDateString(parsed.webinarDate) : null
+          const [created] = await queryClient`
+            INSERT INTO webinars (title, webinar_date, source_key, created_by)
+            VALUES (${parsed.title || filename.replace(/\.xlsx?$/i, "") || "Untitled webinar"},
+                    ${dateValue}, ${parsed.webinarKey}, ${uploadedBy})
+            RETURNING id`
+          webinarId = created.id
+        }
+        // Record the upload
+        const [uploadRow] = await queryClient`
+          INSERT INTO webinar_uploads (webinar_id, filename, upload_kind, raw_rows, uploaded_by)
+          VALUES (${webinarId}, ${filename}, ${parsed.uploadKind}, ${parsed.rawRows}, ${uploadedBy})
+          RETURNING id`
+
+        let inserted = 0, updated = 0
+        for (const r of parsed.registrants) {
+          const cat = await categorizeEmail(queryClient, r.email)
+          const existing = await queryClient`
+            SELECT * FROM webinar_registrants
+            WHERE webinar_id = ${webinarId} AND lower(email) = ${r.email.toLowerCase()}
+            LIMIT 1`
+          if (existing.length > 0) {
+            const exist = existing[0]
+            const patch: any = {
+              first_name: exist.first_name ?? r.firstName,
+              last_name: exist.last_name ?? r.lastName,
+              organization_raw: exist.organization_raw ?? r.organizationRaw,
+              upload_id: uploadRow.id,
+            }
+            if (parsed.uploadKind === "attendance") {
+              if (r.attended !== null) patch.attended = r.attended
+              if (r.attendanceDate) patch.attended_at = r.attendanceDate
+            }
+            if (!exist.manual_override) {
+              patch.category = cat.category
+              patch.client_id = cat.clientId
+            }
+            await queryClient`
+              UPDATE webinar_registrants SET
+                first_name = ${patch.first_name},
+                last_name = ${patch.last_name},
+                organization_raw = ${patch.organization_raw},
+                upload_id = ${patch.upload_id},
+                attended = COALESCE(${patch.attended ?? null}, attended),
+                attended_at = COALESCE(${patch.attended_at ?? null}, attended_at),
+                category = ${patch.category ?? exist.category},
+                client_id = ${patch.client_id ?? exist.client_id},
+                updated_at = NOW()
+              WHERE id = ${exist.id}`
+            updated++
+          } else {
+            await queryClient`
+              INSERT INTO webinar_registrants
+                (webinar_id, upload_id, first_name, last_name, email, organization_raw,
+                 client_id, category, attended, registered_at, attended_at)
+              VALUES (${webinarId}, ${uploadRow.id}, ${r.firstName}, ${r.lastName}, ${r.email},
+                      ${r.organizationRaw}, ${cat.clientId}, ${cat.category}, ${r.attended},
+                      ${r.registrationDate}, ${r.attendanceDate})`
+            inserted++
+          }
+        }
+        return res.status(201).json({
+          webinarId, uploadId: uploadRow.id,
+          uploadKind: parsed.uploadKind, rawRows: parsed.rawRows,
+          inserted, updated,
+          title: parsed.title, webinarDate: parsed.webinarDate,
+        })
+      } catch (err: any) {
+        console.error("webinars upload failed:", err)
+        return res.status(500).json({ error: err?.message || "Failed to process upload" })
+      }
+    }
+
+    // PATCH /webinars/:id/registrants/:rid
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)\/registrants\/([^/]+)$/)
+      if (m && method === "PATCH") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const webinarId = m[1]
+        const registrantId = m[2]
+        const body = req.body ?? {}
+        const VALID_CATEGORIES = new Set(["do-not-contact", "client", "employee", "non-client"])
+        const VALID_FOLLOWUP = new Set(["no-outreach", "vm-left", "email-sent", "connected", "dead"])
+        try {
+          const sets: string[] = ["updated_at = NOW()"]
+          const params: any = {}
+          if (typeof body.category === "string") {
+            if (!VALID_CATEGORIES.has(body.category)) return res.status(400).json({ error: "Invalid category" })
+            params.category = body.category
+            params.manual_override = true
+          }
+          if (typeof body.followUpStatus === "string") {
+            if (!VALID_FOLLOWUP.has(body.followUpStatus)) return res.status(400).json({ error: "Invalid follow_up_status" })
+            params.follow_up_status = body.followUpStatus
+          }
+          if (typeof body.followUpNotes === "string") {
+            params.follow_up_notes = body.followUpNotes.trim() || null
+          }
+          if (typeof body.manualOverride === "boolean") params.manual_override = body.manualOverride
+          // Build dynamic UPDATE via Drizzle-style template — postgres-js doesn't support easy dynamic SET
+          const [row] = await queryClient`
+            UPDATE webinar_registrants SET
+              category = COALESCE(${params.category ?? null}, category),
+              manual_override = COALESCE(${params.manual_override ?? null}::boolean, manual_override),
+              follow_up_status = COALESCE(${params.follow_up_status ?? null}, follow_up_status),
+              follow_up_notes = COALESCE(${params.follow_up_notes ?? null}, follow_up_notes),
+              updated_at = NOW()
+            WHERE id = ${registrantId} AND webinar_id = ${webinarId}
+            RETURNING
+              id, webinar_id AS "webinarId", upload_id AS "uploadId",
+              first_name AS "firstName", last_name AS "lastName", email,
+              organization_raw AS "organizationRaw", client_id AS "clientId",
+              category, manual_override AS "manualOverride", attended,
+              follow_up_status AS "followUpStatus", follow_up_notes AS "followUpNotes",
+              registered_at AS "registeredAt", attended_at AS "attendedAt",
+              created_at AS "createdAt", updated_at AS "updatedAt"`
+          if (!row) return res.status(404).json({ error: "Registrant not found" })
+          return res.json(row)
+        } catch (err: any) {
+          console.error("registrant PATCH failed:", err)
+          return res.status(500).json({ error: "Failed to patch registrant" })
+        }
+      }
+    }
+
+    // POST /webinars/:id/recategorize
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)\/recategorize$/)
+      if (m && method === "POST") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const id = m[1]
+        try {
+          const rows = await queryClient`
+            SELECT id, email, category, client_id FROM webinar_registrants
+            WHERE webinar_id = ${id} AND manual_override = false`
+          let changed = 0
+          for (const r of rows) {
+            const cat = await categorizeEmail(queryClient, r.email)
+            if (cat.category !== r.category || cat.clientId !== r.client_id) {
+              await queryClient`
+                UPDATE webinar_registrants
+                SET category = ${cat.category}, client_id = ${cat.clientId}, updated_at = NOW()
+                WHERE id = ${r.id}`
+              changed++
+            }
+          }
+          return res.json({ scanned: rows.length, changed })
+        } catch (err: any) {
+          console.error("recategorize failed:", err)
+          return res.status(500).json({ error: "Failed to recategorize" })
+        }
+      }
+    }
+
+    // GET /webinars/:id/export.csv  (must come before /webinars/:id GET)
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)\/export\.csv$/)
+      if (m && method === "GET") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const id = m[1]
+        try {
+          const [webinar] = await queryClient`SELECT id, title FROM webinars WHERE id = ${id} LIMIT 1`
+          if (!webinar) return res.status(404).json({ error: "Webinar not found" })
+          const VALID_CATEGORIES = new Set(["do-not-contact", "client", "employee", "non-client"])
+          const VALID_FOLLOWUP = new Set(["no-outreach", "vm-left", "email-sent", "connected", "dead"])
+          const catFilter = typeof req.query?.category === "string" && VALID_CATEGORIES.has(req.query.category) ? req.query.category : null
+          const fuFilter = typeof req.query?.followUpStatus === "string" && VALID_FOLLOWUP.has(req.query.followUpStatus) ? req.query.followUpStatus : null
+          const excludeDnc = req.query?.excludeDnc === "true"
+          const q = typeof req.query?.q === "string" && req.query.q.trim() ? `%${req.query.q.trim().toLowerCase()}%` : null
+          const rows = await queryClient`
+            SELECT first_name AS "firstName", last_name AS "lastName", email,
+                   organization_raw AS "organizationRaw", category, attended,
+                   follow_up_status AS "followUpStatus", follow_up_notes AS "followUpNotes",
+                   registered_at AS "registeredAt", attended_at AS "attendedAt"
+            FROM webinar_registrants
+            WHERE webinar_id = ${id}
+              ${catFilter ? queryClient`AND category = ${catFilter}` : queryClient``}
+              ${fuFilter ? queryClient`AND follow_up_status = ${fuFilter}` : queryClient``}
+              ${excludeDnc ? queryClient`AND category <> 'do-not-contact'` : queryClient``}
+              ${q ? queryClient`AND (lower(email) LIKE ${q} OR lower(coalesce(first_name, '')) LIKE ${q} OR lower(coalesce(last_name, '')) LIKE ${q} OR lower(coalesce(organization_raw, '')) LIKE ${q})` : queryClient``}
+            ORDER BY last_name ASC, first_name ASC`
+          const csv = toCsvFromRows(rows)
+          res.setHeader("Content-Type", "text/csv; charset=utf-8")
+          res.setHeader("Content-Disposition", `attachment; filename="${safeFilename(webinar.title)}.csv"`)
+          return res.send(csv)
+        } catch (err: any) {
+          console.error("csv export failed:", err)
+          return res.status(500).json({ error: "Failed to export csv" })
+        }
+      }
+    }
+
+    // GET /webinars/:id/export.xlsx
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)\/export\.xlsx$/)
+      if (m && method === "GET") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const id = m[1]
+        try {
+          const [webinar] = await queryClient`SELECT id, title FROM webinars WHERE id = ${id} LIMIT 1`
+          if (!webinar) return res.status(404).json({ error: "Webinar not found" })
+          const VALID_CATEGORIES = new Set(["do-not-contact", "client", "employee", "non-client"])
+          const VALID_FOLLOWUP = new Set(["no-outreach", "vm-left", "email-sent", "connected", "dead"])
+          const catFilter = typeof req.query?.category === "string" && VALID_CATEGORIES.has(req.query.category) ? req.query.category : null
+          const fuFilter = typeof req.query?.followUpStatus === "string" && VALID_FOLLOWUP.has(req.query.followUpStatus) ? req.query.followUpStatus : null
+          const excludeDnc = req.query?.excludeDnc === "true"
+          const q = typeof req.query?.q === "string" && req.query.q.trim() ? `%${req.query.q.trim().toLowerCase()}%` : null
+          const rows = await queryClient`
+            SELECT first_name AS "firstName", last_name AS "lastName", email,
+                   organization_raw AS "organizationRaw", category, attended,
+                   follow_up_status AS "followUpStatus", follow_up_notes AS "followUpNotes",
+                   registered_at AS "registeredAt", attended_at AS "attendedAt"
+            FROM webinar_registrants
+            WHERE webinar_id = ${id}
+              ${catFilter ? queryClient`AND category = ${catFilter}` : queryClient``}
+              ${fuFilter ? queryClient`AND follow_up_status = ${fuFilter}` : queryClient``}
+              ${excludeDnc ? queryClient`AND category <> 'do-not-contact'` : queryClient``}
+              ${q ? queryClient`AND (lower(email) LIKE ${q} OR lower(coalesce(first_name, '')) LIKE ${q} OR lower(coalesce(last_name, '')) LIKE ${q} OR lower(coalesce(organization_raw, '')) LIKE ${q})` : queryClient``}
+            ORDER BY last_name ASC, first_name ASC`
+          const aoa = [
+            ["First Name", "Last Name", "Email", "Organization", "Category", "Attended", "Follow-up Status", "Notes", "Registered At", "Attended At"],
+            ...rows.map((r: any) => [
+              r.firstName, r.lastName, r.email, r.organizationRaw, r.category,
+              r.attended === null ? "" : r.attended ? "Yes" : "No",
+              r.followUpStatus, r.followUpNotes,
+              r.registeredAt ? new Date(r.registeredAt).toISOString() : "",
+              r.attendedAt ? new Date(r.attendedAt).toISOString() : "",
+            ]),
+          ]
+          const ws = xlsx.utils.aoa_to_sheet(aoa)
+          const wb = xlsx.utils.book_new()
+          xlsx.utils.book_append_sheet(wb, ws, "Registrants")
+          const buf = xlsx.write(wb, { type: "buffer", bookType: "xlsx" })
+          res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+          res.setHeader("Content-Disposition", `attachment; filename="${safeFilename(webinar.title)}.xlsx"`)
+          return res.send(buf)
+        } catch (err: any) {
+          console.error("xlsx export failed:", err)
+          return res.status(500).json({ error: "Failed to export xlsx" })
+        }
+      }
+    }
+
+    // DELETE /webinars/:id
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)$/)
+      if (m && method === "DELETE") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        try {
+          await queryClient`DELETE FROM webinars WHERE id = ${m[1]}`
+          return res.json({ success: true })
+        } catch (err: any) {
+          console.error("webinars DELETE failed:", err)
+          return res.status(500).json({ error: "Failed to delete webinar" })
+        }
+      }
+    }
+
+    // GET /webinars/:id  (after the more specific /webinars/:id/* routes)
+    {
+      const m = path?.match(/^\/webinars\/([^/]+)$/)
+      if (m && method === "GET") {
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const id = m[1]
+        try {
+          const [webinar] = await queryClient`
+            SELECT id, title,
+                   webinar_date AS "webinarDate",
+                   source_key AS "sourceKey",
+                   created_at AS "createdAt",
+                   created_by AS "createdBy"
+            FROM webinars WHERE id = ${id} LIMIT 1`
+          if (!webinar) return res.status(404).json({ error: "Webinar not found" })
+          const registrants = await queryClient`
+            SELECT id, webinar_id AS "webinarId", upload_id AS "uploadId",
+                   first_name AS "firstName", last_name AS "lastName", email,
+                   organization_raw AS "organizationRaw", client_id AS "clientId",
+                   category, manual_override AS "manualOverride", attended,
+                   follow_up_status AS "followUpStatus", follow_up_notes AS "followUpNotes",
+                   registered_at AS "registeredAt", attended_at AS "attendedAt",
+                   created_at AS "createdAt", updated_at AS "updatedAt"
+            FROM webinar_registrants
+            WHERE webinar_id = ${id}
+            ORDER BY last_name ASC, first_name ASC`
+          const uploads = await queryClient`
+            SELECT id, webinar_id AS "webinarId", filename,
+                   upload_kind AS "uploadKind",
+                   raw_rows AS "rawRows",
+                   uploaded_at AS "uploadedAt",
+                   uploaded_by AS "uploadedBy"
+            FROM webinar_uploads WHERE webinar_id = ${id}
+            ORDER BY uploaded_at DESC`
+          return res.json({ webinar, registrants, uploads })
+        } catch (err: any) {
+          console.error("webinar GET failed:", err)
+          return res.status(500).json({ error: "Failed to load webinar" })
+        }
       }
     }
 
