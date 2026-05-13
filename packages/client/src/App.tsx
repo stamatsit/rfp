@@ -37,6 +37,7 @@ const Analytics = lazy(() => import("./pages/Analytics").then(m => ({ default: m
 const URLScanner = lazy(() => import("./pages/URLScanner").then(m => ({ default: m.URLScanner })))
 const ScannerPortal = lazy(() => import("./pages/ScannerPortal").then(m => ({ default: m.ScannerPortal })))
 const AccessibilitySnapshot = lazy(() => import("./pages/AccessibilitySnapshot"))
+const Webinars = lazy(() => import("./pages/Webinars").then(m => ({ default: m.Webinars })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -136,6 +137,7 @@ function AppRoutes() {
             <Route path="/scanner" element={<ProtectedRoute><ScannerPortal /></ProtectedRoute>} />
             <Route path="/scanner/accessibility" element={<ProtectedRoute><URLScanner /></ProtectedRoute>} />
             <Route path="/scanner/snapshot" element={<ProtectedRoute><AccessibilitySnapshot /></ProtectedRoute>} />
+            <Route path="/webinars" element={<ProtectedRoute><Webinars /></ProtectedRoute>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

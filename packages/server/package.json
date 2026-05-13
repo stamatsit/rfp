@@ -9,10 +9,11 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:generate": "drizzle-kit generate:pg",
+    "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio",
-    "seed-users": "tsx src/scripts/seedUsers.ts"
+    "seed-users": "tsx src/scripts/seedUsers.ts",
+    "seed:client-domains": "tsx src/scripts/seedClientDomains.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",
@@ -21,6 +22,7 @@
     "cheerio": "^1.2.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "csv-parse": "^6.2.1",
     "dotenv": "^16.4.1",
     "drizzle-orm": "^0.29.5",
     "express": "^4.18.2",

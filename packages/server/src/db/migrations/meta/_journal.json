@@ -8,6 +8,27 @@
       "when": 1770330562534,
       "tag": "0000_melodic_pride",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1778684725784,
+      "tag": "0001_large_warpath",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1778687199997,
+      "tag": "0002_long_paladin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1778690597000,
+      "tag": "0003_wakeful_thing",
+      "breakpoints": true
     }
   ]
 }

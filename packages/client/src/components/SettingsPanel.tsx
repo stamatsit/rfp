@@ -196,6 +196,16 @@ const defaultTiles: TileConfig[] = [
     shadowColor: "rgba(139, 92, 246, 0.15)",
     enabled: true,
   },
+  {
+    id: "webinars",
+    to: "/webinars",
+    icon: <Mic size={22} strokeWidth={2} />,
+    title: "Webinars",
+    description: "Upload GoToWebinar exports and auto-categorize registrants as Client / Non-Client / Employee / DNC",
+    gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 50%, #0E7490 100%)",
+    shadowColor: "rgba(6, 182, 212, 0.15)",
+    enabled: false,  // Hidden by default — enable in Settings → Tiles
+  },
 ]
 
 interface TileSettings {
@@ -339,7 +349,8 @@ export function loadSettings(): AppSettings {
         ...(parsed.tiles || []),
         ...defaultTiles
           .filter(t => !tileIds.has(t.id))
-          .map((t, i) => ({ id: t.id, enabled: true, order: (parsed.tiles?.length || 0) + i }))
+          // Respect the tile's own default enabled flag — tiles can ship hidden.
+          .map((t, i) => ({ id: t.id, enabled: t.enabled, order: (parsed.tiles?.length || 0) + i }))
       ]
       // Merge widgets
       const widgetIds = new Set(parsed.widgets?.map((w: { id: string }) => w.id) || [])

@@ -1453,21 +1453,39 @@ export const testimonialsApi = {
 
 // ─── Clients API (user-added clients, merged with hardcoded namedClients) ──────
 
+export type ClientStatus = "active" | "prospect" | "former" | "archived"
+
 export interface ClientResponse {
   id: string
   name: string
   sector: "higher-ed" | "healthcare" | "other"
   notes: string | null
+  status: ClientStatus
+  emailDomains: string[]
   createdAt: string
   updatedAt: string
 }
 
+export interface ClientWriteData {
+  name: string
+  sector: "higher-ed" | "healthcare" | "other"
+  notes?: string
+  status?: ClientStatus
+  emailDomains?: string[]
+}
+
+export interface ClientDeleteResult {
+  success: true
+  orphanedDnc: number
+}
+
 export const clientsApi = {
-  async list(): Promise<ClientResponse[]> {
-    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients`)
+  async list(opts?: { status?: ClientStatus }): Promise<ClientResponse[]> {
+    const qs = opts?.status ? `?status=${encodeURIComponent(opts.status)}` : ""
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients${qs}`)
     return handleResponse<ClientResponse[]>(response)
   },
-  async create(data: { name: string; sector: "higher-ed" | "healthcare" | "other"; notes?: string }): Promise<ClientResponse> {
+  async create(data: ClientWriteData): Promise<ClientResponse> {
     const response = await fetchWithCredentials(`${API_BASE}/client-success/clients`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1475,7 +1493,7 @@ export const clientsApi = {
     })
     return handleResponse<ClientResponse>(response)
   },
-  async update(id: string, data: { name: string; sector: "higher-ed" | "healthcare" | "other"; notes?: string }): Promise<ClientResponse> {
+  async update(id: string, data: ClientWriteData): Promise<ClientResponse> {
     const response = await fetchWithCredentials(`${API_BASE}/client-success/clients/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1483,8 +1501,219 @@ export const clientsApi = {
     })
     return handleResponse<ClientResponse>(response)
   },
+  async delete(id: string): Promise<ClientDeleteResult> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/clients/${id}`, { method: "DELETE" })
+    return handleResponse<ClientDeleteResult>(response)
+  },
+}
+
+// ─── Do Not Contact API ──────────────────────
+
+export interface DoNotContactEntry {
+  id: string
+  email: string
+  domain: string
+  institution: string
+  comment: string | null
+  clientId: string | null
+  createdAt: string
+  createdBy: string
+}
+
+export const doNotContactApi = {
+  async list(): Promise<DoNotContactEntry[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/do-not-contact`)
+    return handleResponse<DoNotContactEntry[]>(response)
+  },
+  async create(data: { email: string; institution: string; comment?: string; clientId?: string }): Promise<DoNotContactEntry> {
+    const response = await fetchWithCredentials(`${API_BASE}/client-success/do-not-contact`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<DoNotContactEntry>(response)
+  },
   async delete(id: string): Promise<void> {
-    await fetchWithCredentials(`${API_BASE}/client-success/clients/${id}`, { method: "DELETE" })
+    await fetchWithCredentials(`${API_BASE}/client-success/do-not-contact/${id}`, { method: "DELETE" })
+  },
+}
+
+// ─── Webinars API ──────────────────────────────
+
+export type WebinarCategory = "do-not-contact" | "client" | "employee" | "non-client"
+export type WebinarFollowUpStatus = "no-outreach" | "vm-left" | "email-sent" | "connected" | "dead"
+
+export interface WebinarRow {
+  id: string
+  title: string
+  webinarDate: string | null
+  sourceKey: string | null
+  createdAt: string
+  createdBy: string
+}
+
+export interface WebinarSummaryCounts {
+  client: number
+  "non-client": number
+  employee: number
+  "do-not-contact": number
+  attended: number
+  total: number
+}
+
+export interface WebinarListItem extends WebinarRow {
+  counts: WebinarSummaryCounts
+}
+
+export interface WebinarUploadRow {
+  id: string
+  webinarId: string
+  filename: string
+  uploadKind: "registration" | "attendance"
+  rawRows: number
+  uploadedAt: string
+  uploadedBy: string
+}
+
+export interface WebinarRegistrant {
+  id: string
+  webinarId: string
+  uploadId: string | null
+  firstName: string | null
+  lastName: string | null
+  email: string
+  organizationRaw: string | null
+  clientId: string | null
+  category: WebinarCategory
+  manualOverride: boolean
+  attended: boolean | null
+  followUpStatus: WebinarFollowUpStatus
+  followUpNotes: string | null
+  registeredAt: string | null
+  attendedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface WebinarDetail {
+  webinar: WebinarRow
+  registrants: WebinarRegistrant[]
+  uploads: WebinarUploadRow[]
+}
+
+export interface WebinarUploadResult {
+  webinarId: string
+  uploadId: string
+  uploadKind: "registration" | "attendance"
+  rawRows: number
+  inserted: number
+  updated: number
+  title: string | null
+  webinarDate: string | null
+}
+
+export interface WebinarPersonRow {
+  email: string
+  firstName: string | null
+  lastName: string | null
+  organizationRaw: string | null
+  category: WebinarCategory
+  clientId: string | null
+  webinarCount: number
+  attendedCount: number
+  lastSeen: string
+}
+
+export interface WebinarStats {
+  categoryCounts: { category: WebinarCategory; n: number }[]
+  topOrgs: { clientId: string | null; clientName: string | null; organizationRaw: string | null; n: number }[]
+}
+
+export interface WebinarExportFilter {
+  category?: WebinarCategory
+  followUpStatus?: WebinarFollowUpStatus
+  /** Drop DNC rows from the export (matches the UI's "Show DNC" toggle being off). */
+  excludeDnc?: boolean
+  /** Free-text search over first/last name, email, and organization. */
+  q?: string
+}
+
+export const webinarsApi = {
+  async list(): Promise<WebinarListItem[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars`)
+    return handleResponse<WebinarListItem[]>(response)
+  },
+  async get(id: string): Promise<WebinarDetail> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/${id}`)
+    return handleResponse<WebinarDetail>(response)
+  },
+  async upload(file: File, webinarId?: string): Promise<WebinarUploadResult> {
+    const fd = new FormData()
+    fd.append("file", file)
+    if (webinarId) fd.append("webinarId", webinarId)
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/upload`, { method: "POST", body: fd })
+    return handleResponse<WebinarUploadResult>(response)
+  },
+  async patchRegistrant(
+    webinarId: string,
+    registrantId: string,
+    data: { category?: WebinarCategory; followUpStatus?: WebinarFollowUpStatus; followUpNotes?: string; manualOverride?: boolean },
+  ): Promise<WebinarRegistrant> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/${webinarId}/registrants/${registrantId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    })
+    return handleResponse<WebinarRegistrant>(response)
+  },
+  async recategorize(id: string): Promise<{ scanned: number; changed: number }> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/${id}/recategorize`, { method: "POST" })
+    return handleResponse<{ scanned: number; changed: number }>(response)
+  },
+  async delete(id: string): Promise<void> {
+    await fetchWithCredentials(`${API_BASE}/webinars/${id}`, { method: "DELETE" })
+  },
+  async people(): Promise<WebinarPersonRow[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/people`)
+    return handleResponse<WebinarPersonRow[]>(response)
+  },
+  async stats(): Promise<WebinarStats> {
+    const response = await fetchWithCredentials(`${API_BASE}/webinars/stats`)
+    return handleResponse<WebinarStats>(response)
+  },
+  exportUrl(id: string, kind: "csv" | "xlsx", filter?: WebinarExportFilter): string {
+    const qs = new URLSearchParams()
+    if (filter?.category) qs.set("category", filter.category)
+    if (filter?.followUpStatus) qs.set("followUpStatus", filter.followUpStatus)
+    if (filter?.excludeDnc) qs.set("excludeDnc", "true")
+    if (filter?.q) qs.set("q", filter.q)
+    const q = qs.toString()
+    return `${API_BASE}/webinars/${id}/export.${kind}${q ? `?${q}` : ""}`
+  },
+  /**
+   * Fetch the export as a blob and trigger a browser download with the server-provided filename.
+   * More reliable than a plain <a href> when CORS/proxy quirks get in the way.
+   */
+  async downloadExport(id: string, kind: "csv" | "xlsx", filter?: WebinarExportFilter): Promise<void> {
+    const url = webinarsApi.exportUrl(id, kind, filter)
+    const response = await fetchWithCredentials(url)
+    if (!response.ok) throw new Error(`Export failed: ${response.status}`)
+    const blob = await response.blob()
+    // Parse filename from Content-Disposition: attachment; filename="<...>"
+    const cd = response.headers.get("content-disposition") || ""
+    const m = /filename\s*=\s*"?([^"';]+)"?/i.exec(cd)
+    const filename = m?.[1] || `webinar-export.${kind}`
+    const objectUrl = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = objectUrl
+    a.download = filename
+    a.style.display = "none"
+    document.body.appendChild(a)
+    a.click()
+    setTimeout(() => {
+      document.body.removeChild(a)
+      URL.revokeObjectURL(objectUrl)
+    }, 100)
   },
 }
 

@@ -1,12 +1,21 @@
 import { useState, useEffect, useRef } from "react"
 import { Building2, X, Loader2 } from "lucide-react"
-import { clientsApi, type ClientResponse } from "@/lib/api"
+import { clientsApi, type ClientResponse, type ClientStatus } from "@/lib/api"
+import { ChipInput } from "@/components/ChipInput"
+import { DOMAIN_RE } from "@/lib/domainRegex"
 
 const SECTOR_LABELS: Record<string, string> = {
   "higher-ed": "Higher Ed",
   healthcare: "Healthcare",
   other: "Other",
 }
+
+const STATUS_OPTIONS: { value: ClientStatus; label: string; tone: string }[] = [
+  { value: "active", label: "Active", tone: "bg-emerald-600 text-white border-emerald-600" },
+  { value: "prospect", label: "Prospect", tone: "bg-amber-500 text-white border-amber-500" },
+  { value: "former", label: "Former", tone: "bg-slate-500 text-white border-slate-500" },
+  { value: "archived", label: "Archived", tone: "bg-slate-700 text-white border-slate-700" },
+]
 
 const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all duration-200"
 const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5"
@@ -15,12 +24,23 @@ interface AddClientModalProps {
   client: ClientResponse | null
   onClose: () => void
   onSaved: (c: ClientResponse) => void
+  /** Optional defaults — used by Move-to-Client flows and hardcoded-client materialize flows. */
+  defaults?: { name?: string; sector?: "higher-ed" | "healthcare" | "other"; emailDomains?: string[] }
 }
 
-export function AddClientModal({ client, onClose, onSaved }: AddClientModalProps) {
-  const [name, setName] = useState(client?.name || "")
-  const [sector, setSector] = useState<"higher-ed" | "healthcare" | "other">(client?.sector || "higher-ed")
+function validateDomain(raw: string): string | null {
+  const candidate = raw.toLowerCase().trim()
+  return DOMAIN_RE.test(candidate) ? candidate : null
+}
+
+export function AddClientModal({ client, onClose, onSaved, defaults }: AddClientModalProps) {
+  const [name, setName] = useState(client?.name || defaults?.name || "")
+  const [sector, setSector] = useState<"higher-ed" | "healthcare" | "other">(client?.sector || defaults?.sector || "higher-ed")
   const [notes, setNotes] = useState(client?.notes || "")
+  const [status, setStatus] = useState<ClientStatus>(client?.status || "active")
+  const [emailDomains, setEmailDomains] = useState<string[]>(
+    client?.emailDomains ?? defaults?.emailDomains ?? [],
+  )
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const nameRef = useRef<HTMLInputElement>(null)
@@ -33,7 +53,13 @@ export function AddClientModal({ client, onClose, onSaved }: AddClientModalProps
     setSaving(true)
     setError(null)
     try {
-      const data = { name: name.trim(), sector, notes: notes.trim() || undefined }
+      const data = {
+        name: name.trim(),
+        sector,
+        notes: notes.trim() || undefined,
+        status,
+        emailDomains,
+      }
       const saved = client ? await clientsApi.update(client.id, data) : await clientsApi.create(data)
       onSaved(saved)
     } catch (err: unknown) {
@@ -46,12 +72,12 @@ export function AddClientModal({ client, onClose, onSaved }: AddClientModalProps
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div
-        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md mx-4 border border-slate-200/60 dark:border-slate-700/60"
+        className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md mx-4 border border-slate-200/60 dark:border-slate-700/60 max-h-[90vh] overflow-y-auto"
         style={{ boxShadow: "0 0 0 1px rgb(0 0 0 / 0.03), 0 8px 32px rgb(0 0 0 / 0.12)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700/60">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-700/60 sticky top-0 bg-white dark:bg-slate-800">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0EA5E9 0%, #0369A1 100%)" }}>
               <Building2 size={15} className="text-white" />
@@ -86,6 +112,26 @@ export function AddClientModal({ client, onClose, onSaved }: AddClientModalProps
           </div>
 
           <div>
+            <label className={labelCls}>Status</label>
+            <div className="grid grid-cols-4 gap-2">
+              {STATUS_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setStatus(opt.value)}
+                  className={`py-2 rounded-xl text-xs font-medium border transition-all ${
+                    status === opt.value
+                      ? opt.tone + " shadow-sm"
+                      : "bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className={labelCls}>Sector</label>
             <div className="flex gap-2">
               {(["higher-ed", "healthcare", "other"] as const).map(s => (
@@ -103,6 +149,22 @@ export function AddClientModal({ client, onClose, onSaved }: AddClientModalProps
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className={labelCls}>
+              Email Domains <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <ChipInput
+              values={emailDomains}
+              onChange={setEmailDomains}
+              validate={validateDomain}
+              placeholder="e.g., example.com — press Enter"
+              ariaLabel="Email domain"
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Domains owned by this client. Used to auto-categorize webinar registrants and outreach lists. Lower-cased automatically.
+            </p>
           </div>
 
           <div>

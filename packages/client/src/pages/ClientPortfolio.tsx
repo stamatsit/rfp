@@ -22,6 +22,7 @@ import {
   type DetailTab,
 } from "@/components/client-portfolio/ClientPortfolioContext"
 import { ClientRoster } from "@/components/client-portfolio/ClientRoster"
+import { DoNotContactSection } from "@/components/client-portfolio/DoNotContactSection"
 import { ClientDetailHeader } from "@/components/client-portfolio/ClientDetailHeader"
 import { ClientOverviewTab } from "@/components/client-portfolio/ClientOverviewTab"
 import { ClientAssetsTab } from "@/components/client-portfolio/ClientAssetsTab"
@@ -58,14 +59,25 @@ function ClientPortfolioInner() {
   // ── Add/Edit client modal
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingClient, setEditingClient] = useState<ClientResponse | null>(null)
+  const [modalDefaults, setModalDefaults] = useState<{ name?: string; sector?: "higher-ed" | "healthcare" | "other"; emailDomains?: string[] } | undefined>(undefined)
 
-  // Listen for edit events from roster
+  // Listen for edit events from roster + detail header
   useEffect(() => {
     const handler = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.clientId) {
+        // Existing DB client — open in edit mode
         const dbClient = dbClients.find(c => c.id === detail.clientId)
-        if (dbClient) { setEditingClient(dbClient); setShowAddModal(true) }
+        if (dbClient) {
+          setModalDefaults(undefined)
+          setEditingClient(dbClient)
+          setShowAddModal(true)
+        }
+      } else if (detail?.name) {
+        // Hardcoded-only client (no DB row yet) — open create mode with prefilled name/sector
+        setModalDefaults({ name: detail.name, sector: detail.sector })
+        setEditingClient(null)
+        setShowAddModal(true)
       }
     }
     window.addEventListener("client-portfolio:edit", handler)
@@ -131,9 +143,16 @@ function ClientPortfolioInner() {
         {/* ── 2-Panel Layout ──────────────────────────── */}
         <div className="flex flex-col lg:flex-row gap-4 items-start">
 
-          {/* Left: Client Roster (hidden on mobile when client selected) */}
-          <div className={`w-full lg:w-auto ${selectedClient ? "hidden lg:block" : ""}`}>
+          {/* Left: Client Roster + DNC section (hidden on mobile when client selected) */}
+          <div
+            className={`w-full lg:w-[280px] shrink-0 flex flex-col gap-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-14rem)] ${
+              selectedClient ? "hidden lg:flex" : ""
+            }`}
+          >
             <ClientRoster />
+            <div className="flex-shrink-0 max-h-[320px] flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-700/40 p-4 shadow-sm overflow-hidden">
+              <DoNotContactSection />
+            </div>
           </div>
 
           {/* Right: Detail Panel */}
@@ -234,7 +253,8 @@ function ClientPortfolioInner() {
       {showAddModal && (
         <AddClientModal
           client={editingClient}
-          onClose={() => { setShowAddModal(false); setEditingClient(null) }}
+          defaults={modalDefaults}
+          onClose={() => { setShowAddModal(false); setEditingClient(null); setModalDefaults(undefined) }}
           onSaved={saved => {
             setDbClients(prev => {
               const existing = prev.findIndex(c => c.id === saved.id)
@@ -248,6 +268,7 @@ function ClientPortfolioInner() {
             setSelectedClient(saved.name)
             setShowAddModal(false)
             setEditingClient(null)
+            setModalDefaults(undefined)
           }}
         />
       )}

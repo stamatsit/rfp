@@ -11,8 +11,9 @@ export type AuditActionType =
   | "LINK"
   | "UNLINK"
   | "AI_REQUEST"
+  | "DELETE"
 
-export type AuditEntityType = "ANSWER" | "PHOTO" | "SYSTEM"
+export type AuditEntityType = "ANSWER" | "PHOTO" | "SYSTEM" | "DO_NOT_CONTACT" | "CLIENT"
 
 // Import types
 export interface ImportIssue {

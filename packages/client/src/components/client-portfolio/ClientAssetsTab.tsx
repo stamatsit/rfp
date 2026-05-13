@@ -2,7 +2,7 @@
  * ClientAssetsTab — Case studies, testimonials, awards, proposals, Q&A library.
  */
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   FileText,
   Quote,
@@ -16,12 +16,24 @@ import {
   Link2,
   Link2Off,
   Loader2,
+  Plus,
+  TrendingUp,
 } from "lucide-react"
 import { useClientData, useClientSelection, normalizeCaseStudy } from "./ClientPortfolioContext"
 import { SectionHeader } from "./SectionHeader"
 import { LinkAnswerModal } from "./LinkAnswerModal"
+import { NewEntryPanel } from "@/components/NewEntryPanel"
 import { clientQaApi } from "@/lib/api"
 import { toast } from "@/hooks/useToast"
+
+type AssetEntryType = "success" | "result" | "testimonial" | "award"
+
+const ADD_OPTIONS: { id: AssetEntryType; label: string; icon: typeof FileText; description: string }[] = [
+  { id: "testimonial", label: "Testimonial", icon: Quote, description: "Add a client quote" },
+  { id: "success", label: "Case Study", icon: FileText, description: "Document a project win" },
+  { id: "award", label: "Award", icon: Trophy, description: "Record a recognition" },
+  { id: "result", label: "Top-line Result", icon: TrendingUp, description: "Capture a metric" },
+]
 
 // ─── Constants ────────────────────────────────────────────────────
 
@@ -34,13 +46,36 @@ const WON_COLORS: Record<string, string> = {
 
 export function ClientAssetsTab() {
   const { isAdmin } = useClientData()
-  const { selectedClient, mergedData, qaLinks, setQaLinks, qaLinksLoading } = useClientSelection()
+  const { selectedClient, mergedData, qaLinks, setQaLinks, qaLinksLoading, refreshProfile, refreshGlobalAssets } = useClientSelection()
 
   const [openCaseStudies, setOpenCaseStudies] = useState<Set<number>>(new Set([0]))
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [showLinkModal, setShowLinkModal] = useState(false)
+  const [addMenuOpen, setAddMenuOpen] = useState(false)
+  const [entryPanelType, setEntryPanelType] = useState<AssetEntryType | null>(null)
+  const addMenuRef = useRef<HTMLDivElement>(null)
+
+  // Close add menu on outside click
+  useEffect(() => {
+    if (!addMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (addMenuRef.current && !addMenuRef.current.contains(e.target as Node)) {
+        setAddMenuOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", onClick)
+    return () => document.removeEventListener("mousedown", onClick)
+  }, [addMenuOpen])
 
   if (!selectedClient || !mergedData) return null
+
+  const handleAssetSaved = async () => {
+    setEntryPanelType(null)
+    // Refresh both per-client profile and global lists so the new asset appears in the section
+    await Promise.all([refreshProfile(), refreshGlobalAssets()])
+    // Match the global NewEntryPanel's broadcast so other listeners (counters, dashboards) update
+    window.dispatchEvent(new CustomEvent("new-entry-saved"))
+  }
 
   const handleCopy = async (id: string, text: string) => {
     await navigator.clipboard.writeText(text)
@@ -60,6 +95,41 @@ export function ClientAssetsTab() {
 
   return (
     <div className="space-y-6 animate-in fade-in-0 duration-200">
+
+      {/* Admin: Add asset menu */}
+      {isAdmin && (
+        <div className="flex justify-end">
+          <div ref={addMenuRef} className="relative">
+            <button
+              onClick={() => setAddMenuOpen(o => !o)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white bg-sky-600 hover:bg-sky-700 dark:bg-sky-600 dark:hover:bg-sky-500 transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Add
+              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${addMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {addMenuOpen && (
+              <div className="absolute right-0 mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg z-10 overflow-hidden">
+                {ADD_OPTIONS.map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => { setAddMenuOpen(false); setEntryPanelType(opt.id) }}
+                    className="w-full flex items-start gap-3 px-3 py-2.5 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+                  >
+                    <div className="mt-0.5 w-7 h-7 rounded-md bg-sky-50 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400 flex items-center justify-center flex-shrink-0">
+                      <opt.icon className="w-3.5 h-3.5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{opt.label}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400">{opt.description}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Case Studies */}
       {mergedData.caseStudies.length > 0 && (
@@ -335,6 +405,17 @@ export function ClientAssetsTab() {
             const fresh = await clientQaApi.list(selectedClient)
             setQaLinks(fresh)
           }}
+        />
+      )}
+
+      {/* New entry panel — admin-gated, pre-filled with current client */}
+      {entryPanelType && (
+        <NewEntryPanel
+          isOpen={true}
+          onClose={() => setEntryPanelType(null)}
+          onSaved={handleAssetSaved}
+          defaultType={entryPanelType}
+          defaultClient={selectedClient}
         />
       )}
     </div>

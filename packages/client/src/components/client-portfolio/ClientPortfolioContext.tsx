@@ -17,12 +17,14 @@ import {
   clientDocumentsApi,
   clientBrandKitApi,
   studioApi,
+  doNotContactApi,
   type ClientSuccessEntryResponse,
   type ClientSuccessResultResponse,
   type ClientSuccessTestimonialResponse,
   type ClientSuccessAwardResponse,
   type ClientProfileApiResponse,
   type ClientResponse,
+  type DoNotContactEntry,
   type LinkedQaAnswer,
   type ClientWinRate,
   type ClientDocument,
@@ -55,6 +57,10 @@ export interface ClientWithCounts extends NamedClient {
   counts: ClientAssetCounts
   dbId?: string
   health?: ClientHealthScore
+  /** From clients.status — only present for DB-backed clients (hardcoded clients default to "active"). */
+  status?: "active" | "prospect" | "former" | "archived"
+  /** From clients.email_domains — only present for DB-backed clients. */
+  emailDomains?: string[]
 }
 
 export interface NormalizedCaseStudy {
@@ -143,6 +149,13 @@ interface ClientDataContextValue {
   globalLoading: boolean
   clientsWithCounts: ClientWithCounts[]
   isAdmin: boolean
+  // Do Not Contact
+  dncEntries: DoNotContactEntry[]
+  setDncEntries: React.Dispatch<React.SetStateAction<DoNotContactEntry[]>>
+  dncLoading: boolean
+  refreshDnc: () => Promise<void>
+  showDnc: boolean
+  setShowDnc: (v: boolean) => void
 }
 
 interface ClientSelectionContextValue {
@@ -175,6 +188,10 @@ interface ClientSelectionContextValue {
   // Brief generation
   generatingBrief: boolean
   handleGenerateBrief: () => Promise<void>
+
+  // Refresh hooks (used after creating new assets)
+  refreshProfile: () => Promise<void>
+  refreshGlobalAssets: () => Promise<void>
 
   // Navigation
   navigate: ReturnType<typeof useNavigate>
@@ -211,6 +228,21 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
   const [dbClients, setDbClients] = useState<ClientResponse[]>([])
   const [winRates, setWinRates] = useState<Record<string, ClientWinRate>>({})
   const [globalLoading, setGlobalLoading] = useState(true)
+  // ── Do Not Contact
+  const [dncEntries, setDncEntries] = useState<DoNotContactEntry[]>([])
+  const [dncLoading, setDncLoading] = useState(true)
+  const [showDnc, setShowDnc] = useState(false)
+  const refreshDnc = useCallback(async () => {
+    try {
+      setDncLoading(true)
+      const entries = await doNotContactApi.list()
+      setDncEntries(entries)
+    } catch (err) {
+      console.error("Failed to load DNC entries:", err)
+    } finally {
+      setDncLoading(false)
+    }
+  }, [])
 
   // ── Selection
   const [selectedClient, setSelectedClient] = useState<string | null>(
@@ -243,13 +275,14 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
     let cancelled = false
     async function load() {
       try {
-        const [entries, results, testimonialsData, awards, dbClientList, rates] = await Promise.all([
+        const [entries, results, testimonialsData, awards, dbClientList, rates, dncList] = await Promise.all([
           clientSuccessApi.getEntries(),
           clientSuccessApi.getResults(),
           testimonialsApi.list({ limit: 500 }),
           awardsApi.list(),
           clientsApi.list(),
           clientPortfolioApi.getWinRates().catch(() => ({})),
+          doNotContactApi.list().catch(() => [] as DoNotContactEntry[]),
         ])
         if (cancelled) return
         setDbEntries(entries)
@@ -258,10 +291,14 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
         setDbAwards(awards)
         setDbClients(dbClientList)
         setWinRates(rates)
+        setDncEntries(dncList)
       } catch (err) {
         console.error("Failed to load client portfolio data:", err)
       } finally {
-        if (!cancelled) setGlobalLoading(false)
+        if (!cancelled) {
+          setGlobalLoading(false)
+          setDncLoading(false)
+        }
       }
     }
     load()
@@ -276,6 +313,32 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
     }
   }, [searchParams, globalLoading])
 
+  // ── Per-client data loader (callable on demand for refresh after create)
+  const loadClientProfile = useCallback(async (clientName: string, cancelledRef?: { current: boolean }) => {
+    setProfileLoading(true)
+    setQaLinksLoading(true)
+    setDocsLoading(true)
+    try {
+      const [profileData, links, docs, kit] = await Promise.all([
+        clientPortfolioApi.getClientProfile(clientName),
+        clientQaApi.list(clientName),
+        clientDocumentsApi.list(clientName),
+        clientBrandKitApi.get(clientName),
+      ])
+      if (cancelledRef?.current) return
+      setProfile(profileData)
+      setQaLinks(links)
+      setClientDocs(docs)
+      setBrandKit(kit)
+    } catch (err) {
+      console.error("Failed to load client profile:", err)
+    } finally {
+      if (!cancelledRef?.current) {
+        setProfileLoading(false); setQaLinksLoading(false); setDocsLoading(false)
+      }
+    }
+  }, [])
+
   // ── Reset tab on client change + load per-client data
   useEffect(() => {
     setActiveTab("overview")
@@ -283,30 +346,34 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
       setProfile(null); setQaLinks([]); setClientDocs([]); setBrandKit(null)
       return
     }
-    let cancelled = false
-    setProfileLoading(true)
-    setQaLinksLoading(true)
-    setDocsLoading(true)
-    Promise.all([
-      clientPortfolioApi.getClientProfile(selectedClient),
-      clientQaApi.list(selectedClient),
-      clientDocumentsApi.list(selectedClient),
-      clientBrandKitApi.get(selectedClient),
-    ])
-      .then(([profileData, links, docs, kit]) => {
-        if (!cancelled) {
-          setProfile(profileData)
-          setQaLinks(links)
-          setClientDocs(docs)
-          setBrandKit(kit)
-        }
-      })
-      .catch(err => console.error("Failed to load client profile:", err))
-      .finally(() => {
-        if (!cancelled) { setProfileLoading(false); setQaLinksLoading(false); setDocsLoading(false) }
-      })
-    return () => { cancelled = true }
-  }, [selectedClient])
+    const cancelledRef = { current: false }
+    loadClientProfile(selectedClient, cancelledRef)
+    return () => { cancelledRef.current = true }
+  }, [selectedClient, loadClientProfile])
+
+  // ── Exposed refresh: reloads the currently-selected client's profile
+  const refreshProfile = useCallback(async () => {
+    if (!selectedClient) return
+    await loadClientProfile(selectedClient)
+  }, [selectedClient, loadClientProfile])
+
+  // ── Exposed refresh: reloads global asset lists (entries/results/testimonials/awards)
+  const refreshGlobalAssets = useCallback(async () => {
+    try {
+      const [entries, results, testimonialsData, awards] = await Promise.all([
+        clientSuccessApi.getEntries(),
+        clientSuccessApi.getResults(),
+        testimonialsApi.list({ limit: 500 }),
+        awardsApi.list(),
+      ])
+      setDbEntries(entries)
+      setDbResults(results)
+      setDbTestimonials(testimonialsData.testimonials)
+      setDbAwards(awards)
+    } catch (err) {
+      console.error("Failed to refresh global assets:", err)
+    }
+  }, [])
 
   // ── Compute client roster
   const clientsWithCounts = useMemo<ClientWithCounts[]>(() => {
@@ -321,11 +388,25 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
       dbEntries,
       dbResults,
     }
+    // Index DB clients by name (case-insensitive) for quick lookup during merge
+    const dbByNameLower = new Map(dbClients.map(c => [c.name.toLowerCase(), c]))
+
+    // Hardcoded entries enriched with DB row data when a match exists.
+    // The DB row provides status / emailDomains / dbId. The hardcoded entry provides
+    // the display name and sector if no DB row exists.
     const hardcoded = clientSuccessData.namedClients.map(client => {
       const winRateKey = client.name.toLowerCase()
       const winRateData = winRates[winRateKey] as ClientWinRateData | undefined
       const counts = computeClientCounts(client.name, countArgs, winRateData)
-      return { ...client, counts, health: computeClientHealthScore(counts, winRateData) }
+      const dbRow = dbByNameLower.get(client.name.toLowerCase())
+      return {
+        ...client,
+        counts,
+        health: computeClientHealthScore(counts, winRateData),
+        dbId: dbRow?.id,
+        status: dbRow?.status,
+        emailDomains: dbRow?.emailDomains,
+      }
     })
     const hardcodedNames = new Set(hardcoded.map(c => c.name.toLowerCase()))
     const fromDb: ClientWithCounts[] = dbClients
@@ -334,7 +415,15 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
         const winRateKey = c.name.toLowerCase()
         const winRateData = winRates[winRateKey] as ClientWinRateData | undefined
         const counts = computeClientCounts(c.name, countArgs, winRateData)
-        return { name: c.name, sector: c.sector, dbId: c.id, counts, health: computeClientHealthScore(counts, winRateData) }
+        return {
+          name: c.name,
+          sector: c.sector,
+          dbId: c.id,
+          counts,
+          health: computeClientHealthScore(counts, winRateData),
+          status: c.status,
+          emailDomains: c.emailDomains,
+        }
       })
     return [...hardcoded, ...fromDb]
   }, [globalLoading, dbEntries, dbResults, dbTestimonials, dbAwards, dbClients, winRates])
@@ -433,7 +522,9 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
   // ── Context values (memoized to avoid unnecessary re-renders)
   const dataValue = useMemo<ClientDataContextValue>(() => ({
     dbEntries, dbResults, dbTestimonials, dbAwards, dbClients, setDbClients, winRates, globalLoading, clientsWithCounts, isAdmin,
-  }), [dbEntries, dbResults, dbTestimonials, dbAwards, dbClients, winRates, globalLoading, clientsWithCounts, isAdmin])
+    dncEntries, setDncEntries, dncLoading, refreshDnc, showDnc, setShowDnc,
+  }), [dbEntries, dbResults, dbTestimonials, dbAwards, dbClients, winRates, globalLoading, clientsWithCounts, isAdmin,
+    dncEntries, dncLoading, refreshDnc, showDnc])
 
   const selectionValue = useMemo<ClientSelectionContextValue>(() => ({
     selectedClient, setSelectedClient, activeClient, activeTab, setActiveTab,
@@ -442,6 +533,7 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
     clientDocs, setClientDocs, docsLoading,
     brandKit, setBrandKit,
     generatingBrief, handleGenerateBrief,
+    refreshProfile, refreshGlobalAssets,
     navigate,
   }), [
     selectedClient, activeClient, activeTab,
@@ -450,6 +542,7 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
     clientDocs, docsLoading,
     brandKit,
     generatingBrief, handleGenerateBrief,
+    refreshProfile, refreshGlobalAssets,
     navigate,
   ])
 

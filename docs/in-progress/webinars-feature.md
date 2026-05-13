@@ -1,0 +1,133 @@
+# Webinars Feature
+
+**Status:** Mockups deployed and approved. Implementation not started.
+**Owner:** Eric Yerke
+**Started:** 2026-05-08
+
+---
+
+## What it is
+
+A new tile in the Stamats Data App that turns GoToWebinar registration exports into a queryable, filterable, exportable archive. Every registrant is auto-categorized as **Do Not Contact**, **Client**, **Employee**, or **Non-Client** by matching their email domain against the do-not-contact list and the active-client domain registry (see [active-clients-source-of-truth.md](active-clients-source-of-truth.md) for precedence rules and storage).
+
+## Why it exists
+
+A GoToWebinar `.xlsx` export of 117 names tells you almost nothing on its own. Was a registrant a client? A prospect? Did they attend three of our last four sessions? Are they at Westlake Health, or one of its five sub-entities? Today those questions take a manual afternoon. This feature answers them in seconds and keeps the archive forever.
+
+## Decisions locked in
+
+- **Source of truth for "client"** is the `clients` table in Postgres (the same table that drives Client Portfolio), keyed by `email_domains[]` and gated by `status = 'active'`. The Webinars feature does not maintain its own parallel registry.
+- **Source of truth for "do not contact"** is the `do_not_contact` table managed in Client Portfolio. Webinars reads it; never writes its own list. Matched registrants are stored but **hidden from the default view** behind a `Show Do Not Contact (N)` toggle. Summary counts exclude them unless toggled on. Same toggle pattern is used in Client Portfolio so the UX is consistent.
+- **Anybody on the team can upload.** No admin gate on uploads — the more data the better.
+- **Admin-only edits** for the client domain registry — but the editing happens in Client Portfolio, not in the Webinars feature.
+- **Archive is unlimited.** No row caps, no upload caps.
+- **Both registration and attendance reports** will be supported. Registration tells you intent; attendance tells you who actually showed up. Both flow into the same data model.
+- **Manual override per registrant** when somebody uses a personal email (`@gmail.com` at a real client).
+- **Sub-entity rollup** in stats. A parent client owns multiple email domains in a single `clients` row (e.g., MedStar's five domains all live on one parent row). "Top Organizations" therefore groups by `clients.id` naturally — no separate rollup table needed. This **supersedes the original mockup direction** (which showed separate sub-entity rows under one parent in the Clients admin) and is set by [active-clients-source-of-truth.md](active-clients-source-of-truth.md#seed-strategy). The Clients admin / Client Portfolio shows one row per parent.
+- **Follow-up status is a typed enum**, not freeform. Stored values are kebab-case (`no-outreach`, `vm-left`, `email-sent`, `connected`, `dead`); UI labels are the title-case versions ("No outreach", "VM left", "Email sent", "Connected", "Dead"). Mapping happens in a single constant in the UI module.
+- **Manual upload only.** No GoToWebinar API integration. Every webinar lands in the app via someone dragging the registration/attendance xlsx onto the upload zone. (Decision date: 2026-05-13. Reasoning: OAuth complexity isn't worth it for the volume; the manual flow is fine and keeps the surface area small.)
+
+## Mockup
+
+Public link (no login required, fictional data):
+**[https://webinars-mockup-three.vercel.app](https://webinars-mockup-three.vercel.app)**
+
+Five connected screens plus a marketing landing page. All light-mode, cyan/teal accent so it's distinct from existing tiles.
+
+Source files in [mockups/](../../mockups/):
+
+- [webinars-landing.html](../../mockups/webinars-landing.html) — marketing-style landing page with hero, feature grid, screenshot tour (live iframes), "How to leverage" playbooks, future ideas, FAQ
+- [webinars-01-home.html](../../mockups/webinars-01-home.html) — Webinars list + upload zone + summary stats
+- [webinars-02-detail.html](../../mockups/webinars-02-detail.html) — single webinar's registrant table, category mix, follow-up status, filter/sort/export
+- [webinars-03-people.html](../../mockups/webinars-03-people.html) — cross-webinar deduped person view; attendance heat dots; repeat-attendee surfacing
+- [webinars-04-stats.html](../../mockups/webinars-04-stats.html) — stacked bars over time, top orgs (rolled up), clients with zero attendees, funnel (clicked → registered → attended → asked)
+- [webinars-05-clients.html](../../mockups/webinars-05-clients.html) — admin view of the client domain registry (will be removed once the registry consolidates into Client Portfolio)
+
+Mockups use fictional names/emails on reserved `.example` TLDs. A "Sample data" banner appears on every page. Deployed to the Stamats Vercel team (`team_mQyH0RU6WiVo6X82MBAAbyGw`) as project `webinars-mockup`.
+
+## What still needs to be built
+
+1. **Schema** — sketched below. Generated by `npm run db:generate` after editing `schema.ts`; filename is auto-named by drizzle-kit (e.g., `0003_<slug>.sql`). **Depends on the active-clients + DNC schema landing first** (see [active-clients-source-of-truth.md](active-clients-source-of-truth.md)) — `webinar_registrants.client_id` references `clients.id`, and the categorize function reads `do_not_contact`.
+2. **XLSX parser** — robust against GoToWebinar's messy header rows (rows 0-13 are metadata) and 71 mostly-empty columns. Test fixtures: the two real exports in [Webinar Data/](../../Webinar%20Data/)
+3. **Categorization function** — `categorizeEmail(email) → "do-not-contact" | "client" | "employee" | "non-client"` reading from `do_not_contact` (first, wins) and active `clients` table. Order matters; see [active-clients-source-of-truth.md](active-clients-source-of-truth.md#categorization-precedence). Implemented in `packages/server/src/lib/webinarCategorize.ts` using the helpers from `clientLookup.ts`.
+4. **Server routes** — `POST /webinars/upload`, `GET /webinars`, `GET /webinars/:id`, `POST /webinars/:id/recategorize`, `GET /webinars/:id/export.{csv,xlsx}`. All in `packages/server/src/routes/webinars.ts`. Admin gating: upload is open to any authenticated user (per Decisions Locked In); re-categorize and delete are `requireWriteAccess`.
+5. **React tile** — register in [SettingsPanel.tsx](../../packages/client/src/components/SettingsPanel.tsx) tile registry; route at `/webinars`
+6. **3 sub-tabs** in the new page (Webinars list, People, Stats — the Clients tab from the mockup is dropped, replaced by a "Manage clients →" link out to Client Portfolio)
+7. **Export endpoints** — CSV/XLSX with current filter state preserved
+8. **Cleanup** — delete `mockups/webinars-05-clients.html` once the active-clients work lands. The standalone client-registry mockup is superseded by Client Portfolio. (Tracked here so it doesn't drift into the codebase forever as orphaned reference material.)
+
+### Schema sketch
+
+```sql
+CREATE TABLE webinars (
+  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title         text NOT NULL,
+  webinar_date  date,                -- when the webinar was held
+  source_key    text,                -- GoToWebinar's webinarKey if available in the export
+  created_at    timestamptz NOT NULL DEFAULT now(),
+  created_by    text
+);
+
+CREATE TABLE webinar_uploads (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  webinar_id   uuid NOT NULL REFERENCES webinars(id) ON DELETE CASCADE,
+  filename     text NOT NULL,
+  upload_kind  text NOT NULL CHECK (upload_kind IN ('registration', 'attendance')),
+  raw_rows     integer NOT NULL,    -- how many data rows we parsed
+  uploaded_at  timestamptz NOT NULL DEFAULT now(),
+  uploaded_by  text
+);
+
+CREATE TABLE webinar_registrants (
+  id                    uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  webinar_id            uuid NOT NULL REFERENCES webinars(id) ON DELETE CASCADE,
+  upload_id             uuid REFERENCES webinar_uploads(id) ON DELETE SET NULL,
+  first_name            text,
+  last_name             text,
+  email                 text NOT NULL,
+  organization_raw      text,         -- whatever the registrant typed in
+  client_id             uuid REFERENCES clients(id) ON DELETE SET NULL,  -- resolved at categorize time
+  category              text NOT NULL CHECK (category IN ('do-not-contact', 'client', 'employee', 'non-client')),
+  manual_override       boolean NOT NULL DEFAULT false,  -- if true, recategorize won't touch
+  attended              boolean,      -- null = registration-only row; true/false from attendance reports
+  follow_up_status      text NOT NULL DEFAULT 'no-outreach'
+    CHECK (follow_up_status IN ('no-outreach', 'vm-left', 'email-sent', 'connected', 'dead')),
+  follow_up_notes       text,
+  registered_at         timestamptz,
+  attended_at           timestamptz,
+  created_at            timestamptz NOT NULL DEFAULT now(),
+  updated_at            timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX webinar_registrants_webinar_idx ON webinar_registrants (webinar_id);
+CREATE INDEX webinar_registrants_email_idx ON webinar_registrants (lower(email));
+CREATE INDEX webinar_registrants_category_idx ON webinar_registrants (category);
+CREATE INDEX webinar_registrants_client_idx ON webinar_registrants (client_id);
+-- Required for the attendance-report upsert path (match webinar_id + lower(email))
+CREATE UNIQUE INDEX webinar_registrants_webinar_email_uniq ON webinar_registrants (webinar_id, lower(email));
+```
+
+**Same Drizzle gotchas as active-clients apply here.** Three things in the SQL sketch above won't come from `drizzle-kit generate:pg` and must go in a companion hand-applied operational SQL file (e.g., `packages/server/migrations/004_webinars_constraints_and_rls.sql`):
+
+1. **The inline CHECKs** (`category`, `follow_up_status`, `upload_kind`) — Drizzle's `text({ enum: [...] })` is TypeScript-only.
+2. **The functional-expression unique index `webinar_registrants_webinar_email_uniq ON (webinar_id, lower(email))`** — Drizzle-orm ^0.29.5 can't express `lower()` inside `uniqueIndex().on()`. Without this in the hand-applied SQL, the schema.ts will only get a B-tree on `(webinar_id, email)` (case-sensitive), letting `Jane@x.com` and `jane@x.com` both insert as duplicates for the same webinar.
+3. **RLS enable** on the three new tables, matching the pattern in `002_enable_rls_all_tables.sql`.
+
+See [active-clients-source-of-truth.md](active-clients-source-of-truth.md#migration) for the established pattern.
+
+Notes on decisions baked into the schema:
+
+- **`category` is stored, not computed at query time.** Recompute happens only when explicitly triggered. This matches the "Re-categorization is explicit, not automatic" rule.
+- **`client_id` is also stored** for fast Top-Org rollups; recompute updates both `category` and `client_id` together.
+- **`manual_override`** is checked before any recategorize run — overrides are sticky.
+- **Same person across multiple webinars** = multiple rows. De-duping happens in the "People" view via `lower(email)`.
+- **Attendance reports** update existing registrant rows (matched by `webinar_id` + `lower(email)`) rather than inserting new ones, and set `attended` + `attended_at`.
+
+## Open questions
+
+- Q&A capture — GoToWebinar's xlsx export includes registrants but not Q&A transcripts. If we want Q&A data, it'll be a manual paste/upload step. Defer until someone asks for it.
+- ~~Whether the existing `clients` table will have all the email-domain data populated by the time we ship, or whether we need a one-time admin backfill flow.~~ **Resolved:** see the Seed strategy section in [active-clients-source-of-truth.md](active-clients-source-of-truth.md#seed-strategy). Seed runs as part of the active-clients work via `npm run seed:client-domains`.
+
+## Related work
+
+- [active-clients-source-of-truth.md](active-clients-source-of-truth.md) — the prerequisite design decision for how the Webinars feature looks up "is this email a client"

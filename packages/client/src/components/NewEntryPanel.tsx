@@ -72,6 +72,8 @@ interface NewEntryPanelProps {
   onClose: () => void
   onSaved?: () => void
   defaultType?: EntryType
+  /** Pre-fill the client/organization field for client-asset entry types. */
+  defaultClient?: string
 }
 
 const DEFAULT_W = 700
@@ -90,12 +92,22 @@ const entryTypes: { id: EntryType; label: string; icon: typeof FileText; group: 
   { id: "award", label: "Award", icon: Award, group: "success" },
 ]
 
-export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType }: NewEntryPanelProps) {
+export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType, defaultClient }: NewEntryPanelProps) {
   const isAdmin = useIsAdmin()
   const [activeType, setActiveType] = useState<EntryType>(defaultType || "qa")
   useEffect(() => {
     if (defaultType) setActiveType(defaultType)
   }, [defaultType])
+  // Pre-fill client name for client-asset forms when opened from Client Portfolio
+  useEffect(() => {
+    if (isOpen && defaultClient) {
+      setCsClient(defaultClient)
+      setResClient(defaultClient)
+      setTestOrg(defaultClient)
+      setAwardClient(defaultClient)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, defaultClient])
   const [isAnimatingIn, setIsAnimatingIn] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [saving, setSaving] = useState(false)

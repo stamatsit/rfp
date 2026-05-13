@@ -9,8 +9,9 @@ import {
   Link2,
   Wand2,
   Loader2,
+  Pencil,
 } from "lucide-react"
-import { useClientSelection } from "./ClientPortfolioContext"
+import { useClientSelection, useClientData } from "./ClientPortfolioContext"
 
 const SECTOR_LABELS: Record<string, string> = {
   "higher-ed": "Higher Ed",
@@ -35,8 +36,11 @@ export function ClientDetailHeader() {
     handleGenerateBrief,
     navigate,
   } = useClientSelection()
+  const { isAdmin } = useClientData()
 
   if (!selectedClient || !mergedData) return null
+
+  const canEdit = isAdmin && !!activeClient  // any selected client is editable; hardcoded ones get materialized into the DB on save
 
   const proposalCount = (mergedData.proposals ?? []).length
   const health = activeClient?.health
@@ -163,6 +167,25 @@ export function ClientDetailHeader() {
               {generatingBrief ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} strokeWidth={2.5} />}
               Brief
             </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  if (activeClient!.dbId) {
+                    window.dispatchEvent(new CustomEvent("client-portfolio:edit", { detail: { clientId: activeClient!.dbId } }))
+                  } else {
+                    // Hardcoded-only client — open in create mode prefilled. Saving creates the DB row.
+                    window.dispatchEvent(new CustomEvent("client-portfolio:edit", {
+                      detail: { name: activeClient!.name, sector: activeClient!.sector },
+                    }))
+                  }
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700/40 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                title={activeClient!.dbId ? "Edit client" : "Edit (creates a DB record on save so you can add email domains)"}
+              >
+                <Pencil size={12} strokeWidth={2.5} />
+                Edit
+              </button>
+            )}
           </div>
         </div>
       </div>

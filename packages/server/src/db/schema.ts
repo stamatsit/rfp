@@ -240,9 +240,9 @@ export const proposalSyncLog = pgTable("proposal_sync_log", {
 export const auditLog = pgTable("audit_log", {
   id: uuid("id").primaryKey().defaultRandom(),
   actionType: text("action_type", {
-    enum: ["IMPORT", "EDIT", "RENAME", "DOWNLOAD", "COPY", "LINK", "UNLINK", "AI_REQUEST"],
+    enum: ["IMPORT", "EDIT", "RENAME", "DOWNLOAD", "COPY", "LINK", "UNLINK", "AI_REQUEST", "DELETE"],
   }).notNull(),
-  entityType: text("entity_type", { enum: ["ANSWER", "PHOTO", "SYSTEM"] }).notNull(),
+  entityType: text("entity_type", { enum: ["ANSWER", "PHOTO", "SYSTEM", "DO_NOT_CONTACT", "CLIENT"] }).notNull(),
   entityId: uuid("entity_id"),
   details: jsonb("details").$type<Record<string, unknown>>(),
   actor: text("actor").notNull().default("local"),
@@ -255,9 +255,81 @@ export const clients = pgTable("clients", {
   name: text("name").notNull(),
   sector: text("sector", { enum: ["higher-ed", "healthcare", "other"] }).notNull().default("other"),
   notes: text("notes"),
+  status: text("status", { enum: ["active", "prospect", "former", "archived"] }).notNull().default("active"),
+  emailDomains: jsonb("email_domains").$type<string[]>().notNull().default([]),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  statusIdx: index("clients_status_idx").on(t.status),
+  // Placeholder B-tree; replaced by USING GIN (email_domains jsonb_path_ops) in 003 operational SQL
+  emailDomainsIdx: index("clients_email_domains_idx").on(t.emailDomains),
+}))
+
+// Webinars — one row per webinar event
+export const webinars = pgTable("webinars", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  title: text("title").notNull(),
+  webinarDate: date("webinar_date"),  // when the webinar was held (YYYY-MM-DD)
+  sourceKey: text("source_key"),  // GoToWebinar's webinarKey if present in the export
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text("created_by").notNull().default("unknown"),
 })
+
+// Webinar Uploads — raw history of each file uploaded
+export const webinarUploads = pgTable("webinar_uploads", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  webinarId: uuid("webinar_id").notNull().references(() => webinars.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  uploadKind: text("upload_kind", { enum: ["registration", "attendance"] }).notNull(),
+  rawRows: integer("raw_rows").notNull(),
+  uploadedAt: timestamp("uploaded_at", { withTimezone: true }).notNull().defaultNow(),
+  uploadedBy: text("uploaded_by").notNull().default("unknown"),
+})
+
+// Webinar Registrants — one row per (webinar, email).
+// Unique constraint on (webinar_id, lower(email)) lives in the hand-applied 004 SQL.
+export const webinarRegistrants = pgTable("webinar_registrants", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  webinarId: uuid("webinar_id").notNull().references(() => webinars.id, { onDelete: "cascade" }),
+  uploadId: uuid("upload_id").references(() => webinarUploads.id, { onDelete: "set null" }),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  email: text("email").notNull(),
+  organizationRaw: text("organization_raw"),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  category: text("category", { enum: ["do-not-contact", "client", "employee", "non-client"] }).notNull(),
+  manualOverride: boolean("manual_override").notNull().default(false),
+  attended: boolean("attended"),  // null = registration only; true/false from attendance reports
+  followUpStatus: text("follow_up_status", {
+    enum: ["no-outreach", "vm-left", "email-sent", "connected", "dead"],
+  }).notNull().default("no-outreach"),
+  followUpNotes: text("follow_up_notes"),
+  registeredAt: timestamp("registered_at", { withTimezone: true }),
+  attendedAt: timestamp("attended_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  webinarIdx: index("webinar_registrants_webinar_idx").on(t.webinarId),
+  emailIdx: index("webinar_registrants_email_idx").on(t.email),
+  categoryIdx: index("webinar_registrants_category_idx").on(t.category),
+  clientIdx: index("webinar_registrants_client_idx").on(t.clientId),
+}))
+
+// Do Not Contact — org-wide email-domain suppression list.
+// Matching is by domain (lower-cased). One entry per email; functional unique index
+// on lower(email) lives in the hand-applied 003 operational SQL file.
+export const doNotContact = pgTable("do_not_contact", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  domain: text("domain").notNull(),
+  institution: text("institution").notNull(),
+  comment: text("comment"),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdBy: text("created_by").notNull().default("unknown"),
+}, (t) => ({
+  domainIdx: index("do_not_contact_domain_idx").on(t.domain),
+}))
 
 // Client Success — user-added entries (merged with hardcoded clientSuccessData on display)
 export const clientSuccessEntries = pgTable("client_success_entries", {
@@ -539,6 +611,14 @@ export type ProposalPipelineEntry = typeof proposalPipeline.$inferSelect
 export type NewProposalPipelineEntry = typeof proposalPipeline.$inferInsert
 export type Client = typeof clients.$inferSelect
 export type NewClient = typeof clients.$inferInsert
+export type DoNotContactEntry = typeof doNotContact.$inferSelect
+export type NewDoNotContactEntry = typeof doNotContact.$inferInsert
+export type Webinar = typeof webinars.$inferSelect
+export type NewWebinar = typeof webinars.$inferInsert
+export type WebinarUpload = typeof webinarUploads.$inferSelect
+export type NewWebinarUpload = typeof webinarUploads.$inferInsert
+export type WebinarRegistrant = typeof webinarRegistrants.$inferSelect
+export type NewWebinarRegistrant = typeof webinarRegistrants.$inferInsert
 export type ClientSuccessEntry = typeof clientSuccessEntries.$inferSelect
 export type NewClientSuccessEntry = typeof clientSuccessEntries.$inferInsert
 export type ClientSuccessResult = typeof clientSuccessResults.$inferSelect

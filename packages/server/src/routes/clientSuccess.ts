@@ -20,9 +20,11 @@ import {
   answerItems,
   topics,
   proposals,
+  doNotContact,
 } from "../db/schema.js"
-import { eq, sql, and, or, ilike, desc, asc, inArray } from "drizzle-orm"
+import { eq, sql, and, or, ilike, desc, asc, inArray, count } from "drizzle-orm"
 import { requireWriteAccess } from "../middleware/auth.js"
+import { doNotContactRouter } from "./doNotContact.js"
 import { invalidateTestimonialCache } from "../services/utils/dbTestimonials.js"
 import OpenAI from "openai"
 import mammoth from "mammoth"
@@ -110,10 +112,37 @@ const router = Router()
 
 // ─── Clients ─────────────────────────────────────────────────────
 
-router.get("/clients", async (_req: Request, res: Response) => {
+// Mount DNC sub-router. (Mount position doesn't actually matter — the path prefixes
+// /do-not-contact and /clients/:id don't collide.)
+router.use("/do-not-contact", doNotContactRouter)
+
+const VALID_STATUSES = new Set(["active", "prospect", "former", "archived"])
+type ClientStatus = "active" | "prospect" | "former" | "archived"
+type ClientSector = "higher-ed" | "healthcare" | "other"
+
+function normalizeDomains(input: unknown): string[] {
+  if (!Array.isArray(input)) return []
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const v of input) {
+    if (typeof v !== "string") continue
+    const d = v.toLowerCase().trim()
+    if (!d) continue
+    if (seen.has(d)) continue
+    seen.add(d)
+    out.push(d)
+  }
+  return out
+}
+
+router.get("/clients", async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const rows = await db.select().from(clients).orderBy(clients.name)
+    const statusParam = typeof req.query.status === "string" ? req.query.status : ""
+    const useStatusFilter = VALID_STATUSES.has(statusParam)
+    const rows = useStatusFilter
+      ? await db.select().from(clients).where(eq(clients.status, statusParam as ClientStatus)).orderBy(clients.name)
+      : await db.select().from(clients).orderBy(clients.name)
     res.json(rows)
   } catch (error) {
     console.error("Failed to get clients:", error)
@@ -124,12 +153,30 @@ router.get("/clients", async (_req: Request, res: Response) => {
 router.post("/clients", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const { name, sector, notes } = req.body
+    const { name, sector, notes, status, emailDomains } = req.body
     if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+
+    const newDomains = normalizeDomains(emailDomains)
+    if (newDomains.length > 0) {
+      // Cross-client domain uniqueness: each domain may only belong to ONE client
+      for (const d of newDomains) {
+        const [conflict] = await db.select({ id: clients.id, name: clients.name }).from(clients)
+          .where(sql`${clients.emailDomains} @> ${JSON.stringify([d])}::jsonb`).limit(1)
+        if (conflict) {
+          return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict.name}"` })
+        }
+      }
+    }
+
+    const insertStatus: ClientStatus = VALID_STATUSES.has(status) ? status : "active"
+    const insertSector: ClientSector = (["higher-ed", "healthcare", "other"].includes(sector) ? sector : "other") as ClientSector
+
     const [row] = await db.insert(clients).values({
       name: name.trim(),
-      sector: sector || "other",
+      sector: insertSector,
       notes: notes?.trim() || null,
+      status: insertStatus,
+      emailDomains: newDomains,
     }).returning()
     res.status(201).json(row)
   } catch (error) {
@@ -141,14 +188,36 @@ router.post("/clients", requireWriteAccess, async (req: Request, res: Response) 
 router.put("/clients/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    const { name, sector, notes } = req.body
+    const { name, sector, notes, status, emailDomains } = req.body
+    const id = req.params.id!
     if (!name?.trim()) return res.status(400).json({ error: "Name is required" })
+
+    const newDomains = normalizeDomains(emailDomains)
+    if (newDomains.length > 0) {
+      // Cross-client domain uniqueness (excluding the current row)
+      for (const d of newDomains) {
+        const [conflict] = await db.select({ id: clients.id, name: clients.name }).from(clients)
+          .where(and(
+            sql`${clients.emailDomains} @> ${JSON.stringify([d])}::jsonb`,
+            sql`${clients.id} <> ${id}`,
+          )).limit(1)
+        if (conflict) {
+          return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict.name}"` })
+        }
+      }
+    }
+
+    const updateStatus: ClientStatus = VALID_STATUSES.has(status) ? status : "active"
+    const updateSector: ClientSector = (["higher-ed", "healthcare", "other"].includes(sector) ? sector : "other") as ClientSector
+
     const [row] = await db.update(clients).set({
       name: name.trim(),
-      sector: sector || "other",
+      sector: updateSector,
       notes: notes?.trim() || null,
+      status: updateStatus,
+      emailDomains: newDomains,
       updatedAt: new Date(),
-    }).where(eq(clients.id, req.params.id!)).returning()
+    }).where(eq(clients.id, id)).returning()
     if (!row) return res.status(404).json({ error: "Client not found" })
     res.json(row)
   } catch (error) {
@@ -160,8 +229,12 @@ router.put("/clients/:id", requireWriteAccess, async (req: Request, res: Respons
 router.delete("/clients/:id", requireWriteAccess, async (req: Request, res: Response) => {
   try {
     if (!db) return res.status(503).json({ error: "Database unavailable" })
-    await db.delete(clients).where(eq(clients.id, req.params.id!))
-    res.json({ success: true })
+    const id = req.params.id!
+    // Count DNC entries linked to this client (FK is ON DELETE SET NULL, so they survive but get unlinked)
+    const [dncRow] = await db.select({ n: count() }).from(doNotContact).where(eq(doNotContact.clientId, id))
+    const orphanedDnc = Number(dncRow?.n ?? 0)
+    await db.delete(clients).where(eq(clients.id, id))
+    res.json({ success: true, orphanedDnc })
   } catch (error) {
     console.error("Failed to delete client:", error)
     res.status(500).json({ error: "Failed to delete client" })

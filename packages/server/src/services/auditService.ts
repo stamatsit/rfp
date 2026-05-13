@@ -1,5 +1,11 @@
 import { db, auditLog } from "../db/index.js"
 import type { AuditActionType, AuditEntityType } from "../types/index.js"
+import type { DoNotContactEntry } from "../db/schema.js"
+
+/**
+ * Drizzle transaction handle type — derived so we don't depend on internal Drizzle types.
+ */
+type Tx = Parameters<Parameters<NonNullable<typeof db>["transaction"]>[0]>[0]
 
 export interface LogAuditParams {
   actionType: AuditActionType
@@ -143,5 +149,41 @@ export async function logAIRequest(details: {
     actionType: "AI_REQUEST",
     entityType: "SYSTEM",
     details,
+  })
+}
+
+/**
+ * Log a Do Not Contact entry deletion.
+ *
+ * Unlike logAudit (which swallows errors so audit failures don't break main ops),
+ * this MUST throw on failure so the surrounding transaction rolls back. The DNC
+ * delete and the audit row must commit together — otherwise we lose the "why was
+ * X ever on the list" record.
+ *
+ * Date fields on `snapshot` are serialized to ISO strings before going into
+ * the details jsonb — postgres-js will serialize a raw `Date` as `{}` otherwise.
+ */
+export async function logDoNotContactDelete(
+  tx: Tx,
+  snapshot: DoNotContactEntry,
+  deletedBy: string,
+): Promise<void> {
+  const details: Record<string, unknown> = {
+    email: snapshot.email,
+    domain: snapshot.domain,
+    institution: snapshot.institution,
+    comment: snapshot.comment,
+    clientId: snapshot.clientId,
+    createdAt: snapshot.createdAt instanceof Date ? snapshot.createdAt.toISOString() : snapshot.createdAt,
+    createdBy: snapshot.createdBy,
+    deletedAt: new Date().toISOString(),
+    deletedBy,
+  }
+  await tx.insert(auditLog).values({
+    actionType: "DELETE",
+    entityType: "DO_NOT_CONTACT",
+    entityId: snapshot.id,
+    details,
+    actor: deletedBy,
   })
 }
