@@ -405,7 +405,7 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
         health: computeClientHealthScore(counts, winRateData),
         dbId: dbRow?.id,
         status: dbRow?.status,
-        emailDomains: dbRow?.emailDomains,
+        emailDomains: Array.isArray(dbRow?.emailDomains) ? dbRow!.emailDomains : [],
       }
     })
     const hardcodedNames = new Set(hardcoded.map(c => c.name.toLowerCase()))
@@ -422,7 +422,7 @@ export function ClientPortfolioProvider({ children }: { children: React.ReactNod
           counts,
           health: computeClientHealthScore(counts, winRateData),
           status: c.status,
-          emailDomains: c.emailDomains,
+          emailDomains: Array.isArray(c.emailDomains) ? c.emailDomains : [],
         }
       })
     return [...hardcoded, ...fromDb]
