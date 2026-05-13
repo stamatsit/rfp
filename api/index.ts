@@ -3713,7 +3713,7 @@ ${contextStr}`
                  max(last_name) AS "lastName",
                  max(organization_raw) AS "organizationRaw",
                  max(category) AS category,
-                 max(client_id) AS "clientId",
+                 (array_agg(client_id) FILTER (WHERE client_id IS NOT NULL))[1] AS "clientId",
                  count(DISTINCT webinar_id)::int AS "webinarCount",
                  sum(CASE WHEN attended = true THEN 1 ELSE 0 END)::int AS "attendedCount",
                  max(created_at) AS "lastSeen"
