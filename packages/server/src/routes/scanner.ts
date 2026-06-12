@@ -347,4 +347,134 @@ Output ONLY valid JSON: { "altText": "...", "isDecorative": false }`,
   }
 })
 
+// ---------------------------------------------------------------------------
+// GET /sitemap-stream — SSE-streamed sitemap discovery (used by the
+// SitemapCaptureModal screenshot tool in ImageConverter)
+// ---------------------------------------------------------------------------
+router.get("/sitemap-stream", async (req: Request, res: Response) => {
+  let baseUrl: string = (typeof req.query.url === "string" ? req.query.url : "").trim()
+  if (!baseUrl) return res.status(400).json({ error: "url query parameter is required" })
+
+  if (!/^https?:\/\//i.test(baseUrl)) baseUrl = `https://${baseUrl}`
+  if (!isPublicUrl(baseUrl)) return res.status(400).json({ error: "URL must be a public HTTP/HTTPS address" })
+
+  res.setHeader("Content-Type", "text/event-stream")
+  res.setHeader("Cache-Control", "no-cache")
+  res.setHeader("Connection", "keep-alive")
+  res.setHeader("X-Accel-Buffering", "no")
+  res.flushHeaders()
+
+  let aborted = false
+  req.on("close", () => { aborted = true })
+
+  const sendSSE = (event: string, data: Record<string, unknown>) => {
+    if (aborted) return
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+  }
+
+  const SITEMAP_TIMEOUT = 5000
+
+  const decodeXmlEntities = (str: string): string =>
+    str
+      .replace(/&amp;/g, "&").replace(/&#38;/g, "&")
+      .replace(/&apos;/g, "'").replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+
+  const fetchSitemapUrls = async (url: string): Promise<string[]> => {
+    if (!isPublicUrl(url)) return []
+    const resp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
+      signal: AbortSignal.timeout(SITEMAP_TIMEOUT),
+    })
+    if (!resp.ok) return []
+    const text = await resp.text()
+    const isSitemapIndex = text.includes("<sitemapindex") || text.includes("<sitemap>")
+
+    if (isSitemapIndex) {
+      const childSitemaps: string[] = []
+      const sitemapLocRegex = /<sitemap>\s*<loc>\s*(.*?)\s*<\/loc>/gi
+      let match
+      while ((match = sitemapLocRegex.exec(text)) !== null) {
+        childSitemaps.push(decodeXmlEntities(match[1]!.trim()))
+      }
+      const pageUrls: string[] = []
+      for (let i = 0; i < childSitemaps.length; i++) {
+        if (aborted || pageUrls.length >= 2000) break
+        sendSSE("status", { message: `Reading ${i + 1} of ${childSitemaps.length} child sitemaps…` })
+        try {
+          pageUrls.push(...await fetchSitemapUrls(childSitemaps[i]!))
+        } catch { /* skip */ }
+      }
+      return pageUrls
+    }
+
+    const urls: string[] = []
+    const locRegex = /<url>\s*<loc>\s*(.*?)\s*<\/loc>/gi
+    let match
+    while ((match = locRegex.exec(text)) !== null) {
+      const u = decodeXmlEntities(match[1]!.trim())
+      if (u.startsWith("http") && isPublicUrl(u)) {
+        urls.push(u)
+        sendSSE("discovered", { url: u, total: urls.length })
+      }
+    }
+    if (urls.length === 0) {
+      const plainLocRegex = /<loc>\s*(.*?)\s*<\/loc>/gi
+      while ((match = plainLocRegex.exec(text)) !== null) {
+        const u = decodeXmlEntities(match[1]!.trim())
+        if (u.startsWith("http") && isPublicUrl(u) && !u.endsWith(".xml")) {
+          urls.push(u)
+          sendSSE("discovered", { url: u, total: urls.length })
+        }
+      }
+    }
+    return urls
+  }
+
+  try {
+    const origin = new URL(baseUrl).origin
+
+    sendSSE("status", { message: "Reading sitemap…" })
+    let allUrls: string[] = []
+    let source: "sitemap" | "robots" | "fallback" = "fallback"
+    try {
+      allUrls = await fetchSitemapUrls(`${origin}/sitemap.xml`)
+      if (allUrls.length > 0) source = "sitemap"
+    } catch { /* fall through */ }
+
+    if (allUrls.length === 0 && !aborted) {
+      sendSSE("status", { message: "Checking robots.txt…" })
+      try {
+        const rResp = await fetch(`${origin}/robots.txt`, {
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
+          signal: AbortSignal.timeout(SITEMAP_TIMEOUT),
+        })
+        if (rResp.ok) {
+          const rText = await rResp.text()
+          const smRegex = /^Sitemap:\s*(\S+)/gim
+          let rm
+          while ((rm = smRegex.exec(rText)) !== null) {
+            const candidate = rm[1]!.trim()
+            if (isPublicUrl(candidate)) {
+              sendSSE("status", { message: "Reading sitemap from robots.txt…" })
+              try {
+                allUrls.push(...await fetchSitemapUrls(candidate))
+              } catch { /* skip */ }
+            }
+          }
+          if (allUrls.length > 0) source = "robots"
+        }
+      } catch { /* fall through */ }
+    }
+
+    const deduped = [...new Set(allUrls)].slice(0, 2000)
+    sendSSE("done", { total: deduped.length, source })
+  } catch (err: any) {
+    console.error("[Scanner] SSE sitemap discovery failed:", err?.message || err)
+    sendSSE("error", { message: err.message ?? "Sitemap discovery failed" })
+  } finally {
+    if (!aborted) res.end()
+  }
+})
+
 export default router
