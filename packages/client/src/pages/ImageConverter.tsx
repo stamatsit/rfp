@@ -4,6 +4,7 @@ import type { Area } from "react-easy-crop"
 import { saveAs } from "file-saver"
 import JSZip from "jszip"
 import { removeBackground } from "@imgly/background-removal"
+import { heicTo, isHeic } from "heic-to"
 import { useInpainting } from "@/hooks/useInpainting"
 import { useUpscaler, ENHANCE_OPS } from "@/hooks/useUpscaler"
 import localforage from "localforage"
@@ -398,50 +399,83 @@ export function ImageConverter() {
 
   const addFiles = useCallback(
     (files: FileList | File[]) => {
-      const fileArr = Array.from(files).filter((f) => f.type.startsWith("image/"))
+      // HEIC/HEIF often arrive with an empty file.type, so keep them by extension too.
+      const looksHeic = (f: File) =>
+        /\.(heic|heif)$/i.test(f.name) || f.type === "image/heic" || f.type === "image/heif"
+      const fileArr = Array.from(files).filter(
+        (f) => f.type.startsWith("image/") || looksHeic(f)
+      )
       if (!fileArr.length) return
 
       let firstNewId: number | null = null
+
+      // Browsers other than Safari can't decode HEIC via <img>, so transcode to
+      // JPEG up front. Everything downstream only ever sees the decoded JPEG.
+      const prepareFile = async (
+        file: File
+      ): Promise<{ blob: Blob; fileName: string; originalFormat: string }> => {
+        let heic = false
+        try {
+          heic = looksHeic(file) || (await isHeic(file))
+        } catch {
+          heic = looksHeic(file)
+        }
+        if (!heic) {
+          return { blob: file, fileName: file.name, originalFormat: getFileExtension(file.name) }
+        }
+        const converted = await heicTo({ blob: file, type: "image/jpeg", quality: 0.92 })
+        const fileName = file.name.replace(/\.(heic|heif)$/i, "") + ".jpg"
+        return { blob: converted, fileName, originalFormat: "heic" }
+      }
 
       fileArr.forEach((file) => {
         const id = nextId++
         if (firstNewId === null) firstNewId = id
 
-        const reader = new FileReader()
-        reader.onload = () => {
-          const src = reader.result as string
-          const img = new Image()
-          img.onload = () => {
-            const item: ImageItem = {
-              id,
-              fileName: file.name,
-              originalFormat: getFileExtension(file.name),
-              originalSize: file.size,
-              originalSrc: src,
-              src,
-              naturalWidth: img.naturalWidth,
-              naturalHeight: img.naturalHeight,
-              outputWidth: img.naturalWidth,
-              outputHeight: img.naturalHeight,
-              cropApplied: false,
-              converted: false,
-              bgRemoved: false,
-              preBgSrc: null,
-              enhanced: false,
-              preEnhanceSrc: null,
-              altText: "",
+        prepareFile(file)
+          .then(({ blob, fileName, originalFormat }) => {
+            const reader = new FileReader()
+            reader.onload = () => {
+              const src = reader.result as string
+              const img = new Image()
+              img.onload = () => {
+                const item: ImageItem = {
+                  id,
+                  fileName,
+                  originalFormat,
+                  originalSize: file.size,
+                  originalSrc: src,
+                  src,
+                  naturalWidth: img.naturalWidth,
+                  naturalHeight: img.naturalHeight,
+                  outputWidth: img.naturalWidth,
+                  outputHeight: img.naturalHeight,
+                  cropApplied: false,
+                  converted: false,
+                  bgRemoved: false,
+                  preBgSrc: null,
+                  enhanced: false,
+                  preEnhanceSrc: null,
+                  altText: "",
+                }
+                setImages((prev) => [...prev, item])
+                // Auto-select the first new image
+                if (id === firstNewId) {
+                  setSelectedId(id)
+                  setMode("convert")
+                  resetCropState()
+                }
+              }
+              img.src = src
             }
-            setImages((prev) => [...prev, item])
-            // Auto-select the first new image
-            if (id === firstNewId) {
-              setSelectedId(id)
-              setMode("convert")
-              resetCropState()
-            }
-          }
-          img.src = src
-        }
-        reader.readAsDataURL(file)
+            reader.readAsDataURL(blob)
+          })
+          .catch((err) => {
+            console.error(`Failed to import ${file.name}:`, err)
+            window.alert(
+              `Could not import "${file.name}". HEIC conversion failed — try exporting it as JPEG first.`
+            )
+          })
       })
     },
     []
@@ -1726,13 +1760,13 @@ export function ImageConverter() {
                         Drop images here or click to browse
                       </p>
                       <p className="text-[13px] text-slate-400 dark:text-slate-500 mt-1">
-                        PNG, JPEG, GIF, BMP, TIFF &mdash; select multiple
+                        PNG, JPEG, HEIC, GIF, BMP, TIFF &mdash; select multiple
                       </p>
                     </div>
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,.heic,.heif"
                       multiple
                       onChange={handleFileChange}
                       className="hidden"
@@ -1818,7 +1852,7 @@ export function ImageConverter() {
                       <input
                         ref={addInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/*,.heic,.heif"
                         multiple
                         onChange={handleFileChange}
                         className="hidden"

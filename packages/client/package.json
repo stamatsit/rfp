@@ -43,6 +43,7 @@
     "docx": "^9.5.1",
     "dompurify": "^3.3.1",
     "file-saver": "^2.0.5",
+    "heic-to": "^1.5.2",
     "html2pdf.js": "^0.14.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.312.0",
