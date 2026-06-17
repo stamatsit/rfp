@@ -51,6 +51,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { SitemapCaptureModal } from "@/components/SitemapCaptureModal"
+import { addCsrfHeader } from "@/lib/csrfToken"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -1353,17 +1354,20 @@ export function ImageConverter() {
       ctx.drawImage(imgEl, 0, 0, w, h)
       const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1]
 
+      const headers = await addCsrfHeader({ "Content-Type": "application/json" })
       const res = await fetch("/api/ai/alt-text", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-CSRF-Token": document.cookie.match(/csrf-token=([^;]+)/)?.[1] || "" },
+        credentials: "include",
+        headers,
         body: JSON.stringify({ image: base64 }),
       })
-      if (!res.ok) throw new Error("Failed to generate alt text")
+      if (!res.ok) throw new Error(`Alt text request failed (${res.status})`)
       const data = await res.json()
       updateImage(imageId, { altText: data.altText || "", altTextGenerating: false })
     } catch (err) {
       console.error("Alt text generation failed:", err)
       updateImage(imageId, { altTextGenerating: false })
+      window.alert("Alt text generation failed. Please try again — if it keeps failing, refresh the page.")
     }
   }, [images, updateImage])
 
