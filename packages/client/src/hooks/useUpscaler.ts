@@ -147,9 +147,11 @@ export function useUpscaler(): UseUpscalerReturn {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         if (abortRef.current) { setIsProcessing(false); return null }
-        await sleep(1500)
-        if (Date.now() - startedAt > 180_000) {
-          throw new Error('Timed out — the model took too long. Try a smaller image.')
+        await sleep(2000)
+        // Niche models scale to zero on Replicate; a cold boot ("starting")
+        // can take a few minutes before inference even begins, so allow up to 6.
+        if (Date.now() - startedAt > 360_000) {
+          throw new Error('Timed out — the model is taking too long to start. Try again in a moment.')
         }
         const statusRes = await fetch(`/api/ai/enhance-status?id=${encodeURIComponent(created.id)}`, {
           credentials: 'include',
@@ -181,7 +183,8 @@ export function useUpscaler(): UseUpscalerReturn {
         if (s.status === 'failed' || s.status === 'canceled') {
           throw new Error(s.error || 'Enhancement failed on the server')
         }
-        setStatus(runningLabel)
+        // "starting" = cold boot (can take 1–3 min); "processing" = running.
+        setStatus(s.status === 'starting' ? 'Starting model — first run can take a few minutes...' : runningLabel)
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Enhancement failed'
