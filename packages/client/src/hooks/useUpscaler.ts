@@ -1,14 +1,17 @@
 /**
  * AI Enhance / Upscale Hook
  *
- * Wraps UpscalerJS (TensorFlow.js) to provide client-side image upscaling
- * and quality enhancement via ESRGAN and MAXIM models.
+ * Runs image enhancement server-side via Replicate (real models that
+ * preserve the photo), replacing the previous in-browser TensorFlow.js
+ * path which required WebGL and failed/timed-out in many environments.
  *
- * Models are lazily loaded on first use and cached for subsequent calls.
- * MAXIM models require input dimensions that are multiples of 64.
+ * Flow: downscale the source to a safe size → POST to /api/ai/enhance to
+ * create a Replicate prediction → poll /api/ai/enhance-status until the
+ * server returns the finished image as a data URL.
  */
 
 import { useState, useCallback, useRef } from 'react'
+import { addCsrfHeader } from '@/lib/csrfToken'
 
 // ── Operation catalogue ────────────────────────────────────────────────────
 
@@ -29,22 +32,7 @@ export const ENHANCE_OPS: EnhanceOp[] = [
   { id: 'retouch', label: 'Auto Retouch', desc: 'AI photo enhancement', category: 'enhance', scale: 1 },
 ]
 
-// ── Internal: lazy model loading ───────────────────────────────────────────
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cachedUpscaler: { opId: string; instance: any } | null = null
-
-async function loadModel(opId: string) {
-  switch (opId) {
-    case 'upscale-2x':  return (await import('@upscalerjs/esrgan-slim/2x')).default
-    case 'upscale-4x':  return (await import('@upscalerjs/esrgan-slim/4x')).default
-    case 'denoise':     return (await import('@upscalerjs/maxim-denoising')).default
-    case 'deblur':      return (await import('@upscalerjs/maxim-deblurring')).default
-    case 'low-light':   return (await import('@upscalerjs/maxim-enhancement')).default
-    case 'retouch':     return (await import('@upscalerjs/maxim-retouching')).default
-    default:            throw new Error(`Unknown enhance operation: ${opId}`)
-  }
-}
+// ── Helpers ──────────────────────────────────────────────────────────────
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -56,21 +44,34 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-/**
- * MAXIM models need input dims that are multiples of 64 and within a
- * safe size to prevent WebGL OOM. Returns the original image if no
- * adjustment is needed.
- */
-function preprocessMaxim(
-  img: HTMLImageElement,
-  maxDim = 768,
-): { input: HTMLImageElement | HTMLCanvasElement; resized: boolean } {
-  const scale = Math.min(maxDim / img.naturalWidth, maxDim / img.naturalHeight, 1)
-  const w = Math.floor((img.naturalWidth * scale) / 64) * 64
-  const h = Math.floor((img.naturalHeight * scale) / 64) * 64
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 
-  if (w === img.naturalWidth && h === img.naturalHeight) {
-    return { input: img, resized: false }
+/**
+ * Downscale the source before upload so request/response payloads stay
+ * reasonable and the upscaled output stays within sane bounds. For upscale
+ * ops the input is capped so output ≈ 4096px on the long side; other ops
+ * cap the long side at 2048px. Returns a JPEG data URL.
+ */
+async function prepareForUpload(imageSrc: string, op: EnhanceOp): Promise<string> {
+  const img = await loadImage(imageSrc)
+  if (
+    !Number.isFinite(img.naturalWidth) || !Number.isFinite(img.naturalHeight) ||
+    img.naturalWidth < 1 || img.naturalHeight < 1
+  ) {
+    throw new Error('Image failed to decode (invalid dimensions)')
+  }
+
+  // Keep the *result* well under Vercel's ~4.5MB function-response limit
+  // (the finished image is proxied back same-origin as binary). Cap so the
+  // upscaled output lands around ~2048px on the long side.
+  const maxDim = op.category === 'upscale' ? Math.max(1, Math.floor(2048 / op.scale)) : 1536
+  const longest = Math.max(img.naturalWidth, img.naturalHeight)
+  let w = img.naturalWidth
+  let h = img.naturalHeight
+  if (longest > maxDim) {
+    const ratio = maxDim / longest
+    w = Math.max(1, Math.round(w * ratio))
+    h = Math.max(1, Math.round(h * ratio))
   }
 
   const canvas = document.createElement('canvas')
@@ -80,7 +81,16 @@ function preprocessMaxim(
   ctx.imageSmoothingEnabled = true
   ctx.imageSmoothingQuality = 'high'
   ctx.drawImage(img, 0, 0, w, h)
-  return { input: canvas, resized: true }
+  return canvas.toDataURL('image/jpeg', 0.92)
+}
+
+async function readError(res: Response): Promise<string | null> {
+  try {
+    const data = await res.json()
+    return data?.error || null
+  } catch {
+    return null
+  }
 }
 
 // ── Hook ───────────────────────────────────────────────────────────────────
@@ -107,73 +117,72 @@ export function useUpscaler(): UseUpscalerReturn {
     setIsProcessing(true)
     setProgress(0)
     setError(null)
-    setStatus('Loading AI model...')
+    setStatus('Preparing image...')
     abortRef.current = false
 
+    const runningLabel = op.category === 'upscale'
+      ? `Upscaling ${op.scale}x — this can take 10–30s...`
+      : `Applying ${op.label}...`
+
     try {
-      // ── Load or reuse cached Upscaler instance ──────────────────────
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let upscaler: any
-      if (cachedUpscaler?.opId === opId) {
-        upscaler = cachedUpscaler.instance
-      } else {
-        const Upscaler = (await import('upscaler')).default
-        const model = await loadModel(opId)
-        upscaler = new Upscaler({ model })
-        cachedUpscaler = { opId, instance: upscaler }
-      }
-
+      const prepared = await prepareForUpload(imageSrc, op)
       if (abortRef.current) { setIsProcessing(false); return null }
 
-      setStatus(
-        op.category === 'upscale'
-          ? `Upscaling ${op.scale}x — this may take a moment...`
-          : `Applying ${op.label}...`,
-      )
-
-      // ── Load source image ───────────────────────────────────────────
-      const img = await loadImage(imageSrc)
-
-      // ── Pre-process for MAXIM models ────────────────────────────────
-      let input: HTMLImageElement | HTMLCanvasElement = img
-      let wasResized = false
-      if (op.category === 'enhance') {
-        const pre = preprocessMaxim(img)
-        input = pre.input
-        wasResized = pre.resized
-      }
-
-      // ── Run enhancement ─────────────────────────────────────────────
-      const result: string = await upscaler.upscale(input, {
-        patchSize: 64,
-        padding: 2,
-        progress: (p: number) => {
-          if (!abortRef.current) setProgress(Math.round(p * 100))
-        },
+      setStatus(runningLabel)
+      const headers = await addCsrfHeader({ 'Content-Type': 'application/json' })
+      const createRes = await fetch('/api/ai/enhance', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({ image: prepared, op: opId }),
       })
-
-      if (abortRef.current) { setIsProcessing(false); return null }
-
-      // ── If MAXIM was resized, scale result back to original dims ────
-      if (wasResized) {
-        const resultImg = await loadImage(result)
-        const canvas = document.createElement('canvas')
-        canvas.width = img.naturalWidth
-        canvas.height = img.naturalHeight
-        const ctx = canvas.getContext('2d')!
-        ctx.imageSmoothingEnabled = true
-        ctx.imageSmoothingQuality = 'high'
-        ctx.drawImage(resultImg, 0, 0, img.naturalWidth, img.naturalHeight)
-        setIsProcessing(false)
-        setStatus('')
-        setProgress(100)
-        return canvas.toDataURL('image/png')
+      if (!createRes.ok) {
+        throw new Error((await readError(createRes)) || `Enhance request failed (${createRes.status})`)
       }
+      const created = await createRes.json()
+      if (!created?.id) throw new Error('No prediction returned')
 
-      setIsProcessing(false)
-      setStatus('')
-      setProgress(100)
-      return result
+      const startedAt = Date.now()
+      // Poll until the server returns the finished image (cap ~3 min).
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        if (abortRef.current) { setIsProcessing(false); return null }
+        await sleep(1500)
+        if (Date.now() - startedAt > 180_000) {
+          throw new Error('Timed out — the model took too long. Try a smaller image.')
+        }
+        const statusRes = await fetch(`/api/ai/enhance-status?id=${encodeURIComponent(created.id)}`, {
+          credentials: 'include',
+        })
+        if (!statusRes.ok) continue // transient — keep polling
+        const s = await statusRes.json()
+        if (s.status === 'succeeded') {
+          setStatus('Finishing...')
+          // Fetch the finished image same-origin (binary) → data URL so it's
+          // usable on a canvas (convert/crop/download) without CORS taint.
+          const resultRes = await fetch(`/api/ai/enhance-result?id=${encodeURIComponent(created.id)}`, {
+            credentials: 'include',
+          })
+          if (!resultRes.ok) {
+            throw new Error((await readError(resultRes)) || 'Could not retrieve result')
+          }
+          const blob = await resultRes.blob()
+          const dataUrl: string = await new Promise((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(reader.result as string)
+            reader.onerror = reject
+            reader.readAsDataURL(blob)
+          })
+          setProgress(100)
+          setStatus('')
+          setIsProcessing(false)
+          return dataUrl
+        }
+        if (s.status === 'failed' || s.status === 'canceled') {
+          throw new Error(s.error || 'Enhancement failed on the server')
+        }
+        setStatus(runningLabel)
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Enhancement failed'
       console.error('Enhancement failed:', err)

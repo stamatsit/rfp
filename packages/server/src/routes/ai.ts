@@ -361,4 +361,149 @@ router.post("/alt-text", async (req: Request, res: Response) => {
   }
 })
 
+/**
+ * Image enhancement via Replicate (real models, server-side).
+ * Maps each enhance op to a model version + inputs.
+ */
+const REPLICATE_ENHANCE_MODELS: Record<
+  string,
+  { version: string; input: (image: string) => Record<string, unknown> }
+> = {
+  "upscale-2x": {
+    version: "b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8",
+    input: (image) => ({ image, scale: 2, face_enhance: false }),
+  },
+  "upscale-4x": {
+    version: "b3ef194191d13140337468c916c2c5b96dd0cb06dffc032a022a31807f6a5ea8",
+    input: (image) => ({ image, scale: 4, face_enhance: false }),
+  },
+  denoise: {
+    version: "660d922d33153019e8c263a3bba265de882e7f4f70396546b6c9c8f9d47a021a",
+    input: (image) => ({ image, task_type: "Color Image Denoising", noise: 15 }),
+  },
+  deblur: {
+    version: "018241a6c880319404eaa2714b764313e27e11f950a7ff0a7b5b37b27b74dcf7",
+    input: (image) => ({ image, task_type: "Image Debluring (GoPro)" }),
+  },
+  "low-light": {
+    version: "4328e402cfedafa70ad7cec04412e86ab61832204deccd94108ae5222c9b1ae1",
+    input: (image) => ({ image }),
+  },
+  retouch: {
+    version: "cc4956dd26fa5a7185d5660cc9100fab1b8070a1d1654a8bb5eb6d443b020bb2",
+    input: (image) => ({
+      image,
+      upscale: 1,
+      face_upsample: true,
+      background_enhance: true,
+      codeformer_fidelity: 0.7,
+    }),
+  },
+}
+
+/**
+ * POST /api/ai/enhance
+ * Create a Replicate prediction for an enhance op. Returns { id }.
+ */
+router.post("/enhance", async (req: Request, res: Response) => {
+  try {
+    const { image, op } = req.body || {}
+    const model = typeof op === "string" ? REPLICATE_ENHANCE_MODELS[op] : undefined
+    if (!image || typeof image !== "string") {
+      return res.status(400).json({ error: "image (data URL) required" })
+    }
+    if (!model) return res.status(400).json({ error: "Unknown enhance operation" })
+    if (!process.env.REPLICATE_API_TOKEN) {
+      return res.status(503).json({ error: "Replicate not configured" })
+    }
+    const createPrediction = () =>
+      fetch("https://api.replicate.com/v1/predictions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ version: model.version, input: model.input(image) }),
+      })
+    let r = await createPrediction()
+    // Trial accounts are throttled (~6/min) — retry once on rate limit.
+    if (r.status === 429) {
+      await new Promise((resolve) => setTimeout(resolve, 7000))
+      r = await createPrediction()
+    }
+    const data = await r.json()
+    if (!r.ok) {
+      console.error("Replicate create failed:", data)
+      const msg = r.status === 429 ? "Replicate rate limit hit — wait a moment and retry" : data?.detail || "Replicate request failed"
+      return res.status(502).json({ error: msg })
+    }
+    return res.json({ id: data.id, status: data.status })
+  } catch (err: any) {
+    console.error("Enhance create failed:", err?.message)
+    return res.status(500).json({ error: "Enhance request failed" })
+  }
+})
+
+/**
+ * GET /api/ai/enhance-status?id=...
+ * Poll a Replicate prediction. On success, download the output and return
+ * it as a base64 data URL (avoids client CSP / keeps the token server-side).
+ */
+router.get("/enhance-status", async (req: Request, res: Response) => {
+  try {
+    const id = req.query.id
+    if (!id || typeof id !== "string") return res.status(400).json({ error: "id required" })
+    if (!process.env.REPLICATE_API_TOKEN) {
+      return res.status(503).json({ error: "Replicate not configured" })
+    }
+    const r = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+    })
+    const data = await r.json()
+    if (!r.ok) return res.status(502).json({ error: data?.detail || "Replicate status failed" })
+
+    if (data.status === "failed" || data.status === "canceled") {
+      return res.json({ status: data.status, error: data.error || "Enhancement failed" })
+    }
+    // succeeded | starting | processing — the finished image is fetched
+    // separately via /enhance-result to avoid large JSON payloads.
+    return res.json({ status: data.status })
+  } catch (err: any) {
+    console.error("Enhance status failed:", err?.message)
+    return res.status(500).json({ error: "Enhance status failed" })
+  }
+})
+
+/**
+ * GET /api/ai/enhance-result?id=...
+ * Stream the finished prediction's image back same-origin (binary, not
+ * base64) so the client can use it on a canvas without CORS taint.
+ */
+router.get("/enhance-result", async (req: Request, res: Response) => {
+  try {
+    const id = req.query.id
+    if (!id || typeof id !== "string") return res.status(400).json({ error: "id required" })
+    if (!process.env.REPLICATE_API_TOKEN) {
+      return res.status(503).json({ error: "Replicate not configured" })
+    }
+    const r = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
+      headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+    })
+    const data = await r.json()
+    if (!r.ok) return res.status(502).json({ error: data?.detail || "Replicate status failed" })
+    if (data.status !== "succeeded") return res.status(409).json({ error: "Result not ready" })
+    const out = Array.isArray(data.output) ? data.output[data.output.length - 1] : data.output
+    if (!out || typeof out !== "string") return res.status(502).json({ error: "Model produced no image" })
+    const imgRes = await fetch(out)
+    if (!imgRes.ok) return res.status(502).json({ error: "Could not download result" })
+    const buf = Buffer.from(await imgRes.arrayBuffer())
+    res.setHeader("Content-Type", imgRes.headers.get("content-type") || "image/png")
+    res.setHeader("Cache-Control", "no-store")
+    return res.send(buf)
+  } catch (err: any) {
+    console.error("Enhance result failed:", err?.message)
+    return res.status(500).json({ error: "Enhance result failed" })
+  }
+})
+
 export default router
