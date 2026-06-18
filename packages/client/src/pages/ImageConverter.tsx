@@ -944,6 +944,8 @@ export function ImageConverter() {
       outputHeight: resultImg.naturalHeight,
       converted: false,
     })
+    // Clear the selection so stacking another op is a deliberate choice.
+    setEnhanceOp("")
   }
 
   const handleUndoEnhance = () => {
@@ -2189,8 +2191,10 @@ export function ImageConverter() {
                         )}
                       </div>
 
-                      {selected.enhanced ? (
-                        <div className="space-y-2">
+                      <div className="space-y-2">
+                        {/* Applied-enhancement chip with undo for the most recent op.
+                            Selector stays available so ops can be stacked (e.g. denoise → upscale). */}
+                        {selected.enhanced && (
                           <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
                             <Check size={13} className="text-blue-500 flex-shrink-0" />
                             <span className="text-[12px] font-medium text-blue-700 dark:text-blue-300">
@@ -2198,81 +2202,80 @@ export function ImageConverter() {
                             </span>
                             <button
                               onClick={handleUndoEnhance}
-                              className="ml-auto text-[11px] font-medium text-blue-500 dark:text-blue-400 hover:underline"
+                              disabled={enhancing}
+                              className="ml-auto text-[11px] font-medium text-blue-500 dark:text-blue-400 hover:underline disabled:opacity-50"
                             >
-                              Undo
+                              Undo last
                             </button>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-2">
-                          <Select value={enhanceOp} onValueChange={setEnhanceOp}>
-                            <SelectTrigger className="w-full text-[13px]">
-                              <SelectValue placeholder="Choose enhancement..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectGroup>
-                                <SelectLabel>Upscale</SelectLabel>
-                                {ENHANCE_OPS.filter((o) => o.category === "upscale").map((o) => (
-                                  <SelectItem key={o.id} value={o.id}>
-                                    {o.label} — {o.desc}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                              <SelectGroup>
-                                <SelectLabel>Quality Fix</SelectLabel>
-                                {ENHANCE_OPS.filter((o) => o.category === "enhance").map((o) => (
-                                  <SelectItem key={o.id} value={o.id}>
-                                    {o.label} — {o.desc}
-                                  </SelectItem>
-                                ))}
-                              </SelectGroup>
-                            </SelectContent>
-                          </Select>
+                        )}
 
-                          <button
-                            onClick={handleEnhance}
-                            disabled={!enhanceOp || enhancing}
-                            className="w-full flex items-center justify-center gap-2 h-9 rounded-xl text-[13px] font-medium
-                                       bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600
-                                       text-white shadow-sm shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
-                          >
-                            {enhancing ? (
-                              <>
-                                <Loader2 size={14} className="animate-spin" />
-                                {enhanceStatus || `Enhancing... ${enhanceProgress}%`}
-                              </>
-                            ) : (
-                              <>
-                                <Wand2 size={14} />
-                                {enhanceOp
-                                  ? ENHANCE_OPS.find((o) => o.id === enhanceOp)?.label || "Enhance"
-                                  : "Select & Enhance"}
-                              </>
-                            )}
-                          </button>
+                        <Select value={enhanceOp} onValueChange={setEnhanceOp}>
+                          <SelectTrigger className="w-full text-[13px]">
+                            <SelectValue placeholder={selected.enhanced ? "Apply another..." : "Choose enhancement..."} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectLabel>Upscale</SelectLabel>
+                              {ENHANCE_OPS.filter((o) => o.category === "upscale").map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.label} — {o.desc}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                            <SelectGroup>
+                              <SelectLabel>Quality Fix</SelectLabel>
+                              {ENHANCE_OPS.filter((o) => o.category === "enhance").map((o) => (
+                                <SelectItem key={o.id} value={o.id}>
+                                  {o.label} — {o.desc}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
 
-                          {enhancing && enhanceProgress > 0 && (
-                            <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300"
-                                style={{ width: `${enhanceProgress}%` }}
-                              />
-                            </div>
+                        <button
+                          onClick={handleEnhance}
+                          disabled={!enhanceOp || enhancing}
+                          className="w-full flex items-center justify-center gap-2 h-9 rounded-xl text-[13px] font-medium
+                                     bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600
+                                     text-white shadow-sm shadow-blue-500/20 disabled:opacity-60 disabled:cursor-not-allowed transition-all"
+                        >
+                          {enhancing ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />
+                              {enhanceStatus || `Enhancing... ${enhanceProgress}%`}
+                            </>
+                          ) : (
+                            <>
+                              <Wand2 size={14} />
+                              {enhanceOp
+                                ? ENHANCE_OPS.find((o) => o.id === enhanceOp)?.label || "Enhance"
+                                : selected.enhanced ? "Apply another" : "Select & Enhance"}
+                            </>
                           )}
+                        </button>
 
-                          {enhanceError && (
-                            <p className="text-[11px] text-red-500 dark:text-red-400 flex items-center gap-1.5">
-                              <AlertCircle size={11} />
-                              {enhanceError}
-                            </p>
-                          )}
+                        {enhancing && enhanceProgress > 0 && (
+                          <div className="h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-300"
+                              style={{ width: `${enhanceProgress}%` }}
+                            />
+                          </div>
+                        )}
 
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
-                            Runs locally — no upload, no API cost
+                        {enhanceError && (
+                          <p className="text-[11px] text-red-500 dark:text-red-400 flex items-center gap-1.5">
+                            <AlertCircle size={11} />
+                            {enhanceError}
                           </p>
-                        </div>
-                      )}
+                        )}
+
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 text-center">
+                          Processed on our servers — may take 10–30s. Apply ops in sequence.
+                        </p>
+                      </div>
                     </div>
 
                     {/* Eraser controls (shown in erase mode) */}
