@@ -34,7 +34,11 @@ export async function lookupClientByEmail(email: string) {
     .where(
       and(
         eq(clients.status, "active"),
-        sql`${clients.emailDomains} @> ${JSON.stringify([domain])}::jsonb`,
+        // jsonb_exists(array, str) — checks the array contains the string element.
+        // NOT `@> ${JSON.stringify([domain])}::jsonb`: postgres.js JSON-encodes the
+        // already-JSON string under the ::jsonb cast, double-encoding it to a scalar
+        // ("[\"x\"]") that an array never contains, so every match silently fails.
+        sql`jsonb_exists(${clients.emailDomains}, ${domain})`,
       ),
     )
     .limit(1)

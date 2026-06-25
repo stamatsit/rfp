@@ -161,7 +161,7 @@ router.post("/clients", requireWriteAccess, async (req: Request, res: Response) 
       // Cross-client domain uniqueness: each domain may only belong to ONE client
       for (const d of newDomains) {
         const [conflict] = await db.select({ id: clients.id, name: clients.name }).from(clients)
-          .where(sql`${clients.emailDomains} @> ${JSON.stringify([d])}::jsonb`).limit(1)
+          .where(sql`jsonb_exists(${clients.emailDomains}, ${d})`).limit(1)
         if (conflict) {
           return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict.name}"` })
         }
@@ -198,7 +198,7 @@ router.put("/clients/:id", requireWriteAccess, async (req: Request, res: Respons
       for (const d of newDomains) {
         const [conflict] = await db.select({ id: clients.id, name: clients.name }).from(clients)
           .where(and(
-            sql`${clients.emailDomains} @> ${JSON.stringify([d])}::jsonb`,
+            sql`jsonb_exists(${clients.emailDomains}, ${d})`,
             sql`${clients.id} <> ${id}`,
           )).limit(1)
         if (conflict) {

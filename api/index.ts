@@ -36,9 +36,13 @@ async function categorizeEmail(qc: any, email: string): Promise<{ category: Webi
   const dncRows = await qc`SELECT id FROM do_not_contact WHERE domain = ${domain} LIMIT 1`
   if (dncRows.length > 0) return { category: "do-not-contact", clientId: null }
   // Active client by email_domains[]
+  // jsonb_exists(array, str) checks the array contains the string element.
+  // NOT `@> ${JSON.stringify([domain])}::jsonb`: postgres.js JSON-encodes the
+  // already-JSON string under the ::jsonb cast, double-encoding it to a scalar
+  // ("[\"x\"]") that an array never contains, so every match silently fails.
   const clientRows = await qc`
     SELECT id FROM clients
-    WHERE status = 'active' AND email_domains @> ${JSON.stringify([domain])}::jsonb
+    WHERE status = 'active' AND jsonb_exists(email_domains, ${domain})
     LIMIT 1`
   if (clientRows.length > 0) return { category: "client", clientId: clientRows[0].id }
   // Employee
@@ -3686,7 +3690,7 @@ ${contextStr}`
         for (const d of domains) {
           const conflict = await queryClient`
             SELECT id, name FROM clients
-            WHERE email_domains @> ${JSON.stringify([d])}::jsonb LIMIT 1`
+            WHERE jsonb_exists(email_domains, ${d}) LIMIT 1`
           if (conflict.length > 0) {
             return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict[0].name}"` })
           }
@@ -3721,7 +3725,7 @@ ${contextStr}`
         for (const d of domains) {
           const conflict = await queryClient`
             SELECT id, name FROM clients
-            WHERE email_domains @> ${JSON.stringify([d])}::jsonb AND id <> ${id} LIMIT 1`
+            WHERE jsonb_exists(email_domains, ${d}) AND id <> ${id} LIMIT 1`
           if (conflict.length > 0) {
             return res.status(409).json({ error: `Domain "${d}" is already on client "${conflict[0].name}"` })
           }
