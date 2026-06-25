@@ -1270,6 +1270,12 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   // URL Scanner — all authenticated users can scan (Client Report feature stays admin-only
   // because the /reports routes are not listed here)
   if (path.startsWith("/scanner")) return true
+  // Webinars — any team member can upload GoToWebinar exports ("the more data the better")
+  // and edit a registrant's follow-up status / notes / category override inline.
+  // Recategorize (POST /webinars/:id/recategorize) and delete (DELETE /webinars/:id)
+  // stay admin-only, matching the Express routes in packages/server.
+  if (path === "/webinars/upload") return true
+  if (/^\/webinars\/[^/]+\/registrants\/[^/]+$/.test(path)) return true
   return false
 }
 
