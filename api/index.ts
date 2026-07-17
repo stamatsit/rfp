@@ -8492,6 +8492,112 @@ Only include quotes where the client is clearly saying something positive or not
       return res.json(rows)
     }
 
+    // ─── DynoMapper Content Matrix (eric.yerke@stamats.com only) ───────────────
+    if (path.startsWith("/dynomapper")) {
+      if (session?.userEmail !== "eric.yerke@stamats.com") {
+        return res.status(403).json({ error: "Access denied" })
+      }
+      const dyno = await import("../packages/server/src/services/dynomapperService.js")
+      try {
+        if (path === "/dynomapper/status" && method === "GET") {
+          return res.json({
+            configured: dyno.isConfigured(),
+            aiConfigured: Boolean(process.env.OPENAI_API_KEY),
+            aiFields: dyno.AI_FIELD_LABELS,
+            maxEnrichRows: dyno.MAX_ENRICH_ROWS,
+          })
+        }
+        if (path === "/dynomapper/projects" && method === "GET") {
+          return res.json({ projects: await dyno.listProjects() })
+        }
+        if (path === "/dynomapper/matrix" && method === "GET") {
+          const projectId = Number(req.query?.projectId)
+          if (!Number.isFinite(projectId) || projectId <= 0) {
+            return res.status(400).json({ error: "projectId is required" })
+          }
+          return res.json(await dyno.buildMatrix(projectId))
+        }
+        if (path === "/dynomapper/enrich" && method === "POST") {
+          const body = req.body || {}
+          const rows = Array.isArray(body.rows) ? body.rows : []
+          const fields = Array.isArray(body.fields)
+            ? body.fields.filter((f: string) => f in dyno.AI_FIELD_LABELS)
+            : []
+          if (!rows.length) return res.status(400).json({ error: "rows are required" })
+          if (!fields.length) return res.status(400).json({ error: "at least one AI field is required" })
+          const clean = rows
+            .filter((r: any) => r && typeof r.url === "string" && r.url.trim())
+            .map((r: any) => ({
+              url: r.url,
+              title: typeof r.title === "string" ? r.title : "",
+              type: typeof r.type === "string" ? r.type : "",
+              issues: Array.isArray(r.issues) ? r.issues.map(String) : [],
+            }))
+          const enriched = await dyno.enrichRows(clean, fields, {
+            domain: typeof body.domain === "string" ? body.domain : null,
+            title: typeof body.projectTitle === "string" ? body.projectTitle : null,
+          })
+          return res.json({ enriched, fields, count: Object.keys(enriched).length })
+        }
+        // ── Migration Worksheet (editable .xlsx export + non-destructive sync) ──
+        if (path === "/dynomapper/worksheet.xlsx" && method === "GET") {
+          const projectId = Number(req.query?.projectId)
+          if (!Number.isFinite(projectId) || projectId <= 0) {
+            return res.status(400).json({ error: "projectId is required" })
+          }
+          const wsMod = await import("../packages/server/src/services/migrationWorksheet.js")
+          const ws = await wsMod.buildWorksheet(projectId, {
+            clientName: typeof req.query?.client === "string" ? req.query.client : null,
+            withAI: req.query?.ai !== "0",
+            withBody: req.query?.body === "1",
+            maxDrafts: Math.min(Math.max(0, Number(req.query?.drafts) || 0), 100),
+          })
+          const buf = wsMod.worksheetToXlsx(ws)
+          const slug = (ws.project.domain || ws.project.title || "content-matrix").replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80)
+          res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+          res.setHeader("Content-Disposition", `attachment; filename="migration-worksheet-${slug}.xlsx"`)
+          return res.send(buf)
+        }
+        if (path === "/dynomapper/worksheet/sync" && method === "POST") {
+          const { buffer, fields } = await parseMultipartFormFull(req)
+          const projectId = Number(fields?.projectId)
+          if (!Number.isFinite(projectId) || projectId <= 0) {
+            return res.status(400).json({ error: "projectId is required" })
+          }
+          const wsMod = await import("../packages/server/src/services/migrationWorksheet.js")
+          const existing = wsMod.parseWorksheetXlsx(buffer)
+          if (existing.size === 0) {
+            return res.status(422).json({ error: "Could not find a migration worksheet in that file (no 'Old URL' rows found)." })
+          }
+          const fresh = await wsMod.buildWorksheet(projectId, {
+            clientName: typeof fields?.client === "string" ? fields.client : null,
+            withAI: fields?.ai !== "0",
+          })
+          const { rows, summary } = wsMod.mergeWorksheets(fresh, existing)
+          const buf = wsMod.worksheetToXlsx({ ...fresh, rows })
+          const slug = (fresh.project.domain || fresh.project.title || "content-matrix").replace(/^https?:\/\//, "").replace(/[^a-z0-9.-]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 80)
+          return res.json({ summary, filename: `migration-worksheet-${slug}.xlsx`, xlsxBase64: buf.toString("base64") })
+        }
+        if (path === "/dynomapper/worksheet/redirects" && method === "POST") {
+          const { buffer, fields } = await parseMultipartFormFull(req)
+          const wsMod = await import("../packages/server/src/services/migrationWorksheet.js")
+          const parsed = wsMod.parseWorksheetXlsx(buffer)
+          let entries = wsMod.buildRedirectMap(parsed)
+          if (entries.length === 0) {
+            return res.status(422).json({ error: "No Old→New redirect pairs found (fill the 'New URL' column first)." })
+          }
+          if (fields?.verify === "1" || fields?.verify === "true") entries = await wsMod.verifyRedirects(entries)
+          const rendered = wsMod.renderRedirects(entries)
+          return res.json({ count: entries.length, unresolved: entries.filter((e: any) => e.resolved === false).length, entries, ...rendered })
+        }
+        return res.status(404).json({ error: "Not found" })
+      } catch (err: any) {
+        const status = err?.name === "DynoError" && typeof err?.status === "number" ? err.status : 500
+        console.error("[dynomapper] bundle error:", err?.message)
+        return res.status(status >= 400 && status < 600 ? status : 502).json({ error: err?.message || "Unexpected error" })
+      }
+    }
+
     // ─── Scanner routes (any authenticated user) ───────────────
     if (path.startsWith("/scanner")) {
       if (path === "/scanner/check-access" && method === "GET") {

@@ -8,6 +8,12 @@ Living index of features currently being designed, built, or recently shipped (b
 
 ## Active
 
+### Content Matrix (DynoMapper)
+One-page tool (eric.yerke@stamats.com only) that turns an existing DynoMapper crawl into a per-page remediation worksheet — export to CSV, with optional AI-drafted fixes (meta descriptions, titles, ROT verdicts, classifications). DynoMapper supplies the facts; the LLM drafts the fixes on the way out.
+
+- **Status:** Built, uncommitted, not yet interactively verified. Needs `DYNOMAPPER_TOKEN` set locally + on Vercel.
+- **Detail doc:** [in-progress/content-matrix.md](in-progress/content-matrix.md)
+
 ### Webinars feature
 Auto-categorize GoToWebinar registrants as Do Not Contact / Client / Employee / Non-Client by email domain. Archive forever. Filter and export. Stats over time. Manual upload only.
 

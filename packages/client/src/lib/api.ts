@@ -2485,3 +2485,166 @@ export const feedbackApi = {
     return response.json()
   },
 }
+
+// ─── DynoMapper Content Matrix API (eric.yerke@stamats.com only) ──────
+
+export type DynoAiField =
+  | "summary"
+  | "contentType"
+  | "audience"
+  | "funnelStage"
+  | "rot"
+  | "draftTitle"
+  | "draftMeta"
+
+export interface DynoProject {
+  id: number
+  alphaId: string | null
+  title: string
+  domain: string | null
+  pages: number
+  crawlDate: string | null
+  sitemapUrl: string | null
+}
+
+export interface DynoMatrixRow {
+  url: string
+  title: string
+  type: string
+  depth: number | null
+  status: number | null
+  issues: string[]
+  issueCount: number
+  inPageList: boolean
+  ai?: Record<string, string>
+}
+
+export interface DynoMatrixResult {
+  project: { id: number; title: string; domain: string | null; crawlDate: string | null }
+  rows: DynoMatrixRow[]
+  pageListTotal: number
+  pageListReturned: number
+  truncated: boolean
+  issueSummary: { label: string; count: number }[]
+  generatedAt: string
+}
+
+export interface DynoStatus {
+  configured: boolean
+  aiConfigured: boolean
+  aiFields: Record<DynoAiField, string>
+  maxEnrichRows: number
+}
+
+export const dynomapperApi = {
+  async status(): Promise<DynoStatus> {
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/status`)
+    return handleResponse<DynoStatus>(response)
+  },
+
+  async projects(): Promise<DynoProject[]> {
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/projects`)
+    const data = await handleResponse<{ projects: DynoProject[] }>(response)
+    return data.projects
+  },
+
+  async matrix(projectId: number): Promise<DynoMatrixResult> {
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/matrix?projectId=${projectId}`)
+    return handleResponse<DynoMatrixResult>(response)
+  },
+
+  async enrich(params: {
+    rows: { url: string; title: string; type: string; issues: string[] }[]
+    fields: DynoAiField[]
+    domain?: string | null
+    projectTitle?: string | null
+  }): Promise<{ enriched: Record<string, Record<string, string>>; fields: DynoAiField[]; count: number }> {
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/enrich`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    })
+    return handleResponse(response)
+  },
+
+  /** Download the editable migration worksheet (.xlsx). Options add deep audit (body) and AI drafts. */
+  async downloadWorksheet(
+    projectId: number,
+    opts?: { client?: string; body?: boolean; drafts?: number }
+  ): Promise<void> {
+    const qs = new URLSearchParams({ projectId: String(projectId) })
+    if (opts?.client) qs.set("client", opts.client)
+    if (opts?.body) qs.set("body", "1")
+    if (opts?.drafts) qs.set("drafts", String(opts.drafts))
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/worksheet.xlsx?${qs}`)
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new ApiError(response.status, err.error || "Failed to build worksheet")
+    }
+    const blob = await response.blob()
+    const cd = response.headers.get("Content-Disposition") || ""
+    const name = /filename="([^"]+)"/.exec(cd)?.[1] || `migration-worksheet-${projectId}.xlsx`
+    triggerBlobDownload(blob, name)
+  },
+
+  /** Build a redirect map from an edited worksheet's New URL column (optionally verifying each resolves). */
+  async redirectMap(
+    file: File,
+    verify: boolean
+  ): Promise<{
+    count: number
+    unresolved: number
+    entries: { oldUrl: string; newUrl: string; pageId: string; status?: number | null; resolved?: boolean }[]
+    csv: string
+    htaccess: string
+    nginx: string
+  }> {
+    const fd = new FormData()
+    fd.append("file", file)
+    if (verify) fd.append("verify", "1")
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/worksheet/redirects`, { method: "POST", body: fd })
+    return handleResponse(response)
+  },
+
+  /** Upload an edited worksheet, merge it with a fresh crawl, and return the change summary + merged file. */
+  async syncWorksheet(
+    file: File,
+    projectId: number,
+    client?: string
+  ): Promise<{ summary: DynoSyncSummary; filename: string; xlsxBase64: string }> {
+    const fd = new FormData()
+    fd.append("file", file)
+    fd.append("projectId", String(projectId))
+    if (client) fd.append("client", client)
+    const response = await fetchWithCredentials(`${API_BASE}/dynomapper/worksheet/sync`, { method: "POST", body: fd })
+    return handleResponse(response)
+  },
+}
+
+export interface DynoSyncSummary {
+  total: number
+  added: number
+  removed: number
+  humanColumnsPreserved: number
+  dispositionsPreserved: number
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement("a")
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+/** Decode a base64 .xlsx payload and trigger a download. */
+export function downloadBase64Xlsx(base64: string, filename: string) {
+  const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
+  triggerBlobDownload(
+    new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }),
+    filename
+  )
+}

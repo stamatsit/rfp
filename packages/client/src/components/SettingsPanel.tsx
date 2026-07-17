@@ -42,6 +42,7 @@ import {
   Presentation,
   Mic,
   ScanSearch,
+  Table2,
 } from "lucide-react"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
@@ -205,6 +206,16 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #06B6D4 0%, #0891B2 50%, #0E7490 100%)",
     shadowColor: "rgba(6, 182, 212, 0.15)",
     enabled: false,  // Hidden by default — enable in Settings → Tiles
+  },
+  {
+    id: "content-matrix",
+    to: "/content-matrix",
+    icon: <Table2 size={22} strokeWidth={2} />,
+    title: "Content Matrix",
+    description: "Turn a DynoMapper crawl into a per-page remediation worksheet with AI-drafted fixes, export to CSV",
+    gradient: "linear-gradient(135deg, #0EA5E9 0%, #6366F1 50%, #7C3AED 100%)",
+    shadowColor: "rgba(99, 102, 241, 0.15)",
+    enabled: false,  // Hidden by default; also gated to eric.yerke@stamats.com (see HomePage ERIC_ONLY_TILES)
   },
 ]
 
@@ -589,7 +600,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()

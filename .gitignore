@@ -44,5 +44,8 @@ storage/photos/*
 .vercel
 .env*.local
 
+# Loose credential/notes files (contain API tokens — never commit)
+Dyno.rtf
+
 # Vercel API build output
 api/index.js
