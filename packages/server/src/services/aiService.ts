@@ -1,7 +1,7 @@
 import OpenAI from "openai"
 import type { Response } from "express"
 import { searchAnswers, type AnswerWithMeta } from "./answerService.js"
-import { searchPhotos, type PhotoWithMeta } from "./photoService.js"
+import { searchPhotos, withSignedUrls, type PhotoWithMeta } from "./photoService.js"
 import { logAIRequest } from "./auditService.js"
 import { streamCompletion, truncateHistory } from "./utils/streamHelper.js"
 
@@ -32,6 +32,7 @@ export interface AIQueryResult {
     displayTitle: string
     description: string | null
     storageKey: string
+    fileUrl: string | null
   }>
   followUpPrompts?: string[]
   refused: boolean
@@ -141,13 +142,12 @@ APPROVED CONTENT SOURCES:
 ${context}`
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: query },
       ],
-      temperature: 0.3,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     })
 
     const rawResponse = completion.choices[0]?.message?.content || ""
@@ -173,11 +173,13 @@ ${context}`
       answer: answer.answer,
     }))
 
-    const photos = relevantPhotos.map((photo) => ({
+    const photosWithUrls = await withSignedUrls(relevantPhotos)
+    const photos = photosWithUrls.map((photo) => ({
       id: photo.id,
       displayTitle: photo.displayTitle,
       description: photo.description,
       storageKey: photo.storageKey,
+      fileUrl: photo.fileUrl,
     }))
 
     // Step 6: Log the request
@@ -295,13 +297,12 @@ CRITICAL RULES:
 ${instruction}${contextAddition}`
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `Please adapt the following content:\n\n${originalContent}` },
       ],
-      temperature: 0.4,
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
     })
 
     const adaptedContent = completion.choices[0]?.message?.content || ""
@@ -398,11 +399,13 @@ ${context}`
     answer: answer.answer,
   }))
 
-  const photos = relevantPhotos.map((photo) => ({
+  const photosWithUrls = await withSignedUrls(relevantPhotos)
+  const photos = photosWithUrls.map((photo) => ({
     id: photo.id,
     displayTitle: photo.displayTitle,
     description: photo.description,
     storageKey: photo.storageKey,
+    fileUrl: photo.fileUrl,
   }))
 
   const historyMessages: OpenAI.ChatCompletionMessageParam[] = conversationHistory
@@ -418,7 +421,6 @@ ${context}`
       ...historyMessages,
       { role: "user", content: query },
     ],
-    temperature: 0.3,
     maxTokens,
     metadata: {
       sources,
@@ -460,7 +462,7 @@ export async function inferCategory(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       messages: [
         {
           role: "system",
@@ -480,8 +482,7 @@ RULES:
           content: `Question: ${question.slice(0, 500)}\n\nAnswer: ${answer.slice(0, 1000)}`,
         },
       ],
-      temperature: 0,
-      max_tokens: 50,
+      max_completion_tokens: 50,
     })
 
     const inferredCategory = completion.choices[0]?.message?.content?.trim()
@@ -533,7 +534,7 @@ export async function batchInferCategories(
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: "gpt-5.6-luna",
         messages: [
           {
             role: "system",
@@ -544,8 +545,7 @@ Example output: ["Category A", "Category B", "Category A"]`,
           },
           { role: "user", content: entriesText },
         ],
-        temperature: 0,
-        max_tokens: 500,
+        max_completion_tokens: 500,
       })
 
       const responseText = completion.choices[0]?.message?.content?.trim() || "[]"
