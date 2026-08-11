@@ -20,6 +20,7 @@ import {
   ImageDown,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 interface HelpArticle {
   id: string
@@ -59,7 +60,7 @@ const helpArticles: HelpArticle[] = [
   {
     id: "gs-1",
     category: "Getting Started",
-    question: "How do I get started with the Content Library?",
+    question: "How do I get started with Stamats Lab?",
     answer: "Start by importing your existing Q&A content from Excel using the Import Data feature. Once imported, you can search your library, ask AI questions, and copy approved answers directly into your proposals. The homepage shows all available tools — try clicking 'AI Tools' to access the full suite of AI features, or 'Search Library' to browse your content directly.",
   },
   {
@@ -495,6 +496,7 @@ const categoryOrder = [
 
 export function Help() {
   const [searchQuery, setSearchQuery] = useState("")
+  useDocumentTitle("Help Center")
   const [expandedArticles, setExpandedArticles] = useState<Set<string>>(new Set())
 
   const filteredArticles = useMemo(() => {
@@ -545,7 +547,7 @@ export function Help() {
             Help Center
           </h1>
           <p className="text-lg text-slate-500 dark:text-slate-400 transition-colors">
-            Everything you need to know about the Content Library
+            Everything you need to know about Stamats Lab
           </p>
         </div>
 
@@ -553,7 +555,7 @@ export function Help() {
         <div className="relative max-w-xl mx-auto mb-16">
           <Search
             size={20}
-            className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500"
+            className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400"
           />
           <input
             type="text"

@@ -14,9 +14,9 @@ export const tourSteps: TourStep[] = [
   {
     id: "welcome",
     targetSelector: null,
-    title: "Welcome to Stamats",
+    title: "Welcome to Stamats Lab",
     description:
-      "Your AI-powered content library for proposals, client results, and approved content. Let\u2019s take a quick tour of what you can do.",
+      "Your AI-powered lab for proposals, client results, and approved content. Let\u2019s take a quick tour of what you can do.",
     placement: "center",
   },
   {

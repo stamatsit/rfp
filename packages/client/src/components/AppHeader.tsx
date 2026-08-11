@@ -19,7 +19,7 @@ interface AppHeaderProps {
 
 // Page metadata for automatic breadcrumb generation
 const pageConfig: Record<string, { title: string }> = {
-  "/": { title: "Content Library" },
+  "/": { title: "Home" },
   "/search": { title: "Search Library" },
   "/ai": { title: "AI Tools" },
   "/import": { title: "Import Data" },
@@ -137,7 +137,7 @@ export function AppHeader({
             <div className="relative">
               <img
                 src="/stamats-logo.png"
-                alt="Stamats"
+                alt=""
                 className="w-9 h-9 object-contain transition-all duration-300 ease-out group-hover:scale-105"
               />
               {/* Subtle glow on hover */}
@@ -145,10 +145,7 @@ export function AppHeader({
             </div>
             <div className="hidden sm:block">
               <span className="text-[15px] font-semibold text-slate-900 dark:text-white tracking-[-0.02em] block leading-none transition-colors">
-                Stamats
-              </span>
-              <span className="text-[10px] text-slate-400 dark:text-slate-600 tracking-[0.04em] uppercase block mt-0.5 transition-colors">
-                Content Library
+                Stamats Lab
               </span>
             </div>
           </Link>
@@ -171,7 +168,7 @@ export function AppHeader({
                       {crumb.href && !isLast ? (
                         <Link
                           to={crumb.href}
-                          className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200 px-1.5 py-0.5 rounded-md hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
+                          className="text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200 px-1.5 py-0.5 rounded-md hover:bg-slate-100/80 dark:hover:bg-slate-800/80"
                         >
                           {crumb.label}
                         </Link>
@@ -218,7 +215,7 @@ export function AppHeader({
                   <span className="text-[13px] text-slate-600 dark:text-slate-400 font-medium">
                     {user.name}
                   </span>
-                  <ChevronDown size={14} className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isUserMenuOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown size={14} className={`text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isUserMenuOpen ? "rotate-180" : ""}`} />
                 </button>
 
                 {/* Dropdown */}
@@ -229,7 +226,7 @@ export function AppHeader({
                     {/* User info header */}
                     <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
                       <p className="text-[13px] font-semibold text-slate-900 dark:text-white leading-none">{user.name}</p>
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">{user.email}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{user.email}</p>
                     </div>
 
                     <div className="py-1.5 px-1">
@@ -237,21 +234,21 @@ export function AppHeader({
                         onClick={() => { setIsUserMenuOpen(false); setIsSettingsOpen(true) }}
                         className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
-                        <Settings size={14} className="text-slate-400 dark:text-slate-500" />
+                        <Settings size={14} className="text-slate-500 dark:text-slate-400" />
                         Settings
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/help") }}
                         className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
-                        <HelpCircle size={14} className="text-slate-400 dark:text-slate-500" />
+                        <HelpCircle size={14} className="text-slate-500 dark:text-slate-400" />
                         Help
                       </button>
                       <button
                         onClick={() => { setIsUserMenuOpen(false); navigate("/support") }}
                         className="flex items-center gap-2.5 w-full px-3 py-1.5 text-[13px] text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15"
                       >
-                        <LifeBuoy size={14} className="text-slate-400 dark:text-slate-500" />
+                        <LifeBuoy size={14} className="text-slate-500 dark:text-slate-400" />
                         Support
                       </button>
                     </div>

@@ -161,7 +161,7 @@ ${libraryPhotos.map((p, i) => `[Photo ${i + 1}] (ID: ${p.id}) ${p.displayTitle} 
 
 // ─── System Prompt ──────────────────────────────────────────
 
-const SYSTEM_PROMPT = `You are the Stamats Content Library AI Companion — the most powerful assistant in the app. You combine the knowledge of a helpful colleague with FULL ACCESS to all data in the system. You're warm, conversational, and incredibly capable.
+const SYSTEM_PROMPT = `You are the Stamats Lab AI Companion — the most powerful assistant in the app. You combine the knowledge of a helpful colleague with FULL ACCESS to all data in the system. You're warm, conversational, and incredibly capable.
 
 You can do EVERYTHING:
 - Search and retrieve Q&A library entries, case studies, proposals, testimonials, awards, and stats

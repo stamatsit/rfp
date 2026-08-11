@@ -2,9 +2,11 @@ import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { ArrowRight, Lock, Mail, User } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 export default function Register() {
   const [firstName, setFirstName] = useState("")
+  useDocumentTitle("Create Account")
   const [lastName, setLastName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -80,14 +82,14 @@ export default function Register() {
         <div className="text-center mb-10">
           <img
             src="/stamats-logo.png"
-            alt="Stamats"
+            alt="Stamats Lab"
             className="w-16 h-16 mx-auto mb-6 object-contain"
           />
           <h1 className="text-[28px] font-semibold text-slate-900 dark:text-white tracking-tight">
             Create account
           </h1>
           <p className="text-[15px] text-slate-500 dark:text-slate-400 mt-1">
-            Join the content library
+            Join Stamats Lab
           </p>
         </div>
 
@@ -95,12 +97,14 @@ export default function Register() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex gap-3">
             <div className="relative flex-1">
+              <label htmlFor="register-first-name" className="sr-only">First name</label>
               <User
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 strokeWidth={1.75}
               />
               <input
+                id="register-first-name"
                 type="text"
                 value={firstName}
                 onChange={(e) => setFirstName(e.target.value)}
@@ -112,12 +116,14 @@ export default function Register() {
               />
             </div>
             <div className="relative flex-1">
+              <label htmlFor="register-last-name" className="sr-only">Last name</label>
               <User
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 strokeWidth={1.75}
               />
               <input
+                id="register-last-name"
                 type="text"
                 value={lastName}
                 onChange={(e) => setLastName(e.target.value)}
@@ -131,12 +137,14 @@ export default function Register() {
 
           <div>
             <div className="relative">
+              <label htmlFor="register-email" className="sr-only">Email</label>
               <Mail
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 strokeWidth={1.75}
               />
               <input
+                id="register-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -146,7 +154,7 @@ export default function Register() {
                 style={inputShadow}
               />
             </div>
-            <p className={`text-[12px] mt-1.5 ml-1 ${email.length > 0 && !email.endsWith("@stamats.com") ? "text-red-500" : "text-slate-400 dark:text-slate-500"}`}>
+            <p className={`text-[12px] mt-1.5 ml-1 ${email.length > 0 && !email.endsWith("@stamats.com") ? "text-red-500" : "text-slate-500 dark:text-slate-400"}`}>
               {email.length > 0 && !email.endsWith("@stamats.com")
                 ? "Must be a @stamats.com email address"
                 : "Use your @stamats.com email address"
@@ -155,12 +163,14 @@ export default function Register() {
           </div>
 
           <div className="relative">
+            <label htmlFor="register-password" className="sr-only">Password</label>
             <Lock
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
               strokeWidth={1.75}
             />
             <input
+              id="register-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -172,12 +182,14 @@ export default function Register() {
           </div>
 
           <div className="relative">
+            <label htmlFor="register-confirm-password" className="sr-only">Confirm password</label>
             <Lock
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
               strokeWidth={1.75}
             />
             <input
+              id="register-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -204,7 +216,7 @@ export default function Register() {
               transition-all duration-150 ease-out
               focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
               ${isLoading || !isFormValid
-                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed disabled:opacity-50'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600 cursor-not-allowed disabled:opacity-50'
                 : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
               }
             `}
@@ -227,7 +239,7 @@ export default function Register() {
           </Link>
         </p>
 
-        <p className="text-center text-[12px] text-slate-400 mt-10">
+        <p className="text-center text-[12px] text-slate-500 mt-10">
           &copy; {new Date().getFullYear()} Stamats
         </p>
       </div>

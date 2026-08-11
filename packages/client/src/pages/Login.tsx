@@ -2,6 +2,7 @@ import { useState } from "react"
 import { useNavigate, Link } from "react-router-dom"
 import { ArrowRight, Lock, Mail, Bot, TrendingUp, BookOpen, Search } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const features = [
   { icon: Bot, text: "AI answers from your approved library" },
@@ -12,6 +13,7 @@ const features = [
 
 export default function Login() {
   const [email, setEmail] = useState("")
+  useDocumentTitle("Sign In")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -78,15 +80,15 @@ export default function Login() {
         <div className="relative z-10 max-w-[380px] px-10">
           <div className="mb-10">
             <p className="text-[11px] font-semibold text-blue-400 uppercase tracking-[0.2em] mb-3 animate-fade-in">
-              Stamats Content Platform
+              Stamats Lab
             </p>
             <h2 className="text-[32px] font-semibold text-white tracking-tight leading-tight animate-fade-in-up">
               Your AI-powered{" "}
               <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">
-                content library
+                content lab
               </span>
             </h2>
-            <p className="text-[15px] text-slate-400 mt-3 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+            <p className="text-[15px] text-slate-500 mt-3 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
               Proposals, client results, and approved content — organized, searchable, and AI-ready.
             </p>
           </div>
@@ -120,26 +122,28 @@ export default function Login() {
           <div className="text-center mb-10">
             <img
               src="/stamats-logo.png"
-              alt="Stamats"
+              alt="Stamats Lab"
               className="w-16 h-16 mx-auto mb-6 object-contain"
             />
             <h1 className="text-[28px] font-semibold text-slate-900 dark:text-white tracking-tight">
               Welcome back
             </h1>
             <p className="text-[15px] text-slate-500 dark:text-slate-400 mt-1">
-              Sign in to your content library
+              Sign in to Stamats Lab
             </p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="relative">
+              <label htmlFor="login-email" className="sr-only">Email</label>
               <Mail
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 strokeWidth={1.75}
               />
               <input
+                id="login-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -165,12 +169,14 @@ export default function Login() {
             </div>
 
             <div className="relative">
+              <label htmlFor="login-password" className="sr-only">Password</label>
               <Lock
                 size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
                 strokeWidth={1.75}
               />
               <input
+                id="login-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -210,7 +216,7 @@ export default function Login() {
                 transition-all duration-150 ease-out
                 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
                 ${isLoading || !email || !password
-                  ? 'bg-slate-200 text-slate-400 cursor-not-allowed disabled:opacity-50'
+                  ? 'bg-slate-200 text-slate-500 cursor-not-allowed disabled:opacity-50'
                   : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
                 }
               `}
@@ -233,7 +239,7 @@ export default function Login() {
             </Link>
           </p>
 
-          <p className="text-center text-[12px] text-slate-400 mt-10">
+          <p className="text-center text-[12px] text-slate-500 mt-10">
             &copy; {new Date().getFullYear()} Stamats
           </p>
         </div>
