@@ -37,6 +37,7 @@ import { MeetingAnalysisView } from "@/components/meetings/MeetingAnalysisView"
 import { meetingsApi, clientsApi, studioApi, type MeetingRecord, type ClientResponse } from "@/lib/api"
 import { toast } from "@/hooks/useToast"
 import { useIsAdmin } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 type InputMode = "record" | "upload" | "paste"
 type WizardStep = "input" | "details" | "processing" | "results"
@@ -49,6 +50,7 @@ const INPUT_MODES: Array<{ id: InputMode; label: string; description: string; ic
 
 export function MeetingIntake() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("Meeting Intake")
   const navigate = useNavigate()
   const [step, setStep] = useState<WizardStep>("input")
   const [inputMode, setInputMode] = useState<InputMode | null>(null)

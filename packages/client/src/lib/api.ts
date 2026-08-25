@@ -1,5 +1,5 @@
 /**
- * API client for RFP & Proposals backend
+ * API client for the Stamats Lab backend
  */
 
 import type { ImportPreview, ImportResult, ImportIssue } from "@/types"

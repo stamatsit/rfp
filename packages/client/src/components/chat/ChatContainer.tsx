@@ -102,7 +102,7 @@ export function ChatContainer({
             <button
               onClick={() => setSidebarOpen(prev => !prev)}
               className={`absolute top-3 z-10 p-1.5 rounded-lg transition-all duration-300 ease-out
-                         text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300
+                         text-slate-500 hover:text-slate-600 dark:text-slate-400 dark:hover:text-slate-300
                          bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm
                          border border-slate-200/60 dark:border-slate-700/60
                          hover:bg-slate-50 dark:hover:bg-slate-800
@@ -152,7 +152,7 @@ export function ChatContainer({
             <>
               {stickyFollowUps && stickyFollowUps.length > 0 && (
                 <div className="border-t border-slate-200/60 dark:border-slate-700/60 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl px-6 pt-3 pb-1 flex flex-wrap gap-2 items-center">
-                  <span className="text-xs text-slate-400 dark:text-slate-500 mr-1">Follow up:</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400 mr-1">Follow up:</span>
                   {stickyFollowUps.map((prompt, idx) => (
                     <button
                       key={idx}

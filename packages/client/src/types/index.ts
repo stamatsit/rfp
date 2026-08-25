@@ -1,4 +1,4 @@
-// Shared types for RFP & Proposals
+// Shared types for Stamats Lab
 
 export type ItemStatus = "Approved" | "Draft"
 

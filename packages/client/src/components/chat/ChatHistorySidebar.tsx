@@ -95,7 +95,7 @@ export function ChatHistorySidebar({
         ) : conversations.length === 0 ? (
           <div className="p-4 text-center">
             <MessageSquare size={24} className="mx-auto mb-2 text-slate-300 dark:text-slate-600" />
-            <p className="text-xs text-slate-400 dark:text-slate-500">No conversations yet</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">No conversations yet</p>
           </div>
         ) : (
           <div className="p-2 space-y-0.5">
@@ -148,11 +148,11 @@ export function ChatHistorySidebar({
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                         <Clock size={10} />
                         {timeAgo(conv.updatedAt)}
                       </span>
-                      <span className="text-[11px] text-slate-400 dark:text-slate-500">
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
                         {conv.messageCount} msgs
                       </span>
                     </div>
@@ -167,7 +167,7 @@ export function ChatHistorySidebar({
                           startEditing(conv)
                         }}
                         className="p-1.5 rounded-md
-                                   text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
+                                   text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
                                    hover:bg-slate-200/60 dark:hover:bg-slate-700/60
                                    transition-colors duration-150"
                         title="Rename"
@@ -180,7 +180,7 @@ export function ChatHistorySidebar({
                           onDelete(conv.id)
                         }}
                         className="p-1.5 rounded-md
-                                   text-slate-400 hover:text-red-500 dark:hover:text-red-400
+                                   text-slate-500 hover:text-red-500 dark:hover:text-red-400
                                    hover:bg-red-50 dark:hover:bg-red-900/20
                                    transition-colors duration-150"
                         title="Delete"

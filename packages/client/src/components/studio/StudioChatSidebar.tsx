@@ -61,7 +61,7 @@ function BlogWizardProgress({ currentStep, completedSteps, onStepClick }: {
                   ? "text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-900/40"
                   : isCompleted || isPast
                     ? "text-emerald-500 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                    : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500"
               }`}
               title={step.label}
             >
@@ -380,7 +380,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
       <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-4 gap-2">
         <button
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
+          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
           title="Expand AI sidebar"
         >
           <PanelLeftOpen className="w-4 h-4" />
@@ -412,7 +412,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
             className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
               dataBrowserOpen
                 ? "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800"
-                : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                : "text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Data library"
           >
@@ -420,7 +420,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           </button>
           <button
             onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
             title="New conversation"
           >
             <MessageSquarePlus className="w-3.5 h-3.5" />
@@ -431,7 +431,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all duration-150 ${
                 historyOpen
                   ? "text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800"
-                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                  : "text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
               }`}
               title="Chat history"
             >
@@ -449,7 +449,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           </div>
           <button
             onClick={onToggleCollapse}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all duration-150"
             title="Collapse sidebar"
           >
             <PanelLeftClose className="w-3.5 h-3.5" />
@@ -470,7 +470,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
       <div className="flex-1 overflow-y-auto min-h-0">
         {chat.messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full px-6">
-            <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center mb-5 leading-relaxed">
+            <p className="text-[12px] text-slate-500 dark:text-slate-400 text-center mb-5 leading-relaxed">
               {documentStore.mode === "review"
                 ? "Ask for a review of your document."
                 : "Ask AI to help draft or improve your document."}
@@ -500,7 +500,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               <div key={message.id}>
                 {message.role === "user" ? (
                   <div>
-                    <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 mb-1 px-1">You</p>
+                    <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 mb-1 px-1">You</p>
                     <div className="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 text-[12px] text-slate-700 dark:text-slate-200 leading-relaxed">
                       {message.content}
                     </div>
@@ -637,10 +637,10 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
               <span className="px-1.5 py-0.5 text-[9px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 rounded flex-shrink-0 uppercase tracking-wider">RFP</span>
             )}
             {isExtracting ? (
-              <Loader2 className="w-3 h-3 text-slate-400 animate-spin flex-shrink-0" />
+              <Loader2 className="w-3 h-3 text-slate-500 animate-spin flex-shrink-0" />
             ) : (
               <button onClick={handleFileRemove} className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-700 rounded transition-colors flex-shrink-0">
-                <X className="w-3 h-3 text-slate-400" />
+                <X className="w-3 h-3 text-slate-500" />
               </button>
             )}
           </div>
@@ -654,7 +654,7 @@ export function StudioChatSidebar({ documentStore, onRFPDetected, collapsed, onT
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={chat.isLoading || isExtracting}
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-40 z-10"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors disabled:opacity-40 z-10"
             title="Attach file"
           >
             <Paperclip className="w-3.5 h-3.5" />
@@ -751,12 +751,12 @@ function ChatHistoryPopover({
   return (
     <div className="absolute right-0 top-full mt-1 z-50 w-64 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200/80 dark:border-slate-700/80 overflow-hidden animate-fade-in-up">
       <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-700/60">
-        <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recent Conversations</p>
+        <p className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Recent Conversations</p>
       </div>
       <div className="max-h-64 overflow-y-auto">
         {conversations.length === 0 ? (
           <div className="px-4 py-6 text-center">
-            <p className="text-xs text-slate-400 dark:text-slate-500">No conversations yet</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">No conversations yet</p>
           </div>
         ) : (
           <div className="p-1.5 space-y-0.5">
@@ -797,11 +797,11 @@ function ChatHistoryPopover({
                       </p>
                     )}
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-0.5">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-0.5">
                         <Clock className="w-2.5 h-2.5" />
                         {timeAgo(conv.updatedAt)}
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                      <span className="text-[10px] text-slate-500 dark:text-slate-400">
                         {conv.messageCount} msgs
                       </span>
                     </div>
@@ -814,14 +814,14 @@ function ChatHistoryPopover({
                           setEditingId(conv.id)
                           setEditValue(conv.title)
                         }}
-                        className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-600/60 transition-colors"
+                        className="p-1 rounded text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-600/60 transition-colors"
                         title="Rename"
                       >
                         <Pencil className="w-3 h-3" />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); onDelete(conv.id) }}
-                        className="p-1 rounded text-slate-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        className="p-1 rounded text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete"
                       >
                         <Trash2 className="w-3 h-3" />

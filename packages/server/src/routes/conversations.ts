@@ -145,8 +145,8 @@ router.post("/:id/generate-title", async (req: Request, res: Response) => {
     const firstAI = messages.find(m => m.role === "assistant")?.content?.slice(0, 200) ?? ""
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      max_tokens: 20,
+      model: "gpt-5.6-luna",
+      max_completion_tokens: 20,
       messages: [
         {
           role: "system",

@@ -15,7 +15,7 @@ export function LibrarySearchBar({ value, onChange, isSearching, onSearch, place
       <div className="relative group">
         <Search
           size={18}
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors duration-200"
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors duration-200"
         />
         <Input
           value={value}
@@ -29,12 +29,12 @@ export function LibrarySearchBar({ value, onChange, isSearching, onSearch, place
         ) : value ? (
           <button
             onClick={() => onChange("")}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-150"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-150"
           >
             <X size={14} />
           </button>
         ) : (
-          <kbd className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200/80 dark:border-slate-700 font-mono select-none pointer-events-none">
+          <kbd className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200/80 dark:border-slate-700 font-mono select-none pointer-events-none">
             ⌘K
           </kbd>
         )}

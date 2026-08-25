@@ -204,10 +204,10 @@ export function QAExportDialog({ open, onClose, selectedAnswers, adaptedResults 
                     : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                 }`}
               >
-                <FileText size={18} className={format === "docx" ? "text-blue-500" : "text-slate-400"} />
+                <FileText size={18} className={format === "docx" ? "text-blue-500" : "text-slate-500"} />
                 <div className="text-left">
                   <p className={`text-[13px] font-medium ${format === "docx" ? "text-blue-700 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`}>Word</p>
-                  <p className="text-[10px] text-slate-400">.docx</p>
+                  <p className="text-[10px] text-slate-500">.docx</p>
                 </div>
               </button>
               <button
@@ -218,10 +218,10 @@ export function QAExportDialog({ open, onClose, selectedAnswers, adaptedResults 
                     : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600"
                 }`}
               >
-                <File size={18} className={format === "pdf" ? "text-blue-500" : "text-slate-400"} />
+                <File size={18} className={format === "pdf" ? "text-blue-500" : "text-slate-500"} />
                 <div className="text-left">
                   <p className={`text-[13px] font-medium ${format === "pdf" ? "text-blue-700 dark:text-blue-400" : "text-slate-600 dark:text-slate-400"}`}>PDF</p>
-                  <p className="text-[10px] text-slate-400">.pdf</p>
+                  <p className="text-[10px] text-slate-500">.pdf</p>
                 </div>
               </button>
             </div>
@@ -289,7 +289,7 @@ export function QAExportDialog({ open, onClose, selectedAnswers, adaptedResults 
                 </p>
               ))}
               {exportItems.length > 6 && (
-                <p className="text-[11px] text-slate-400">+{exportItems.length - 6} more</p>
+                <p className="text-[11px] text-slate-500">+{exportItems.length - 6} more</p>
               )}
             </div>
           </div>

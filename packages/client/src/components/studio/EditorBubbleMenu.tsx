@@ -238,7 +238,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
               if (fontsInCat.length === 0) return null
               return (
                 <div key={cat}>
-                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     {cat}
                   </div>
                   {fontsInCat.map((font) => {
@@ -335,7 +335,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
         >
           <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-2 px-3 z-50 w-48">
             {/* Text color */}
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Text color</p>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Text color</p>
             <div className="flex flex-wrap gap-1 mb-3">
               {TEXT_COLORS.map((c) => (
                 <button
@@ -352,7 +352,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
               ))}
             </div>
             {/* Highlight */}
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Highlight</p>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Highlight</p>
             <div className="flex flex-wrap gap-1">
               {HIGHLIGHT_COLORS.map((c) => (
                 <button
@@ -367,7 +367,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
                   style={{ background: c.value || undefined }}
                 >
                   {c.value === "" && (
-                    <span className="text-slate-400 text-[9px] flex items-center justify-center h-full">✕</span>
+                    <span className="text-slate-500 text-[9px] flex items-center justify-center h-full">✕</span>
                   )}
                 </button>
               ))}
@@ -390,7 +390,7 @@ export function EditorBubbleMenu({ editor, onTriggerAI }: EditorBubbleMenuProps)
           }
         >
           <div className="absolute top-full left-0 mt-1 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 p-2.5 z-50 w-64">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Link URL</p>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Link URL</p>
             <div className="flex gap-1.5">
               <input
                 ref={linkInputRef}

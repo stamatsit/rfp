@@ -90,7 +90,7 @@ export function ShareDialog({ documentId, currentSharedWith, onUpdate, onClose }
             <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Share Document</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -137,9 +137,9 @@ export function ShareDialog({ documentId, currentSharedWith, onUpdate, onClose }
           {sharedWith.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-5 gap-2">
               <div className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center">
-                <UserCheck className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                <UserCheck className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               </div>
-              <p className="text-xs text-slate-400 dark:text-slate-500 text-center leading-relaxed">
+              <p className="text-xs text-slate-500 dark:text-slate-400 text-center leading-relaxed">
                 Only you have access.<br />
                 <span className="text-emerald-600 dark:text-emerald-400">Add people above</span> to collaborate.
               </p>
@@ -155,7 +155,7 @@ export function ShareDialog({ documentId, currentSharedWith, onUpdate, onClose }
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">{getUserName(s.userId)}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">{getUserEmail(s.userId)}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">{getUserEmail(s.userId)}</p>
                   </div>
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     <select

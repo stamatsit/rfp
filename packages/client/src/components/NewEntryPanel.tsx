@@ -359,7 +359,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType, defaultCl
         <div className="flex flex-1 min-h-0 bg-white dark:bg-slate-900">
           {/* Type sidebar */}
           <div className="w-36 shrink-0 border-r border-slate-200 dark:border-slate-700 bg-slate-50/80 dark:bg-slate-800/50 py-3 px-2 space-y-0.5 overflow-y-auto">
-            <p className="px-2 pb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Library</p>
+            <p className="px-2 pb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Library</p>
             {entryTypes.filter(t => t.group === "library").map((t) => (
               <button key={t.id} onClick={() => { setActiveType(t.id); setError(null); setSuccess(false) }}
                 className={`flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-left transition-all text-[12.5px] font-medium ${
@@ -369,7 +369,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType, defaultCl
               </button>
             ))}
             <div className="border-t border-slate-200 dark:border-slate-700 my-2" />
-            <p className="px-2 pb-1.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Client Success</p>
+            <p className="px-2 pb-1.5 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Client Success</p>
             {entryTypes.filter(t => t.group === "success").map((t) => (
               <button key={t.id} onClick={() => { setActiveType(t.id); setError(null); setSuccess(false) }}
                 className={`flex items-center gap-2 w-full px-2.5 py-1.5 rounded-md text-left transition-all text-[12.5px] font-medium ${
@@ -437,13 +437,13 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType, defaultCl
                       <img src={photoPreview} alt="" className="w-16 h-16 rounded-lg object-cover" />
                       <div className="text-left flex-1">
                         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{photoFile?.name}</p>
-                        <p className="text-xs text-slate-400">{photoFile && (photoFile.size / 1024).toFixed(0)} KB</p>
+                        <p className="text-xs text-slate-500">{photoFile && (photoFile.size / 1024).toFixed(0)} KB</p>
                       </div>
-                      <button onClick={e => { e.stopPropagation(); setPhotoFile(null); setPhotoPreview(null) }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={16} /></button>
+                      <button onClick={e => { e.stopPropagation(); setPhotoFile(null); setPhotoPreview(null) }} aria-label="Remove photo" className="text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"><X size={16} /></button>
                     </div>
                   ) : (
                     <div className="py-4">
-                      <Upload size={24} className="mx-auto text-slate-400 mb-2" />
+                      <Upload size={24} className="mx-auto text-slate-500 mb-2" />
                       <p className="text-sm text-slate-500">Drop an image or click to browse</p>
                     </div>
                   )}
@@ -497,7 +497,7 @@ export function NewEntryPanel({ isOpen, onClose, onSaved, defaultType, defaultCl
                     <div key={i} className="flex gap-2 mb-1.5">
                       <Input value={m.label} onChange={e => { const n = [...csMetrics]; n[i] = { label: e.target.value, value: n[i]!.value }; setCsMetrics(n) }} placeholder="Label" className="flex-1 text-sm h-8 dark:bg-slate-800 dark:border-slate-700 rounded-lg" />
                       <Input value={m.value} onChange={e => { const n = [...csMetrics]; n[i] = { label: n[i]!.label, value: e.target.value }; setCsMetrics(n) }} placeholder="Value (e.g. +481%)" className="w-32 text-sm h-8 dark:bg-slate-800 dark:border-slate-700 rounded-lg" />
-                      <button onClick={() => setCsMetrics(csMetrics.filter((_, j) => j !== i))} className="text-slate-400 hover:text-red-500"><X size={14} /></button>
+                      <button onClick={() => setCsMetrics(csMetrics.filter((_, j) => j !== i))} aria-label="Remove metric" className="text-slate-500 hover:text-red-500"><X size={14} /></button>
                     </div>
                   ))}
                 </div>

@@ -8,9 +8,13 @@
 import { encoding_for_model } from "tiktoken"
 import type { TiktokenModel } from "tiktoken"
 
-// GPT-4o uses cl100k_base encoding
+// NOTE: this is deliberately NOT the model the app calls (see lib/aiModels.ts).
+// tiktoken only accepts model names it ships an encoding for, and it has no entry
+// for gpt-5.x. "gpt-4o" selects the o200k_base encoding, which is what the gpt-5
+// family uses too — so counts stay accurate. This is a local estimate only; no
+// request is ever made with this name.
 const MODEL_NAME: TiktokenModel = "gpt-4o"
-const MAX_TOKENS = 128000 // GPT-4o context limit
+const MAX_TOKENS = 128000 // context limit
 const RESPONSE_BUFFER = 8000 // Reserve tokens for response
 
 /**

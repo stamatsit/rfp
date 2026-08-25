@@ -24,6 +24,7 @@ export interface PhotoSuggestionResult {
 export interface StreamOptions {
   openai: OpenAI
   messages: OpenAI.ChatCompletionMessageParam[]
+  /** @deprecated Ignored — gpt-5.x only accepts the default temperature (1). */
   temperature?: number
   maxTokens?: number
   metadata: Record<string, unknown>
@@ -63,7 +64,6 @@ export function parseActionData(response: string): { cleanText: string; actions:
 export async function streamCompletion({
   openai,
   messages,
-  temperature = 0.4,
   maxTokens = 4000,
   metadata,
   parseFollowUpPrompts,
@@ -110,10 +110,9 @@ export async function streamCompletion({
     }
 
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages,
-      temperature,
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
       stream: true,
     })
 

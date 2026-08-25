@@ -53,6 +53,7 @@ import { CHAT_THEMES } from "@/types/chat"
 import { addCsrfHeader } from "@/lib/csrfToken"
 import { fetchSSE } from "@/lib/api"
 import { toast } from "@/hooks/useToast"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
 
@@ -241,7 +242,7 @@ function WorkspaceControlsBar({
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200
                 ${viewMode === "clean"
                   ? "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm"
-                  : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"}`}
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500"}`}
             >
               <FileText size={9} /> Clean
             </button>
@@ -250,7 +251,7 @@ function WorkspaceControlsBar({
               className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200
                 ${viewMode === "diff"
                   ? "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 shadow-sm"
-                  : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"}`}
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500"}`}
             >
               <GitCompare size={9} /> Diff
             </button>
@@ -265,16 +266,16 @@ function WorkspaceControlsBar({
               <button
                 onClick={onUndo} disabled={!canUndo}
                 title="Undo — ⌘Z"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
                            hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
               >
                 <Undo2 size={12} />
               </button>
-              <span className="text-[11px] text-slate-400 tabular-nums px-0.5 min-w-[32px] text-center">{versionLabel}</span>
+              <span className="text-[11px] text-slate-500 tabular-nums px-0.5 min-w-[32px] text-center">{versionLabel}</span>
               <button
                 onClick={onRedo} disabled={!canRedo}
                 title="Redo — ⌘Y"
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
                            hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 transition-all"
               >
                 <Redo2 size={12} />
@@ -284,7 +285,7 @@ function WorkspaceControlsBar({
             <button
               onClick={onNewDocument}
               title="New document"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
                          hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
             >
               <Plus size={13} />
@@ -378,7 +379,7 @@ function PersonaSidebar({
 
         {/* Section: Tone */}
         <div>
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">
             <Wand2 size={10} />
             Tone
           </label>
@@ -395,7 +396,7 @@ function PersonaSidebar({
                       : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-900 border border-transparent"
                     }`}
                 >
-                  <Icon size={13} className={tone === t.value ? "text-amber-500" : "text-slate-400"} />
+                  <Icon size={13} className={tone === t.value ? "text-amber-500" : "text-slate-500"} />
                   {t.label}
                   {tone === t.value && <Check size={12} className="ml-auto text-amber-500" />}
                 </button>
@@ -409,7 +410,7 @@ function PersonaSidebar({
 
         {/* Section: Strength */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Strength</label>
+          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Strength</label>
           <div className="flex gap-1.5">
             {STRENGTHS.map((s) => (
               <button
@@ -432,7 +433,7 @@ function PersonaSidebar({
         <div className="flex items-center justify-between py-1">
           <div>
             <span className="text-xs font-medium text-slate-600 dark:text-slate-400">Two-pass rewrite</span>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Rewrite → score → rewrite again</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Rewrite → score → rewrite again</p>
           </div>
           <button
             onClick={() => onTwoPassChange(!twoPass)}
@@ -451,18 +452,18 @@ function PersonaSidebar({
 
         {/* Section: Writing Persona */}
         <div>
-          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-1.5">
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-1.5">
             <User size={10} />
             Your Writing Persona
           </label>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-3">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-3">
             Upload writing samples so the AI always matches your voice.
           </p>
 
           {/* Sample list */}
           {persona.loading ? (
             <div className="flex items-center justify-center py-6">
-              <Loader2 size={16} className="animate-spin text-slate-400" />
+              <Loader2 size={16} className="animate-spin text-slate-500" />
             </div>
           ) : persona.samples.length > 0 ? (
             <div className="space-y-1 mb-3">
@@ -471,7 +472,7 @@ function PersonaSidebar({
                   key={s.id}
                   className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-50 dark:bg-slate-900 group"
                 >
-                  <FileText size={12} className="text-slate-400 flex-shrink-0" />
+                  <FileText size={12} className="text-slate-500 flex-shrink-0" />
                   {editingLabelId === s.id ? (
                     <input
                       autoFocus
@@ -498,12 +499,12 @@ function PersonaSidebar({
                       {s.label}
                     </span>
                   )}
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 flex-shrink-0 tabular-nums">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 flex-shrink-0 tabular-nums">
                     {(s.charCount / 1000).toFixed(1)}k
                   </span>
                   <button
                     onClick={() => onDeleteSample(s.id)}
-                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all"
+                    className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-500 transition-all"
                     title="Remove sample"
                   >
                     <Trash2 size={12} />
@@ -512,7 +513,7 @@ function PersonaSidebar({
               ))}
             </div>
           ) : (
-            <div className="text-center py-4 text-xs text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-900/50 rounded-lg mb-3">
+            <div className="text-center py-4 text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-lg mb-3">
               No samples yet. Add your writing to build your persona.
             </div>
           )}
@@ -520,7 +521,7 @@ function PersonaSidebar({
           {/* Budget bar */}
           {persona.samples.length > 0 && (
             <div className="mb-3">
-              <div className="flex justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-0.5">
+              <div className="flex justify-between text-[10px] text-slate-500 dark:text-slate-400 mb-0.5">
                 <span>{persona.totalChars.toLocaleString()} / {persona.budget.toLocaleString()} chars</span>
                 <span>{Math.round((persona.totalChars / persona.budget) * 100)}%</span>
               </div>
@@ -601,7 +602,7 @@ function PersonaSidebar({
                   focus:outline-none focus:border-amber-400 resize-none transition-all"
               />
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">{pasteText.length}/3000</span>
+                <span className="text-[10px] text-slate-500">{pasteText.length}/3000</span>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setPastePanelOpen(false); setPasteText(""); setPasteLabel("") }}
@@ -638,7 +639,7 @@ function PersonaSidebar({
 
         {/* Section 2: Audience */}
         <div>
-          <label className="block text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide mb-2">Audience</label>
+          <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Audience</label>
           <div className="grid grid-cols-2 gap-1.5">
             {AUDIENCES.map((a) => (
               <button
@@ -664,7 +665,7 @@ function PersonaSidebar({
         <div>
           <button
             onClick={() => setQuickOverrideOpen(!quickOverrideOpen)}
-            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wide hover:text-slate-600 dark:hover:text-slate-400 transition-colors mb-1"
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide hover:text-slate-600 dark:hover:text-slate-500 transition-colors mb-1"
           >
             <ChevronDown size={10} className={`transition-transform ${quickOverrideOpen ? "" : "-rotate-90"}`} />
             Quick Override
@@ -672,7 +673,7 @@ function PersonaSidebar({
           </button>
           {quickOverrideOpen && (
             <div className="mt-2">
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mb-2">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
                 Overrides your stored persona for this session only.
               </p>
               <div className="relative">
@@ -690,7 +691,7 @@ function PersonaSidebar({
                 {voiceSample && (
                   <button
                     onClick={() => onVoiceSampleChange("")}
-                    className="absolute top-2 right-2 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-400"
+                    className="absolute top-2 right-2 text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-500"
                   >
                     <X size={12} />
                   </button>
@@ -771,7 +772,7 @@ function TwoPassProgress({ pass, pass1Score }: { pass: 1 | 2; pass1Score?: numbe
   return (
     <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800/40">
       <div className="flex items-center gap-1.5 flex-1">
-        <div className={`flex items-center gap-1 text-[11px] font-medium ${pass >= 1 ? "text-amber-700 dark:text-amber-300" : "text-slate-400"}`}>
+        <div className={`flex items-center gap-1 text-[11px] font-medium ${pass >= 1 ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
           <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold
             ${pass === 1 ? "bg-amber-500 text-white animate-pulse" : "bg-amber-500 text-white"}`}>
             {pass > 1 ? <Check size={8} /> : "1"}
@@ -789,7 +790,7 @@ function TwoPassProgress({ pass, pass1Score }: { pass: 1 | 2; pass1Score?: numbe
           />
         </div>
 
-        <div className={`flex items-center gap-1 text-[11px] font-medium ${pass === 2 ? "text-amber-700 dark:text-amber-300" : "text-slate-400"}`}>
+        <div className={`flex items-center gap-1 text-[11px] font-medium ${pass === 2 ? "text-amber-700 dark:text-amber-300" : "text-slate-500"}`}>
           <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold
             ${pass === 2 ? "bg-amber-500 text-white animate-pulse" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
             2
@@ -867,7 +868,7 @@ function OriginalPane({
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <span className={`text-xs font-medium flex items-center gap-1.5 ${
-            diffMode ? "text-red-500 dark:text-red-400" : "text-slate-400 dark:text-slate-500"
+            diffMode ? "text-red-500 dark:text-red-400" : "text-slate-500 dark:text-slate-400"
           }`}>
             <FileText size={11} />
             Original
@@ -1046,7 +1047,7 @@ function ParagraphBlock({
             title="Copy paragraph"
             className="flex items-center justify-center w-6 h-6 rounded-md
                        bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600
-                       text-slate-400 dark:text-slate-500
+                       text-slate-500 dark:text-slate-400
                        hover:text-slate-600 dark:hover:text-slate-300
                        shadow-sm transition-all duration-100"
           >
@@ -1193,7 +1194,7 @@ function OutputPane({
                   onClick={onExport}
                   title="Download as .txt"
                   className="flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg transition-all duration-200
-                             text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300
+                             text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300
                              hover:bg-slate-100 dark:hover:bg-slate-800"
                 >
                   <Download size={11} />
@@ -1443,7 +1444,7 @@ function RefineBar({
             className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-150
               ${mode === "humanize"
                 ? "bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"}`}
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500"}`}
           >
             <Wand2 size={9} />
           </button>
@@ -1452,7 +1453,7 @@ function RefineBar({
             className={`flex items-center gap-1 px-2 py-1 rounded-full text-[11px] font-medium transition-all duration-150
               ${mode === "scan"
                 ? "bg-white dark:bg-slate-700 text-amber-700 dark:text-amber-300 shadow-sm"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400"}`}
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500"}`}
           >
             <Search size={9} />
           </button>
@@ -1617,7 +1618,7 @@ function EmptyWorkspace({
         />
         <div className="flex items-center justify-between mt-2 px-1">
           {pastedText ? (
-            <span className="text-xs text-slate-400 tabular-nums">
+            <span className="text-xs text-slate-500 tabular-nums">
               {wordCount.toLocaleString()} {wordCount === 1 ? "word" : "words"}
             </span>
           ) : (
@@ -1625,7 +1626,7 @@ function EmptyWorkspace({
           )}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500
+            className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400
                        hover:text-amber-600 dark:hover:text-amber-400 transition-colors"
           >
             <Upload size={12} />
@@ -1704,6 +1705,7 @@ function EmptyWorkspace({
 
 export function AIHumanizer() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("AI Humanizer")
   if (!isAdmin) return <Navigate to="/" replace />
 
   const [searchParams] = useSearchParams()
@@ -2187,7 +2189,7 @@ export function AIHumanizer() {
             <div className="relative w-64 h-full overflow-hidden">
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="absolute top-3 right-3 z-10 p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                className="absolute top-3 right-3 z-10 p-1 rounded text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 title="Collapse history"
               >
                 <ArrowLeft size={13} />

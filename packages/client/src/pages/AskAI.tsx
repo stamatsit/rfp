@@ -39,6 +39,7 @@ import { topicsApi, aiApi, photosApi, type AIQueryResponse, type AdaptationType 
 import { CHAT_THEMES, type ChatMessage } from "@/types/chat"
 import type { Topic } from "@/types"
 import { loadSettings } from "@/components/SettingsPanel"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const theme = CHAT_THEMES.purple
 
@@ -66,6 +67,7 @@ const parseResult = (data: Record<string, unknown>) => ({
 
 export function AskAI() {
   const [searchParams] = useSearchParams()
+  useDocumentTitle("Ask AI")
   const navigate = useNavigate()
   const [topics, setTopics] = useState<Topic[]>([])
   const [topicFilter, setTopicFilter] = useState<string>("all")
@@ -302,7 +304,7 @@ export function AskAI() {
                               {chat.copiedId === source.id ? (
                                 <><Check size={12} className="mr-1 text-emerald-500" /><span className="text-emerald-600">Copied</span></>
                               ) : (
-                                <><Copy size={12} className="mr-1 text-slate-400" />Copy</>
+                                <><Copy size={12} className="mr-1 text-slate-500" />Copy</>
                               )}
                             </Button>
                             <Button
@@ -562,7 +564,7 @@ export function AskAI() {
                   </Button>
                   <ContextualHelp {...askAIPageHelp} />
                 </div>
-                <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center">
+                <p className="text-[12px] text-slate-500 dark:text-slate-400 text-center">
                   Paste any content above, then describe how you want it refined
                 </p>
               </div>
@@ -607,7 +609,7 @@ export function AskAI() {
                 </div>
 
                 {topicFilter !== "all" && (
-                  <p className="text-[12px] text-slate-400 mt-2 text-center">
+                  <p className="text-[12px] text-slate-500 mt-2 text-center">
                     Filtering by topic: <span className="font-medium text-slate-600 dark:text-slate-300">{topics.find(t => t.id === topicFilter)?.displayName}</span>
                   </p>
                 )}

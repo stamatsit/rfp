@@ -41,6 +41,7 @@ import {
 import { AppHeader } from "@/components/AppHeader"
 import { Button, Card, CardContent, Badge } from "@/components/ui"
 import { rfpApi, topicsApi, searchApi, type SavedDocument, type ScanFlag, type ExtractedImage, type AnswerResponse } from "@/lib/api"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 type ActiveTab = "scan" | "library"
 type DocumentType = "RFP" | "Proposal"
@@ -64,6 +65,7 @@ const severityConfig = {
 
 export function RFPAnalyzer() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("RFP Analyzer")
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
@@ -604,7 +606,7 @@ export function RFPAnalyzer() {
                     {showImagesPanel && imageCount > 0 && (
                       <div className="text-left mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Extracted Images ({imageCount})</p>
+                          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Extracted Images ({imageCount})</p>
                           <button onClick={toggleAllImages} className="text-xs text-red-600 dark:text-red-400 hover:text-red-700 font-medium">
                             {selectedImageIds.size === imageCount ? "Deselect All" : "Select All"}
                           </button>
@@ -684,23 +686,23 @@ export function RFPAnalyzer() {
 
                     {showCriteria && (
                       <div className="text-left mb-6 p-4 rounded-xl bg-slate-50 dark:bg-slate-700/50 border border-slate-200 dark:border-slate-600">
-                        <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Default criteria (always active)</p>
+                        <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Default criteria (always active)</p>
                         {criteria.defaults.map((c) => (
                           <div key={c.id} className="flex items-center gap-2 py-1.5 text-sm text-slate-600 dark:text-slate-300">
                             <Shield size={14} className="text-red-500 shrink-0" />
                             <span className="font-medium">{c.label}</span>
-                            {c.description && <span className="text-xs text-slate-400 dark:text-slate-500 truncate">— {c.description}</span>}
+                            {c.description && <span className="text-xs text-slate-500 dark:text-slate-400 truncate">— {c.description}</span>}
                           </div>
                         ))}
 
                         {criteria.custom.length > 0 && (
                           <>
-                            <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-4 mb-3">Your custom criteria</p>
+                            <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mt-4 mb-3">Your custom criteria</p>
                             {criteria.custom.map((c) => (
                               <div key={c.id} className="flex items-center gap-2 py-1.5 text-sm text-slate-600 dark:text-slate-300 group">
                                 <Plus size={14} className="text-blue-500 shrink-0" />
                                 <span className="font-medium flex-1">{c.label}</span>
-                                <button onClick={() => criteria.removeCriterion(c.id)} className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all">
+                                <button onClick={() => criteria.removeCriterion(c.id)} className="opacity-0 group-hover:opacity-100 text-slate-500 hover:text-red-500 transition-all">
                                   <X size={14} />
                                 </button>
                               </div>
@@ -768,7 +770,7 @@ export function RFPAnalyzer() {
                         {/* Doc Search */}
                         <div className="flex items-center gap-2">
                           <div className="relative">
-                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                             <input
                               ref={searchInputRef} type="text" placeholder="Search document..."
                               value={docSearchQuery} onChange={(e) => handleDocSearch(e.target.value)}
@@ -777,7 +779,7 @@ export function RFPAnalyzer() {
                             />
                             {docSearchQuery && (
                               <button onClick={() => { setDocSearchQuery(""); setDocSearchMatches([]); searchInputRef.current?.focus() }} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-slate-100 dark:hover:bg-slate-600 rounded">
-                                <X size={12} className="text-slate-400" />
+                                <X size={12} className="text-slate-500" />
                               </button>
                             )}
                           </div>
@@ -788,7 +790,7 @@ export function RFPAnalyzer() {
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => navigateMatch("next")}><ChevronDown size={14} /></Button>
                             </div>
                           )}
-                          {docSearchQuery && docSearchMatches.length === 0 && <span className="text-xs text-slate-400">No matches</span>}
+                          {docSearchQuery && docSearchMatches.length === 0 && <span className="text-xs text-slate-500">No matches</span>}
                         </div>
 
                         {imageCount > 0 && (
@@ -934,7 +936,7 @@ export function RFPAnalyzer() {
                                 {/* Note */}
                                 {flag.note && editingNoteId !== flag.id && (
                                   <div className="mt-2 flex items-start gap-1.5">
-                                    <MessageSquare size={12} className="text-slate-400 shrink-0 mt-0.5" />
+                                    <MessageSquare size={12} className="text-slate-500 shrink-0 mt-0.5" />
                                     <p className="text-[11px] text-slate-600 dark:text-slate-400">{flag.note}</p>
                                   </div>
                                 )}
@@ -1035,7 +1037,7 @@ export function RFPAnalyzer() {
                         {/* Dismissed Flags */}
                         {dismissedFlags.length > 0 && (
                           <div className="pt-3 border-t border-slate-200/60 dark:border-slate-700">
-                            <p className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Dismissed ({dismissedFlags.length})</p>
+                            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Dismissed ({dismissedFlags.length})</p>
                             {dismissedFlags.map((flag) => (
                               <div key={flag.id} className="flex items-center gap-2 py-2 px-3 rounded-lg bg-slate-50/50 dark:bg-slate-800/50 opacity-60 hover:opacity-100 transition-opacity">
                                 <span className="text-[12px] text-slate-500 dark:text-slate-400 flex-1 truncate">{flag.title}</span>
@@ -1055,7 +1057,7 @@ export function RFPAnalyzer() {
                               <Plus size={14} />
                             </Button>
                           </div>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-2">Add criteria, then re-scan to find new flags.</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2">Add criteria, then re-scan to find new flags.</p>
                         </div>
                       </CardContent>
                     </Card>
@@ -1071,7 +1073,7 @@ export function RFPAnalyzer() {
               {/* Filters */}
               <div className="flex items-center gap-4 mb-6">
                 <div className="relative flex-1 max-w-md">
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                   <input type="text" placeholder="Search documents..." value={librarySearch} onChange={(e) => setLibrarySearch(e.target.value)} className="w-full h-10 pl-10 pr-4 text-sm border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 dark:text-white transition-colors duration-150 hover:border-slate-300 dark:hover:border-slate-600 focus-visible:outline-none focus-visible:border-blue-500 focus-visible:ring-4 focus-visible:ring-blue-500/10" />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1134,7 +1136,7 @@ export function RFPAnalyzer() {
                               {doc.pageCount && <span>{doc.pageCount} pages</span>}
                               {doc.fileSize && <span>{formatFileSize(doc.fileSize)}</span>}
                               <span className="flex items-center gap-1"><Calendar size={12} /> {formatDate(doc.createdAt)}</span>
-                              {doc.uploaderName && <span className="text-slate-400 dark:text-slate-500">by {doc.uploaderName}</span>}
+                              {doc.uploaderName && <span className="text-slate-500 dark:text-slate-400">by {doc.uploaderName}</span>}
                             </div>
                           </div>
                           <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

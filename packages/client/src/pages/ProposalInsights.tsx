@@ -29,6 +29,7 @@ import { proposalInsightsApi, clientsApi, type ProposalSyncStatus, type ClientRe
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 import { loadSettings } from "@/components/SettingsPanel"
 import { useIsAdmin } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const theme = CHAT_THEMES.cyan
 
@@ -82,6 +83,7 @@ const parseResult = (data: Record<string, unknown>) => ({
 
 export function ProposalInsights() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("Proposal Insights")
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
@@ -176,23 +178,23 @@ export function ProposalInsights() {
         <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="text-slate-400">Date Range:</span>
+              <span className="text-slate-500">Date Range:</span>
               <span className="ml-2 text-slate-600 dark:text-slate-300">
                 {formatDate(dataUsed.dateRange?.from ?? null)} - {formatDate(dataUsed.dateRange?.to ?? null)}
               </span>
             </div>
             <div>
-              <span className="text-slate-400">Win Rate:</span>
+              <span className="text-slate-500">Win Rate:</span>
               <span className="ml-2 text-cyan-600 font-medium">
                 {((dataUsed.overallWinRate ?? 0) * 100).toFixed(1)}%
               </span>
             </div>
             <div>
-              <span className="text-slate-400">Won:</span>
+              <span className="text-slate-500">Won:</span>
               <span className="ml-2 text-green-600">{dataUsed.wonCount}</span>
             </div>
             <div>
-              <span className="text-slate-400">Lost:</span>
+              <span className="text-slate-500">Lost:</span>
               <span className="ml-2 text-red-500">{dataUsed.lostCount}</span>
             </div>
           </div>
@@ -242,7 +244,7 @@ export function ProposalInsights() {
               </div>
               {syncStatus?.lastSync && (
                 <div className="flex items-center gap-2">
-                  <Calendar size={14} className="text-slate-400" />
+                  <Calendar size={14} className="text-slate-500" />
                   <span className="text-slate-500 dark:text-slate-400">
                     Last sync: {new Date(syncStatus.lastSync).toLocaleString()}
                   </span>
@@ -281,7 +283,7 @@ export function ProposalInsights() {
                           onClick={() => { setClientFilter(c.name); setShowClientDropdown(false) }}
                           className="w-full text-left px-3 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-cyan-50 dark:hover:bg-cyan-900/20 transition-colors flex items-center gap-2"
                         >
-                          <Building2 size={11} className="text-slate-400 shrink-0" />
+                          <Building2 size={11} className="text-slate-500 shrink-0" />
                           {c.name}
                         </button>
                       ))}
@@ -359,7 +361,7 @@ export function ProposalInsights() {
               <button
                 key={prompt}
                 onClick={() => chat.setInputValue(prompt)}
-                className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
+                className="text-[13px] text-slate-500 dark:text-slate-400 hover:text-cyan-500 dark:hover:text-cyan-400 transition-colors"
               >
                 {prompt}
               </button>

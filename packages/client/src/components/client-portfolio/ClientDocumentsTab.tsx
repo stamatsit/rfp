@@ -45,9 +45,9 @@ function getMimeIcon(mimeType: string | null, docType: string): React.ReactNode 
   if (mimeType?.startsWith("image/")) return <Image size={14} className="text-violet-400" />
   if (mimeType === "application/pdf") return <FileText size={14} className="text-red-400" />
   if (mimeType?.includes("wordprocessingml") || mimeType?.includes("msword")) return <FileText size={14} className="text-sky-400" />
-  if (mimeType?.startsWith("text/")) return <FileText size={14} className="text-slate-400" />
+  if (mimeType?.startsWith("text/")) return <FileText size={14} className="text-slate-500" />
   if (docType === "proposal-sent" || docType === "rfp") return <Briefcase size={14} className="text-emerald-400" />
-  return <FileText size={14} className="text-slate-400" />
+  return <FileText size={14} className="text-slate-500" />
 }
 
 function formatDocDate(dateStr: string): string {
@@ -145,7 +145,7 @@ export function ClientDocumentsTab() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText size={14} className="text-slate-400" />
+          <FileText size={14} className="text-slate-500" />
           <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Documents</span>
           {clientDocs.length > 0 && (
             <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">{clientDocs.length}</span>
@@ -153,7 +153,7 @@ export function ClientDocumentsTab() {
         </div>
         <div className="flex items-center gap-1.5">
           {uploadProgress && (
-            <span className="text-[10px] text-slate-400 animate-pulse">{uploadProgress}</span>
+            <span className="text-[10px] text-slate-500 animate-pulse">{uploadProgress}</span>
           )}
           <input ref={fileInputRef} type="file" className="hidden" multiple accept=".pdf,.doc,.docx,.txt,.md,.png,.jpg,.jpeg,.svg,.webp" onChange={handleDocUpload} />
           <button
@@ -168,8 +168,8 @@ export function ClientDocumentsTab() {
       {/* Content */}
       {docsLoading ? (
         <div className="flex items-center gap-2 py-8 justify-center">
-          <Loader2 size={14} className="animate-spin text-slate-400" />
-          <span className="text-xs text-slate-400">Loading documents…</span>
+          <Loader2 size={14} className="animate-spin text-slate-500" />
+          <span className="text-xs text-slate-500">Loading documents…</span>
         </div>
       ) : clientDocs.length === 0 ? (
         <div
@@ -181,7 +181,7 @@ export function ClientDocumentsTab() {
         >
           <Upload size={22} className={`mb-3 ${isDragOver ? "text-sky-400" : "text-slate-300 dark:text-slate-600"}`} />
           <p className="text-sm text-slate-500 dark:text-slate-400">Drop files here or <span className="text-sky-500 font-medium">browse</span></p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Upload meeting notes, proposals, RFPs, or brand assets</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1">Upload meeting notes, proposals, RFPs, or brand assets</p>
           <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-0.5">PDF, DOCX, TXT, images</p>
         </div>
       ) : (
@@ -228,7 +228,7 @@ export function ClientDocumentsTab() {
                       )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      {doc.fileSize ? <span className="text-[10px] text-slate-400">{doc.fileSize < 1024 * 1024 ? `${(doc.fileSize / 1024).toFixed(0)} KB` : `${(doc.fileSize / 1024 / 1024).toFixed(1)} MB`}</span> : null}
+                      {doc.fileSize ? <span className="text-[10px] text-slate-500">{doc.fileSize < 1024 * 1024 ? `${(doc.fileSize / 1024).toFixed(0)} KB` : `${(doc.fileSize / 1024 / 1024).toFixed(1)} MB`}</span> : null}
                       <span className="text-[10px] text-slate-300 dark:text-slate-600">{formatDocDate(doc.createdAt)}</span>
                     </div>
                     {doc.summary ? (
@@ -236,9 +236,9 @@ export function ClientDocumentsTab() {
                         {doc.summary}
                       </p>
                     ) : !canExtract ? (
-                      <p className="text-[11px] text-slate-400 italic mt-0.5">No preview</p>
+                      <p className="text-[11px] text-slate-500 italic mt-0.5">No preview</p>
                     ) : (
-                      <p className="text-[11px] text-slate-400 italic mt-0.5 flex items-center gap-1">
+                      <p className="text-[11px] text-slate-500 italic mt-0.5 flex items-center gap-1">
                         <Loader2 size={10} className="animate-spin" /> AI is summarizing…
                       </p>
                     )}
@@ -300,8 +300,8 @@ export function ClientDocumentsTab() {
                         )}
                         {(doc as any).transcriptSource && (
                           <div className="flex items-center gap-1 pt-1">
-                            <Mic size={9} className="text-slate-400" />
-                            <span className="text-[10px] text-slate-400">Source: {(doc as any).transcriptSource}</span>
+                            <Mic size={9} className="text-slate-500" />
+                            <span className="text-[10px] text-slate-500">Source: {(doc as any).transcriptSource}</span>
                           </div>
                         )}
                       </div>
@@ -315,7 +315,7 @@ export function ClientDocumentsTab() {
                   <div className="flex items-center gap-1 shrink-0">
                     <button
                       onClick={() => clientDocumentsApi.download(doc.id, doc.originalFilename)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                       title="Download"
                     >
                       <Download size={13} />
@@ -331,7 +331,7 @@ export function ClientDocumentsTab() {
                             toast.error("Failed to delete document. Please try again.")
                           }
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="Delete"
                       >
                         <Trash2 size={13} />
@@ -347,7 +347,7 @@ export function ClientDocumentsTab() {
             className="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors flex items-center gap-1.5"
           >
             <Upload size={10} className="text-slate-300 dark:text-slate-600" />
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">Drop more files or click to upload</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">Drop more files or click to upload</span>
           </div>
         </div>
       )}

@@ -56,10 +56,10 @@ export function RecentConversations() {
         onClick={() => setIsCollapsed(c => !c)}
         className="flex items-center gap-1.5 mb-3 group"
       >
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.08em] uppercase group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors">Recent</p>
+        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-600 tracking-[0.08em] uppercase group-hover:text-slate-600 dark:group-hover:text-slate-500 transition-colors">Recent</p>
         <ChevronDown
           size={12}
-          className={`text-slate-400 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-400 transition-all ${isCollapsed ? "-rotate-90" : ""}`}
+          className={`text-slate-500 dark:text-slate-600 group-hover:text-slate-500 dark:group-hover:text-slate-500 transition-all ${isCollapsed ? "-rotate-90" : ""}`}
         />
       </button>
       {!isCollapsed && (
@@ -87,12 +87,12 @@ export function RecentConversations() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[12px] font-medium text-slate-700 dark:text-slate-200 truncate leading-tight">{conv.title}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-600 flex items-center gap-1 mt-0.5">
+                    <p className="text-[10px] text-slate-500 dark:text-slate-600 flex items-center gap-1 mt-0.5">
                       <Clock size={9} />
                       {timeAgo(conv.updatedAt)}
                     </p>
                   </div>
-                  <ChevronRight size={12} className="flex-shrink-0 text-slate-300 dark:text-slate-700 group-hover:text-slate-400 dark:group-hover:text-slate-500 transition-colors" />
+                  <ChevronRight size={12} className="flex-shrink-0 text-slate-300 dark:text-slate-700 group-hover:text-slate-500 dark:group-hover:text-slate-500 transition-colors" />
                 </button>
               )
             })}

@@ -6,6 +6,7 @@ import { Button, Card, CardContent, CardHeader, CardTitle, Badge } from "@/compo
 import { AppHeader } from "@/components/AppHeader"
 import { importApi, ApiError } from "@/lib/api"
 import type { ImportPreview, ImportResult, ImportIssue } from "@/types"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 type WizardStep = "upload" | "preview" | "issues" | "complete"
 
@@ -18,6 +19,7 @@ const stepConfig = [
 
 export function ImportWizard() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("Import Wizard")
   if (!isAdmin) return <Navigate to="/" replace />
   const [step, setStep] = useState<WizardStep>("upload")
   const [file, setFile] = useState<File | null>(null)
@@ -120,7 +122,7 @@ export function ImportWizard() {
                           ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30 scale-110"
                           : isComplete
                           ? "bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow-md shadow-emerald-500/25"
-                          : "bg-slate-100 dark:bg-slate-700 text-slate-400"
+                          : "bg-slate-100 dark:bg-slate-700 text-slate-500"
                       }`}
                     >
                       {isComplete ? (
@@ -130,7 +132,7 @@ export function ImportWizard() {
                       )}
                     </div>
                     <span className={`mt-2 text-xs font-medium transition-colors ${
-                      isActive ? "text-blue-600 dark:text-blue-400" : isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"
+                      isActive ? "text-blue-600 dark:text-blue-400" : isComplete ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"
                     }`}>
                       {s.label}
                     </span>

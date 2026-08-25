@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +41,7 @@ interface HeadingsResult {
 
 export function ScannerPortal() {
   const navigate = useNavigate()
+  useDocumentTitle("Scanner Portal")
 
   // Tile 1 — Accessibility
   const [a11yUrl, setA11yUrl] = useState("")
@@ -332,7 +334,7 @@ export function ScannerPortal() {
                             {/* Arrow */}
                             <div className="absolute -top-[7px] left-[24px] w-3.5 h-3.5 bg-[#0f172a] rotate-45" />
 
-                            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-400 mb-3">
+                            <h4 className="text-[11px] font-semibold tracking-[0.1em] uppercase text-slate-500 mb-3">
                               How this is checked
                             </h4>
 

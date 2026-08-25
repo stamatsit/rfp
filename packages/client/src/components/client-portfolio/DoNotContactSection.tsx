@@ -135,7 +135,7 @@ export function DoNotContactSection() {
                 {entry.comment && (
                   <p className="mt-1.5 text-xs text-slate-600 dark:text-slate-300 italic">"{entry.comment}"</p>
                 )}
-                <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                <p className="mt-1 text-[10px] text-slate-500 dark:text-slate-400">
                   Added {new Date(entry.createdAt).toLocaleDateString()} by {entry.createdBy}
                 </p>
               </div>

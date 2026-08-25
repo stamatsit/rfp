@@ -40,7 +40,7 @@ export function ProposalsSection() {
   }
 
   if (loading) return <div className="flex-1 flex items-center justify-center"><Loader2 size={24} className="animate-spin text-blue-500" /></div>
-  if (error || !metrics?.summary) return <div className="flex-1 flex items-center justify-center"><div className="text-center"><AlertCircle size={24} className="mx-auto text-slate-400 mb-2" /><p className="text-sm text-slate-500">{error || "No proposal data available"}</p></div></div>
+  if (error || !metrics?.summary) return <div className="flex-1 flex items-center justify-center"><div className="text-center"><AlertCircle size={24} className="mx-auto text-slate-500 mb-2" /><p className="text-sm text-slate-500">{error || "No proposal data available"}</p></div></div>
 
   const { summary } = metrics
 
@@ -85,7 +85,7 @@ export function ProposalsSection() {
 
         {/* Search */}
         <div className="relative group max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors duration-200" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors duration-200" />
           <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter..."
             className="pl-9 h-9 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.03)]" />
         </div>
@@ -128,14 +128,14 @@ export function ProposalsSection() {
                 </tr>
               ))}
               {breakdownData.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">No data matches your filter.</td></tr>
+                <tr><td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">No data matches your filter.</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
         {summary.dateRange?.from && summary.dateRange?.to && (
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px] text-slate-500">
             Data range: {new Date(summary.dateRange.from).toLocaleDateString()} — {new Date(summary.dateRange.to).toLocaleDateString()} · {summary.pending} pending
           </p>
         )}

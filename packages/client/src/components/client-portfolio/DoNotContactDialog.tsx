@@ -76,7 +76,7 @@ export function DoNotContactDialog({ defaults, onClose, onSaved }: DoNotContactD
               Add Organization to Do Not Contact
             </h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -123,7 +123,7 @@ export function DoNotContactDialog({ defaults, onClose, onSaved }: DoNotContactD
 
           <div>
             <label className={labelCls}>
-              Comment <span className="text-slate-400 font-normal">(optional)</span>
+              Comment <span className="text-slate-500 font-normal">(optional)</span>
             </label>
             <textarea
               value={comment}

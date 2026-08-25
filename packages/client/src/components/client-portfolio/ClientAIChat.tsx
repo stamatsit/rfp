@@ -142,16 +142,16 @@ export function ClientAIChat({ context, clientName, smartStarters }: { context: 
           <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400 border border-sky-200/60 dark:border-sky-800/40">GPT-4o</span>
         </div>
         {messages.length > 0 && (
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 mr-1">{messages.filter(m => m.role === "user").length} message{messages.filter(m => m.role === "user").length !== 1 ? "s" : ""}</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 mr-1">{messages.filter(m => m.role === "user").length} message{messages.filter(m => m.role === "user").length !== 1 ? "s" : ""}</span>
         )}
         <button
           onClick={e => { e.stopPropagation(); setMessages([]); setStreamingText(""); setError(null) }}
-          className={`p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors mr-0.5 ${messages.length === 0 ? "opacity-0 pointer-events-none" : ""}`}
+          className={`p-1 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors mr-0.5 ${messages.length === 0 ? "opacity-0 pointer-events-none" : ""}`}
           title="Clear conversation"
         >
           <RotateCcw size={12} />
         </button>
-        {collapsed ? <ChevronUp size={14} className="text-slate-400 shrink-0" /> : <ChevronDown size={14} className="text-slate-400 shrink-0" />}
+        {collapsed ? <ChevronUp size={14} className="text-slate-500 shrink-0" /> : <ChevronDown size={14} className="text-slate-500 shrink-0" />}
       </button>
 
       {!collapsed && (
@@ -231,7 +231,7 @@ export function ClientAIChat({ context, clientName, smartStarters }: { context: 
           ) : (
             // Empty state: starter prompts
             <div className="px-5 py-5">
-              <p className="text-xs text-slate-400 dark:text-slate-500 mb-3 font-medium uppercase tracking-widest">Try asking…</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-3 font-medium uppercase tracking-widest">Try asking…</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {(smartStarters ?? CHAT_STARTERS).map(starter => (
                   <button
@@ -291,7 +291,7 @@ export function ClientAIChat({ context, clientName, smartStarters }: { context: 
               <button
                 onClick={() => sendMessage(input)}
                 disabled={!input.trim()}
-                className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-400 text-white transition-colors"
+                className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center bg-sky-600 hover:bg-sky-700 disabled:bg-slate-200 dark:disabled:bg-slate-700 disabled:text-slate-500 text-white transition-colors"
                 title="Send"
               >
                 <Send size={14} strokeWidth={2.5} />

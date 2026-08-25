@@ -246,13 +246,12 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userContent },
       ],
-      temperature: 0.3,
-      max_tokens: 1000,
+      max_completion_tokens: 1000,
     })
 
     const raw = completion.choices[0]?.message?.content ?? ""
@@ -316,12 +315,11 @@ Output ONLY valid JSON: { "altText": "...", "isDecorative": false }`,
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "user", content: userContent },
       ],
-      temperature: 0.2,
-      max_tokens: 200,
+      max_completion_tokens: 200,
     })
 
     const raw = completion.choices[0]?.message?.content ?? ""

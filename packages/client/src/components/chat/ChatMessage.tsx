@@ -138,7 +138,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                     className={`p-1.5 rounded-lg transition-colors ${
                       message.feedback === "up"
                         ? "text-emerald-500 bg-emerald-50 dark:bg-emerald-900/30"
-                        : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        : "text-slate-500 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
                     <ThumbsUp size={13} />
@@ -148,7 +148,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
                     className={`p-1.5 rounded-lg transition-colors ${
                       message.feedback === "down"
                         ? "text-red-500 bg-red-50 dark:bg-red-900/30"
-                        : "text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
+                        : "text-slate-500 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700"
                     }`}
                   >
                     <ThumbsDown size={13} />
@@ -159,7 +159,7 @@ export const ChatMessageItem = memo(function ChatMessageItem({
           </Card>
         )}
 
-        <p className="text-xs text-slate-400 mt-1.5 px-1">
+        <p className="text-xs text-slate-500 mt-1.5 px-1">
           {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </p>
       </div>

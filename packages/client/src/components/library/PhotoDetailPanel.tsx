@@ -123,7 +123,7 @@ export function PhotoDetailPanel({
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white leading-snug tracking-[-0.01em] flex-1 min-w-0 pr-4">
               {isEditing ? "Edit Photo" : photo.displayTitle}
             </h2>
-            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150">
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150">
               <X size={18} />
             </button>
           </div>
@@ -168,7 +168,7 @@ export function PhotoDetailPanel({
                 </div>
               </div>
               <div className="space-y-2">
-                <Label className="text-[12px] font-medium">Tags <span className="text-slate-400">(comma-separated)</span></Label>
+                <Label className="text-[12px] font-medium">Tags <span className="text-slate-500">(comma-separated)</span></Label>
                 <Input value={editForm.tags} onChange={(e) => setEditForm({ ...editForm, tags: e.target.value })} className="rounded-xl text-[13px]" />
               </div>
               <div className="space-y-2">
@@ -197,7 +197,7 @@ export function PhotoDetailPanel({
                 <Download size={16} className="mr-2" /> Download Photo
               </Button>
               {(photo.usageCount || 0) > 0 && (
-                <p className="text-xs text-slate-400 text-center">Downloaded {photo.usageCount}x</p>
+                <p className="text-xs text-slate-500 text-center">Downloaded {photo.usageCount}x</p>
               )}
 
               {/* Linked Answers */}
@@ -205,7 +205,7 @@ export function PhotoDetailPanel({
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2 text-[14px]">
                     <FileText size={16} /> Linked Answers
-                    <span className="text-slate-400 font-normal text-[13px]">({linkedAnswers.length})</span>
+                    <span className="text-slate-500 font-normal text-[13px]">({linkedAnswers.length})</span>
                     {loadingLinked && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
                   </h4>
                   {isAdmin && (

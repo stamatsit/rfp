@@ -97,7 +97,7 @@ export function ClientOverviewTab() {
           {analyzingGap ? <Loader2 size={12} className="animate-spin" /> : <SearchX size={12} strokeWidth={2.5} />}
           {analyzingGap ? "Analyzing…" : "What's missing?"}
         </button>
-        <span className="text-[10px] text-slate-400 dark:text-slate-500">AI analyzes gaps in your client assets</span>
+        <span className="text-[10px] text-slate-500 dark:text-slate-400">AI analyzes gaps in your client assets</span>
       </div>
 
       {gapAnalysis && (
@@ -117,8 +117,8 @@ export function ClientOverviewTab() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Building2 size={28} className="text-slate-300 dark:text-slate-600 mb-3" />
           <p className="text-sm text-slate-500 dark:text-slate-400">No assets found for this client</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">They may be listed under a slightly different name</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Try asking AI below for suggestions on what to gather.</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">They may be listed under a slightly different name</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Try asking AI below for suggestions on what to gather.</p>
         </div>
       )}
 

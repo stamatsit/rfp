@@ -5,21 +5,7 @@
  * to score audit dimensions, pull keywords, and draft copy.
  */
 import * as cheerio from "cheerio"
-
-function isPublicUrl(urlString: string): boolean {
-  let url: URL
-  try {
-    url = new URL(urlString)
-  } catch {
-    return false
-  }
-  if (!["http:", "https:"].includes(url.protocol)) return false
-  const h = url.hostname
-  if (h === "localhost" || h.endsWith(".local") || h.endsWith(".internal")) return false
-  if (/^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|169\.254\.|0\.)/.test(h)) return false
-  if (h === "::1" || h.startsWith("[::1]") || h.startsWith("[fe80")) return false
-  return true
-}
+import { isPublicUrl, safeFetch } from "../lib/safeFetch.js"
 
 export interface PageContent {
   url: string
@@ -59,20 +45,17 @@ export async function fetchPageContent(url: string, timeoutMs = 12000): Promise<
   }
   if (!isPublicUrl(url)) return { ...empty, error: "non-public URL" }
 
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  // safeFetch re-validates every redirect hop, so a public URL can't bounce us
+  // onto an internal address.
   let res: Response
   try {
-    res = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
+    res = await safeFetch(url, {
+      timeoutMs,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; StamatsScanner/1.0)" },
     })
   } catch (err: any) {
-    clearTimeout(timer)
     return { ...empty, error: err?.name === "AbortError" ? "timeout" : err?.message || "fetch failed" }
   }
-  clearTimeout(timer)
 
   const status = res.status
   const ctype = res.headers.get("content-type") || ""

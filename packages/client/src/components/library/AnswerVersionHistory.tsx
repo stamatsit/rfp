@@ -20,7 +20,7 @@ export function AnswerVersionHistory({
         <h3 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2 text-[15px]">
           <History size={18} className="text-blue-600 dark:text-blue-400" />
           Version History
-          <span className="text-slate-400 dark:text-slate-500 font-normal text-[13px]">({versions.length})</span>
+          <span className="text-slate-500 dark:text-slate-400 font-normal text-[13px]">({versions.length})</span>
         </h3>
         <Button variant="outline" size="sm" onClick={onClose} className="rounded-lg active:scale-[0.98] transition-all duration-150">
           <X size={14} className="mr-1.5" /> Close

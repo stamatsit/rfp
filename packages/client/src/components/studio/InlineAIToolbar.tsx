@@ -165,7 +165,7 @@ export function InlineAIToolbar({ selectedText, position, documentContext, onApp
           </div>
           <button
             onClick={onClose}
-            className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
+            className="p-0.5 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded transition-colors"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -173,7 +173,7 @@ export function InlineAIToolbar({ selectedText, position, documentContext, onApp
 
         {/* Selected text preview */}
         <div className="px-3 py-2 border-b border-slate-100/80 dark:border-slate-700/60">
-          <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 mb-0.5 uppercase tracking-wider">Selected</p>
+          <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 mb-0.5 uppercase tracking-wider">Selected</p>
           <p className="text-[11px] text-slate-600 dark:text-slate-300 line-clamp-2 leading-relaxed italic">
             "{selectedText.slice(0, 120)}{selectedText.length > 120 ? "…" : ""}"
           </p>
@@ -266,7 +266,7 @@ export function InlineAIToolbar({ selectedText, position, documentContext, onApp
             </div>
             <button
               onClick={() => setMode("actions")}
-              className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+              className="mt-1.5 flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
               <ArrowLeft className="w-3 h-3" />
               Back to quick actions
@@ -285,7 +285,7 @@ export function InlineAIToolbar({ selectedText, position, documentContext, onApp
               )}
               <div className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed max-h-48 overflow-y-auto whitespace-pre-wrap bg-slate-50 dark:bg-slate-900 rounded-lg p-3 border border-slate-200 dark:border-slate-700">
                 {streamedText || (
-                  <span className="text-slate-400 dark:text-slate-500 italic">Generating…</span>
+                  <span className="text-slate-500 dark:text-slate-400 italic">Generating…</span>
                 )}
                 {isStreaming && (
                   <span className="inline-block w-0.5 h-3.5 bg-emerald-500 ml-0.5 animate-pulse" />

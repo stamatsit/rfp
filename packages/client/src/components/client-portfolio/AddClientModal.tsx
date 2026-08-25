@@ -86,7 +86,7 @@ export function AddClientModal({ client, onClose, onSaved, defaults }: AddClient
               {client ? "Edit Client" : "Add Client"}
             </h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onClose} aria-label="Close dialog" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -153,7 +153,7 @@ export function AddClientModal({ client, onClose, onSaved, defaults }: AddClient
 
           <div>
             <label className={labelCls}>
-              Email Domains <span className="text-slate-400 font-normal">(optional)</span>
+              Email Domains <span className="text-slate-500 font-normal">(optional)</span>
             </label>
             <ChipInput
               values={emailDomains}
@@ -168,7 +168,7 @@ export function AddClientModal({ client, onClose, onSaved, defaults }: AddClient
           </div>
 
           <div>
-            <label className={labelCls}>Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+            <label className={labelCls}>Notes <span className="text-slate-500 font-normal">(optional)</span></label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}

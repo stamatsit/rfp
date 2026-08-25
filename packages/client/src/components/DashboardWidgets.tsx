@@ -61,13 +61,13 @@ function PipelineWidget({ widget, metrics }: WidgetProps) {
     >
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Services</p>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Services</p>
           <div className="flex items-baseline gap-2 mt-1">
             <span className="text-2xl font-bold text-slate-900 dark:text-white">
               {total > 0 ? total.toLocaleString() : "—"}
             </span>
             {total > 0 && (
-              <span className="text-[12px] text-slate-400 dark:text-slate-500">
+              <span className="text-[12px] text-slate-500 dark:text-slate-400">
                 proposals
               </span>
             )}
@@ -109,13 +109,13 @@ function PipelineWidget({ widget, metrics }: WidgetProps) {
               {segments.map((seg) => (
                 <div key={seg.label} className="flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 whitespace-nowrap">{seg.label} <span className="font-semibold text-slate-600 dark:text-slate-300">{seg.value}</span></span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 whitespace-nowrap">{seg.label} <span className="font-semibold text-slate-600 dark:text-slate-300">{seg.value}</span></span>
                 </div>
               ))}
             </div>
           </>
         ) : (
-          <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No proposals synced yet</p>
+          <p className="text-[12px] text-slate-500 dark:text-slate-400 italic">No proposals synced yet</p>
         )}
       </div>
     </Link>
@@ -160,7 +160,7 @@ function TopServicesWidget({ widget, metrics }: WidgetProps) {
   return (
     <div className={`${sizes.container} rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col`}>
       <div className="flex items-center justify-between mb-3">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Top Services</p>
+        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Top Services</p>
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: widget.gradient }}
@@ -194,7 +194,7 @@ function TopServicesWidget({ widget, metrics }: WidgetProps) {
             </div>
           ))
         ) : (
-          <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No proposal data yet</p>
+          <p className="text-[12px] text-slate-500 dark:text-slate-400 italic">No proposal data yet</p>
         )}
       </div>
     </div>
@@ -230,8 +230,8 @@ function ProposalMomentumWidget({ widget, metrics }: WidgetProps) {
   if (!metrics || totalProposals === 0) {
     return (
       <div className={`${sizes.container} rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center`}>
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Momentum</p>
-        <p className="text-[12px] text-slate-400 dark:text-slate-500 italic">No proposal data yet</p>
+        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-2">Momentum</p>
+        <p className="text-[12px] text-slate-500 dark:text-slate-400 italic">No proposal data yet</p>
       </div>
     )
   }
@@ -242,7 +242,7 @@ function ProposalMomentumWidget({ widget, metrics }: WidgetProps) {
       className={`${sizes.container} group block rounded-2xl ${sizes.padding} h-[168px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 hover:shadow-lg hover:-translate-y-0.5 flex flex-col`}
     >
       <div className="flex items-center justify-between mb-2">
-        <p className="text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">Momentum</p>
+        <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Momentum</p>
         <span className={`text-[11px] font-bold ${statusColor}`}>{status}</span>
       </div>
 
@@ -282,11 +282,11 @@ function ProposalMomentumWidget({ widget, metrics }: WidgetProps) {
         {/* Stats */}
         <div className="flex-1 space-y-1.5">
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400 dark:text-slate-500">Total</span>
+            <span className="text-slate-500 dark:text-slate-400">Total</span>
             <span className="font-medium text-slate-700 dark:text-slate-300">{totalProposals} proposals</span>
           </div>
           <div className="flex justify-between text-[11px]">
-            <span className="text-slate-400 dark:text-slate-500">Won</span>
+            <span className="text-slate-500 dark:text-slate-400">Won</span>
             <span className="font-medium text-emerald-500">{wonProposals} won</span>
           </div>
         </div>

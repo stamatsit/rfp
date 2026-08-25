@@ -211,7 +211,7 @@ export function BulkAdaptPanel({ open, onClose, selectedAnswers, onExportAdapted
                   </p>
                 ))}
                 {selectedAnswers.length > 10 && (
-                  <p className="text-[11px] text-slate-400">+{selectedAnswers.length - 10} more</p>
+                  <p className="text-[11px] text-slate-500">+{selectedAnswers.length - 10} more</p>
                 )}
               </div>
             </div>
@@ -239,7 +239,7 @@ export function BulkAdaptPanel({ open, onClose, selectedAnswers, onExportAdapted
             <p className="text-[13px] text-slate-500 dark:text-slate-400">
               Adapting {selectedAnswers.length} answers...
             </p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               This may take a moment
             </p>
           </div>

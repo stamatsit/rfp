@@ -363,8 +363,7 @@ ${JSON.stringify(pages)}`
 
     try {
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0.4,
+        model: "gpt-5.6-luna",
         response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
       })
@@ -467,8 +466,7 @@ Pages:
 ${JSON.stringify(pages)}`
     try {
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
+        model: "gpt-5.6-luna",
         response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
       })
@@ -547,8 +545,7 @@ Pages:
 ${JSON.stringify(payload)}`
     try {
       const completion = await client.chat.completions.create({
-        model: "gpt-4o-mini",
-        temperature: 0.3,
+        model: "gpt-5.6-luna",
         response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
       })
@@ -602,8 +599,7 @@ ${(page.text || "").slice(0, 4000)}
 
 Return the draft in Markdown: an H1, a short intro, well-structured H2/H3 sections with concise scannable copy, and a clear call-to-action at the end. No preamble, output only the draft.`
   const completion = await client.chat.completions.create({
-    model: "gpt-4o-mini",
-    temperature: 0.5,
+    model: "gpt-5.6-luna",
     messages: [{ role: "user", content: prompt }],
   })
   return (completion.choices[0]?.message?.content ?? "").trim()

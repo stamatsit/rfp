@@ -26,6 +26,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { addCsrfHeader } from "@/lib/csrfToken"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // ---------------------------------------------------------------------------
 // Types
@@ -537,7 +538,7 @@ function HeadingTreeView({ tree }: { tree: HeadingNode[] }) {
                 className={`text-sm flex-1 ${
                   node.text
                     ? "text-slate-800 dark:text-slate-200"
-                    : "italic text-slate-400 dark:text-slate-500"
+                    : "italic text-slate-500 dark:text-slate-400"
                 }`}
               >
                 {node.text || "(empty)"}
@@ -554,7 +555,7 @@ function HeadingTreeView({ tree }: { tree: HeadingNode[] }) {
                 </span>
               )}
               {node.line != null && (
-                <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto tabular-nums">
+                <span className="text-xs text-slate-500 dark:text-slate-400 ml-auto tabular-nums">
                   :{node.line}
                 </span>
               )}
@@ -572,6 +573,7 @@ function HeadingTreeView({ tree }: { tree: HeadingNode[] }) {
 
 export function URLScanner() {
   const navigate = useNavigate()
+  useDocumentTitle("URL Scanner")
   const [searchParams] = useSearchParams()
 
   // View management
@@ -1839,7 +1841,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                 onSubmit={(e) => { e.preventDefault(); scanUrl(urlInput) }}
                 className="bg-white dark:bg-slate-900 border border-black/[0.08] dark:border-white/[0.08] rounded-2xl p-2 flex items-center gap-2 mb-5 shadow-sm shadow-black/[0.03] dark:shadow-none transition-shadow focus-within:shadow-md focus-within:shadow-blue-500/[0.06] focus-within:border-blue-300/50 dark:focus-within:border-blue-500/30"
               >
-                <Globe size={18} className="text-slate-400 dark:text-slate-500 ml-4 flex-shrink-0" />
+                <Globe size={18} className="text-slate-500 dark:text-slate-400 ml-4 flex-shrink-0" />
                 <input
                   type="url"
                   value={urlInput}
@@ -1910,7 +1912,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                       localStorage.removeItem(RECENT_SCANS_KEY)
                       setRecentScans([])
                     }}
-                    className="text-xs text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1"
+                    className="text-xs text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors flex items-center gap-1"
                   >
                     <Trash2 size={12} />
                     Clear
@@ -1930,7 +1932,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                         <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
                           {scan.url.replace(/^https?:\/\//, "")}
                         </div>
-                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 flex items-center gap-1">
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-1">
                           <Clock size={10} />
                           {timeAgo(scan.scannedAt)}
                         </div>
@@ -2015,7 +2017,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                           ? "text-slate-500 dark:text-slate-400"
                           : step.status === "error"
                             ? "text-red-500 dark:text-red-400"
-                            : "text-slate-400 dark:text-slate-500"
+                            : "text-slate-500 dark:text-slate-400"
                     }`}
                   >
                     {step.label}
@@ -2030,7 +2032,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                   if (abortRef.current) abortRef.current.abort()
                   setView("home")
                 }}
-                className="text-sm text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                className="text-sm text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
               >
                 Cancel
               </button>
@@ -2192,7 +2194,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                 <span className="text-[10px] text-emerald-500/80 font-medium">After</span>
                                 <button
                                   onClick={() => navigator.clipboard.writeText(detailFixData.afterCode)}
-                                  className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                  className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                                 >
                                   <Copy size={10} />
                                   Copy
@@ -2227,7 +2229,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                           <code className="text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded font-mono">alt=""</code>
                           <button
                             onClick={() => navigator.clipboard.writeText('alt=""')}
-                            className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                            className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                           >
                             <Copy size={12} />
                             Copy
@@ -2350,9 +2352,9 @@ ${report.siteStructure.navigation.length > 0 ? `
                   : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
-              <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+              <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"} />
               <span className="flex-1">{tab.label}</span>
-              {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+              {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-500 dark:text-slate-400">{tab.count}</span>}
               {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
             </button>
           )
@@ -2365,8 +2367,8 @@ ${report.siteStructure.navigation.length > 0 ? `
             <div className="absolute inset-0 bg-black/30 dark:bg-black/50" onClick={() => setShowMobileNav(false)} />
             <div className="absolute left-0 top-0 bottom-0 w-[240px] bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-700 shadow-xl animate-in slide-in-from-left duration-200">
               <div className="flex items-center justify-between px-4 py-4 border-b border-slate-200/60 dark:border-slate-700/40">
-                <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em]">Results</span>
-                <button onClick={() => setShowMobileNav(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em]">Results</span>
+                <button onClick={() => setShowMobileNav(false)} className="text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                   <X size={18} />
                 </button>
               </div>
@@ -2386,9 +2388,9 @@ ${report.siteStructure.navigation.length > 0 ? `
                         : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
                     }`}
                   >
-                    <tab.icon size={16} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+                    <tab.icon size={16} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"} />
                     <span className="flex-1">{tab.label}</span>
-                    {tab.count > 0 && <span className="text-[11px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+                    {tab.count > 0 && <span className="text-[11px] tabular-nums text-slate-500 dark:text-slate-400">{tab.count}</span>}
                     {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
                   </button>
                 ))}
@@ -2401,7 +2403,7 @@ ${report.siteStructure.navigation.length > 0 ? `
         {/* Sticky sidebar nav for main tabs — desktop only */}
         <div className="hidden lg:flex flex-col w-[200px] flex-shrink-0 border-r border-slate-200/60 dark:border-slate-700/40 min-h-[calc(100vh-56px)]">
           <div className="sticky top-16 px-4 py-8 space-y-1">
-            <div className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-[0.15em] px-3 mb-3">Results</div>
+            <div className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-[0.15em] px-3 mb-3">Results</div>
             {[
               { id: "issues" as ResultTab, label: "Issues", count: report.issues.length, icon: AlertCircle, hasErrors: errorCount > 0 },
               { id: "headings" as ResultTab, label: "Headings", count: report.headingTree.length, icon: Layout, hasErrors: false },
@@ -2417,9 +2419,9 @@ ${report.siteStructure.navigation.length > 0 ? `
                     : "text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
                 }`}
               >
-                <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+                <tab.icon size={14} className={resultTab === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"} />
                 <span className="flex-1">{tab.label}</span>
-                {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-400 dark:text-slate-500">{tab.count}</span>}
+                {tab.count > 0 && <span className="text-[10px] tabular-nums text-slate-500 dark:text-slate-400">{tab.count}</span>}
                 {tab.hasErrors && <span className="w-1.5 h-1.5 rounded-full bg-red-500 flex-shrink-0" />}
               </button>
             ))}
@@ -2433,7 +2435,7 @@ ${report.siteStructure.navigation.length > 0 ? `
             {/* Mobile hamburger */}
             <button
               onClick={() => setShowMobileNav(true)}
-              className="lg:hidden text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              className="lg:hidden text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
             >
               <Menu size={20} />
             </button>
@@ -2442,7 +2444,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                 setView("home")
                 setReport(null)
               }}
-              className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
+              className="text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
             >
               <ArrowLeft size={20} />
             </button>
@@ -2476,21 +2478,21 @@ ${report.siteStructure.navigation.length > 0 ? `
                     onClick={exportPDF}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
-                    <Printer size={14} className="text-slate-400" />
+                    <Printer size={14} className="text-slate-500" />
                     Print Report (PDF)
                   </button>
                   <button
                     onClick={exportJSON}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
-                    <Download size={14} className="text-slate-400" />
+                    <Download size={14} className="text-slate-500" />
                     Download JSON
                   </button>
                   <button
                     onClick={copySummary}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                   >
-                    <Copy size={14} className="text-slate-400" />
+                    <Copy size={14} className="text-slate-500" />
                     Copy Summary
                   </button>
                 </div>
@@ -2741,7 +2743,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                             })}
                             className="flex items-center gap-2 w-full py-2 text-left sticky top-0 z-10 bg-white dark:bg-[hsl(224,20%,8%)]"
                           >
-                            {isCollapsed ? <ChevronRight size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+                            {isCollapsed ? <ChevronRight size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
                             <Icon size={14} className={group.color} />
                             <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{group.label}</span>
                             <span className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full">{groupIssues.length}</span>
@@ -2786,7 +2788,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                           {issue.wcagCriteria ? <>WCAG {issue.wcagCriteria}</> : issue.ruleId}
                                         </div>
                                         {issue.suggestion && (
-                                          <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 truncate">{issue.suggestion}</div>
+                                          <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 truncate">{issue.suggestion}</div>
                                         )}
                                       </div>
                                     </button>
@@ -2798,7 +2800,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                         className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-purple-500/15 ${
                                           isFixExpanded
                                             ? "bg-purple-500/10 text-purple-600 dark:text-purple-400"
-                                            : "text-slate-400 dark:text-slate-500 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-500/5"
+                                            : "text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400 hover:bg-purple-500/5"
                                         }`}
                                       >
                                         <Sparkles size={11} />
@@ -2810,7 +2812,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 ${
                                             isAltExpanded
                                               ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                                              : "text-slate-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/5"
+                                              : "text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-500/5"
                                           }`}
                                         >
                                           <Sparkles size={11} />
@@ -2853,7 +2855,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                                         e.stopPropagation()
                                                         navigator.clipboard.writeText(fixData.afterCode)
                                                       }}
-                                                      className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+                                                      className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
                                                     >
                                                       <Copy size={10} />
                                                       Copy
@@ -2893,7 +2895,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                                     e.stopPropagation()
                                                     navigator.clipboard.writeText('alt=""')
                                                   }}
-                                                  className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1"
+                                                  className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1"
                                                 >
                                                   <Copy size={10} />
                                                 </button>
@@ -3025,7 +3027,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                 </span>
                               )}
                               {!sec.id && !sec.ariaLabel && (
-                                <span className="text-xs text-slate-400 dark:text-slate-500 italic">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 italic">
                                   (no identifier)
                                 </span>
                               )}
@@ -3048,7 +3050,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                                 <span className="text-slate-800 dark:text-slate-200 truncate flex-shrink-0 max-w-[200px]">
                                   {link.text || "(no text)"}
                                 </span>
-                                <span className="text-slate-400 dark:text-slate-500 truncate text-xs">
+                                <span className="text-slate-500 dark:text-slate-400 truncate text-xs">
                                   {link.href}
                                 </span>
                               </div>
@@ -3198,7 +3200,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                         <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
                           {scan.url.replace(/^https?:\/\//, "")}
                         </div>
-                        <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                           {new Date(scan.scannedAt).toLocaleDateString(
                             "en-US",
                             {
@@ -3232,7 +3234,7 @@ ${report.siteStructure.navigation.length > 0 ? `
                             removeRecentScan(scan.url)
                             setRecentScans(loadRecentScans())
                           }}
-                          className="text-slate-400 hover:text-red-500 transition-colors"
+                          className="text-slate-500 hover:text-red-500 transition-colors"
                           title="Remove from history"
                         >
                           <Trash2 size={14} />

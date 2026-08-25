@@ -208,7 +208,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-slate-200/60 dark:border-slate-700">
-          <Search size={16} className="text-slate-400 flex-shrink-0" />
+          <Search size={16} className="text-slate-500 flex-shrink-0" />
           <input
             ref={inputRef}
             value={query}
@@ -218,7 +218,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
           />
           {query && (
             <button onClick={() => setQuery("")} className="p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-150 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15">
-              <X size={14} className="text-slate-400" />
+              <X size={14} className="text-slate-500" />
             </button>
           )}
           <kbd className="hidden sm:flex items-center gap-0.5 px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-700 text-[11px] text-slate-500 dark:text-slate-400 font-mono">
@@ -229,14 +229,14 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         {/* Results list */}
         <div ref={listRef} className="max-h-[60vh] overflow-y-auto py-2">
           {allItems.length === 0 ? (
-            <div className="px-4 py-8 text-center text-sm text-slate-400 dark:text-slate-500">
+            <div className="px-4 py-8 text-center text-sm text-slate-500 dark:text-slate-400">
               No results for "{query}"
             </div>
           ) : (
             <>
               {filteredRoutes.length > 0 && (
                 <div>
-                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Pages
                   </div>
                   {filteredRoutes.map((item, i) => {
@@ -258,7 +258,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         <div className="min-w-0">
                           <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 truncate">{item.label}</p>
                           {item.description && (
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{item.description}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{item.description}</p>
                           )}
                         </div>
                       </button>
@@ -269,7 +269,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
               {filteredClients.length > 0 && (
                 <div className={filteredRoutes.length > 0 ? "mt-1 pt-1 border-t border-slate-100 dark:border-slate-700/60" : ""}>
-                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Clients
                   </div>
                   {filteredClients.map((item, i) => {
@@ -291,7 +291,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         <div className="min-w-0">
                           <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 truncate">{item.label}</p>
                           {item.description && (
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{item.description}</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{item.description}</p>
                           )}
                         </div>
                       </button>
@@ -302,7 +302,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
               {filteredConvs.length > 0 && (
                 <div className={(filteredRoutes.length > 0 || filteredClients.length > 0) ? "mt-1 pt-1 border-t border-slate-100 dark:border-slate-700/60" : ""}>
-                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                  <div className="px-4 py-1.5 text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                     Recent Conversations
                   </div>
                   {filteredConvs.map((item, i) => {
@@ -323,7 +323,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 truncate">{item.label}</p>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
                             <Clock size={10} />
                             {item.description}
                           </p>
@@ -338,7 +338,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
         </div>
 
         {/* Footer hint */}
-        <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500">
+        <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-700/60 flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400">
           <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono">↑↓</kbd> navigate</span>
           <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono">↵</kbd> open</span>
           <span className="flex items-center gap-1"><kbd className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-700 font-mono">esc</kbd> close</span>

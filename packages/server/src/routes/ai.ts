@@ -318,7 +318,7 @@ router.get("/status", async (_req: Request, res: Response) => {
 
   res.json({
     configured,
-    model: configured ? "gpt-4o" : null,
+    model: configured ? "gpt-5.6-luna" : null,
     message: configured
       ? "AI service is ready"
       : "AI service not configured. Set OPENAI_API_KEY in environment.",
@@ -341,7 +341,7 @@ router.post("/alt-text", async (req: Request, res: Response) => {
     const { default: OpenAI } = await import("openai")
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       messages: [
         {
           role: "user",
@@ -351,7 +351,7 @@ router.post("/alt-text", async (req: Request, res: Response) => {
           ],
         },
       ],
-      max_tokens: 100,
+      max_completion_tokens: 100,
     })
     const altText = completion.choices[0]?.message?.content?.trim() || ""
     return res.json({ altText })

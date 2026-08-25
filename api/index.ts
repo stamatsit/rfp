@@ -7,10 +7,35 @@ import { pgTable, text, timestamp, uuid, integer, boolean, primaryKey } from "dr
 import { eq, ilike, or, desc, asc, sql, and, isNull } from "drizzle-orm"
 import OpenAI from "openai"
 import bcrypt from "bcryptjs"
-import { clientSuccessData } from "../packages/server/src/data/clientSuccessData.js"
-import mammoth from "mammoth"
-import xlsx from "xlsx"
 import { createRequire } from "module"
+
+// Heavy modules loaded lazily to reduce cold-start time
+let _clientSuccessData: any = null
+async function getClientSuccessData() {
+  if (!_clientSuccessData) {
+    const mod = await import("../packages/server/src/data/clientSuccessData.js")
+    _clientSuccessData = mod.clientSuccessData
+  }
+  return _clientSuccessData
+}
+
+let _mammoth: any = null
+async function getMammoth(): Promise<typeof import("mammoth")> {
+  if (!_mammoth) {
+    const mod: any = await import("mammoth")
+    _mammoth = mod.default ?? mod
+  }
+  return _mammoth
+}
+
+let _xlsx: any = null
+async function getXlsx(): Promise<typeof import("xlsx")> {
+  if (!_xlsx) {
+    const mod: any = await import("xlsx")
+    _xlsx = mod.default ?? mod
+  }
+  return _xlsx
+}
 
 // ─── Webinars + Client Portfolio helpers ────────────────────────
 // Inline duplicates of packages/server/src/lib/clientLookup + webinarCategorize + webinarXlsxParser
@@ -50,6 +75,43 @@ async function categorizeEmail(qc: any, email: string): Promise<{ category: Webi
   return { category: "non-client", clientId: null }
 }
 
+// Bulk-loaded lookup tables for in-memory categorization (eliminates N+1 queries)
+interface CategorizationLookups {
+  dncDomains: Set<string>
+  clientDomainMap: Map<string, string> // domain -> client id
+}
+
+async function loadCategorizationLookups(qc: any): Promise<CategorizationLookups> {
+  const [dncRows, clientRows] = await Promise.all([
+    qc`SELECT domain FROM do_not_contact`,
+    qc`SELECT id, email_domains FROM clients WHERE status = 'active' AND email_domains IS NOT NULL`,
+  ])
+  const dncDomains = new Set<string>(dncRows.map((r: any) => r.domain))
+  const clientDomainMap = new Map<string, string>()
+  for (const row of clientRows) {
+    const domains: string[] = Array.isArray(row.email_domains) ? row.email_domains : []
+    for (const d of domains) {
+      if (typeof d === "string" && d.length > 0) {
+        clientDomainMap.set(d.toLowerCase(), row.id)
+      }
+    }
+  }
+  return { dncDomains, clientDomainMap }
+}
+
+function categorizeEmailInMemory(
+  lookups: CategorizationLookups,
+  email: string
+): { category: WebinarCategory; clientId: string | null } {
+  const domain = extractDomain(email)
+  if (!domain) return { category: "non-client", clientId: null }
+  if (lookups.dncDomains.has(domain)) return { category: "do-not-contact", clientId: null }
+  const clientId = lookups.clientDomainMap.get(domain)
+  if (clientId) return { category: "client", clientId }
+  if (domain === "stamats.com") return { category: "employee", clientId: null }
+  return { category: "non-client", clientId: null }
+}
+
 interface ParsedRegistrant {
   firstName: string | null
   lastName: string | null
@@ -70,7 +132,8 @@ interface ParsedWebinar {
   registrants: ParsedRegistrant[]
 }
 
-function parseWebinarXlsx(buffer: Buffer): ParsedWebinar {
+async function parseWebinarXlsx(buffer: Buffer): Promise<ParsedWebinar> {
+  const xlsx = await getXlsx()
   const wb = xlsx.read(buffer, { type: "buffer", cellDates: true })
   const sheetName = wb.SheetNames[0]
   if (!sheetName) throw new Error("XLSX has no sheets")
@@ -452,6 +515,7 @@ async function extractDocumentText(buffer: Buffer, mimetype: string, filename: s
 
   // DOCX
   if (ext === "docx" || mimetype === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+    const mammoth = await getMammoth()
     const images: ExtractedImage[] = []
     const seenHashes = new Set<string>()
     let imgIndex = 0
@@ -485,6 +549,7 @@ async function extractDocumentText(buffer: Buffer, mimetype: string, filename: s
 
   // DOC
   if (ext === "doc" || mimetype === "application/msword") {
+    const mammoth = await getMammoth()
     const images: ExtractedImage[] = []
     const seenHashes = new Set<string>()
     let imgIndex = 0
@@ -1174,7 +1239,11 @@ const REPLICATE_ENHANCE_MODELS: Record<
 }
 
 // Stateless session using signed tokens (works across serverless instances)
-const SESSION_SECRET = process.env.SESSION_SECRET || process.env.APP_PASSWORD || "fallback-secret"
+const SESSION_SECRET = process.env.SESSION_SECRET || process.env.APP_PASSWORD || ""
+if (!SESSION_SECRET && process.env.NODE_ENV === "production") {
+  // Never fall back to a literal in a public repo — that would let anyone forge an admin session.
+  throw new Error("FATAL: SESSION_SECRET must be set in production")
+}
 
 interface SessionData {
   authenticated: boolean
@@ -1546,6 +1615,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.json({ success: true })
       }
 
+      // Forgot password — always 200 (no account enumeration). Runs here, before
+      // the CSRF gate, like login/register: the requester is not authenticated.
+      if (path === "/auth/forgot-password" && method === "POST") {
+        const generic = { message: "If an account exists for that email, a reset link is on its way." }
+        try {
+          const email = String(req.body?.email || "").trim().toLowerCase()
+          if (!email) return res.status(400).json({ error: "Email is required" })
+          if (db) {
+            const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
+            if (user) {
+              const { signResetToken, sendResetEmail } = await import("../packages/server/src/lib/passwordReset.js")
+              const token = signResetToken(user.id, user.passwordHash)
+              const base = process.env.APP_URL || "https://app.stamats.com"
+              const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}`
+              await sendResetEmail(user.email, user.name, resetUrl)
+            }
+          }
+          return res.json(generic)
+        } catch (err: any) {
+          console.error("Forgot-password failed:", err?.message)
+          return res.json(generic) // never leak existence via error
+        }
+      }
+
+      // Reset password — verifies the signed token against the CURRENT hash so a
+      // used/stale link is rejected, then sets the new password.
+      if (path === "/auth/reset-password" && method === "POST") {
+        const { token, password } = req.body || {}
+        if (!token || typeof token !== "string") return res.status(400).json({ error: "Reset token is required" })
+        if (!password || typeof password !== "string" || password.length < 8) {
+          return res.status(400).json({ error: "New password must be at least 8 characters" })
+        }
+        if (!db) return res.status(503).json({ error: "Database unavailable" })
+        try {
+          const { parseResetToken, passwordFingerprint } = await import("../packages/server/src/lib/passwordReset.js")
+          const claims = parseResetToken(token)
+          if (!claims) return res.status(400).json({ error: "This reset link is invalid or has expired. Request a new one." })
+          const [user] = await db.select().from(users).where(eq(users.id, claims.userId)).limit(1)
+          if (!user || passwordFingerprint(user.passwordHash) !== claims.pwFingerprint) {
+            return res.status(400).json({ error: "This reset link is invalid or has already been used. Request a new one." })
+          }
+          const newHash = await bcrypt.hash(password, 12)
+          await db.update(users).set({ passwordHash: newHash, mustChangePassword: false, updatedAt: new Date() }).where(eq(users.id, user.id))
+          return res.json({ success: true })
+        } catch (err: any) {
+          console.error("Reset-password failed:", err?.message)
+          return res.status(500).json({ error: "Failed to reset password" })
+        }
+      }
+
       if (path === "/auth/status") {
         if (!isAuthenticated || !session) {
           return res.json({ authenticated: false, user: null, mustChangePassword: false, loginTime: null })
@@ -1735,11 +1854,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Allow public read access to client-success data (testimonials, awards, entries, results, clients)
-    const isPublicClientSuccessRead = method === "GET" && path.startsWith("/client-success/")
-
-    // All other routes require authentication
-    if (!isAuthenticated && !isPublicClientSuccessRead) {
+    // Every route requires authentication. Client-success reads were previously
+    // exempt here, which served testimonials (including unapproved drafts) and the
+    // full client list to the public internet — the Express server never allowed
+    // this, so it was invisible in local dev.
+    if (!isAuthenticated) {
       return res.status(401).json({ error: "Unauthorized" })
     }
 
@@ -1780,10 +1899,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // GET/DELETE /topics/:id
+    const topicIdMatch = path.match(/^\/topics\/([^/]+)$/)
+    if (topicIdMatch) {
+      const topicId = topicIdMatch[1]
+      if (method === "GET") {
+        const [topic] = await db.select().from(topics).where(eq(topics.id, topicId)).limit(1)
+        if (!topic) return res.status(404).json({ error: "Topic not found" })
+        return res.json(topic)
+      }
+      if (method === "DELETE") {
+        const [topic] = await db.select().from(topics).where(eq(topics.id, topicId)).limit(1)
+        if (!topic) return res.status(404).json({ error: "Topic not found" })
+        await db.delete(topics).where(eq(topics.id, topicId))
+        return res.json({ success: true, message: "Topic deleted" })
+      }
+    }
+
     // Answers routes
     if (path === "/answers" || path === "/answers/") {
       if (method === "GET") {
-        const allAnswers = await db.select().from(answerItems).orderBy(desc(answerItems.createdAt))
+        const reqLimit = Math.min(Math.max(1, Number(req.query?.limit) || 200), 500)
+        const reqOffset = Math.max(0, Number(req.query?.offset) || 0)
+        const allAnswers = await db.select().from(answerItems).orderBy(desc(answerItems.createdAt)).limit(reqLimit).offset(reqOffset)
         return res.json(allAnswers)
       }
     }
@@ -1930,6 +2068,71 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (!existing) return res.status(404).json({ error: "Answer not found" })
       await db.delete(answerItems).where(eq(answerItems.id, answerId))
       return res.json({ success: true, message: "Answer deleted successfully" })
+    }
+
+    // ─── Import Wizard routes ──────────
+    if (path.startsWith("/import")) {
+      // POST /import/preview — upload .xlsx and preview what will be imported
+      if (path === "/import/preview" && method === "POST") {
+        try {
+          const { buffer, filename } = await readMultipartXlsx(req)
+          const importService = await import("../packages/server/src/services/importService.js")
+          const preview = await importService.previewImportFromBuffer(buffer)
+          return res.json({ ...preview, filename })
+        } catch (err: any) {
+          console.error("Error previewing import:", err?.message || err)
+          const message = err instanceof Error ? err.message : "Failed to preview import"
+          return res.status(400).json({ error: message })
+        }
+      }
+
+      // POST /import/execute — upload .xlsx and execute the import
+      if (path === "/import/execute" && method === "POST") {
+        try {
+          const { buffer, filename } = await readMultipartXlsx(req)
+          const importService = await import("../packages/server/src/services/importService.js")
+          const result = await importService.executeImportFromBuffer(buffer, filename)
+          return res.json({ ...result, filename })
+        } catch (err: any) {
+          console.error("Error executing import:", err?.message || err)
+          const message = err instanceof Error ? err.message : "Failed to execute import"
+          return res.status(500).json({ error: message })
+        }
+      }
+
+      // POST /import/preview-sample — preview using a local file path (dev/test)
+      if (path === "/import/preview-sample" && method === "POST") {
+        try {
+          const { filePath } = req.body || {}
+          if (!filePath || typeof filePath !== "string") {
+            return res.status(400).json({ error: "filePath is required" })
+          }
+          const importService = await import("../packages/server/src/services/importService.js")
+          const preview = await importService.previewImport(filePath)
+          const pathMod = await import("path")
+          return res.json({ ...preview, filename: pathMod.default.basename(filePath) })
+        } catch (err: any) {
+          console.error("Error previewing sample import:", err?.message || err)
+          return res.status(400).json({ error: "Failed to preview import" })
+        }
+      }
+
+      // POST /import/execute-sample — execute using a local file path (dev/test)
+      if (path === "/import/execute-sample" && method === "POST") {
+        try {
+          const { filePath } = req.body || {}
+          if (!filePath || typeof filePath !== "string") {
+            return res.status(400).json({ error: "filePath is required" })
+          }
+          const importService = await import("../packages/server/src/services/importService.js")
+          const result = await importService.executeImport(filePath)
+          const pathMod = await import("path")
+          return res.json({ ...result, filename: pathMod.default.basename(filePath) })
+        } catch (err: any) {
+          console.error("Error executing sample import:", err?.message || err)
+          return res.status(500).json({ error: "Failed to execute import" })
+        }
+      }
     }
 
     // Search routes
@@ -2257,7 +2460,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (path === "/ai/status" && method === "GET") {
         return res.json({
           configured: !!openai,
-          model: openai ? "gpt-4o-mini" : null,
+          model: openai ? "gpt-5.6-luna" : null,
           message: openai ? "AI service is configured" : "OpenAI API key not configured"
         })
       }
@@ -2269,7 +2472,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (!image || typeof image !== "string") return res.status(400).json({ error: "Base64 image required" })
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-5.6-luna",
             messages: [
               {
                 role: "user",
@@ -2279,7 +2482,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 ],
               },
             ],
-            max_tokens: 100,
+            max_completion_tokens: 100,
           })
           const altText = completion.choices[0]?.message?.content?.trim() || ""
           return res.json({ altText })
@@ -2309,6 +2512,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({ version: model.version, input: model.input(image) }),
+              signal: AbortSignal.timeout(15000),
             })
           let r = await createPrediction()
           // Trial accounts are throttled (~6/min) — retry once on rate limit.
@@ -2324,6 +2528,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           }
           return res.json({ id: data.id, status: data.status })
         } catch (err: any) {
+          if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+            return res.status(504).json({ error: "Replicate API timed out — try again" })
+          }
           console.error("Enhance create failed:", err?.message)
           return res.status(500).json({ error: "Enhance request failed" })
         }
@@ -2339,6 +2546,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const r = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
             headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+            signal: AbortSignal.timeout(15000),
           })
           const data: any = await r.json()
           if (!r.ok) return res.status(502).json({ error: data?.detail || "Replicate status failed" })
@@ -2348,6 +2556,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           // succeeded | starting | processing — image fetched via /ai/enhance-result
           return res.json({ status: data.status })
         } catch (err: any) {
+          if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+            return res.status(504).json({ error: "Replicate status check timed out — try again" })
+          }
           console.error("Enhance status failed:", err?.message)
           return res.status(500).json({ error: "Enhance status failed" })
         }
@@ -2363,19 +2574,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const r = await fetch(`https://api.replicate.com/v1/predictions/${id}`, {
             headers: { Authorization: `Bearer ${process.env.REPLICATE_API_TOKEN}` },
+            signal: AbortSignal.timeout(15000),
           })
           const data: any = await r.json()
           if (!r.ok) return res.status(502).json({ error: data?.detail || "Replicate status failed" })
           if (data.status !== "succeeded") return res.status(409).json({ error: "Result not ready" })
           const out = Array.isArray(data.output) ? data.output[data.output.length - 1] : data.output
           if (!out || typeof out !== "string") return res.status(502).json({ error: "Model produced no image" })
-          const imgRes = await fetch(out)
+          const imgRes = await fetch(out, { signal: AbortSignal.timeout(30000) })
           if (!imgRes.ok) return res.status(502).json({ error: "Could not download result" })
           const buf = Buffer.from(await imgRes.arrayBuffer())
           res.setHeader("Content-Type", imgRes.headers.get("content-type") || "image/png")
           res.setHeader("Cache-Control", "no-store")
           return res.send(buf)
         } catch (err: any) {
+          if (err?.name === "TimeoutError" || err?.name === "AbortError") {
+            return res.status(504).json({ error: "Replicate result download timed out — try again" })
+          }
           console.error("Enhance result failed:", err?.message)
           return res.status(500).json({ error: "Enhance result failed" })
         }
@@ -2399,7 +2614,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         let searchKeywords: string[] = []
         try {
           const keywordExtraction = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-5.6-luna",
             messages: [
               {
                 role: "system",
@@ -2412,7 +2627,7 @@ Example: "how do we handle customer complaints" -> ["customer complaints", "comp
               },
               { role: "user", content: query }
             ],
-            max_tokens: 100
+            max_completion_tokens: 100
           })
           const extracted = keywordExtraction.choices[0]?.message?.content || "[]"
           searchKeywords = JSON.parse(extracted.replace(/```json\n?|\n?```/g, "").trim())
@@ -2522,13 +2737,12 @@ APPROVED CONTENT SOURCES:
 ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${photoContext}`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: query }
           ],
-          temperature: 0.3,
-          max_tokens: 2000
+          max_completion_tokens: 2000
         })
 
         const rawAiResponse = completion.choices[0]?.message?.content || ""
@@ -2722,10 +2936,9 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
         // Stream from OpenAI
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages,
-            temperature: 0.3,
-            max_tokens: getMaxTokens(responseLength, 2000),
+            max_completion_tokens: getMaxTokens(responseLength, 2000),
             stream: true
           })
 
@@ -2777,12 +2990,12 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
         if (industry) instruction += `. The industry is ${industry}.`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: "You are a professional content editor. Apply the requested changes while maintaining the core message and accuracy." },
             { role: "user", content: `${instruction}\n\nOriginal content:\n${content}` }
           ],
-          max_tokens: 2000
+          max_completion_tokens: 2000
         })
 
         return res.json({
@@ -2811,6 +3024,7 @@ ${relevantAnswers.map(a => `Q: ${a.question}\nA: ${a.answer}`).join("\n\n")}${ph
         }
 
         // Build context from client success data
+        const clientSuccessData = await getClientSuccessData()
         const csSections: string[] = []
 
         const caseStudyLines = clientSuccessData.caseStudies.map((cs: any) => {
@@ -2876,13 +3090,12 @@ VISUALIZATIONS:${CHART_PROMPT}
 ${csContext}`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: csSystemPrompt },
             { role: "user", content: csQuery.trim() }
           ],
-          temperature: 0.4,
-          max_tokens: 3000
+          max_completion_tokens: 3000
         })
 
         const rawResponse = completion.choices[0]?.message?.content || ""
@@ -2931,6 +3144,7 @@ ${csContext}`
         }
 
         // Build context from client success data (same as non-streaming)
+        const clientSuccessData = await getClientSuccessData()
         const csStreamSections: string[] = []
 
         const csStreamCaseStudyLines = clientSuccessData.caseStudies.map((cs: any) => {
@@ -3027,10 +3241,9 @@ ${csStreamContext}`
 
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: csStreamMessages,
-            temperature: 0.4,
-            max_tokens: getMaxTokens(csResponseLength, 3000),
+            max_completion_tokens: getMaxTokens(csResponseLength, 3000),
             stream: true
           })
 
@@ -3109,13 +3322,12 @@ Return format:
 ${contextLines.join("\n")}`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: finderPrompt },
             { role: "user", content: description.trim() },
           ],
-          temperature: 0.3,
-          max_tokens: 2000,
+          max_completion_tokens: 2000,
           response_format: { type: "json_object" },
         })
 
@@ -3250,14 +3462,13 @@ ${contextStr}`
           : []
 
         const stream = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             ...history,
             { role: "user", content: query.trim() },
           ],
-          temperature: 0.4,
-          max_tokens: 3000,
+          max_completion_tokens: 3000,
           stream: true,
         })
 
@@ -3294,6 +3505,198 @@ ${contextStr}`
         console.error("Client chat stream error:", err?.message)
         res.write(`event: error\ndata: ${JSON.stringify({ error: "Streaming failed" })}\n\n`)
         return res.end()
+      }
+    }
+
+    // ─── AI Client Gap Analysis ──────────
+    if (path === "/ai/client-gap-analysis" && method === "POST") {
+      if (!openai) return res.status(503).json({ error: "AI service not configured" })
+      const { clientContext } = req.body || {}
+      if (!clientContext || !clientContext.clientName) {
+        return res.status(400).json({ error: "clientContext with clientName is required" })
+      }
+      try {
+        const ctx = clientContext as any
+
+        // Build context string (same pattern as client-chat/stream)
+        const sections: string[] = []
+        sections.push(`=== CLIENT: ${ctx.clientName.toUpperCase()} ===`)
+        if (ctx.sector) sections.push(`Sector: ${ctx.sector}`)
+
+        if (ctx.caseStudies?.length > 0) {
+          const lines = (ctx.caseStudies as any[]).map((cs: any, i: number) => {
+            const metrics = (cs.metrics || []).map((m: any) => `${m.value} ${m.label}`).join("; ")
+            const parts = [`[Case Study ${i + 1}] Focus: ${cs.focus}`]
+            if (cs.challenge) parts.push(`  Challenge: ${cs.challenge}`)
+            if (cs.solution) parts.push(`  Solution: ${cs.solution}`)
+            if (metrics) parts.push(`  Results: ${metrics}`)
+            if (cs.testimonialQuote) parts.push(`  Quote: "${cs.testimonialQuote}"${cs.testimonialAttribution ? ` — ${cs.testimonialAttribution}` : ""}`)
+            return parts.join("\n")
+          })
+          sections.push(`=== CASE STUDIES (${lines.length}) ===\n${lines.join("\n\n")}`)
+        }
+        if (ctx.results?.length > 0) {
+          const lines = (ctx.results as any[]).map((r: any) => `${r.direction === "increase" ? "↑" : "↓"} ${r.result} ${r.metric}`)
+          sections.push(`=== KEY RESULTS (${lines.length}) ===\n${lines.join("\n")}`)
+        }
+        if (ctx.testimonials?.length > 0) {
+          const lines = (ctx.testimonials as any[]).map((t: any) => {
+            const who = [t.name, t.title, t.organization].filter(Boolean).join(", ")
+            return `"${t.quote}"${who ? ` — ${who}` : ""}`
+          })
+          sections.push(`=== TESTIMONIALS (${lines.length}) ===\n${lines.join("\n\n")}`)
+        }
+        if (ctx.awards?.length > 0) {
+          const lines = (ctx.awards as any[]).map((a: any) => {
+            const parts = [a.name, a.year]
+            if (a.awardLevel) parts.push(a.awardLevel)
+            if (a.issuingAgency) parts.push(`from ${a.issuingAgency}`)
+            return parts.join(" · ")
+          })
+          sections.push(`=== AWARDS (${lines.length}) ===\n${lines.join("\n")}`)
+        }
+        if (ctx.proposals?.length > 0) {
+          const won = (ctx.proposals as any[]).filter((p: any) => p.won === "Yes").length
+          const lost = (ctx.proposals as any[]).filter((p: any) => p.won === "No").length
+          const pending = (ctx.proposals as any[]).filter((p: any) => !p.won || p.won === "Pending").length
+          const lines = (ctx.proposals as any[]).map((p: any) => {
+            const label = p.projectType || p.category || "Proposal"
+            const date = p.date ? new Date(p.date).getFullYear() : "?"
+            const svcs = p.servicesOffered?.length ? ` [${(p.servicesOffered as string[]).slice(0, 3).join(", ")}]` : ""
+            return `${label} (${date}) — ${p.won ?? "Pending"}${svcs}`
+          })
+          sections.push(`=== PROPOSALS (${lines.length} total — ${won} won, ${lost} lost, ${pending} pending) ===\n${lines.join("\n")}`)
+        }
+        if (ctx.qaAnswers?.length > 0) {
+          const lines = (ctx.qaAnswers as any[]).map((q: any) => `Q: ${q.question}\nA: ${q.answer}${q.topic ? ` [${q.topic}]` : ""}`)
+          sections.push(`=== LINKED Q&A ANSWERS (${lines.length}) ===\n${lines.join("\n\n")}`)
+        }
+        if (ctx.documents?.length > 0) {
+          const lines = (ctx.documents as any[]).map((d: any) => {
+            const kp = d.keyPoints?.length ? `\n  Key points: ${d.keyPoints.slice(0, 5).join("; ")}` : ""
+            return `[${d.docType}] ${d.title}${d.summary ? `\n  ${d.summary}` : ""}${kp}`
+          })
+          sections.push(`=== CLIENT DOCUMENTS (${lines.length}) ===\n${lines.join("\n\n")}`)
+        }
+        if (ctx.brandKit) {
+          const parts: string[] = []
+          if (ctx.brandKit.websiteUrl) parts.push(`Website: ${ctx.brandKit.websiteUrl}`)
+          if (ctx.brandKit.primaryColor) parts.push(`Primary color: ${ctx.brandKit.primaryColor}`)
+          if (ctx.brandKit.primaryFont) parts.push(`Primary font: ${ctx.brandKit.primaryFont}`)
+          if (ctx.brandKit.tone) parts.push(`Brand tone: ${ctx.brandKit.tone}`)
+          if (ctx.brandKit.styleNotes) parts.push(`Style notes: ${ctx.brandKit.styleNotes}`)
+          if (parts.length) sections.push(`=== BRAND KIT ===\n${parts.join("\n")}`)
+        }
+
+        const contextStr = sections.join("\n\n")
+        const gapSystemPrompt = `You are a client asset analyst for Stamats, a marketing agency. You have been given all the assets Stamats has for the client "${ctx.clientName}".
+
+Your job is to perform a gap analysis — identify what's missing, what's thin, and what action items the team should prioritize. Be specific and actionable.
+
+FORMAT YOUR RESPONSE AS:
+
+## Asset Gaps
+List specific asset types that are missing or thin (e.g., "No testimonials on file", "Only 1 case study — need more to show breadth").
+
+## Strength Areas
+Briefly note what's strong (e.g., "Strong win rate at 75%", "3 detailed case studies with metrics").
+
+## Action Items
+Numbered list of specific, concrete next steps. Reference real data when possible (e.g., "Ask the VP of Enrollment who praised the 35% increase for a formal testimonial").
+
+RULES:
+- Only reference real data from the provided record — never invent
+- Be concise and practical
+- Prioritize the highest-impact gaps first
+- If the client has very little data, focus on the most important things to gather first
+
+--- CLIENT DATA ---
+${contextStr}`
+
+        const gapCompletion = await openai.chat.completions.create({
+          model: "gpt-5.6-luna",
+          messages: [
+            { role: "system", content: gapSystemPrompt },
+            { role: "user", content: `Analyze the asset portfolio for ${ctx.clientName} and identify gaps, strengths, and action items.` },
+          ],
+          max_completion_tokens: 2000,
+        })
+
+        const markdown = gapCompletion.choices[0]?.message?.content ?? "No analysis generated."
+        return res.json({ markdown })
+      } catch (err: any) {
+        console.error("Client gap analysis failed:", err?.message)
+        return res.status(500).json({ error: "Failed to analyze client gaps" })
+      }
+    }
+
+    // ─── AI Adapt Bulk ──────────
+    if (path === "/ai/adapt-bulk" && method === "POST") {
+      if (!openai) return res.status(503).json({ error: "AI service not configured" })
+      const { items, adaptationType, customInstruction, targetWordCount, clientName, industry } = req.body || {}
+
+      if (!Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ error: "items array is required" })
+      }
+      if (items.length > 20) {
+        return res.status(400).json({ error: "Maximum 20 items per bulk request" })
+      }
+
+      const validTypes = ["shorten", "expand", "bullets", "formal", "casual", "custom"]
+      if (!adaptationType || !validTypes.includes(adaptationType)) {
+        return res.status(400).json({ error: `Invalid adaptation type. Must be one of: ${validTypes.join(", ")}` })
+      }
+
+      try {
+        const results = await Promise.allSettled(
+          items.map(async (item: { id: string; content: string }) => {
+            let instruction = ""
+            switch (adaptationType) {
+              case "shorten": instruction = `Shorten this content${targetWordCount ? ` to approximately ${targetWordCount} words` : ""}`; break
+              case "expand": instruction = `Expand this content with more detail${targetWordCount ? ` to approximately ${targetWordCount} words` : ""}`; break
+              case "bullets": instruction = "Convert this content into bullet points"; break
+              case "formal": instruction = "Rewrite this content in a more formal, professional tone"; break
+              case "casual": instruction = "Rewrite this content in a more casual, conversational tone"; break
+              case "custom": instruction = customInstruction || "Improve this content"; break
+              default: instruction = "Improve this content"
+            }
+            if (clientName) instruction += `. The client is ${clientName}.`
+            if (industry) instruction += `. The industry is ${industry}.`
+
+            const completion = await openai!.chat.completions.create({
+              model: "gpt-5.6-luna",
+              messages: [
+                { role: "system", content: "You are a professional content editor. Apply the requested changes while maintaining the core message and accuracy." },
+                { role: "user", content: `${instruction}\n\nOriginal content:\n${item.content}` },
+              ],
+              max_completion_tokens: 2000,
+            })
+            return {
+              id: item.id,
+              adaptedContent: completion.choices[0]?.message?.content || item.content,
+              originalContent: item.content,
+              instruction,
+              refused: false,
+            }
+          })
+        )
+
+        const output = results.map((r, i) => {
+          if (r.status === "fulfilled") return r.value
+          return {
+            id: items[i].id,
+            adaptedContent: "",
+            originalContent: items[i].content,
+            instruction: adaptationType,
+            refused: true,
+            refusalReason: (r.reason as Error)?.message || "Adaptation failed",
+          }
+        })
+
+        return res.json({ results: output })
+      } catch (err: any) {
+        console.error("Bulk adapt failed:", err?.message)
+        return res.status(500).json({ error: "Failed to bulk adapt content" })
       }
     }
 
@@ -3443,7 +3846,9 @@ ${contextStr}`
     if (path === "/client-success/entries" && method === "GET") {
       if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
       try {
-        const rows = await queryClient`SELECT * FROM client_success_entries ORDER BY created_at`
+        const entryLimit = Math.min(Math.max(1, Number(req.query?.limit) || 200), 500)
+        const entryOffset = Math.max(0, Number(req.query?.offset) || 0)
+        const rows = await queryClient`SELECT * FROM client_success_entries ORDER BY created_at LIMIT ${entryLimit} OFFSET ${entryOffset}`
         return res.json(rows)
       } catch (err: any) {
         return res.status(500).json({ error: "Failed to get entries" })
@@ -3792,7 +4197,7 @@ ${contextStr}`
         const exists = await queryClient`SELECT id FROM clients WHERE id = ${clientId} LIMIT 1`
         if (exists.length === 0) return res.status(400).json({ error: "Linked client not found" })
       }
-      const createdBy = (req as any).session?.userName || "unknown"
+      const createdBy = session?.userName || "unknown"
       try {
         const [row] = await queryClient`
           INSERT INTO do_not_contact (email, domain, institution, comment, client_id, created_by)
@@ -3819,7 +4224,7 @@ ${contextStr}`
         const existing = await queryClient`SELECT * FROM do_not_contact WHERE id = ${id} LIMIT 1`
         if (existing.length === 0) return res.status(404).json({ error: "DNC entry not found" })
         const snap = existing[0]
-        const deletedBy = (req as any).session?.userName || "unknown"
+        const deletedBy = session?.userName || "unknown"
         const details = {
           email: snap.email, domain: snap.domain, institution: snap.institution,
           comment: snap.comment, clientId: snap.client_id,
@@ -3934,11 +4339,11 @@ ${contextStr}`
         const { buffer, filename } = await readMultipartXlsx(req)
         let parsed: ParsedWebinar
         try {
-          parsed = parseWebinarXlsx(buffer)
+          parsed = await parseWebinarXlsx(buffer)
         } catch (e: any) {
           return res.status(400).json({ error: `Could not parse file: ${e?.message ?? "unknown"}` })
         }
-        const uploadedBy = (req as any).session?.userName || "unknown"
+        const uploadedBy = session?.userName || "unknown"
         // Resolve or create webinar
         let webinarId: string
         if (parsed.webinarKey) {
@@ -3961,15 +4366,20 @@ ${contextStr}`
           VALUES (${webinarId}, ${filename}, ${parsed.uploadKind}, ${parsed.rawRows}, ${uploadedBy})
           RETURNING id`
 
+        // Bulk-load categorization lookups + existing registrants (eliminates N+1)
+        const lookups = await loadCategorizationLookups(queryClient)
+        const existingRows = await queryClient`
+          SELECT * FROM webinar_registrants WHERE webinar_id = ${webinarId}`
+        const existingByEmail = new Map<string, any>()
+        for (const row of existingRows) {
+          existingByEmail.set((row.email as string).toLowerCase(), row)
+        }
+
         let inserted = 0, updated = 0
         for (const r of parsed.registrants) {
-          const cat = await categorizeEmail(queryClient, r.email)
-          const existing = await queryClient`
-            SELECT * FROM webinar_registrants
-            WHERE webinar_id = ${webinarId} AND lower(email) = ${r.email.toLowerCase()}
-            LIMIT 1`
-          if (existing.length > 0) {
-            const exist = existing[0]
+          const cat = categorizeEmailInMemory(lookups, r.email)
+          const exist = existingByEmail.get(r.email.toLowerCase())
+          if (exist) {
             const patch: any = {
               first_name: exist.first_name ?? r.firstName,
               last_name: exist.last_name ?? r.lastName,
@@ -4079,12 +4489,15 @@ ${contextStr}`
         if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
         const id = m[1]
         try {
-          const rows = await queryClient`
-            SELECT id, email, category, client_id FROM webinar_registrants
-            WHERE webinar_id = ${id} AND manual_override = false`
+          const [rows, lookups] = await Promise.all([
+            queryClient`
+              SELECT id, email, category, client_id FROM webinar_registrants
+              WHERE webinar_id = ${id} AND manual_override = false`,
+            loadCategorizationLookups(queryClient),
+          ])
           let changed = 0
           for (const r of rows) {
-            const cat = await categorizeEmail(queryClient, r.email)
+            const cat = categorizeEmailInMemory(lookups, r.email)
             if (cat.category !== r.category || cat.clientId !== r.client_id) {
               await queryClient`
                 UPDATE webinar_registrants
@@ -4176,6 +4589,7 @@ ${contextStr}`
               r.attendedAt ? new Date(r.attendedAt).toISOString() : "",
             ]),
           ]
+          const xlsx = await getXlsx()
           const ws = xlsx.utils.aoa_to_sheet(aoa)
           const wb = xlsx.utils.book_new()
           xlsx.utils.book_append_sheet(wb, ws, "Registrants")
@@ -4448,13 +4862,12 @@ ${contextStr}`
         }
         const dataContext = sections.filter(Boolean).join("\n\n")
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: "You are a client relationship strategist at Stamats, a marketing agency. Generate a concise, professional client brief in Markdown using ONLY the data provided. Use headers, bullet points, and bold text. Be specific — use real numbers and quotes." },
             { role: "user", content: `Generate a client relationship brief for ${clientName} using ONLY this data:\n\n${dataContext}\n\nUse this structure:\n## ${clientName} — Client Relationship Brief\n### Relationship Overview\n### Strongest Proof Points\n### Services & Win Rate\n### Ready-to-Use Quotes\n### Awards & Recognition\n### Recommended Approach\n\nIf a section has no data, write "No data available". Keep it under 600 words.` },
           ],
-          temperature: 0.4,
-          max_tokens: 2000,
+          max_completion_tokens: 2000,
         })
         const markdown = completion.choices[0]?.message?.content || ""
         return res.json({ markdown })
@@ -4517,6 +4930,7 @@ ${contextStr}`
             const result = await parser.promise
             extractedText = result.text?.slice(0, 50000) || null
           } else if (mimetype.includes("wordprocessingml") || mimetype.includes("msword")) {
+            const mammoth = await getMammoth()
             const result = await mammoth.extractRawText({ buffer })
             extractedText = result.value?.slice(0, 50000) || null
           } else if (mimetype.startsWith("text/")) {
@@ -4546,14 +4960,13 @@ ${contextStr}`
           ;(async () => {
             try {
               const completion = await openai!.chat.completions.create({
-                model: "gpt-4o-mini",
+                model: "gpt-5.6-luna",
                 messages: [
                   { role: "system", content: 'Return valid JSON only: { "summary": string, "keyPoints": string[] }. Summary: 2-3 sentences. keyPoints: up to 8 key dates, decisions, commitments, dollar amounts, or names.' },
                   { role: "user", content: extractedText!.slice(0, 15000) },
                 ],
                 response_format: { type: "json_object" },
-                temperature: 0.2,
-                max_tokens: 800,
+                max_completion_tokens: 800,
               })
               const parsed = JSON.parse(completion.choices[0]?.message?.content || "{}")
               const summary = typeof parsed.summary === "string" ? parsed.summary : null
@@ -4572,6 +4985,21 @@ ${contextStr}`
       } catch (err: any) {
         console.error("Document upload failed:", err)
         return res.status(500).json({ error: "Failed to upload document" })
+      }
+    }
+
+    // GET /client-success/documents/:id/summary — return AI summary + keyPoints
+    if (path?.match(/^\/client-success\/documents\/[^/]+\/summary$/) && method === "GET") {
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      const id = path.split("/documents/")[1]?.replace("/summary", "")
+      if (!id) return res.status(400).json({ error: "id is required" })
+      try {
+        const [row] = await queryClient`SELECT summary, key_points AS "keyPoints" FROM client_documents WHERE id = ${id}`
+        if (!row) return res.status(404).json({ error: "Document not found" })
+        return res.json(row)
+      } catch (err: any) {
+        console.error("Failed to get document summary:", err?.message)
+        return res.status(500).json({ error: "Failed to get summary" })
       }
     }
 
@@ -5248,12 +5676,9 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
 
         try {
           const paraStream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [{ role: "user", content: paragraphSystemPrompt }],
-            temperature: 0.92,
-            max_tokens: 1000,
-            frequency_penalty: 0.4,
-            presence_penalty: 0.3,
+            max_completion_tokens: 1000,
             stream: true,
           })
           let paraFull = ""
@@ -5288,12 +5713,9 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
 
         try {
           const sentStream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [{ role: "user", content: sentSystemPrompt }],
-            temperature: 0.93,
-            max_tokens: 300,
-            frequency_penalty: 0.5,
-            presence_penalty: 0.4,
+            max_completion_tokens: 300,
             stream: true,
           })
           let sentFull = ""
@@ -5329,12 +5751,9 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
 
         try {
           const refineStream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: refineMessages,
-            temperature: 0.88,
-            max_tokens: 4000,
-            frequency_penalty: 0.4,
-            presence_penalty: 0.3,
+            max_completion_tokens: 4000,
             stream: true,
           })
           let refineFull = ""
@@ -5379,12 +5798,9 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
       try {
         // Pass 1
         const stream1 = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: hmMessages,
-          temperature: hmTemperature,
-          max_tokens: hmMaxTokens,
-          frequency_penalty: hmScanOnly ? 0 : 0.4,
-          presence_penalty: hmScanOnly ? 0 : 0.3,
+          max_completion_tokens: hmMaxTokens,
           stream: true,
         })
 
@@ -5413,12 +5829,9 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
           ]
 
           const stream2 = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: pass2Messages,
-            temperature: 0.95,
-            max_tokens: hmMaxTokens,
-            frequency_penalty: 0.5,
-            presence_penalty: 0.45,
+            max_completion_tokens: hmMaxTokens,
             stream: true,
           })
 
@@ -5494,6 +5907,7 @@ ${tonePersonas[hmTone] || tonePersonas.professional}`
       }
 
       // Build context from client success data
+      const clientSuccessData = await getClientSuccessData()
       const pdResultLines = clientSuccessData.topLineResults
         .sort((a: any, b: any) => b.numericValue - a.numericValue)
         .slice(0, 20)
@@ -5602,10 +6016,9 @@ ${pdContext}`
 
       try {
         const pdStream = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: pdMessages,
-          temperature: 0.5,
-          max_tokens: pdMaxTokens,
+          max_completion_tokens: pdMaxTokens,
           stream: true,
         })
 
@@ -5829,6 +6242,7 @@ ${pdContext}`
       }
 
       // Load ALL data sources in parallel
+      const clientSuccessData = await getClientSuccessData()
       const compSearchWords = companionQuery.toLowerCase().split(/\s+/).filter((w: string) => w.length > 2)
       let compLibraryAnswers: any[] = []
       if (compSearchWords.length > 0) {
@@ -6045,10 +6459,9 @@ ${compDataContext}`
 
       try {
         const stream = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: companionMessages,
-          temperature: 0.4,
-          max_tokens: 3000,
+          max_completion_tokens: 3000,
           stream: true
         })
 
@@ -6125,6 +6538,82 @@ ${compDataContext}`
           console.error("[Photos GET] Error:", err?.message || err, err?.stack)
           return res.status(500).json({ error: "Failed to load photos", detail: err?.message })
         }
+      }
+    }
+
+    // GET /photos/search - full-text search photos
+    if ((path === "/photos/search" || path === "/photos/search/") && method === "GET") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      const q = req.query?.q as string
+      if (!q || typeof q !== "string") {
+        return res.status(400).json({ error: "Search query (q) is required" })
+      }
+      try {
+        const searchQuery = q.trim().split(/\s+/).map(w => `${w}:*`).join(" & ")
+        const topicId = req.query?.topicId as string | undefined
+        const statusFilter = req.query?.status as string | undefined
+        const limitVal = Math.min(Math.max(1, parseInt(req.query?.limit as string) || 100), 500)
+
+        // Use raw queryClient for full-text search with ranking
+        if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+        const results = await queryClient`
+          SELECT
+            p.*,
+            ts_rank(to_tsvector('english', p.display_title || ' ' || COALESCE(p.description, '')),
+                    to_tsquery('english', ${searchQuery})) as rank,
+            COALESCE(COUNT(l.answer_item_id), 0)::int as linked_answers_count
+          FROM photo_assets p
+          LEFT JOIN links_answer_photo l ON p.id = l.photo_asset_id
+          WHERE to_tsvector('english', p.display_title || ' ' || COALESCE(p.description, ''))
+                @@ to_tsquery('english', ${searchQuery})
+            ${topicId ? queryClient`AND p.topic_id = ${topicId}` : queryClient``}
+            ${statusFilter ? queryClient`AND p.status = ${statusFilter}` : queryClient``}
+          GROUP BY p.id
+          ORDER BY rank DESC
+          LIMIT ${limitVal}
+        `
+
+        // Generate signed URLs if supabase available
+        const photos = results as any[]
+        if (supabase && photos.length > 0) {
+          const paths = photos.map((p: any) => {
+            const ext = p.original_filename?.match(/\.([^.]+)$/)?.[1] || "png"
+            return `${p.storage_key}.${ext}`
+          })
+          const { data: signedData } = await supabase.storage.from("photo-assets").createSignedUrls(paths, 3600)
+          if (signedData) {
+            return res.json(photos.map((p: any, i: number) => ({ ...p, fileUrl: signedData[i]?.signedUrl || null })))
+          }
+        }
+
+        return res.json(photos)
+      } catch (err: any) {
+        console.error("Failed to search photos:", err?.message || err)
+        return res.status(500).json({ error: "Failed to search photos" })
+      }
+    }
+
+    // PUT /photos/:id/rename - rename a photo
+    const photoRenameMatch = path.match(/^\/photos\/([^/]+)\/rename$/)
+    if (photoRenameMatch && method === "PUT") {
+      if (!session?.userId || !db) return res.status(401).json({ error: "Not authenticated" })
+      const id = photoRenameMatch[1]
+      const { title } = req.body || {}
+      if (!title || typeof title !== "string") {
+        return res.status(400).json({ error: "Title is required" })
+      }
+      try {
+        const [existing] = await db.select().from(photoAssets).where(eq(photoAssets.id, id)).limit(1)
+        if (!existing) return res.status(404).json({ error: "Photo not found" })
+        const [updated] = await db.update(photoAssets)
+          .set({ displayTitle: title.trim(), updatedAt: new Date() })
+          .where(eq(photoAssets.id, id))
+          .returning()
+        return res.json(updated)
+      } catch (err: any) {
+        const msg = err instanceof Error ? err.message : "Unknown error"
+        console.error("Failed to rename photo:", msg)
+        return res.status(500).json({ error: "Failed to rename photo" })
       }
     }
 
@@ -6551,13 +7040,12 @@ ${compDataContext}`
         allProposals.forEach(p => { if (p.category) byCategory[p.category] = (byCategory[p.category] || 0) + 1 })
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userQuery }
           ],
-          temperature: 0.4,
-          max_tokens: 4000
+          max_completion_tokens: 4000
         })
 
         const rawResponse = completion.choices[0]?.message?.content || ""
@@ -6693,10 +7181,9 @@ ${compDataContext}`
 
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: pStreamMessages,
-            temperature: 0.4,
-            max_tokens: getMaxTokens(pResponseLength, 4000),
+            max_completion_tokens: getMaxTokens(pResponseLength, 4000),
             stream: true
           })
 
@@ -6737,6 +7224,7 @@ ${compDataContext}`
     if (path.startsWith("/unified-ai")) {
       // GET /unified-ai/stats — stats for the status bar
       if ((path === "/unified-ai/stats" || path === "/unified-ai/stats/") && method === "GET") {
+        const clientSuccessData = await getClientSuccessData()
         const allProposals = await db.select().from(proposals)
         const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
         const wonCount = decided.filter(p => p.won === "Yes").length
@@ -6775,6 +7263,7 @@ ${compDataContext}`
         }
 
         // Load proposals
+        const clientSuccessData = await getClientSuccessData()
         const allProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
         const decided = allProposals.filter(p => p.won === "Yes" || p.won === "No")
         const wonProposals = decided.filter(p => p.won === "Yes")
@@ -6896,13 +7385,12 @@ VISUALIZATIONS:${CHART_PROMPT}
 ${context}`
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: uaiQuery.trim() }
           ],
-          temperature: 0.4,
-          max_tokens: 3000
+          max_completion_tokens: 3000
         })
 
         const rawResponse = completion.choices[0]?.message?.content || ""
@@ -6970,6 +7458,7 @@ ${context}`
         }
 
         // Load proposals (same as non-streaming)
+        const clientSuccessData = await getClientSuccessData()
         const uaiStreamProposals = await db.select().from(proposals).orderBy(desc(proposals.date))
         const uaiStreamDecided = uaiStreamProposals.filter(p => p.won === "Yes" || p.won === "No")
         const uaiStreamWon = uaiStreamDecided.filter(p => p.won === "Yes")
@@ -7141,10 +7630,9 @@ ${uaiStreamContext}`
 
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: uaiStreamMessages,
-            temperature: 0.4,
-            max_tokens: getMaxTokens(uaiResponseLength, 3000),
+            max_completion_tokens: getMaxTokens(uaiResponseLength, 3000),
             stream: true
           })
 
@@ -7227,9 +7715,21 @@ ${uaiStreamContext}`
       }
 
       // Get single conversation
+      // Every single-conversation operation is scoped to the owner — without the
+      // userId predicate any authenticated user could read or delete another
+      // user's full AI chat history by guessing a UUID.
       const idMatch = path.match(/^\/conversations\/([^/]+)$/)
+      // Mirrors the list query's ownership rule: your own rows, plus legacy rows
+      // that predate user attribution (userId IS NULL).
+      const ownsConversation = (id: string) => {
+        const uid = session?.userId
+        return uid
+          ? and(eq(conversations.id, id), or(eq(conversations.userId, uid), isNull(conversations.userId)))
+          : and(eq(conversations.id, id), isNull(conversations.userId))
+      }
+
       if (idMatch && method === "GET") {
-        const [row] = await db.select().from(conversations).where(eq(conversations.id, idMatch[1]))
+        const [row] = await db.select().from(conversations).where(ownsConversation(idMatch[1]))
         if (!row) return res.status(404).json({ error: "Conversation not found" })
         return res.json(row)
       }
@@ -7243,7 +7743,7 @@ ${uaiStreamContext}`
         const [row] = await db
           .update(conversations)
           .set(updates)
-          .where(eq(conversations.id, idMatch[1]))
+          .where(ownsConversation(idMatch[1]))
           .returning()
         if (!row) return res.status(404).json({ error: "Conversation not found" })
         return res.json(row)
@@ -7251,7 +7751,8 @@ ${uaiStreamContext}`
 
       // Delete conversation
       if (idMatch && method === "DELETE") {
-        await db.delete(conversations).where(eq(conversations.id, idMatch[1]))
+        const deleted = await db.delete(conversations).where(ownsConversation(idMatch[1])).returning()
+        if (!deleted.length) return res.status(404).json({ error: "Conversation not found" })
         return res.json({ success: true })
       }
 
@@ -7267,8 +7768,8 @@ ${uaiStreamContext}`
         const firstAI = (messages.find((m: { role: string; content: string }) => m.role === "assistant")?.content ?? "").slice(0, 200)
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            max_tokens: 20,
+            model: "gpt-5.6-luna",
+            max_completion_tokens: 20,
             messages: [
               { role: "system", content: "Generate a concise 4-6 word title for this conversation. Return ONLY the title, no quotes, no punctuation at the end." },
               { role: "user", content: `User asked: ${firstUser}\nAI responded about: ${firstAI}` },
@@ -7352,13 +7853,12 @@ RULES:
 
       try {
         const stream = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: `${instruction}\n\nText to edit:\n${selectedText.trim()}` },
           ],
-          temperature: 0.3,
-          max_tokens: 1500,
+          max_completion_tokens: 1500,
           stream: true,
         })
 
@@ -7421,13 +7921,12 @@ RULES:
 
       try {
         const stream = await openai.chat.completions.create({
-          model: "gpt-4o-mini",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.4,
-          max_tokens: 120,
+          max_completion_tokens: 120,
           stream: true,
         })
 
@@ -7486,7 +7985,7 @@ RULES:
           : "None specified."
 
         const completion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             {
               role: "system",
@@ -7516,8 +8015,7 @@ Return ONLY valid JSON, no markdown fencing.`,
             },
             { role: "user", content: (documentText as string).slice(0, 12000) },
           ],
-          temperature: 0.2,
-          max_tokens: 4000,
+          max_completion_tokens: 4000,
           response_format: { type: "json_object" },
         })
 
@@ -7799,10 +8297,9 @@ Return ONLY valid JSON, no markdown fencing.`,
 
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages,
-            temperature: 0.4,
-            max_tokens: 4000,
+            max_completion_tokens: 4000,
             stream: true,
           })
 
@@ -7871,13 +8368,12 @@ Return ONLY valid JSON, no markdown fencing.`,
         if (uploadedFileText) sysPrompt += `\n\nUploaded file:\n${String(uploadedFileText).slice(0, 6000)}`
 
         const result = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: sysPrompt },
             { role: "user", content: chatQuery.trim() },
           ],
-          temperature: 0.4,
-          max_tokens: 4000,
+          max_completion_tokens: 4000,
         })
         const response = result.choices[0]?.message?.content || ""
         return res.json({ response, followUpPrompts: [], refused: false })
@@ -7896,13 +8392,12 @@ Return ONLY valid JSON, no markdown fencing.`,
         res.setHeader("X-Accel-Buffering", "no")
         try {
           const stream = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [
               { role: "system", content: "Generate a daily briefing for Stamats, a marketing agency. Include market trends, industry news, and actionable insights." },
               { role: "user", content: "Generate today's briefing." },
             ],
-            temperature: 0.5,
-            max_tokens: 2000,
+            max_completion_tokens: 2000,
             stream: true,
           })
           let fullResponse = ""
@@ -7927,13 +8422,12 @@ Return ONLY valid JSON, no markdown fencing.`,
         }
         try {
           const result = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [
               { role: "system", content: "Extract a structured checklist of requirements from this RFP. Return JSON: {\"items\":[{\"id\":\"1\",\"category\":\"string\",\"requirement\":\"string\",\"priority\":\"high|medium|low\"}]}" },
               { role: "user", content: rfpText.slice(0, 10000) },
             ],
-            temperature: 0.2,
-            max_tokens: 3000,
+            max_completion_tokens: 3000,
             response_format: { type: "json_object" },
           })
           const raw = result.choices[0]?.message?.content || "{}"
@@ -7952,13 +8446,12 @@ Return ONLY valid JSON, no markdown fencing.`,
         }
         try {
           const result = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [
               { role: "system", content: "Check if the document addresses each requirement. Return JSON: {\"results\":[{\"id\":\"string\",\"status\":\"met|partial|missing\",\"evidence\":\"string\"}]}" },
               { role: "user", content: `Document:\n${String(documentContent).slice(0, 8000)}\n\nChecklist:\n${JSON.stringify(checklistItems)}` },
             ],
-            temperature: 0.2,
-            max_tokens: 3000,
+            max_completion_tokens: 3000,
             response_format: { type: "json_object" },
           })
           const raw = result.choices[0]?.message?.content || "{}"
@@ -8221,14 +8714,13 @@ Only include quotes where the client is clearly saying something positive or not
         await queryClient!`UPDATE client_documents SET processing_status = 'analyzing', updated_at = NOW() WHERE id = ${docId}`
 
         const completion = await openai!.chat.completions.create({
-          model: "gpt-4o",
+          model: "gpt-5.6-luna",
           messages: [
             { role: "system", content: MEETING_ANALYSIS_PROMPT },
             { role: "user", content: transcript.slice(0, 50000) },
           ],
           response_format: { type: "json_object" },
-          temperature: 0.2,
-          max_tokens: 6000,
+          max_completion_tokens: 6000,
         })
 
         const raw = completion.choices[0]?.message?.content || "{}"
@@ -8399,13 +8891,12 @@ Only include quotes where the client is clearly saying something positive or not
         : "No specific participant names are known — use Speaker 1, Speaker 2, etc."
 
       const diarCompletion = await openai!.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5.6-luna",
         messages: [
           { role: "system", content: `You are a transcript editor. Your job is to add speaker labels to an unlabeled meeting transcript.\n\n${speakerList}\n\nRules:\n- Attribute each segment of dialogue to the most likely speaker based on context, tone, role, and content\n- Use the format "**Speaker Name:** text" for each turn\n- Preserve the original words exactly — do not rephrase, summarize, or omit anything\n- Insert a blank line between speaker turns\n- If you cannot determine who is speaking, use "**Unknown:**"\n- For Stamats staff, you can infer from context (e.g., presenting capabilities, discussing deliverables)\n- For client-side speakers, infer from context (e.g., asking about timelines, discussing their institution)\n- Keep the full transcript — do not truncate or summarize` },
           { role: "user", content: row.extracted_text.slice(0, 50000) },
         ],
-        temperature: 0.2,
-        max_tokens: 12000,
+        max_completion_tokens: 12000,
       })
       const diarized = diarCompletion.choices[0]?.message?.content || ""
       if (diarized) {
@@ -8806,13 +9297,12 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
 
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "gpt-5.6-luna",
             messages: [
               { role: "system", content: fixSystemPrompt },
               { role: "user", content: fixUserContent },
             ],
-            temperature: 0.3,
-            max_tokens: 1000,
+            max_completion_tokens: 1000,
           })
 
           const raw = completion.choices[0]?.message?.content ?? ""
@@ -8854,7 +9344,7 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
 
         try {
           const completion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: "gpt-5.6-luna",
             messages: [
               {
                 role: "user",
@@ -8870,8 +9360,7 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
                 ] as any,
               },
             ],
-            temperature: 0.2,
-            max_tokens: 200,
+            max_completion_tokens: 200,
           })
 
           const altRaw = completion.choices[0]?.message?.content ?? ""

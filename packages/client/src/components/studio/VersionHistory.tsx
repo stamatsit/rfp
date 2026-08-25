@@ -85,7 +85,7 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
             <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
             <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Version History</h3>
           </div>
-          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onClose} className="p-1 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 rounded-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -96,12 +96,12 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2">
                 <Loader2 className="w-4 h-4 text-emerald-500 animate-spin" />
-                <span className="text-[11px] text-slate-400">Loading versions…</span>
+                <span className="text-[11px] text-slate-500">Loading versions…</span>
               </div>
             ) : versions.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 px-4 text-center gap-2">
                 <Clock className="w-5 h-5 text-slate-300 dark:text-slate-600" />
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   No versions saved yet
                 </p>
               </div>
@@ -126,12 +126,12 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
                       )}
                     </div>
                   </div>
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5 tabular-nums">
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 tabular-nums">
                     {new Date(v.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                   </p>
                   <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">{v.title}</p>
                   {v.changeDescription && (
-                    <p className="text-[10px] text-slate-400 mt-0.5 truncate italic">{v.changeDescription}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5 truncate italic">{v.changeDescription}</p>
                   )}
                   <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-1">{formatFileSize(v.content)}</p>
                 </button>
@@ -155,7 +155,7 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-0.5">
+                    <p className="text-[10px] text-slate-500 mt-0.5">
                       {new Date(selectedVersion.createdAt).toLocaleString()} · {selectedVersion.createdBy} · {formatFileSize(selectedVersion.content)}
                     </p>
                   </div>
@@ -209,7 +209,7 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
                   {showDiff ? (
                     <div className="font-mono text-[11px] leading-relaxed rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700">
-                        <span className="text-[10px] text-slate-400">
+                        <span className="text-[10px] text-slate-500">
                           <span className="text-red-500 font-semibold">−</span> v{selectedVersion.version} &nbsp;
                           <span className="text-green-600 font-semibold">+</span> current
                         </span>
@@ -246,7 +246,7 @@ export function VersionHistory({ documentId, currentContent, onRestore, onClose 
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center gap-2 text-center px-8">
                 <Clock className="w-6 h-6 text-slate-300 dark:text-slate-600" />
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
                   Select a version on the left to preview its content
                 </p>
               </div>

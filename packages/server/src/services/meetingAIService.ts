@@ -111,14 +111,13 @@ export async function analyzeMeetingTranscript(text: string): Promise<MeetingAna
   if (!openai) throw new Error("OpenAI not configured")
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       { role: "system", content: MEETING_ANALYSIS_PROMPT },
       { role: "user", content: text.slice(0, 50000) },
     ],
     response_format: { type: "json_object" },
-    temperature: 0.2,
-    max_tokens: 6000,
+    max_completion_tokens: 6000,
   })
 
   const raw = completion.choices[0]?.message?.content || "{}"
@@ -165,7 +164,7 @@ export async function diarizeTranscript(
     : "No specific participant names are known — use Speaker 1, Speaker 2, etc."
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       {
         role: "system",
@@ -185,8 +184,7 @@ Rules:
       },
       { role: "user", content: transcript.slice(0, 50000) },
     ],
-    temperature: 0.2,
-    max_tokens: 12000,
+    max_completion_tokens: 12000,
   })
 
   return completion.choices[0]?.message?.content || transcript

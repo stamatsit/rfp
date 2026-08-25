@@ -150,19 +150,19 @@ export function ClientAssetsTab() {
                     className="w-full flex items-center justify-between px-4 py-3 bg-slate-50/70 dark:bg-slate-800/40 hover:bg-slate-100/80 dark:hover:bg-slate-800/70 transition-colors text-left"
                   >
                     <span className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate pr-2">{n.focus}</span>
-                    {isOpen ? <ChevronDown size={14} className="text-slate-400 shrink-0" /> : <ChevronRight size={14} className="text-slate-400 shrink-0" />}
+                    {isOpen ? <ChevronDown size={14} className="text-slate-500 shrink-0" /> : <ChevronRight size={14} className="text-slate-500 shrink-0" />}
                   </button>
                   {isOpen && (
                     <div className="px-4 py-3 bg-white dark:bg-slate-900/60 space-y-3">
                       {n.challenge && (
                         <div>
-                          <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Challenge</p>
+                          <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Challenge</p>
                           <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{n.challenge}</p>
                         </div>
                       )}
                       {n.solution && (
                         <div>
-                          <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Solution</p>
+                          <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5">Solution</p>
                           <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{n.solution}</p>
                         </div>
                       )}
@@ -179,7 +179,7 @@ export function ClientAssetsTab() {
                       {n.testimonial && (
                         <blockquote className="border-l-2 border-sky-300 dark:border-sky-600 pl-3 italic text-sm text-slate-600 dark:text-slate-400">
                           &ldquo;{n.testimonial.quote}&rdquo;
-                          {n.testimonial.attribution && <footer className="mt-0.5 text-[11px] not-italic text-slate-400 dark:text-slate-500">&mdash; {n.testimonial.attribution}</footer>}
+                          {n.testimonial.attribution && <footer className="mt-0.5 text-[11px] not-italic text-slate-500 dark:text-slate-400">&mdash; {n.testimonial.attribution}</footer>}
                         </blockquote>
                       )}
                     </div>
@@ -207,7 +207,7 @@ export function ClientAssetsTab() {
                     <p className="text-sm text-slate-700 dark:text-slate-300 italic leading-relaxed flex-1">&ldquo;{t.quote}&rdquo;</p>
                     <button
                       onClick={() => handleCopy(id, copyText)}
-                      className="shrink-0 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
+                      className="shrink-0 p-1 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
                       title="Copy testimonial"
                     >
                       {isCopied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
@@ -230,8 +230,8 @@ export function ClientAssetsTab() {
       ) : (
         <div className="flex flex-col items-center justify-center py-8 rounded-xl border border-dashed border-slate-200 dark:border-slate-700/60 text-center">
           <Quote size={20} className="text-slate-300 dark:text-slate-600 mb-2" />
-          <p className="text-xs text-slate-400 dark:text-slate-500">No testimonials on file</p>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">Ask AI to help draft a testimonial request email</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">No testimonials on file</p>
+          <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">Ask AI to help draft a testimonial request email</p>
         </div>
       )}
 
@@ -248,14 +248,14 @@ export function ClientAssetsTab() {
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-800 dark:text-slate-200 font-medium truncate">{a.name}</p>
                     {a.issuingAgency && (
-                      <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{a.issuingAgency}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{a.issuingAgency}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {a.awardLevel && (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/60 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40">{a.awardLevel}</span>
                     )}
-                    <span className="text-xs text-slate-400 dark:text-slate-500">{a.year}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{a.year}</span>
                   </div>
                 </div>
               )
@@ -280,13 +280,13 @@ export function ClientAssetsTab() {
                         {p.projectType || p.category || "Proposal"}
                       </p>
                       {p.servicesOffered && p.servicesOffered.length > 0 && (
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
                           {p.servicesOffered.slice(0, 4).join(", ")}{p.servicesOffered.length > 4 ? ` +${p.servicesOffered.length - 4}` : ""}
                         </p>
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-xs text-slate-400 dark:text-slate-500">{dateStr}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{dateStr}</span>
                       <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border ${WON_COLORS[wonStatus] ?? WON_COLORS.Pending}`}>
                         {wonStatus}
                       </span>
@@ -303,7 +303,7 @@ export function ClientAssetsTab() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <BookOpen size={14} className="text-slate-400" />
+            <BookOpen size={14} className="text-slate-500" />
             <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Q&amp;A Library</span>
             {qaLinks.length > 0 && (
               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-400">
@@ -322,14 +322,14 @@ export function ClientAssetsTab() {
           )}
         </div>
         {qaLinksLoading ? (
-          <div className="flex items-center gap-2 py-4 text-xs text-slate-400">
+          <div className="flex items-center gap-2 py-4 text-xs text-slate-500">
             <Loader2 size={13} className="animate-spin" />
             Loading linked answers…
           </div>
         ) : qaLinks.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 rounded-xl border border-dashed border-slate-200 dark:border-slate-700/60 text-center">
             <BookOpen size={20} className="text-slate-300 dark:text-slate-600 mb-2" />
-            <p className="text-xs text-slate-400 dark:text-slate-500">No Q&amp;A answers linked yet</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">No Q&amp;A answers linked yet</p>
             {isAdmin && (
               <button
                 onClick={() => setShowLinkModal(true)}
@@ -363,7 +363,7 @@ export function ClientAssetsTab() {
                   <div className="flex items-center gap-1 shrink-0 mt-0.5">
                     <button
                       onClick={() => handleCopy(link.linkId, `Q: ${link.question}\n\nA: ${link.answer}`)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-colors"
+                      className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-800 transition-colors"
                       title="Copy Q&A"
                     >
                       {copiedId === link.linkId ? <Check size={13} className="text-green-500" /> : <Copy size={13} />}
@@ -371,7 +371,7 @@ export function ClientAssetsTab() {
                     {isAdmin && (
                       <button
                         onClick={() => handleUnlinkQa(link.linkId)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                         title="Unlink"
                       >
                         <Link2Off size={13} />
@@ -390,7 +390,7 @@ export function ClientAssetsTab() {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <Briefcase size={28} className="text-slate-300 dark:text-slate-600 mb-3" />
           <p className="text-sm text-slate-500 dark:text-slate-400">No assets found for this client</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Use the Overview tab's AI to help identify what to gather</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Use the Overview tab's AI to help identify what to gather</p>
         </div>
       )}
 

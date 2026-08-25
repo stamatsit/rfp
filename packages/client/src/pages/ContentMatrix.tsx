@@ -16,6 +16,7 @@ import {
 import { AppHeader } from "@/components/AppHeader"
 import { toast } from "@/hooks/useToast"
 import { useAuth } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import {
   dynomapperApi,
   downloadBase64Xlsx,
@@ -73,6 +74,7 @@ function downloadCsv(filename: string, csv: string) {
 
 export function ContentMatrix() {
   const { user } = useAuth()
+  useDocumentTitle("Content Matrix")
   const isAllowed = user?.email?.toLowerCase() === ALLOWED_EMAIL
 
   const [status, setStatus] = useState<DynoStatus | null>(null)
@@ -262,7 +264,7 @@ export function ContentMatrix() {
         <div className="flex-1 flex items-center justify-center px-4">
           <div className="text-center max-w-sm">
             <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-4">
-              <Lock className="text-slate-400" size={22} />
+              <Lock className="text-slate-500" size={22} />
             </div>
             <h1 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Restricted</h1>
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
@@ -314,7 +316,7 @@ export function ContentMatrix() {
             <label className="flex-1 min-w-[240px]">
               <span className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">Site</span>
               <div className="relative">
-                <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Globe size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 <select
                   value={projectId ?? ""}
                   disabled={loadingProjects}
@@ -426,7 +428,7 @@ export function ContentMatrix() {
                   {syncBusy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
                   {syncBusy ? "Merging…" : "Upload .xlsx to sync"}
                 </button>
-                <span className="text-xs text-slate-400 dark:text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   Re-crawls & merges your edits — human columns preserved, dropped URLs kept for redirects.
                 </span>
               </div>
@@ -469,7 +471,7 @@ export function ContentMatrix() {
                   {redirectBusy ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
                   {redirectBusy ? "Building & verifying…" : "Upload filled worksheet → redirects"}
                 </button>
-                <span className="text-xs text-slate-400 dark:text-slate-500">
+                <span className="text-xs text-slate-500 dark:text-slate-400">
                   Old→New from the New URL column; verifies each resolves; downloads CSV (.htaccess/nginx in the response).
                 </span>
               </div>
@@ -540,7 +542,7 @@ export function ContentMatrix() {
 
         {/* Matrix */}
         {loadingMatrix && (
-          <div className="flex items-center justify-center py-20 text-slate-400">
+          <div className="flex items-center justify-center py-20 text-slate-500">
             <Loader2 size={28} className="animate-spin" />
           </div>
         )}
@@ -608,7 +610,7 @@ export function ContentMatrix() {
                           </a>
                         </td>
                         <td className="px-3 py-2 text-slate-700 dark:text-slate-300 text-xs">
-                          {r.title || <span className="text-slate-400 italic">(none)</span>}
+                          {r.title || <span className="text-slate-500 italic">(none)</span>}
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex flex-wrap gap-1">
@@ -637,14 +639,14 @@ export function ContentMatrix() {
                 </table>
               </div>
             </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               AI drafts are inferred from URL, title, and issue flags — review before publishing. Native columns come straight from the DynoMapper crawl.
             </p>
           </div>
         )}
 
         {!matrix && !loadingMatrix && !loadingProjects && (
-          <div className="text-center py-20 text-slate-400 dark:text-slate-500 text-sm">
+          <div className="text-center py-20 text-slate-500 dark:text-slate-400 text-sm">
             Choose a site above to build its content matrix.
           </div>
         )}

@@ -81,7 +81,7 @@ export function DeckToolbar({ deck, onAddSlide, onExport, exporting }: DeckToolb
       <div className="flex-1" />
 
       {/* Slide count */}
-      <span className="text-[10px] text-slate-400 dark:text-slate-500 mr-2 tabular-nums">
+      <span className="text-[10px] text-slate-500 dark:text-slate-400 mr-2 tabular-nums">
         {deck.selectedIndex + 1} / {deck.slides.length}
       </span>
 

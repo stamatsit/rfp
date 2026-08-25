@@ -24,6 +24,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { proposalInsightsApi, type ProposalMetrics } from "@/lib/api"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // ── Color palette (no pink/fuchsia) ────────────────────────
 const COLORS = ["#10B981", "#06B6D4", "#8B5CF6", "#F59E0B", "#6366F1", "#0EA5E9", "#14B8A6", "#EF4444"]
@@ -87,9 +88,9 @@ function KPICard({ label, value, sub, icon: Icon, color }: {
     <div className="relative overflow-hidden rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] p-5 group hover:border-slate-300 dark:hover:border-slate-700 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:shadow-md focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">{label}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
           <p className="text-3xl font-bold mt-1.5 text-slate-900 dark:text-white tabular-nums">{displayValue}</p>
-          {sub && <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">{sub}</p>}
+          {sub && <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">{sub}</p>}
         </div>
         <div
           className="w-10 h-10 rounded-xl flex items-center justify-center opacity-80"
@@ -139,6 +140,7 @@ function CustomTooltip({ active, payload, label }: any) {
 
 export function Analytics() {
   const navigate = useNavigate()
+  useDocumentTitle("Analytics")
   const [metrics, setMetrics] = useState<ProposalMetrics | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -236,7 +238,7 @@ export function Analytics() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-[#0b1120]">
         <AppHeader />
-        <div className="flex items-center justify-center h-[70vh] text-slate-400">
+        <div className="flex items-center justify-center h-[70vh] text-slate-500">
           <p>Failed to load metrics: {error}</p>
         </div>
       </div>
@@ -252,13 +254,13 @@ export function Analytics() {
         <div className="flex items-center gap-3 mb-6">
           <button
             onClick={() => navigate("/")}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
             <h1 className="text-xl font-bold text-slate-900 dark:text-white">Proposal Analytics</h1>
-            <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5">
+            <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5">
               Win rates, service breakdown, and trends from your proposal database
             </p>
           </div>

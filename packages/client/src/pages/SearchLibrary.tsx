@@ -70,6 +70,7 @@ import {
 } from "@/lib/api"
 import type { Topic, SearchItemType, ItemStatus } from "@/types"
 import { loadSettings } from "@/components/SettingsPanel"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // Topic color mapping for consistent color coding
 const topicColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -232,8 +233,8 @@ const SuccessCard = React.memo(function SuccessCard({ cs, isExpanded, copiedId, 
           </div>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{cs.focus}</p>
         </div>
-        <span className="text-[11px] text-slate-400 shrink-0">{cs.metrics.length} metrics</span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+        <span className="text-[11px] text-slate-500 shrink-0">{cs.metrics.length} metrics</span>
+        <ChevronDown size={14} className={`text-slate-500 transition-transform ${isExpanded ? "rotate-180" : ""}`} />
       </button>
 
       {isExpanded && (
@@ -284,7 +285,7 @@ const SuccessCard = React.memo(function SuccessCard({ cs, isExpanded, copiedId, 
               {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
             </button>
             {cs.usageCount > 0 && (
-              <span className="text-[10px] text-slate-400 dark:text-slate-500">Used {cs.usageCount}x</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">Used {cs.usageCount}x</span>
             )}
             {cs.source === "user" && cs.dbId && (
               <button
@@ -341,7 +342,7 @@ const TestimonialCard = React.memo(function TestimonialCard({ t, index, isExpand
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {t.usageCount > 0 && (
-            <span className="text-[10px] text-slate-400 dark:text-slate-500">{t.usageCount}x</span>
+            <span className="text-[10px] text-slate-500 dark:text-slate-400">{t.usageCount}x</span>
           )}
           <button
             onClick={() => onCopy(
@@ -352,7 +353,7 @@ const TestimonialCard = React.memo(function TestimonialCard({ t, index, isExpand
             )}
             className="opacity-0 group-hover:opacity-100 transition-opacity"
           >
-            {copiedId === `t-${index}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+            {copiedId === `t-${index}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
           </button>
           {t.source === "user" && t.dbId && (
             <button
@@ -621,7 +622,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         {/* Search + Filter + Sort row */}
         <div className="flex gap-3 items-center">
           <div className="flex-1 relative group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-slate-600" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -634,7 +635,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
               className="pl-9 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg"
             />
             {query && (
-              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+              <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 <X size={14} />
               </button>
             )}
@@ -669,7 +670,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "success" && (
             <Select value={successSort} onValueChange={(v) => setSuccessSort(v as SuccessSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem>
@@ -684,7 +685,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "results" && (
             <Select value={resultsSort} onValueChange={(v) => setResultsSort(v as ResultsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem>
@@ -699,7 +700,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "testimonials" && (
             <Select value={testimonialSort} onValueChange={(v) => setTestimonialSort(v as TestimonialsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem>
@@ -714,7 +715,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "awards" && (
             <Select value={awardSort} onValueChange={(v) => setAwardSort(v as AwardsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700 rounded-lg">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem>
@@ -728,7 +729,7 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         </div>
 
         {/* Results count */}
-        <p className="text-[13px] text-slate-400 dark:text-slate-500">
+        <p className="text-[13px] text-slate-500 dark:text-slate-400">
           {tab === "success" && `Showing ${visibleSuccessItems.length} of ${filteredSuccessItems.length}${filteredSuccessItems.length < totalSuccess ? ` (${totalSuccess} total)` : ""}`}
           {tab === "results" && `Showing ${visibleResultsItems.length} of ${filteredResults.length}${filteredResults.length < totalResults ? ` (${totalResults} total)` : ""}`}
           {tab === "testimonials" && `Showing ${visibleTestimonialsItems.length} of ${filteredTestimonials.length}${filteredTestimonials.length < totalTestimonials ? ` (${totalTestimonials} total)` : ""}`}
@@ -789,15 +790,15 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                   : <ArrowDown size={12} className="text-amber-500 shrink-0" />
                 }
                 <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{r.metric}</span>
-                <span className="text-xs text-slate-400 shrink-0">{r.client}</span>
+                <span className="text-xs text-slate-500 shrink-0">{r.client}</span>
                 {r.usageCount > 0 && (
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">{r.usageCount}x</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 shrink-0">{r.usageCount}x</span>
                 )}
                 <button
                   onClick={() => handleCopy(`${r.result} ${r.metric} — ${r.client}`, `r-${i}`, "result", r.dbId)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                  {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
                 </button>
                 {r.source === "user" && r.dbId && (
                   <button
@@ -882,15 +883,15 @@ function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <Award size={14} className="text-amber-500 shrink-0" />
                 <span className="text-sm font-medium text-slate-900 dark:text-white flex-1">{a.name}</span>
                 <Badge variant="outline" className="text-[11px] text-slate-500 border-slate-200 dark:border-slate-700">{a.year}</Badge>
-                <span className="text-xs text-slate-400">{a.clientOrProject}</span>
+                <span className="text-xs text-slate-500">{a.clientOrProject}</span>
                 {a.usageCount > 0 && (
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">{a.usageCount}x</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 shrink-0">{a.usageCount}x</span>
                 )}
                 <button
                   onClick={() => handleCopy(`${a.name} (${a.year}) — ${a.clientOrProject}`, `a-${i}`, "award", a.dbId)}
                   className="opacity-0 group-hover:opacity-100 transition-opacity"
                 >
-                  {copiedId === `a-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                  {copiedId === `a-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
                 </button>
                 {a.source === "user" && a.dbId && (
                   <button
@@ -1011,7 +1012,7 @@ function ProposalsSection() {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">
-          <AlertCircle size={24} className="mx-auto text-slate-400 mb-2" />
+          <AlertCircle size={24} className="mx-auto text-slate-500 mb-2" />
           <p className="text-sm text-slate-500">{error || "No proposal data available"}</p>
         </div>
       </div>
@@ -1062,7 +1063,7 @@ function ProposalsSection() {
 
         {/* Search */}
         <div className="relative group max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-slate-600" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-slate-600" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -1118,14 +1119,14 @@ function ProposalsSection() {
               ))}
               {breakdownData.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-slate-400 text-sm">No data matches your filter.</td>
+                  <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">No data matches your filter.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
 
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-slate-500">
           {summary.dateRange.from && summary.dateRange.to && (
             <>Data range: {new Date(summary.dateRange.from).toLocaleDateString()} — {new Date(summary.dateRange.to).toLocaleDateString()} · {summary.pending} pending</>
           )}
@@ -1137,6 +1138,7 @@ function ProposalsSection() {
 
 export function SearchLibrary() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("Content Library")
   const [searchParams, setSearchParams] = useSearchParams()
   const [activeSection, setActiveSection] = useState<LibrarySection>("qa")
   const [showNewEntry, setShowNewEntry] = useState(false)
@@ -1835,7 +1837,7 @@ export function SearchLibrary() {
                   : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200"
               }`}
             >
-              <section.icon size={14} className={activeSection === section.id ? "text-blue-500" : "text-slate-400"} />
+              <section.icon size={14} className={activeSection === section.id ? "text-blue-500" : "text-slate-500"} />
               <span className="text-[13px]">{section.label}</span>
             </button>
           ))}
@@ -1849,7 +1851,7 @@ export function SearchLibrary() {
           <div className="flex items-center gap-3">
             {/* Search */}
             <div className="relative group flex-1 max-w-xl">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors" />
               <Input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -1860,7 +1862,7 @@ export function SearchLibrary() {
               {isSearching ? (
                 <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-blue-500" />
               ) : searchQuery ? (
-                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                   <X size={13} />
                 </button>
               ) : null}
@@ -1877,7 +1879,7 @@ export function SearchLibrary() {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                   }`}
                 >
-                  <FileText size={12} className={typeFilter !== "photos" ? "text-blue-500" : "text-slate-400"} />
+                  <FileText size={12} className={typeFilter !== "photos" ? "text-blue-500" : "text-slate-500"} />
                   Answers
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter !== "photos" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
                     {totalAnswers}
@@ -1891,7 +1893,7 @@ export function SearchLibrary() {
                       : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                   }`}
                 >
-                  <ImageIcon size={12} className={typeFilter === "photos" ? "text-violet-500" : "text-slate-400"} />
+                  <ImageIcon size={12} className={typeFilter === "photos" ? "text-violet-500" : "text-slate-500"} />
                   Photos
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === "photos" ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
                     {totalPhotos}
@@ -1924,7 +1926,7 @@ export function SearchLibrary() {
             {/* Sort pill */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
               <SelectTrigger className="w-auto h-8 px-3 text-[12px] rounded-lg border bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400">
-                <ArrowUpDown size={11} className="mr-1 text-slate-400" />
+                <ArrowUpDown size={11} className="mr-1 text-slate-500" />
                 <SelectValue placeholder="Sort" />
               </SelectTrigger>
               <SelectContent>
@@ -1937,7 +1939,7 @@ export function SearchLibrary() {
             </Select>
 
             {activeFilterCount > 0 && (
-              <button onClick={clearAllFilters} className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+              <button onClick={clearAllFilters} className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-500 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
                 <X size={11} />Clear
               </button>
             )}
@@ -1959,7 +1961,7 @@ export function SearchLibrary() {
               {/* Top results when searching */}
               {searchQuery && sortedAnswers.length > 0 && (
                 <div className="mb-4 space-y-1.5">
-                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider px-1 pb-0.5">
+                  <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider px-1 pb-0.5">
                     <Sparkles size={10} className="text-amber-400" />
                     Top results
                   </div>
@@ -1975,7 +1977,7 @@ export function SearchLibrary() {
                           <p className="text-[13px] font-medium text-slate-800 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors leading-snug">
                             {shouldHighlight && debouncedQuery ? highlightText(answer.question, debouncedQuery) : answer.question}
                           </p>
-                          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-1">
+                          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
                             {shouldHighlight && debouncedQuery ? highlightText(answer.answer, debouncedQuery) : answer.answer}
                           </p>
                           <div className="flex items-center gap-1 mt-1.5">
@@ -1986,7 +1988,7 @@ export function SearchLibrary() {
                         </div>
                         <div onClick={(e) => e.stopPropagation()}>
                           <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)} className="h-7 w-7 p-0 rounded-md opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-100 dark:hover:bg-slate-800">
-                            {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-400" />}
+                            {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-500" />}
                           </Button>
                         </div>
                       </div>
@@ -2031,12 +2033,12 @@ export function SearchLibrary() {
                       <span className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.005em] flex-1">
                         {topic?.displayName || "Unknown"}
                       </span>
-                      <span className="text-[11px] font-medium text-slate-400 dark:text-slate-500 tabular-nums bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-md">
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 tabular-nums bg-slate-100 dark:bg-slate-700/50 px-2 py-0.5 rounded-md">
                         {topicAnswers.length}
                       </span>
                       <ChevronDown
                         size={14}
-                        className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+                        className={`text-slate-500 dark:text-slate-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
                       />
                     </button>
 
@@ -2064,22 +2066,22 @@ export function SearchLibrary() {
                                   <Badge key={tag} variant={i === 0 ? "purple" : "teal"} className="text-[10px] px-1.5 py-0">{tag}</Badge>
                                 ))}
                                 {answer.tags.length > 2 && (
-                                  <span className="text-[10px] text-slate-400">+{answer.tags.length - 2}</span>
+                                  <span className="text-[10px] text-slate-500">+{answer.tags.length - 2}</span>
                                 )}
                                 {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
-                                  <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+                                  <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                                     <ImageIcon size={10} />{answer.linkedPhotosCount}
                                   </span>
                                 )}
                                 {(answer.usageCount || 0) > 0 && !(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) && (
-                                  <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500">Used {answer.usageCount}×</span>
+                                  <span className="ml-auto text-[10px] text-slate-500 dark:text-slate-400">Used {answer.usageCount}×</span>
                                 )}
                               </div>
                             </div>
                             <div onClick={(e) => e.stopPropagation()} className="flex-shrink-0 mt-0.5">
                               <Button variant="ghost" size="sm" onClick={() => handleCopy(answer.answer, answer.id)}
                                 className="h-7 w-7 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-slate-100 dark:hover:bg-slate-700">
-                                {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-400" />}
+                                {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-500" />}
                               </Button>
                             </div>
                           </div>
@@ -2114,7 +2116,7 @@ export function SearchLibrary() {
                 <div className="flex justify-center pt-2 pb-4">
                   <Button variant="outline" onClick={loadMoreAnswers} disabled={isLoadingMoreAnswers}
                     className="h-9 px-6 rounded-lg border-slate-200 dark:border-slate-700 text-[13px]">
-                    {isLoadingMoreAnswers ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-400">{answers.length} of {totalAnswers}</span></>}
+                    {isLoadingMoreAnswers ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-500">{answers.length} of {totalAnswers}</span></>}
                   </Button>
                 </div>
               )}
@@ -2183,7 +2185,7 @@ export function SearchLibrary() {
                 <div className="flex justify-center pt-2 pb-4">
                   <Button variant="outline" onClick={loadMorePhotos} disabled={isLoadingMorePhotos}
                     className="h-9 px-6 rounded-lg border-slate-200 dark:border-slate-700 text-[13px]">
-                    {isLoadingMorePhotos ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-400">{photos.length} of {totalPhotos}</span></>}
+                    {isLoadingMorePhotos ? <><Loader2 size={13} className="mr-2 animate-spin" />Loading…</> : <>Load more <span className="ml-2 text-slate-500">{photos.length} of {totalPhotos}</span></>}
                   </Button>
                 </div>
               )}
@@ -2996,7 +2998,7 @@ export function SearchLibrary() {
                   </Button>
 
                   {(selectedPhoto.usageCount || 0) > 0 && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
                       Downloaded {selectedPhoto.usageCount}x
                     </p>
                   )}
@@ -3086,7 +3088,7 @@ export function SearchLibrary() {
 
           {/* Search Input */}
           <div className="relative mt-2">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
             <Input
               value={linkPickerSearch}
               onChange={(e) => setLinkPickerSearch(e.target.value)}
@@ -3192,9 +3194,9 @@ export function SearchLibrary() {
                   <div className="text-center py-12">
                     <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mx-auto mb-3">
                       {linkPickerType === "photo" ? (
-                        <ImageIcon size={20} className="text-slate-400" />
+                        <ImageIcon size={20} className="text-slate-500" />
                       ) : (
-                        <FileText size={20} className="text-slate-400" />
+                        <FileText size={20} className="text-slate-500" />
                       )}
                     </div>
                     <p className="text-slate-500 dark:text-slate-400 text-sm">

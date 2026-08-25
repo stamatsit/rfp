@@ -17,6 +17,7 @@ import {
 import { useDeckStore } from "@/hooks/useDeckStore"
 import { toast } from "@/hooks/useToast"
 import { addCsrfHeader } from "@/lib/csrfToken"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:3001/api"
 
@@ -27,6 +28,7 @@ const COLLAPSED_WIDTH = 48
 
 export function PitchDeckDesigner() {
   const [searchParams] = useSearchParams()
+  useDocumentTitle("Pitch Deck Designer")
   const navigate = useNavigate()
   const deck = useDeckStore()
 
@@ -230,7 +232,7 @@ export function PitchDeckDesigner() {
                 />
               ) : (
                 <div className="flex-1 flex items-center justify-center">
-                  <p className="text-sm text-slate-400">No slide selected</p>
+                  <p className="text-sm text-slate-500">No slide selected</p>
                 </div>
               )}
 

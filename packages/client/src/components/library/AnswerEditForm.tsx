@@ -77,7 +77,7 @@ export function AnswerEditForm({ form, onChange, topics, isSaving, hasChanges, o
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="answer-tags" className="text-[12px] font-medium">Tags <span className="text-slate-400">(comma-separated)</span></Label>
+        <Label htmlFor="answer-tags" className="text-[12px] font-medium">Tags <span className="text-slate-500">(comma-separated)</span></Label>
         <Input
           id="answer-tags"
           value={form.tags}

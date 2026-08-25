@@ -15,6 +15,7 @@ import { useDocumentStore } from "@/hooks/useDocumentStore"
 import { studioApi } from "@/lib/api"
 import { markdownToHtml } from "@/lib/markdownToHtml"
 import type { SharedUser } from "@/types/studio"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const MIN_LEFT_WIDTH = 280
 const MAX_LEFT_WIDTH = 800
@@ -47,6 +48,7 @@ const SEED_TEMPLATES = [
 
 export function DocumentStudio() {
   const [searchParams] = useSearchParams()
+  useDocumentTitle("Document Studio")
   const doc = useDocumentStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
@@ -357,12 +359,12 @@ export function DocumentStudio() {
                     <div className="relative mx-auto mb-7 w-16 h-16">
                       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400/20 to-cyan-400/20 dark:from-emerald-500/10 dark:to-cyan-500/10 blur-xl" />
                       <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60 shadow-sm flex items-center justify-center">
-                        <FileText className="w-7 h-7 text-slate-400 dark:text-slate-500 stroke-[1.5]" />
+                        <FileText className="w-7 h-7 text-slate-500 dark:text-slate-400 stroke-[1.5]" />
                       </div>
                     </div>
 
                     <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.025em] mb-1.5">Create a document</h2>
-                    <p className="text-[13px] text-slate-400 dark:text-slate-500 mb-10 leading-relaxed">
+                    <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-10 leading-relaxed">
                       Proposals, case studies, and reports — powered by your data.
                     </p>
 
@@ -373,7 +375,7 @@ export function DocumentStudio() {
                         className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
                         <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
-                          <FilePlus className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                          <FilePlus className="w-4 h-4 text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
                         </div>
                         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Blank</span>
                       </button>
@@ -384,7 +386,7 @@ export function DocumentStudio() {
                         className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
                         <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
-                          <LayoutTemplate className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                          <LayoutTemplate className="w-4 h-4 text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
                         </div>
                         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Template</span>
                       </button>
@@ -395,7 +397,7 @@ export function DocumentStudio() {
                         className="group flex flex-col items-center gap-2.5 p-4 pb-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-white dark:bg-slate-900/80 hover:border-slate-300/80 dark:hover:border-slate-600/60 hover:shadow-[0_2px_12px_rgba(0,0,0,0.04)] dark:hover:shadow-[0_2px_12px_rgba(0,0,0,0.2)] hover:-translate-y-0.5 transition-all duration-200"
                       >
                         <div className="w-9 h-9 rounded-lg bg-slate-50 dark:bg-slate-800/80 flex items-center justify-center group-hover:bg-slate-100 dark:group-hover:bg-slate-700/80 transition-colors duration-200">
-                          <Upload className="w-4 h-4 text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
+                          <Upload className="w-4 h-4 text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200" />
                         </div>
                         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-slate-200 transition-colors duration-200">Import</span>
                       </button>
@@ -523,7 +525,7 @@ export function DocumentStudio() {
                 <h2 className="text-[13px] font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.01em]">Templates</h2>
               </div>
               <button onClick={() => setActiveModal(null)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors duration-200">
-                <X className="w-3.5 h-3.5 text-slate-400" />
+                <X className="w-3.5 h-3.5 text-slate-500" />
               </button>
             </div>
             <div className="overflow-y-auto max-h-[calc(70vh-120px)] p-1.5">
@@ -534,7 +536,7 @@ export function DocumentStudio() {
                   className="w-full text-left px-3.5 py-2.5 rounded-lg text-[13px] text-slate-700 dark:text-slate-200 hover:bg-emerald-50/80 dark:hover:bg-emerald-900/20 transition-all duration-200 group flex items-center justify-between"
                 >
                   <span className="font-medium">{t.name}</span>
-                  <span className="text-[10px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 uppercase tracking-wider transition-colors duration-200">{t.category}</span>
+                  <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 uppercase tracking-wider transition-colors duration-200">{t.category}</span>
                 </button>
               ))}
             </div>

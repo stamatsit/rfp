@@ -35,7 +35,7 @@ export function ContextualHelp({
         variant="ghost"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className={`text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 h-8 w-8 p-0 rounded-lg transition-all ${
+        className={`text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 h-8 w-8 p-0 rounded-lg transition-all ${
           isOpen ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300" : ""
         }`}
         title="Help"
@@ -65,7 +65,7 @@ export function ContextualHelp({
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsOpen(false)}
-                  className="h-6 w-6 p-0 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  className="h-6 w-6 p-0 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                 >
                   <X size={14} />
                 </Button>
@@ -113,7 +113,7 @@ export function ContextualHelp({
                   </span>
                   <ExternalLink
                     size={14}
-                    className="text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"
+                    className="text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300"
                   />
                 </Link>
               )}

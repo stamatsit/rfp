@@ -125,7 +125,7 @@ function DocumentBrowserPopover({
         <div className="p-2 border-b border-slate-100 dark:border-slate-700/60">
           <div className="flex items-center gap-1.5">
             <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400" />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500" />
               <input
                 type="text"
                 value={search}
@@ -150,12 +150,12 @@ function DocumentBrowserPopover({
         <div className="max-h-[400px] overflow-y-auto">
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-4 h-4 text-slate-400 animate-spin" />
+              <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
             </div>
           ) : documents.length === 0 ? (
             <div className="py-8 text-center">
               <FileText className="w-6 h-6 text-slate-300 dark:text-slate-600 mx-auto mb-2" />
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 {search ? "No documents match your search" : "No saved documents yet"}
               </p>
             </div>
@@ -184,7 +184,7 @@ function DocumentBrowserPopover({
                     <div className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-md flex items-center justify-center ${
                       isActive
                         ? "bg-emerald-100 dark:bg-emerald-800/40 text-emerald-600 dark:text-emerald-400"
-                        : "bg-slate-100 dark:bg-slate-700/50 text-slate-400 dark:text-slate-500"
+                        : "bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400"
                     }`}>
                       <SourceIcon className="w-2.5 h-2.5" />
                     </div>
@@ -199,7 +199,7 @@ function DocumentBrowserPopover({
                         {doc.title || "Untitled"}
                       </p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
                           {timeAgo(doc.updatedAt)}
                         </span>
                         {doc.mode === "final" && (
@@ -208,7 +208,7 @@ function DocumentBrowserPopover({
                           </span>
                         )}
                         {doc.mode === "draft" && (
-                          <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-slate-700/50 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-700/50 px-1.5 py-0.5 rounded-full">
                             Draft
                           </span>
                         )}
@@ -226,7 +226,7 @@ function DocumentBrowserPopover({
                         </button>
                         <button
                           onClick={() => setConfirmDelete(null)}
-                          className="text-[9px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 px-1 py-0.5 rounded transition-colors"
+                          className="text-[9px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 px-1 py-0.5 rounded transition-colors"
                         >
                           Cancel
                         </button>
@@ -250,7 +250,7 @@ function DocumentBrowserPopover({
         {/* Footer */}
         {documents.length > 0 && (
           <div className="px-3 py-1.5 border-t border-slate-100 dark:border-slate-700/60">
-            <p className="text-[9px] text-slate-400 dark:text-slate-500 text-center">
+            <p className="text-[9px] text-slate-500 dark:text-slate-400 text-center">
               {documents.length} document{documents.length !== 1 ? "s" : ""} · ⌘O to toggle
             </p>
           </div>
@@ -297,7 +297,7 @@ export function StudioToolbar({
             className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-150 ${
               browserOpen
                 ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"
             }`}
             title="Browse documents (⌘O)"
           >
@@ -341,7 +341,7 @@ export function StudioToolbar({
 
       {/* Save status — icon only with tooltip */}
       <div className={`flex items-center gap-1 px-1 py-0.5 rounded-md text-[11px] font-medium transition-all duration-150 select-none ${
-        saveStatus === "saving" ? "text-slate-400 dark:text-slate-500" :
+        saveStatus === "saving" ? "text-slate-500 dark:text-slate-400" :
         saveStatus === "saved" ? "text-emerald-500/60 dark:text-emerald-400/60" :
         saveStatus === "unsaved" ? "text-amber-500/70 dark:text-amber-400/70" :
         "text-red-500 dark:text-red-400"
@@ -392,7 +392,7 @@ export function StudioToolbar({
         {hasDocumentId && onShare && (
           <button
             onClick={onShare}
-            className="w-7 h-7 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-md transition-all duration-200"
+            className="w-7 h-7 flex items-center justify-center text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 rounded-md transition-all duration-200"
             title="Share document"
           >
             <Share2 className="w-3.5 h-3.5" />
@@ -424,7 +424,7 @@ export function StudioToolbar({
             className={`w-7 h-7 flex items-center justify-center rounded-md transition-all duration-200 ${
               inspectorOpen
                 ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-sm"
-                : "text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
+                : "text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60"
             }`}
             title="Inspector — format, outline, checklist"
           >

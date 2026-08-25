@@ -1524,7 +1524,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
 
     // Call GPT-4o with enhanced context
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         {
           role: "system",
@@ -1535,8 +1535,7 @@ export async function queryProposalInsights(query: string): Promise<ProposalInsi
           content: query,
         },
       ],
-      temperature: 0.4,
-      max_tokens: 4000,
+      max_completion_tokens: 4000,
     })
 
     const rawResponse = completion.choices[0]?.message?.content || ""
@@ -1672,7 +1671,6 @@ export async function streamProposalInsights(
       ...historyMessages,
       { role: "user", content: query },
     ],
-    temperature: 0.4,
     maxTokens: RESPONSE_LENGTH_TOKENS[responseLength ?? ""] ?? 4000,
     metadata: {
       dataUsed: {

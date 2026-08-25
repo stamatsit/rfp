@@ -55,7 +55,7 @@ export function LoadingIndicator({ theme }: LoadingIndicatorProps) {
               </span>
             </div>
           </div>
-          <p className="text-[12px] text-slate-400 mt-2">{phase?.detail}</p>
+          <p className="text-[12px] text-slate-500 mt-2">{phase?.detail}</p>
         </CardContent>
       </Card>
     </div>

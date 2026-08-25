@@ -278,7 +278,6 @@ export async function streamClientChat(
       ...historyMessages,
       { role: "user", content: query },
     ],
-    temperature: 0.4,
     maxTokens: 3000,
     metadata: {
       clientName: clientContext.clientName,
@@ -330,13 +329,12 @@ RULES:
 ${context}`
 
   const response = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: `Analyze the asset portfolio for ${clientContext.clientName} and identify gaps, strengths, and action items.` },
     ],
-    temperature: 0.4,
-    max_tokens: 2000,
+    max_completion_tokens: 2000,
   })
 
   return response.choices[0]?.message?.content ?? "No analysis generated."

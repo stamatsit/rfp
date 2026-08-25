@@ -11,6 +11,12 @@ import {
   resetTour,
   createUser,
 } from "../services/userService.js"
+import {
+  signResetToken,
+  parseResetToken,
+  passwordFingerprint,
+  sendResetEmail,
+} from "../lib/passwordReset.js"
 // avatarService.js no longer used — avatars stored as data URLs in DB (matching Vercel production)
 
 const router = Router()
@@ -289,6 +295,71 @@ router.post("/reset-tour", async (req: Request, res: Response) => {
   } catch (error) {
     console.error("Reset tour failed:", error)
     res.status(500).json({ error: "Failed to reset tour" })
+  }
+})
+
+// Rate-limit reset requests: 5 per 15 min per IP.
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: "Too many reset requests. Please try again later." },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+
+/**
+ * POST /api/auth/forgot-password  { email }
+ * Always returns 200 with the same message — never reveals whether an account
+ * exists (prevents user enumeration).
+ */
+router.post("/forgot-password", resetLimiter, async (req: Request, res: Response) => {
+  const generic = { message: "If an account exists for that email, a reset link is on its way." }
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase()
+    if (!email) return res.status(400).json({ error: "Email is required" })
+
+    const user = await getUserByEmail(email)
+    if (user) {
+      const token = signResetToken(user.id, user.passwordHash)
+      const base = process.env.APP_URL || `${req.protocol}://${req.get("host")}`
+      const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}`
+      await sendResetEmail(user.email, user.name, resetUrl)
+    }
+    return res.json(generic)
+  } catch (error) {
+    console.error("Forgot-password failed:", error)
+    // Still return the generic message so failures don't leak account existence.
+    return res.json(generic)
+  }
+})
+
+/**
+ * POST /api/auth/reset-password  { token, password }
+ * Verifies the signed token against the user's CURRENT password hash (so a used
+ * or stale token is rejected), then sets the new password.
+ */
+router.post("/reset-password", resetLimiter, async (req: Request, res: Response) => {
+  try {
+    const { token, password } = req.body || {}
+    if (!token || typeof token !== "string") return res.status(400).json({ error: "Reset token is required" })
+    if (!password || typeof password !== "string" || password.length < 8) {
+      return res.status(400).json({ error: "New password must be at least 8 characters" })
+    }
+
+    const claims = parseResetToken(token)
+    if (!claims) return res.status(400).json({ error: "This reset link is invalid or has expired. Request a new one." })
+
+    const user = await getUserById(claims.userId)
+    // Fingerprint mismatch => password already changed since the link was issued.
+    if (!user || passwordFingerprint(user.passwordHash) !== claims.pwFingerprint) {
+      return res.status(400).json({ error: "This reset link is invalid or has already been used. Request a new one." })
+    }
+
+    await changePassword(user.id, password)
+    return res.json({ success: true })
+  } catch (error) {
+    console.error("Reset-password failed:", error)
+    return res.status(500).json({ error: "Failed to reset password" })
   }
 })
 

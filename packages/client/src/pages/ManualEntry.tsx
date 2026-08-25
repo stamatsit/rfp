@@ -29,6 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui"
 import { answersApi, topicsApi, aiApi, ApiError } from "@/lib/api"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 interface Topic {
   id: string
@@ -40,6 +41,7 @@ type EntryStatus = "Approved" | "Draft"
 
 export function ManualEntry() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("New Entry")
   if (!isAdmin) return <Navigate to="/" replace />
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -286,7 +288,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                 {/* Question Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    <FileText size={16} className="text-slate-400" />
+                    <FileText size={16} className="text-slate-500" />
                     Question
                     <span className="text-red-500">*</span>
                   </label>
@@ -300,7 +302,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                       className="min-h-[100px] text-base"
                     />
                   </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {question.length} characters
                   </p>
                 </div>
@@ -308,7 +310,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                 {/* Answer Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    <Sparkles size={16} className="text-slate-400" />
+                    <Sparkles size={16} className="text-slate-500" />
                     Answer
                     <span className="text-red-500">*</span>
                   </label>
@@ -322,7 +324,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                       className="min-h-[200px] text-base"
                     />
                   </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {answer.length} characters
                   </p>
                 </div>
@@ -342,7 +344,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                   {/* Topic Select */}
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                      <FolderOpen size={16} className="text-slate-400" />
+                      <FolderOpen size={16} className="text-slate-500" />
                       Topic
                       <span className="text-red-500">*</span>
                     </label>
@@ -363,9 +365,9 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                   {/* Subtopic Field */}
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                      <FolderOpen size={16} className="text-slate-400" />
+                      <FolderOpen size={16} className="text-slate-500" />
                       Subtopic
-                      <span className="text-slate-400 font-normal">(optional)</span>
+                      <span className="text-slate-500 font-normal">(optional)</span>
                     </label>
                     <Input
                       value={subtopic}
@@ -381,7 +383,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                 {/* Status Select */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    <CheckCircle2 size={16} className="text-slate-400" />
+                    <CheckCircle2 size={16} className="text-slate-500" />
                     Status
                   </label>
                   <div className="flex gap-3">
@@ -410,7 +412,7 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                       Approved
                     </button>
                   </div>
-                  <p className="text-xs text-slate-400 dark:text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
                     {status === "Draft"
                       ? "Draft entries won't appear in AI responses"
                       : "Approved entries will be included in AI responses"}
@@ -420,9 +422,9 @@ Content to analyze: "${rfpText.slice(0, 800).replace(/"/g, '\\"').replace(/\n/g,
                 {/* Tags Field */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-                    <Tag size={16} className="text-slate-400" />
+                    <Tag size={16} className="text-slate-500" />
                     Tags
-                    <span className="text-slate-400 font-normal">(optional)</span>
+                    <span className="text-slate-500 font-normal">(optional)</span>
                   </label>
                   <div className="flex gap-2">
                     <Input

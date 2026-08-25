@@ -503,7 +503,7 @@ function TreeRow({
         {isFolder ? (
           <ChevronRight
             size={12}
-            className={`text-slate-400 transition-transform flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
+            className={`text-slate-500 transition-transform flex-shrink-0 ${isExpanded ? "rotate-90" : ""}`}
           />
         ) : (
           <span className="w-3 flex-shrink-0" />
@@ -516,14 +516,14 @@ function TreeRow({
           {node.segment || "/"}
         </span>
         {isFolder && (
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-1">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 ml-1">
             ({node.descendantUrls.length})
           </span>
         )}
         {isLeaf && node.urls.length === 1 && (
           <button
             type="button"
-            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-0.5"
+            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity px-1.5 py-0.5 rounded text-[10px] font-medium text-slate-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 flex items-center gap-0.5"
             onClick={(e) => {
               e.stopPropagation()
               onTest(node.urls[0]!)
@@ -1533,7 +1533,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           <button
             onClick={handleClose}
             disabled={captureRunning}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-40"
           >
             <X size={16} />
           </button>
@@ -1699,7 +1699,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   {discoverTicker.map((url, i) => (
                     <p
                       key={`${url}-${i}`}
-                      className="text-[12px] font-mono text-slate-400 dark:text-slate-500 truncate"
+                      className="text-[12px] font-mono text-slate-500 dark:text-slate-400 truncate"
                     >
                       {url}
                     </p>
@@ -1730,7 +1730,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                 </p>
                 <button
                   type="button"
-                  className="text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                  className="text-[12px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                   onClick={startOver}
                 >
                   Start over
@@ -1738,7 +1738,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
               </div>
 
               {hiddenSubdomainCount > 0 && (
-                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Hid {hiddenSubdomainCount} pages on subdomains
                 </p>
               )}
@@ -1749,7 +1749,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   <p className="text-[13px] text-slate-500 dark:text-slate-400 mb-2">
                     No pages found on this domain.
                   </p>
-                  <p className="text-[12px] text-slate-400 dark:text-slate-500">
+                  <p className="text-[12px] text-slate-500 dark:text-slate-400">
                     All discovered URLs were on subdomains. Try pasting URLs manually.
                   </p>
                   <Button
@@ -1771,7 +1771,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                 <>
                   {/* Search */}
                   <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                     <input
                       type="text"
                       value={searchQuery}
@@ -1783,7 +1783,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                     {searchQuery && (
                       <button
                         type="button"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"
                         onClick={() => setSearchQuery("")}
                       >
                         <X size={12} />
@@ -1794,7 +1794,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   {/* Search actions */}
                   {matchingUrls && (
                     <div className="flex items-center gap-2 text-[11px]">
-                      <span className="text-slate-400">
+                      <span className="text-slate-500">
                         {matchingUrls.size} matches
                       </span>
                       {matchingUrls.size > 0 && (
@@ -1811,7 +1811,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                       )}
                       <button
                         type="button"
-                        className="text-slate-400 hover:text-slate-600"
+                        className="text-slate-500 hover:text-slate-600"
                         onClick={() => setSearchQuery("")}
                       >
                         Clear
@@ -1820,7 +1820,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   )}
 
                   {matchingUrls && matchingUrls.size === 0 && (
-                    <p className="text-[12px] text-slate-400 text-center py-4">
+                    <p className="text-[12px] text-slate-500 text-center py-4">
                       No pages match &quot;{debouncedSearch}&quot;
                     </p>
                   )}
@@ -1828,7 +1828,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   {/* Smart groups */}
                   {smartGroups.length > 0 && !debouncedSearch && (
                     <div className="space-y-1">
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+                      <p className="text-[10px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                         Quick select
                       </p>
                       {smartGroups.map((group) => {
@@ -1846,7 +1846,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                             <span className="text-[12px] text-slate-600 dark:text-slate-300 flex-1">
                               {group.label}
                             </span>
-                            <span className="text-[10px] text-slate-400">
+                            <span className="text-[10px] text-slate-500">
                               {group.urls.length}
                             </span>
                           </div>
@@ -1920,7 +1920,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   {!captureRunning && (
                     <button
                       type="button"
-                      className="text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                      className="text-[12px] text-slate-500 hover:text-slate-600 dark:hover:text-slate-300"
                       onClick={startOver}
                     >
                       Start over
@@ -1959,7 +1959,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                             <AlertCircle size={14} className="text-red-500" />
                           )}
                           {row.status === "cancelled" && (
-                            <X size={14} className="text-slate-400" />
+                            <X size={14} className="text-slate-500" />
                           )}
                         </div>
                         <span className="text-[9px] uppercase tracking-wider font-semibold flex-shrink-0 px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
@@ -1994,8 +1994,8 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                                 : row.status === "capturing"
                                   ? "text-blue-500"
                                   : row.status === "cancelled"
-                                    ? "text-slate-400"
-                                    : "text-slate-400"
+                                    ? "text-slate-500"
+                                    : "text-slate-500"
                             }`}
                         >
                           {row.status}
@@ -2033,7 +2033,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   ))}
                 </div>
                 {selectedCount > 0 && (
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
                     {selectedCount} pages selected · {formatTimeEstimate(selectedCount, vpMult)} · {vpLabel(captureViewport)}
                   </p>
                 )}
@@ -2053,7 +2053,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           {modalState === "capturing" && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   {captureRunning ? (
                     <>
                       {doneRows.length} of {captureRows.length} done
@@ -2134,7 +2134,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
 
           {/* ─── Discover / Discovering footer ────────────────── */}
           {(modalState === "discover" || modalState === "discovering") && (
-            <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
               Images stream into the toolkit as they finish
             </p>
           )}

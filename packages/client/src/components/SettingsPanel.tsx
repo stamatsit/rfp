@@ -910,7 +910,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                 <div className="space-y-8">
                   {/* Profile / Avatar */}
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Profile</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Profile</h3>
                     <div className="flex items-center gap-5">
                       <div className="relative group">
                         {user && <UserAvatar user={user} size="lg" />}
@@ -979,12 +979,12 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
 
                   {/* Change Password */}
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-4">Change Password</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-4">Change Password</h3>
                     <div className="space-y-3">
                       <div>
                         <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">Current Password</label>
                         <div className="relative">
-                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                           <input
                             type="password"
                             value={currentPw}
@@ -999,7 +999,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       <div>
                         <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">New Password</label>
                         <div className="relative">
-                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                           <input
                             type="password"
                             value={newPw}
@@ -1014,7 +1014,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                       <div>
                         <label className="block text-[12px] text-slate-500 dark:text-slate-400 mb-1.5">Confirm Password</label>
                         <div className="relative">
-                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
                           <input
                             type="password"
                             value={confirmPw}
@@ -1081,7 +1081,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "general" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Theme</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Theme</h3>
                     <div className="flex gap-2">
                       {themeOptions.map(option => {
                         const Icon = option.icon
@@ -1105,7 +1105,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Sound & Feedback</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Sound & Feedback</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
@@ -1125,7 +1125,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Keyboard</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Keyboard</h3>
                     <button
                       onClick={() => { onClose(); navigate("/help") }}
                       className="flex items-center justify-between w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
@@ -1134,18 +1134,18 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                         <Keyboard size={16} className="text-slate-500 dark:text-slate-400" />
                         <span className="text-[13px] text-slate-700 dark:text-slate-300">Keyboard Shortcuts</span>
                       </div>
-                      <span className="text-[12px] text-slate-400 dark:text-slate-500">View all</span>
+                      <span className="text-[12px] text-slate-500 dark:text-slate-400">View all</span>
                     </button>
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Document Studio</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Document Studio</h3>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <Save size={16} className="text-slate-500 dark:text-slate-400" />
                         <div>
                           <span className="text-[13px] text-slate-700 dark:text-slate-300">Auto-Save Interval</span>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">How often to save documents to the server</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">How often to save documents to the server</p>
                         </div>
                       </div>
                       <select
@@ -1164,13 +1164,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Guided Tour</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Guided Tour</h3>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <Rocket size={16} className="text-slate-500 dark:text-slate-400" />
                         <div>
                           <span className="text-[13px] text-slate-700 dark:text-slate-300">Show on Login</span>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Walk through features when you visit the home screen</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Walk through features when you visit the home screen</p>
                         </div>
                       </div>
                       <Toggle
@@ -1202,7 +1202,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "appearance" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Accent Color</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Accent Color</h3>
                     <div className="grid grid-cols-5 gap-2">
                       {accentColors.map(color => {
                         const isActive = settings.accentColor === color.value
@@ -1228,7 +1228,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                                 </div>
                               )}
                             </div>
-                            <p className={`text-[10px] text-center mt-1.5 ${isActive ? "text-slate-700 dark:text-slate-300 font-medium" : "text-slate-400 dark:text-slate-500"}`}>
+                            <p className={`text-[10px] text-center mt-1.5 ${isActive ? "text-slate-700 dark:text-slate-300 font-medium" : "text-slate-500 dark:text-slate-400"}`}>
                               {color.name}
                             </p>
                           </button>
@@ -1238,7 +1238,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Typography</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Typography</h3>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <Type size={16} className="text-slate-500 dark:text-slate-400" />
@@ -1253,7 +1253,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Display</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Display</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
@@ -1274,7 +1274,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <LayoutGrid size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
                             <p className="text-[13px] text-slate-700 dark:text-slate-300">Side Navigation Rail</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Persistent icon sidebar for quick navigation</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Persistent icon sidebar for quick navigation</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.navRailEnabled} onChange={() => updateSetting("navRailEnabled", !settings.navRailEnabled)} />
@@ -1288,8 +1288,8 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "home" && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tiles</h3>
-                    <span className="text-[11px] text-slate-400 dark:text-slate-500">Drag to reorder</span>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tiles</h3>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">Drag to reorder</span>
                   </div>
                   <div className="space-y-2">
                     {orderedTiles.map(tile => (
@@ -1309,7 +1309,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                             : "bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700"
                         }`}
                       >
-                        <div className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-400 dark:hover:text-slate-500">
+                        <div className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-slate-600 hover:text-slate-500 dark:hover:text-slate-500">
                           <GripVertical size={14} />
                         </div>
                         <div
@@ -1363,7 +1363,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "ai" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Responses</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Responses</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
@@ -1387,7 +1387,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Suggestions</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Suggestions</h3>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <Sparkles size={16} className="text-slate-500 dark:text-slate-400" />
@@ -1403,14 +1403,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               {activeCategory === "accessibility" && (
                 <div className="space-y-6">
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Vision</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Vision</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
                           <Maximize2 size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
                             <p className="text-[13px] text-slate-700 dark:text-slate-300">High Contrast</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Increase color contrast</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Increase color contrast</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.highContrast} onChange={() => updateSetting("highContrast", !settings.highContrast)} />
@@ -1420,7 +1420,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <Type size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
                             <p className="text-[13px] text-slate-700 dark:text-slate-300">Large Text</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Increase font sizes</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Increase font sizes</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.fontSize === "large"} onChange={() => updateSetting("fontSize", settings.fontSize === "large" ? "medium" : "large")} />
@@ -1429,13 +1429,13 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Motion</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Motion</h3>
                     <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                       <div className="flex items-center gap-3">
                         <Zap size={16} className="text-slate-500 dark:text-slate-400" />
                         <div>
                           <p className="text-[13px] text-slate-700 dark:text-slate-300">Reduce Motion</p>
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500">Minimize animations</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">Minimize animations</p>
                         </div>
                       </div>
                       <Toggle enabled={settings.reduceMotion} onChange={() => updateSetting("reduceMotion", !settings.reduceMotion)} />
@@ -1458,14 +1458,14 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                   </div>
 
                   <div>
-                    <h3 className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-3">Features</h3>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Features</h3>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
                         <div className="flex items-center gap-3">
                           <Command size={16} className="text-slate-500 dark:text-slate-400" />
                           <div>
                             <p className="text-[13px] text-slate-700 dark:text-slate-300">Command Palette</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Quick actions with Cmd+K</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Quick actions with Cmd+K</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.commandPaletteEnabled} onChange={() => updateSetting("commandPaletteEnabled", !settings.commandPaletteEnabled)} />
@@ -1475,7 +1475,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
                           <Sparkles size={16} className="text-sky-500 dark:text-sky-400" />
                           <div>
                             <p className="text-[13px] text-slate-700 dark:text-slate-300">AI Companion</p>
-                            <p className="text-[11px] text-slate-400 dark:text-slate-500">Floating AI guide on every page</p>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">Floating AI guide on every page</p>
                           </div>
                         </div>
                         <Toggle enabled={settings.companionEnabled} onChange={() => updateSetting("companionEnabled", !settings.companionEnabled)} />

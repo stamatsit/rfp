@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import {
   FileSpreadsheet,
   Image,
@@ -208,7 +209,7 @@ function Card({ to, icon, title, description, gradient, shadowColor, badge, onCl
       </div>
       <h3 className="text-[16px] font-semibold text-slate-900 dark:text-white tracking-[-0.01em] mb-1 transition-colors">{title}</h3>
       <p className="text-[13px] text-slate-500 dark:text-slate-400 leading-relaxed transition-colors">{description}</p>
-      <div className="mt-4 flex items-center text-[12px] font-medium text-slate-400 dark:text-slate-500 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
+      <div className="mt-4 flex items-center text-[12px] font-medium text-slate-500 dark:text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300 transition-colors duration-200">
         <span>Open</span>
         <ArrowRight size={13} className="ml-1 transition-transform duration-200 ease-out group-hover:translate-x-1" strokeWidth={2} />
       </div>
@@ -306,6 +307,7 @@ const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
 const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
 
 export function HomePage() {
+  useDocumentTitle("Home")
   const { user, markTourCompleted } = useAuth()
   const isAdmin = useIsAdmin()
   const [showTour, setShowTour] = useState(false)
@@ -412,7 +414,7 @@ export function HomePage() {
       <section className="pt-16 pb-10 px-6 animate-in fade-in-0 slide-in-from-bottom-2 duration-500">
         <div className="max-w-4xl mx-auto">
           <div className="flex items-baseline justify-between gap-4 mb-2.5">
-            <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.1em] uppercase animate-fade-in transition-colors">
+            <p className="text-[11px] font-medium text-slate-500 dark:text-slate-600 tracking-[0.1em] uppercase animate-fade-in transition-colors">
               {greeting}
             </p>
             <div
@@ -449,7 +451,7 @@ export function HomePage() {
                     ? "text-amber-600 dark:text-amber-400"
                     : systemStatus === "offline"
                       ? "text-red-500 dark:text-red-400"
-                      : "text-slate-400 dark:text-slate-500"
+                      : "text-slate-500 dark:text-slate-400"
                 }`}
               >
                 {systemStatus === "checking" ? "..." : systemStatus === "online" ? "Connected" : systemStatus === "degraded" ? "Degraded" : "Contact support"}
@@ -475,7 +477,7 @@ export function HomePage() {
           <DashboardWidgets />
 
           {/* Section label */}
-          <p className="text-[11px] font-medium text-slate-400 dark:text-slate-600 tracking-[0.08em] uppercase mb-4 mt-1">Tools</p>
+          <p className="text-[11px] font-medium text-slate-500 dark:text-slate-600 tracking-[0.08em] uppercase mb-4 mt-1">Tools</p>
 
           {/* Action Tiles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 stagger-children">

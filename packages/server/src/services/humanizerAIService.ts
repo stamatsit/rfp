@@ -552,12 +552,9 @@ export async function streamHumanizerRewrite(
   try {
     // Pass 1: Main rewrite or scan
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages,
-      temperature,
-      max_tokens: maxTokens,
-      frequency_penalty: frequencyPenalty,
-      presence_penalty: presencePenalty,
+      max_completion_tokens: maxTokens,
       stream: true,
     })
 
@@ -587,12 +584,9 @@ export async function streamHumanizerRewrite(
       ]
 
       const stream2 = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-5.6-luna",
         messages: pass2Messages,
-        temperature: 0.95,
-        max_tokens: maxTokens,
-        frequency_penalty: 0.5,
-        presence_penalty: 0.45,
+        max_completion_tokens: maxTokens,
         stream: true,
       })
 
@@ -680,10 +674,9 @@ async function scoreParagraphs(
   const prompt = buildParagraphScoringPrompt(text)
 
   const resp = await openai.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: "gpt-5.6-luna",
     messages: [{ role: "user", content: prompt }],
-    temperature: 0.1,
-    max_tokens: 300,
+    max_completion_tokens: 300,
   })
 
   const raw = resp.choices[0]?.message?.content ?? ""
@@ -711,12 +704,9 @@ async function streamParagraphRewrite(
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [{ role: "user", content: systemPrompt }],
-      temperature: 0.92,
-      max_tokens: 1000,
-      frequency_penalty: 0.45,
-      presence_penalty: 0.35,
+      max_completion_tokens: 1000,
       stream: true,
     })
 
@@ -782,12 +772,9 @@ async function streamSentenceRewrite(
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [{ role: "user", content: systemPrompt }],
-      temperature: 0.93,
-      max_tokens: 300,
-      frequency_penalty: 0.5,
-      presence_penalty: 0.4,
+      max_completion_tokens: 300,
       stream: true,
     })
 
@@ -871,12 +858,9 @@ async function streamRefine(
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages,
-      temperature: 0.88,
-      max_tokens: 4000,
-      frequency_penalty: 0.45,
-      presence_penalty: 0.35,
+      max_completion_tokens: 4000,
       stream: true,
     })
 

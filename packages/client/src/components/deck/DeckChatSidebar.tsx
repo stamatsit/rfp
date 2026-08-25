@@ -121,7 +121,7 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
   if (collapsed) {
     return (
       <div className="flex flex-col items-center h-full bg-white dark:bg-slate-900 py-4 gap-2">
-        <button onClick={onToggleCollapse} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="Expand AI sidebar">
+        <button onClick={onToggleCollapse} className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="Expand AI sidebar">
           <PanelLeftOpen className="w-4 h-4" />
         </button>
         <button onClick={onToggleCollapse} className="w-8 h-8 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-slate-800 text-blue-600 dark:text-blue-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all" title="AI">
@@ -142,11 +142,11 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
           <span className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 tracking-tight">AI</span>
         </div>
         <div className="flex items-center gap-0.5">
-          <button onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="New conversation">
+          <button onClick={() => { chat.startNewConversation(); setHistoryOpen(false) }} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="New conversation">
             <MessageSquarePlus className="w-3.5 h-3.5" />
           </button>
           <div className="relative" ref={historyRef}>
-            <button onClick={() => setHistoryOpen(!historyOpen)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${historyOpen ? "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30" : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"}`} title="History">
+            <button onClick={() => setHistoryOpen(!historyOpen)} className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${historyOpen ? "text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-900/30" : "text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"}`} title="History">
               <History className="w-3.5 h-3.5" />
             </button>
             {historyOpen && (
@@ -156,22 +156,22 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
                 </div>
                 <div className="max-h-60 overflow-y-auto">
                   {chat.conversationList.length === 0 ? (
-                    <p className="px-3 py-4 text-[11px] text-slate-400 dark:text-slate-500 text-center">No conversations yet</p>
+                    <p className="px-3 py-4 text-[11px] text-slate-500 dark:text-slate-400 text-center">No conversations yet</p>
                   ) : (
                     chat.conversationList.map((conv: ConversationSummary) => (
                       <div key={conv.id} className={`group flex items-center gap-2 px-3 py-2 text-[11px] cursor-pointer transition-colors ${conv.id === chat.conversationId ? "bg-blue-50/60 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60"}`}>
                         {renamingId === conv.id ? (
                           <div className="flex-1 flex items-center gap-1">
                             <input value={renameValue} onChange={(e) => setRenameValue(e.target.value)} className="flex-1 text-[11px] bg-transparent border-b border-blue-400 outline-none" autoFocus onKeyDown={(e) => { if (e.key === "Enter") { chat.renameConversation(conv.id, renameValue); setRenamingId(null) } if (e.key === "Escape") setRenamingId(null) }} />
-                            <button onClick={() => { chat.renameConversation(conv.id, renameValue); setRenamingId(null) }} className="p-0.5"><CheckIcon className="w-3 h-3 text-blue-500" /></button>
-                            <button onClick={() => setRenamingId(null)} className="p-0.5"><X className="w-3 h-3 text-slate-400" /></button>
+                            <button onClick={() => { chat.renameConversation(conv.id, renameValue); setRenamingId(null) }} aria-label="Confirm rename" className="p-0.5"><CheckIcon className="w-3 h-3 text-blue-500" /></button>
+                            <button onClick={() => setRenamingId(null)} aria-label="Cancel rename" className="p-0.5"><X className="w-3 h-3 text-slate-500" /></button>
                           </div>
                         ) : (
                           <>
                             <span className="flex-1 truncate" onClick={() => { chat.loadConversation(conv.id); setHistoryOpen(false) }}>{conv.title}</span>
                             <div className="hidden group-hover:flex items-center gap-0.5">
-                              <button onClick={() => { setRenamingId(conv.id); setRenameValue(conv.title) }} className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700"><Pencil className="w-2.5 h-2.5" /></button>
-                              <button onClick={() => chat.deleteConversation(conv.id)} className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
+                              <button onClick={() => { setRenamingId(conv.id); setRenameValue(conv.title) }} aria-label="Rename conversation" className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-slate-700"><Pencil className="w-2.5 h-2.5" /></button>
+                              <button onClick={() => chat.deleteConversation(conv.id)} aria-label="Delete conversation" className="p-0.5 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-red-400"><Trash2 className="w-2.5 h-2.5" /></button>
                             </div>
                           </>
                         )}
@@ -182,7 +182,7 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
               </div>
             )}
           </div>
-          <button onClick={onToggleCollapse} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="Collapse">
+          <button onClick={onToggleCollapse} className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-all" title="Collapse" aria-label="Collapse sidebar">
             <PanelLeftClose className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -204,7 +204,7 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
                              text-slate-600 dark:text-slate-300 hover:bg-blue-50/60 dark:hover:bg-blue-900/15
                              hover:text-blue-700 dark:hover:text-blue-300 transition-all duration-150"
                 >
-                  <action.icon className="w-3.5 h-3.5 flex-shrink-0 text-slate-400" />
+                  <action.icon className="w-3.5 h-3.5 flex-shrink-0 text-slate-500" />
                   <span>{action.label}</span>
                 </button>
               ))}
@@ -232,7 +232,7 @@ export function DeckChatSidebar({ deckStore, collapsed, onToggleCollapse }: Deck
             {chat.isStreaming && (
               <div className="flex items-center gap-2 px-2 py-1">
                 <Loader2 className="w-3 h-3 text-blue-500 animate-spin" />
-                <span className="text-[10px] text-slate-400">Generating deck...</span>
+                <span className="text-[10px] text-slate-500">Generating deck...</span>
               </div>
             )}
             {/* Follow-up prompts */}

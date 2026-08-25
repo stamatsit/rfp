@@ -95,13 +95,13 @@ export function ComplianceChecklist({ rfpText, documentContent, isOpen, onClose 
             RFP Checklist
           </span>
           {items.length > 0 && (
-            <span className="text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-1.5 py-0.5 tabular-nums">
+            <span className="text-[9px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-full px-1.5 py-0.5 tabular-nums">
               {items.length}
             </span>
           )}
         </div>
         <button onClick={onClose} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors">
-          <X className="w-3.5 h-3.5 text-slate-400" />
+          <X className="w-3.5 h-3.5 text-slate-500" />
         </button>
       </div>
 
@@ -168,7 +168,7 @@ export function ComplianceChecklist({ rfpText, documentContent, isOpen, onClose 
         {Object.entries(grouped).map(([category, categoryItems]) => (
           <div key={category} className="mb-1">
             <div className="px-3 pt-2 pb-0.5 flex items-center gap-1.5">
-              <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{category}</span>
+              <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{category}</span>
               <span className="flex-1 h-px bg-slate-100 dark:bg-slate-800" />
             </div>
             {categoryItems.map((item) => {

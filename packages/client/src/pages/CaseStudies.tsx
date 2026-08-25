@@ -21,6 +21,7 @@ import { useChat } from "@/hooks/useChat"
 import { clientSuccessData } from "@/data/clientSuccessData"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 import { loadSettings } from "@/components/SettingsPanel"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const theme = CHAT_THEMES.violet
 
@@ -74,6 +75,7 @@ const parseResult = (data: Record<string, unknown>) => ({
 
 export function CaseStudies() {
   const [searchParams] = useSearchParams()
+  useDocumentTitle("Case Studies")
   const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
@@ -122,19 +124,19 @@ export function CaseStudies() {
         <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="grid grid-cols-2 gap-3 text-xs">
             <div>
-              <span className="text-slate-400">Client Results:</span>
+              <span className="text-slate-500">Client Results:</span>
               <span className="ml-2 text-violet-600 font-medium">{dataUsed.totalCaseStudies}</span>
             </div>
             <div>
-              <span className="text-slate-400">Top-Line Results:</span>
+              <span className="text-slate-500">Top-Line Results:</span>
               <span className="ml-2 text-violet-600 font-medium">{dataUsed.totalStats}</span>
             </div>
             <div>
-              <span className="text-slate-400">Testimonials:</span>
+              <span className="text-slate-500">Testimonials:</span>
               <span className="ml-2 text-violet-600 font-medium">{dataUsed.totalTestimonials}</span>
             </div>
             <div>
-              <span className="text-slate-400">Categories:</span>
+              <span className="text-slate-500">Categories:</span>
               <span className="ml-2 text-slate-600 dark:text-slate-300">
                 {dataUsed.categoriesSearched?.join(", ")}
               </span>
@@ -215,7 +217,7 @@ export function CaseStudies() {
               <button
                 key={prompt}
                 onClick={() => chat.setInputValue(prompt)}
-                className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
+                className="text-[13px] text-slate-500 dark:text-slate-400 hover:text-violet-500 dark:hover:text-violet-400 transition-colors"
               >
                 {prompt}
               </button>

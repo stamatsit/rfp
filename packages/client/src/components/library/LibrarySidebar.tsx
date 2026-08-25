@@ -19,7 +19,7 @@ export function LibrarySidebar({ activeSection, onSectionChange, isAdmin, onNewE
     <aside className="w-[220px] shrink-0 border-r border-slate-200/60 dark:border-slate-700/30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl flex flex-col">
       {/* Section header */}
       <div className="px-5 pt-5 pb-3">
-        <h2 className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.08em]">Library</h2>
+        <h2 className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.08em]">Library</h2>
       </div>
 
       {/* Nav items */}
@@ -44,7 +44,7 @@ export function LibrarySidebar({ activeSection, onSectionChange, isAdmin, onNewE
                   ? "bg-blue-500/10 dark:bg-blue-400/10"
                   : "bg-slate-100 dark:bg-slate-800"
               }`}>
-                <section.icon size={16} className={isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"} />
+                <section.icon size={16} className={isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-500 dark:text-slate-400"} />
               </div>
               <div className="min-w-0">
                 <span className={`block text-[13px] font-semibold leading-tight ${
@@ -52,7 +52,7 @@ export function LibrarySidebar({ activeSection, onSectionChange, isAdmin, onNewE
                 }`}>
                   {section.label}
                 </span>
-                <span className="block text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight truncate">
+                <span className="block text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight truncate">
                   {section.desc}
                 </span>
               </div>

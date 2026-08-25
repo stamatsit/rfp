@@ -44,7 +44,7 @@ export function FloatingActionBar({
       >
         <Download size={13} className="mr-1.5" /> Export
       </Button>
-      <button onClick={onClear} className="ml-1 text-slate-400 hover:text-white dark:hover:text-slate-700 transition-colors duration-150">
+      <button onClick={onClear} className="ml-1 text-slate-500 hover:text-white dark:hover:text-slate-700 transition-colors duration-150">
         <X size={16} />
       </button>
     </div>

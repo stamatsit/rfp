@@ -41,8 +41,8 @@ const SuccessCard = React.memo(function SuccessCard({ cs, isExpanded, copiedId, 
           </div>
           <p className="text-[13px] text-slate-500 dark:text-slate-400 mt-0.5">{cs.focus}</p>
         </div>
-        <span className="text-[11px] text-slate-400 shrink-0">{cs.metrics.length} metrics</span>
-        <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+        <span className="text-[11px] text-slate-500 shrink-0">{cs.metrics.length} metrics</span>
+        <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
       </button>
 
       <div className="grid transition-[grid-template-rows] duration-300 ease-out" style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr" }}>
@@ -91,7 +91,7 @@ const SuccessCard = React.memo(function SuccessCard({ cs, isExpanded, copiedId, 
                 {copiedId === `cs-${cs.id}` ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} />}
                 {copiedId === `cs-${cs.id}` ? "Copied" : "Copy"}
               </button>
-              {cs.usageCount > 0 && <span className="text-[10px] text-slate-400">Used {cs.usageCount}x</span>}
+              {cs.usageCount > 0 && <span className="text-[10px] text-slate-500">Used {cs.usageCount}x</span>}
               {cs.source === "user" && cs.dbId && (
                 <button onClick={() => onDelete("entry", cs.dbId!)}
                   className="flex items-center gap-1.5 text-xs text-red-400 hover:text-red-600 transition-colors duration-150">
@@ -132,10 +132,10 @@ const TestimonialCard = React.memo(function TestimonialCard({ t, index, isExpand
           </p>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          {t.usageCount > 0 && <span className="text-[10px] text-slate-400">{t.usageCount}x</span>}
+          {t.usageCount > 0 && <span className="text-[10px] text-slate-500">{t.usageCount}x</span>}
           <button onClick={() => onCopy(`"${t.quote}"\n— ${[t.name, t.title, t.organization].filter(Boolean).join(", ")}`, `t-${index}`, "testimonial", t.dbId)}
             className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-            {copiedId === `t-${index}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+            {copiedId === `t-${index}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
           </button>
           {t.source === "user" && t.dbId && (
             <button onClick={() => onDelete("testimonial", t.dbId!)} className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
@@ -336,11 +336,11 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
         {/* Search + filters */}
         <div className="flex gap-3 items-center">
           <div className="flex-1 relative group">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors duration-200" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-500 transition-colors duration-200" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)}
               placeholder={tab === "success" ? "Search client success..." : tab === "results" ? "Search results..." : tab === "testimonials" ? "Search testimonials..." : "Search awards..."}
               className="pl-9 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80 shadow-[0_1px_2px_rgba(0,0,0,0.03)]" />
-            {query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"><X size={14} /></button>}
+            {query && <button onClick={() => setQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600"><X size={14} /></button>}
           </div>
           {tab === "success" && (
             <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -366,7 +366,7 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "success" && (
             <Select value={successSort} onValueChange={(v) => setSuccessSort(v as SuccessSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem><SelectItem value="client-az">Client A–Z</SelectItem>
@@ -378,7 +378,7 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "results" && (
             <Select value={resultsSort} onValueChange={(v) => setResultsSort(v as ResultsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem><SelectItem value="value-high">Highest Value</SelectItem>
@@ -390,7 +390,7 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "testimonials" && (
             <Select value={testimonialSort} onValueChange={(v) => setTestimonialSort(v as TestimonialsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem><SelectItem value="org-az">Organization A–Z</SelectItem>
@@ -402,7 +402,7 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           {tab === "awards" && (
             <Select value={awardSort} onValueChange={(v) => setAwardSort(v as AwardsSort)}>
               <SelectTrigger className="w-40 h-10 text-sm bg-white dark:bg-slate-800 dark:border-slate-700/60 rounded-xl border-slate-200/80">
-                <ArrowUpDown size={13} className="mr-1.5 text-slate-400" /><SelectValue />
+                <ArrowUpDown size={13} className="mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="most-used">Most Used</SelectItem><SelectItem value="newest">Newest First</SelectItem>
@@ -413,7 +413,7 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
           )}
         </div>
 
-        <p className="text-[13px] text-slate-400 dark:text-slate-500">
+        <p className="text-[13px] text-slate-500 dark:text-slate-400">
           {tab === "success" && `Showing ${visibleSuccessItems.length} of ${filteredSuccessItems.length}${filteredSuccessItems.length < totalSuccess ? ` (${totalSuccess} total)` : ""}`}
           {tab === "results" && `Showing ${visibleResultsItems.length} of ${filteredResults.length}${filteredResults.length < totalResults ? ` (${totalResults} total)` : ""}`}
           {tab === "testimonials" && `Showing ${visibleTestimonialsItems.length} of ${filteredTestimonials.length}${filteredTestimonials.length < totalTestimonials ? ` (${totalTestimonials} total)` : ""}`}
@@ -440,10 +440,10 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <span className={`text-sm font-bold w-20 shrink-0 text-right ${r.direction === "increase" ? "text-emerald-600" : "text-amber-600"}`}>{r.result}</span>
                 {r.direction === "increase" ? <ArrowUp size={12} className="text-emerald-500 shrink-0" /> : <ArrowDown size={12} className="text-amber-500 shrink-0" />}
                 <span className="text-sm text-slate-700 dark:text-slate-300 flex-1">{r.metric}</span>
-                <span className="text-xs text-slate-400 shrink-0">{r.client}</span>
-                {r.usageCount > 0 && <span className="text-[10px] text-slate-400 shrink-0">{r.usageCount}x</span>}
+                <span className="text-xs text-slate-500 shrink-0">{r.client}</span>
+                {r.usageCount > 0 && <span className="text-[10px] text-slate-500 shrink-0">{r.usageCount}x</span>}
                 <button onClick={() => handleCopy(`${r.result} ${r.metric} — ${r.client}`, `r-${i}`, "result", r.dbId)} className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                  {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                  {copiedId === `r-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
                 </button>
                 {r.source === "user" && r.dbId && <button onClick={() => handleDelete("result", r.dbId!)} className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"><Trash2 size={13} className="text-red-400 hover:text-red-600" /></button>}
               </div>
@@ -476,10 +476,10 @@ export function ClientSuccessSection({ refreshKey }: { refreshKey: number }) {
                 <Award size={14} className="text-amber-500 shrink-0" />
                 <span className="text-sm font-medium text-slate-900 dark:text-white flex-1">{a.name}</span>
                 <Badge variant="outline" className="text-[11px] text-slate-500 border-slate-200/60 dark:border-slate-700/40">{a.year}</Badge>
-                <span className="text-xs text-slate-400">{a.clientOrProject}</span>
-                {a.usageCount > 0 && <span className="text-[10px] text-slate-400 shrink-0">{a.usageCount}x</span>}
+                <span className="text-xs text-slate-500">{a.clientOrProject}</span>
+                {a.usageCount > 0 && <span className="text-[10px] text-slate-500 shrink-0">{a.usageCount}x</span>}
                 <button onClick={() => handleCopy(`${a.name} (${a.year}) — ${a.clientOrProject}`, `a-${i}`, "award", a.dbId)} className="opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                  {copiedId === `a-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-400" />}
+                  {copiedId === `a-${i}` ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} className="text-slate-500" />}
                 </button>
                 {a.source === "user" && a.dbId && <button onClick={() => handleDelete("award", a.dbId!)} className="opacity-0 group-hover:opacity-100 transition-opacity duration-150"><Trash2 size={13} className="text-red-400 hover:text-red-600" /></button>}
               </div>

@@ -261,7 +261,7 @@ export function AnswerDetailPanel({
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all duration-150"
             >
               <X size={18} />
             </button>
@@ -405,7 +405,7 @@ export function AnswerDetailPanel({
                   <h4 className="font-semibold text-slate-900 dark:text-white flex items-center gap-2 text-[14px]">
                     <ImageIcon size={16} />
                     Linked Photos
-                    <span className="text-slate-400 dark:text-slate-500 font-normal text-[13px]">({linkedPhotos.length})</span>
+                    <span className="text-slate-500 dark:text-slate-400 font-normal text-[13px]">({linkedPhotos.length})</span>
                     {loadingLinked && <Loader2 className="w-4 h-4 animate-spin text-blue-500" />}
                   </h4>
                   {isAdmin && (

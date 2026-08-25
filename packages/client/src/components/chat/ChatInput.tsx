@@ -85,7 +85,7 @@ export function ChatInput({
       <div className="max-w-4xl mx-auto px-6 py-4">
         {showQuickActions && quickActions && quickActions.length > 0 && (
           <div className="flex items-center gap-2 mb-3 overflow-x-auto pb-1">
-            <span className="text-xs text-slate-400 whitespace-nowrap">Quick:</span>
+            <span className="text-xs text-slate-500 whitespace-nowrap">Quick:</span>
             {quickActions.slice(0, 4).map(action => (
               <button
                 key={action.label}
@@ -161,7 +161,7 @@ export function ChatInput({
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isLoading || isExtracting}
-                className="h-12 w-12 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="h-12 w-12 flex items-center justify-center rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:border-emerald-300 dark:hover:border-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Attach document (PDF, Word, TXT)"
               >
                 <Paperclip size={18} />

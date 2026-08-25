@@ -119,13 +119,12 @@ Return format:
 ${contextLines.join("\n")}`
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: description },
       ],
-      temperature: 0.3,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
       response_format: { type: "json_object" },
     })
 

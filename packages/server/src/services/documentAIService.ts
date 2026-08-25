@@ -449,7 +449,6 @@ export async function streamDocumentChat(
       ...historyMessages.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
       { role: "user", content: query },
     ],
-    temperature: 0.4,
     maxTokens: 3000,
     metadata: {
       mode: options?.reviewMode ? "review" : "editor",
@@ -508,13 +507,12 @@ export async function queryDocumentChat(
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: query },
       ],
-      temperature: 0.4,
-      max_tokens: 3000,
+      max_completion_tokens: 3000,
     })
 
     const raw = completion.choices[0]?.message?.content || ""
@@ -590,13 +588,12 @@ RULES:
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: `${instruction}\n\nText to edit:\n${selectedText}` },
       ],
-      temperature: 0.3,
-      max_tokens: 1500,
+      max_completion_tokens: 1500,
       stream: true,
     })
 
@@ -661,13 +658,12 @@ RULES:
 
   try {
     const stream = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.4,
-      max_tokens: 120,
+      max_completion_tokens: 120,
       stream: true,
     })
 
@@ -731,7 +727,7 @@ export async function scanDocument(
     : "None specified."
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       {
         role: "system",
@@ -765,8 +761,7 @@ Return ONLY valid JSON, no markdown fencing.`,
         content: documentText.slice(0, 12000),
       },
     ],
-    temperature: 0.2,
-    max_tokens: 4000,
+    max_completion_tokens: 4000,
     response_format: { type: "json_object" },
   })
 
@@ -800,7 +795,7 @@ export async function generateRFPChecklist(rfpText: string): Promise<{ items: Ch
   if (!openai) throw new Error("OpenAI API key not configured")
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       {
         role: "system",
@@ -823,8 +818,7 @@ Return ONLY valid JSON, no markdown fencing.`,
         content: rfpText.slice(0, 12000),
       },
     ],
-    temperature: 0.2,
-    max_tokens: 4000,
+    max_completion_tokens: 4000,
     response_format: { type: "json_object" },
   })
 
@@ -843,7 +837,7 @@ export async function checkRFPCompliance(
   const requirementsList = items.map((item) => `${item.id}: ${item.requirement}`).join("\n")
 
   const completion = await openai.chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-5.6-luna",
     messages: [
       {
         role: "system",
@@ -872,8 +866,7 @@ ${requirementsList}`,
         content: `PROPOSAL DOCUMENT:\n${documentContent.slice(0, 10000)}`,
       },
     ],
-    temperature: 0.2,
-    max_tokens: 4000,
+    max_completion_tokens: 4000,
     response_format: { type: "json_object" },
   })
 

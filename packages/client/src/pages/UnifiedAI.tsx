@@ -25,6 +25,7 @@ import { ChatContainer, ChatHistorySidebar } from "@/components/chat"
 import { useChat } from "@/hooks/useChat"
 import { CHAT_THEMES, type QuickAction, type ChatMessage } from "@/types/chat"
 import { loadSettings } from "@/components/SettingsPanel"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 const theme = CHAT_THEMES.indigo
 
@@ -81,6 +82,7 @@ const parseResult = (data: Record<string, unknown>) => ({
 
 export function UnifiedAI() {
   const [searchParams] = useSearchParams()
+  useDocumentTitle("Unified AI")
   const navigate = useNavigate()
   const responseLength = useMemo(() => loadSettings().aiResponseLength, [])
 
@@ -149,24 +151,24 @@ export function UnifiedAI() {
         <div className="p-3 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-700">
           <div className="grid grid-cols-3 gap-3 text-xs">
             <div>
-              <span className="text-slate-400 block mb-1">Proposals</span>
+              <span className="text-slate-500 block mb-1">Proposals</span>
               <span className="text-indigo-600 font-medium">{proposals?.count ?? 0}</span>
               <span className="text-slate-500 ml-1">({formatWinRate(proposals?.winRate ?? 0)} win)</span>
             </div>
             <div>
-              <span className="text-slate-400 block mb-1">Client Results</span>
+              <span className="text-slate-500 block mb-1">Client Results</span>
               <span className="text-indigo-600 font-medium">{caseStudies?.count ?? 0}</span>
               <span className="text-slate-500 ml-1">+ {caseStudies?.testimonials ?? 0} testimonials</span>
             </div>
             <div>
-              <span className="text-slate-400 block mb-1">Library</span>
+              <span className="text-slate-500 block mb-1">Library</span>
               <span className="text-indigo-600 font-medium">{library?.answers ?? 0} answers</span>
               <span className="text-slate-500 ml-1">+ {library?.photos ?? 0} photos</span>
             </div>
           </div>
           {proposals?.relevantClients && proposals.relevantClients.length > 0 && (
             <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-700">
-              <span className="text-slate-400 text-xs">Recent wins: </span>
+              <span className="text-slate-500 text-xs">Recent wins: </span>
               <span className="text-xs text-slate-600 dark:text-slate-300">
                 {proposals.relevantClients.slice(0, 5).join(", ")}
               </span>
@@ -247,7 +249,7 @@ export function UnifiedAI() {
               <button
                 key={prompt}
                 onClick={() => chat.setInputValue(prompt)}
-                className="text-[13px] text-slate-400 dark:text-slate-500 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
+                className="text-[13px] text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition-colors"
               >
                 {prompt}
               </button>

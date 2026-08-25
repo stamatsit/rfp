@@ -647,10 +647,10 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
           : "border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-50/60 dark:hover:bg-slate-700/30"
       }`}
     >
-      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400"}`} />
+      <Icon className={`w-4 h-4 flex-shrink-0 ${active ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500"}`} />
       <div>
         <div className={`text-xs font-semibold ${active ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>{label}</div>
-        <div className="text-[10px] text-slate-400">{sublabel}</div>
+        <div className="text-[10px] text-slate-500">{sublabel}</div>
       </div>
     </button>
   )
@@ -662,11 +662,11 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 dark:border-slate-700">
           <div>
             <h3 className="text-sm font-semibold text-slate-800 dark:text-white">Export Document</h3>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
               {wordCount.toLocaleString()} words · "{title.slice(0, 40)}{title.length > 40 ? "…" : ""}"
             </p>
           </div>
-          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
+          <button onClick={onClose} className="p-1.5 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -684,7 +684,7 @@ export function ExportDialog({ title, content, formatSettings, onClose }: Export
                   className="flex-1 h-9 px-3 text-sm bg-transparent text-slate-700 dark:text-slate-300 outline-none"
                   placeholder="document"
                 />
-                <span className="px-2.5 text-[11px] text-slate-400 dark:text-slate-500 font-mono border-l border-slate-200 dark:border-slate-700 h-9 flex items-center bg-slate-100/60 dark:bg-slate-800/60">
+                <span className="px-2.5 text-[11px] text-slate-500 dark:text-slate-400 font-mono border-l border-slate-200 dark:border-slate-700 h-9 flex items-center bg-slate-100/60 dark:bg-slate-800/60">
                   {extSuffix}
                 </span>
               </div>

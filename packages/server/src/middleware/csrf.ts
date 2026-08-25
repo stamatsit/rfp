@@ -51,13 +51,6 @@ export function validateCsrfToken(req: Request, res: Response, next: NextFunctio
   const cookieToken = req.cookies?.[CSRF_COOKIE_NAME]
   const headerToken = req.headers[CSRF_HEADER_NAME] as string | undefined
 
-  // Debug logging for multipart requests
-  if (req.headers["content-type"]?.includes("multipart/form-data")) {
-    console.log("[CSRF] Multipart request:", req.method, req.path)
-    console.log("[CSRF] Cookie token:", cookieToken ? "present" : "missing")
-    console.log("[CSRF] Header token:", headerToken ? "present" : "missing")
-  }
-
   // Validate tokens exist
   if (!cookieToken) {
     return res.status(403).json({

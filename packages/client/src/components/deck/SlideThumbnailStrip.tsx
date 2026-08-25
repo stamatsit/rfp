@@ -37,7 +37,7 @@ function SortableThumbnail({ slide, index, isSelected, onSelect }: {
     >
       {/* Slide number + drag handle */}
       <div className="flex flex-col items-center pt-2 w-5 flex-shrink-0">
-        <span className="text-[9px] font-medium text-slate-400 dark:text-slate-500 tabular-nums">{index + 1}</span>
+        <span className="text-[9px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">{index + 1}</span>
         <div
           {...attributes}
           {...listeners}
@@ -98,7 +98,7 @@ export function SlideThumbnailStrip({ slides, selectedIndex, onSelect, onAddSlid
       <button
         onClick={onAddSlide}
         className="w-full flex items-center justify-center gap-1.5 py-2 mt-1 rounded-lg border-2 border-dashed
-                   border-slate-200/60 dark:border-slate-700/40 text-slate-400 dark:text-slate-500
+                   border-slate-200/60 dark:border-slate-700/40 text-slate-500 dark:text-slate-400
                    hover:border-blue-300 dark:hover:border-blue-700 hover:text-blue-500 dark:hover:text-blue-400
                    hover:bg-blue-50/30 dark:hover:bg-blue-900/10
                    transition-all duration-150 text-[10px] font-medium"

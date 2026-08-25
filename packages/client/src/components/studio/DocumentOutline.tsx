@@ -56,12 +56,12 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-200 dark:border-slate-700">
         <div className="flex items-center gap-1.5">
-          <AlignLeft className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+          <AlignLeft className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
           <span className="text-[11px] font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">
             Outline
           </span>
           {headings.length > 0 && (
-            <span className="text-[9px] font-medium text-slate-400 bg-slate-100 dark:bg-slate-800 rounded-full px-1.5 py-0.5 tabular-nums">
+            <span className="text-[9px] font-medium text-slate-500 bg-slate-100 dark:bg-slate-800 rounded-full px-1.5 py-0.5 tabular-nums">
               {headings.length}
             </span>
           )}
@@ -70,7 +70,7 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
           onClick={onClose}
           className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded transition-colors"
         >
-          <X className="w-3.5 h-3.5 text-slate-400" />
+          <X className="w-3.5 h-3.5 text-slate-500" />
         </button>
       </div>
 
@@ -79,9 +79,9 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
         {headings.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-4 py-8 text-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center opacity-50">
-              <AlignLeft className="w-4 h-4 text-slate-400" />
+              <AlignLeft className="w-4 h-4 text-slate-500" />
             </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
               Add headings to see the outline
             </p>
           </div>
@@ -107,7 +107,7 @@ export function DocumentOutline({ editor, isOpen, onClose }: DocumentOutlineProp
                 <span className={`flex-shrink-0 w-4 h-4 flex items-center justify-center rounded text-[8px] font-bold ${
                   isActive
                     ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
-                    : "bg-slate-100 dark:bg-slate-800 text-slate-400 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-500 group-hover:bg-slate-200 dark:group-hover:bg-slate-700 transition-colors"
                 }`}>
                   H{h.level}
                 </span>

@@ -105,7 +105,7 @@ export function ClientBrandKitTab() {
     <div className="space-y-4 animate-in fade-in-0 duration-200">
       {/* Header */}
       <div className="flex items-center gap-2">
-        <Palette size={14} className="text-slate-400" />
+        <Palette size={14} className="text-slate-500" />
         <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider">Brand Kit</span>
         {brandKit?.scrapeStatus === "partial" && !brandKit.primaryColor && !brandKit.primaryFont && (
           <span className="text-[10px] text-amber-500 font-medium">no styles found</span>
@@ -143,7 +143,7 @@ export function ClientBrandKitTab() {
                   const isValidHex = /^#[0-9a-fA-F]{6}$/.test(val)
                   return (
                     <div key={field}>
-                      <label className="text-[10px] text-slate-400 block mb-0.5 capitalize">{field.replace("Color", "")}</label>
+                      <label className="text-[10px] text-slate-500 block mb-0.5 capitalize">{field.replace("Color", "")}</label>
                       <div className="flex items-center gap-1">
                         <input
                           type="color"
@@ -165,7 +165,7 @@ export function ClientBrandKitTab() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-0.5">Primary Font</label>
+                  <label className="text-[10px] text-slate-500 block mb-0.5">Primary Font</label>
                   <input
                     type="text"
                     placeholder="Inter"
@@ -175,7 +175,7 @@ export function ClientBrandKitTab() {
                   />
                 </div>
                 <div>
-                  <label className="text-[10px] text-slate-400 block mb-0.5">Brand Tone</label>
+                  <label className="text-[10px] text-slate-500 block mb-0.5">Brand Tone</label>
                   <input
                     type="text"
                     placeholder="Professional, warm"
@@ -186,7 +186,7 @@ export function ClientBrandKitTab() {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] text-slate-400 block mb-0.5">Style Notes</label>
+                <label className="text-[10px] text-slate-500 block mb-0.5">Style Notes</label>
                 <textarea
                   placeholder="Brand voice notes, visual style, etc."
                   value={brandKitDraft.styleNotes ?? ""}
@@ -209,7 +209,7 @@ export function ClientBrandKitTab() {
         /* Display mode */
         <div className="space-y-4">
           {!brandKit.primaryColor && !brandKit.primaryFont && !brandKit.tone && !brandKit.logoUrl && !brandKit.logoStorageKey && (
-            <p className="text-[11px] text-slate-400 italic">
+            <p className="text-[11px] text-slate-500 italic">
               {brandKit.scrapeStatus === "failed"
                 ? "Scrape failed — site could not be loaded."
                 : "No styles found. The site likely uses external stylesheets."
@@ -222,7 +222,7 @@ export function ClientBrandKitTab() {
           {/* Colors */}
           {[brandKit.primaryColor, brandKit.secondaryColor, brandKit.accentColor].some(Boolean) && (
             <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Colors</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-2">Colors</p>
               <div className="flex gap-2.5 flex-wrap">
                 {[brandKit.primaryColor, brandKit.secondaryColor, brandKit.accentColor].filter(Boolean).map(hex => (
                   <button
@@ -257,15 +257,15 @@ export function ClientBrandKitTab() {
           {/* Typography */}
           {brandKit.primaryFont && (
             <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Typography</p>
-              <p className="text-xs text-slate-600 dark:text-slate-300">{brandKit.primaryFont}{brandKit.fontStack && brandKit.fontStack !== brandKit.primaryFont ? <span className="text-slate-400 text-[10px]"> · {brandKit.fontStack}</span> : ""}</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Typography</p>
+              <p className="text-xs text-slate-600 dark:text-slate-300">{brandKit.primaryFont}{brandKit.fontStack && brandKit.fontStack !== brandKit.primaryFont ? <span className="text-slate-500 text-[10px]"> · {brandKit.fontStack}</span> : ""}</p>
             </div>
           )}
 
           {/* Tone */}
           {brandKit.tone && (
             <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Brand Tone</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Brand Tone</p>
               <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">{brandKit.tone}</span>
             </div>
           )}
@@ -278,7 +278,7 @@ export function ClientBrandKitTab() {
           {/* Logo */}
           {(brandKit.logoUrl || brandKit.logoStorageKey) && (
             <div>
-              <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Logo</p>
+              <p className="text-[10px] text-slate-500 uppercase tracking-wider mb-1">Logo</p>
               {brandKit.logoUrl
                 ? <img src={brandKit.logoUrl} alt="Logo" className="h-8 max-w-24 object-contain rounded" onError={e => { (e.target as HTMLImageElement).style.display = "none" }} />
                 : <span className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1"><Image size={12} /> Logo uploaded</span>

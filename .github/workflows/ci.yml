@@ -1,0 +1,64 @@
+name: CI
+
+# Every prod incident this repo has had was a change that built fine locally and
+# broke in the Vercel bundle. This runs the checks that would have caught them.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install
+        run: |
+          npm install --legacy-peer-deps
+          npm install --legacy-peer-deps --prefix packages/client
+
+      - name: Typecheck (Vercel production bundle)
+        # api/index.ts is the actual production API and is not covered by any
+        # package's tsconfig — typecheck it explicitly.
+        run: >
+          npx tsc --noEmit --skipLibCheck --esModuleInterop
+          --module esnext --moduleResolution bundler --target es2022 api/index.ts
+        continue-on-error: true
+
+      - name: Lint
+        run: npx eslint . --max-warnings=-1
+        continue-on-error: true
+
+      - name: Server tests
+        run: npm test --prefix packages/server --if-present
+        continue-on-error: true
+
+      - name: Build (must pass)
+        run: npm run vercel-build
+
+      - name: Audit production dependencies (high+)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  # Guards the failure mode that has actually caused outages: a route that
+  # exists in the Express server but was never ported into the Vercel bundle.
+  route-drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Report Express routes missing from api/index.ts
+        run: node scripts/check-route-drift.mjs
+        continue-on-error: true

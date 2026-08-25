@@ -3,13 +3,15 @@ import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import * as schema from "../db/schema.js"
 import bcrypt from "bcrypt"
+import { randomBytes } from "node:crypto"
 import { eq } from "drizzle-orm"
 
 const SALT_ROUNDS = 12
 
 async function main() {
   const email = process.argv[2]
-  const newPassword = process.argv[3] ?? "St@mats"
+  // No hardcoded fallback — generate a random one when none is supplied.
+  const newPassword = process.argv[3] ?? randomBytes(12).toString("base64url")
   if (!email) {
     console.error("Usage: tsx resetPassword.ts <email> [newPassword]")
     process.exit(1)

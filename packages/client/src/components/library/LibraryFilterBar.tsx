@@ -45,7 +45,7 @@ export function LibraryFilterBar({
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
             }`}
           >
-            <FileText size={12} className={typeFilter !== "photos" ? "text-blue-500" : "text-slate-400"} />
+            <FileText size={12} className={typeFilter !== "photos" ? "text-blue-500" : "text-slate-500"} />
             Answers
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter !== "photos" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
               {totalAnswers}
@@ -59,7 +59,7 @@ export function LibraryFilterBar({
                 : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
             }`}
           >
-            <ImageIcon size={12} className={typeFilter === "photos" ? "text-violet-500" : "text-slate-400"} />
+            <ImageIcon size={12} className={typeFilter === "photos" ? "text-violet-500" : "text-slate-500"} />
             Photos
             <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${typeFilter === "photos" ? "bg-violet-100 text-violet-600 dark:bg-violet-900/40 dark:text-violet-400" : "bg-slate-200 dark:bg-slate-700 text-slate-500"}`}>
               {totalPhotos}
@@ -112,7 +112,7 @@ export function LibraryFilterBar({
       {/* Sort chip */}
       <Select value={sortBy} onValueChange={(v) => onSortChange(v as SortOption)}>
         <SelectTrigger className="w-auto h-8 px-3 text-[12px] font-medium rounded-lg border bg-white dark:bg-slate-900 border-slate-200/80 dark:border-slate-700/60 text-slate-600 dark:text-slate-400 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-150">
-          <ArrowUpDown size={11} className="mr-1 text-slate-400" />
+          <ArrowUpDown size={11} className="mr-1 text-slate-500" />
           <SelectValue placeholder="Sort" />
         </SelectTrigger>
         <SelectContent>
@@ -127,7 +127,7 @@ export function LibraryFilterBar({
       {activeFilterCount > 0 && (
         <button
           onClick={onClearFilters}
-          className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-400 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150"
+          className="flex items-center gap-1 h-7 px-2 text-[11px] text-slate-500 hover:text-red-500 dark:hover:text-red-400 rounded-md hover:bg-red-50 dark:hover:bg-red-950/30 transition-all duration-150"
         >
           <X size={11} /> Clear
         </button>

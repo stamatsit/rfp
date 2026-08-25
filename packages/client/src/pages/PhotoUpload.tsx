@@ -28,9 +28,11 @@ import {
 } from "@/components/ui"
 import { topicsApi, photosApi, type PhotoResponse } from "@/lib/api"
 import type { Topic } from "@/types"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 export function PhotoUpload() {
   const isAdmin = useIsAdmin()
+  useDocumentTitle("Photo Upload")
   if (!isAdmin) return <Navigate to="/" replace />
   const [topics, setTopics] = useState<Topic[]>([])
   const [photos, setPhotos] = useState<PhotoResponse[]>([])
@@ -208,7 +210,7 @@ export function PhotoUpload() {
               <h1 className="text-lg font-semibold text-slate-900 dark:text-white tracking-tight">
                 Photo Library
               </h1>
-              <span className="text-sm text-slate-400 dark:text-slate-500 tabular-nums">
+              <span className="text-sm text-slate-500 dark:text-slate-400 tabular-nums">
                 {filteredPhotos.length}
                 {filteredPhotos.length !== photos.length && ` of ${photos.length}`}
               </span>
@@ -216,7 +218,7 @@ export function PhotoUpload() {
 
             {/* Search */}
             <div className="relative w-64">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <Input
                 placeholder="Search..."
                 value={searchQuery}
@@ -225,7 +227,7 @@ export function PhotoUpload() {
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                   <X size={14} />
                 </button>
               )}
@@ -261,7 +263,7 @@ export function PhotoUpload() {
             {/* Clear filters */}
             {hasActiveFilters && (
               <button onClick={clearFilters}
-                className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                className="text-xs text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                 Clear
               </button>
             )}
@@ -439,7 +441,7 @@ export function PhotoUpload() {
                 {/* Topic + Status row */}
                 <div className="flex gap-3 flex-wrap">
                   <div className="flex-1 min-w-[140px]">
-                    <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                    <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium mb-1 block">
                       Topic
                     </label>
                     <Select value={editForm.topicId} onValueChange={(v) => setEditForm({ ...editForm, topicId: v })}>
@@ -454,7 +456,7 @@ export function PhotoUpload() {
                     </Select>
                   </div>
                   <div className="w-[130px]">
-                    <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                    <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium mb-1 block">
                       Status
                     </label>
                     <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v as "Approved" | "Draft" })}>
@@ -481,7 +483,7 @@ export function PhotoUpload() {
 
                 {/* Tags */}
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                  <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium mb-1 block">
                     Tags
                   </label>
                   <Input
@@ -494,7 +496,7 @@ export function PhotoUpload() {
 
                 {/* Description */}
                 <div>
-                  <label className="text-[11px] uppercase tracking-wider text-slate-400 dark:text-slate-500 font-medium mb-1 block">
+                  <label className="text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-medium mb-1 block">
                     Description
                   </label>
                   <Textarea
@@ -506,7 +508,7 @@ export function PhotoUpload() {
                 </div>
 
                 {/* File metadata footer */}
-                <div className="flex items-center gap-4 text-[11px] text-slate-400 dark:text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-4 text-[11px] text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
                   {lightboxPhoto.originalFilename && (
                     <span>{lightboxPhoto.originalFilename}</span>
                   )}

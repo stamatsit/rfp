@@ -3,10 +3,15 @@ import { test, expect, type Page } from "@playwright/test"
 // ── Auth helper ───────────────────────────────────────────────────────────────
 // Logs in if the current URL contains "/login". Reusable across all describe
 // blocks so every test starts from an authenticated session.
+// Credentials come from the environment — never hardcode them; this repo is public.
+const E2E_EMAIL = process.env.E2E_EMAIL ?? "eric.yerke@stamats.com"
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? ""
+
 async function loginIfNeeded(page: Page) {
   if (page.url().includes("/login")) {
-    await page.fill('input[type="email"]', "eric.yerke@stamats.com")
-    await page.fill('input[type="password"]', "St@mats")
+    if (!E2E_PASSWORD) throw new Error("E2E_PASSWORD must be set to run authenticated e2e tests")
+    await page.fill('input[type="email"]', E2E_EMAIL)
+    await page.fill('input[type="password"]', E2E_PASSWORD)
     await page.click('button[type="submit"]')
     // Wait until we leave the login page
     await page.waitForURL((url) => !url.pathname.includes("/login"), { timeout: 15000 })

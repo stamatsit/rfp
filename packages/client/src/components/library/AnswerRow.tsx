@@ -36,7 +36,7 @@ export const AnswerRow = React.memo(function AnswerRow({
         <div className="flex-shrink-0 mt-0.5" onClick={e => e.stopPropagation()}>
           <button
             onClick={() => onToggleSelection(answer.id)}
-            className="text-slate-400 hover:text-blue-500 transition-colors duration-150"
+            className="text-slate-500 hover:text-blue-500 transition-colors duration-150"
           >
             {isSelected
               ? <CheckSquare size={16} className="text-blue-500" />
@@ -60,7 +60,7 @@ export const AnswerRow = React.memo(function AnswerRow({
             <Badge key={tag} variant={i === 0 ? "purple" : i === 1 ? "teal" : "secondary"} className="text-[10px] px-1.5 py-0.5 rounded-md">{tag}</Badge>
           ))}
           {answer.tags.length > 3 && (
-            <span className="text-[10px] text-slate-400 font-medium">+{answer.tags.length - 3}</span>
+            <span className="text-[10px] text-slate-500 font-medium">+{answer.tags.length - 3}</span>
           )}
           {clientNames.map(clientName => (
             <button
@@ -73,12 +73,12 @@ export const AnswerRow = React.memo(function AnswerRow({
             </button>
           ))}
           {answer.linkedPhotosCount != null && answer.linkedPhotosCount > 0 && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
               <ImageIcon size={10} />{answer.linkedPhotosCount}
             </span>
           )}
           {(answer.usageCount || 0) > 0 && !(answer.linkedPhotosCount && answer.linkedPhotosCount > 0) && (
-            <span className="ml-auto text-[10px] text-slate-400 dark:text-slate-500 font-medium">Used {answer.usageCount}×</span>
+            <span className="ml-auto text-[10px] text-slate-500 dark:text-slate-400 font-medium">Used {answer.usageCount}×</span>
           )}
         </div>
       </div>
@@ -89,7 +89,7 @@ export const AnswerRow = React.memo(function AnswerRow({
           onClick={() => onCopy(answer.answer, answer.id)}
           className="h-7 w-7 p-0 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-150 hover:bg-slate-100 dark:hover:bg-slate-700"
         >
-          {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-400" />}
+          {copiedId === answer.id ? <Check size={12} className="text-emerald-500" /> : <Copy size={12} className="text-slate-500" />}
         </Button>
       </div>
     </div>

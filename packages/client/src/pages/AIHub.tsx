@@ -5,6 +5,7 @@ import { AskAI } from "./AskAI"
 import { ProposalInsights } from "./ProposalInsights"
 import { CaseStudies } from "./CaseStudies"
 import { UnifiedAI } from "./UnifiedAI"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 export type AIHubTab = "ask-ai" | "proposals" | "client-success" | "unified"
 
@@ -62,6 +63,7 @@ function isValidTab(v: string | null): v is AIHubTab {
 
 export function AIHub() {
   const [searchParams, setSearchParams] = useSearchParams()
+  useDocumentTitle("AI Hub")
 
   const getInitialTab = (): AIHubTab => {
     const param = searchParams.get("tab")

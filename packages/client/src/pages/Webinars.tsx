@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { toast } from "@/hooks/useToast"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import {
   webinarsApi,
   type WebinarListItem,
@@ -60,6 +61,7 @@ type Tab = "webinars" | "people" | "stats"
 
 export function Webinars() {
   const [tab, setTab] = useState<Tab>("webinars")
+  useDocumentTitle("Webinars")
   const [webinars, setWebinars] = useState<WebinarListItem[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -93,7 +95,7 @@ export function Webinars() {
             </div>
             <div>
               <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight">Webinars</h1>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 Upload GoToWebinar exports — auto-categorize, search, and export.
               </p>
             </div>
@@ -176,7 +178,7 @@ function WebinarsTab({ webinars, loading, refresh }: { webinars: WebinarListItem
             : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
         }`}
       >
-        <UploadCloud size={28} className="mx-auto text-slate-400 dark:text-slate-500 mb-2" />
+        <UploadCloud size={28} className="mx-auto text-slate-500 dark:text-slate-400 mb-2" />
         <p className="text-sm text-slate-700 dark:text-slate-200 font-medium">
           {uploading ? "Uploading…" : "Drag GoToWebinar XLSX files here"}
         </p>
@@ -204,7 +206,7 @@ function WebinarsTab({ webinars, loading, refresh }: { webinars: WebinarListItem
       {/* Webinars list */}
       {loading ? (
         <div className="flex items-center justify-center h-32">
-          <Loader2 size={20} className="animate-spin text-slate-400" />
+          <Loader2 size={20} className="animate-spin text-slate-500" />
         </div>
       ) : webinars.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 px-6 py-12 text-center text-sm text-slate-500 dark:text-slate-400">
@@ -253,7 +255,7 @@ function WebinarCard({ webinar, expanded, onToggle, onChanged }: {
             </span>
           </div>
         </div>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform ${expanded ? "rotate-180" : ""}`} />
+        <ChevronDown size={16} className={`text-slate-500 transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
       {expanded && <WebinarDetailPanel webinarId={webinar.id} onChanged={onChanged} />}
     </li>
@@ -345,7 +347,7 @@ function WebinarDetailPanel({ webinarId, onChanged }: { webinarId: string; onCha
   }
 
   if (loading) return (
-    <div className="px-4 py-6 flex items-center justify-center text-slate-400">
+    <div className="px-4 py-6 flex items-center justify-center text-slate-500">
       <Loader2 size={16} className="animate-spin" />
     </div>
   )
@@ -356,7 +358,7 @@ function WebinarDetailPanel({ webinarId, onChanged }: { webinarId: string; onCha
       {/* Toolbar */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-slate-800 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           <input
             type="text"
             placeholder="Search…"
@@ -454,11 +456,11 @@ function WebinarDetailPanel({ webinarId, onChanged }: { webinarId: string; onCha
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-400">No registrants match.</td></tr>
+              <tr><td colSpan={6} className="px-3 py-6 text-center text-slate-500">No registrants match.</td></tr>
             ) : filtered.map(r => (
               <tr key={r.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
                 <td className="px-3 py-2 whitespace-nowrap">
-                  {[r.firstName, r.lastName].filter(Boolean).join(" ") || <span className="text-slate-400">—</span>}
+                  {[r.firstName, r.lastName].filter(Boolean).join(" ") || <span className="text-slate-500">—</span>}
                 </td>
                 <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.email}</td>
                 <td className="px-3 py-2">
@@ -474,7 +476,7 @@ function WebinarDetailPanel({ webinarId, onChanged }: { webinarId: string; onCha
                   </select>
                 </td>
                 <td className="px-3 py-2">
-                  {r.attended === null ? <span className="text-slate-400">—</span> : r.attended ? <UserCheck size={13} className="text-emerald-600" /> : <UserX size={13} className="text-slate-400" />}
+                  {r.attended === null ? <span className="text-slate-500">—</span> : r.attended ? <UserCheck size={13} className="text-emerald-600" /> : <UserX size={13} className="text-slate-500" />}
                 </td>
                 <td className="px-3 py-2">
                   <select
@@ -506,7 +508,7 @@ function WebinarDetailPanel({ webinarId, onChanged }: { webinarId: string; onCha
       </div>
 
       {/* Footer: showing N of M */}
-      <div className="px-4 py-2 text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800">
+      <div className="px-4 py-2 text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
         Showing {filtered.length} of {detail.registrants.length}{showDnc ? "" : ` · ${detail.registrants.filter(r => r.category === "do-not-contact").length} DNC hidden`}
       </div>
     </div>
@@ -591,7 +593,7 @@ function PeopleTab() {
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="relative flex-1 min-w-[200px]">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
           <input
             type="text"
             placeholder="Search by name, email, or organization…"
@@ -648,7 +650,7 @@ function PeopleTab() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center h-32"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+        <div className="flex items-center justify-center h-32"><Loader2 size={20} className="animate-spin text-slate-500" /></div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-700/40 bg-white dark:bg-slate-900">
           <table className="w-full text-xs">
@@ -665,12 +667,12 @@ function PeopleTab() {
             </thead>
             <tbody>
               {filteredAndSorted.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-400">No people match.</td></tr>
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-slate-500">No people match.</td></tr>
               ) : filteredAndSorted.map(p => (
                 <tr key={p.email} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
-                  <td className="px-3 py-2 whitespace-nowrap">{[p.firstName, p.lastName].filter(Boolean).join(" ") || <span className="text-slate-400">—</span>}</td>
+                  <td className="px-3 py-2 whitespace-nowrap">{[p.firstName, p.lastName].filter(Boolean).join(" ") || <span className="text-slate-500">—</span>}</td>
                   <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{p.email}</td>
-                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 truncate max-w-[260px]">{p.organizationRaw ?? <span className="text-slate-400">—</span>}</td>
+                  <td className="px-3 py-2 text-slate-500 dark:text-slate-400 truncate max-w-[260px]">{p.organizationRaw ?? <span className="text-slate-500">—</span>}</td>
                   <td className="px-3 py-2"><span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-medium border ${CATEGORY_PILL[p.category]}`}>{CATEGORY_LABEL[p.category]}</span></td>
                   <td className="px-3 py-2 text-right tabular-nums">{p.webinarCount}</td>
                   <td className="px-3 py-2 text-right tabular-nums">{p.attendedCount}</td>
@@ -679,7 +681,7 @@ function PeopleTab() {
               ))}
             </tbody>
           </table>
-          <div className="px-3 py-2 text-[10px] text-slate-400 dark:text-slate-500 border-t border-slate-100 dark:border-slate-800">
+          <div className="px-3 py-2 text-[10px] text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800">
             Showing {filteredAndSorted.length} of {rows.length}{!showDnc && categoryCounts["do-not-contact"] > 0 ? ` · ${categoryCounts["do-not-contact"]} DNC hidden` : ""}
           </div>
         </div>
@@ -725,7 +727,7 @@ function StatsTab() {
     return () => { cancelled = true }
   }, [])
 
-  if (loading) return <div className="flex items-center justify-center h-32"><Loader2 size={20} className="animate-spin text-slate-400" /></div>
+  if (loading) return <div className="flex items-center justify-center h-32"><Loader2 size={20} className="animate-spin text-slate-500" /></div>
   if (!stats) return null
 
   const totalsByCat: Record<WebinarCategory, number> = { client: 0, employee: 0, "non-client": 0, "do-not-contact": 0 }

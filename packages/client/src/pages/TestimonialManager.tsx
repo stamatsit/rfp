@@ -45,6 +45,7 @@ import {
   type TestimonialFinderMatch,
 } from "@/lib/api"
 import { useAuth } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // ─── Types ──────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ const SUBMISSION_STATUS_COLORS: Record<string, string> = {
 const STATUS_COLORS = {
   approved: "bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800/40",
   draft: "bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/40",
-  hidden: "bg-slate-100 text-slate-400 border-slate-200/60 dark:bg-slate-800 dark:text-slate-500 dark:border-slate-700/40",
+  hidden: "bg-slate-100 text-slate-500 border-slate-200/60 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700/40",
 }
 
 const SECTOR_LABELS: Record<string, string> = {
@@ -114,12 +115,13 @@ const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-slate-200/80 dar
 const selectCls = "w-full appearance-none px-3.5 py-2.5 pr-8 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm text-slate-900 dark:text-white cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400 transition-all duration-200"
 const filterSelectCls = "appearance-none pl-3 pr-8 py-2.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:border-slate-300 dark:hover:border-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-400"
 const labelCls = "block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5"
-const fieldLabelCls = "text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5"
+const fieldLabelCls = "text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-0.5"
 
 // ─── Component ──────────────────────────────────────────────
 
 export function TestimonialManager() {
   const { user } = useAuth()
+  useDocumentTitle("Testimonials & Awards")
   const isAdmin = user?.role === "admin"
 
   const [pageTab, setPageTab] = useState<PageTab>("testimonials")
@@ -399,7 +401,7 @@ export function TestimonialManager() {
                 <h1 className="text-xl font-semibold text-slate-900 dark:text-white tracking-tight leading-tight">
                   Testimonials & Awards
                 </h1>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {pageTab === "testimonials"
                     ? `${total} quote${total !== 1 ? "s" : ""} in library`
                     : `${filteredSortedAwards.length} of ${awards.length} award${awards.length !== 1 ? "s" : ""}`}
@@ -501,7 +503,7 @@ export function TestimonialManager() {
                 </button>
               ))}
               {statusFilter !== "all" && (
-                <button onClick={() => setStatusFilter("all")} className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1 flex items-center gap-0.5">
+                <button onClick={() => setStatusFilter("all")} className="text-xs text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors ml-1 flex items-center gap-0.5">
                   <X size={11} /> Clear
                 </button>
               )}
@@ -515,7 +517,7 @@ export function TestimonialManager() {
             {/* Controls row */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <div className="relative flex-1 min-w-[200px]">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search quotes, names, organizations..."
@@ -525,7 +527,7 @@ export function TestimonialManager() {
                   style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}
                 />
                 {searchQuery && (
-                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                  <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                     <X size={13} />
                   </button>
                 )}
@@ -537,15 +539,15 @@ export function TestimonialManager() {
                   <option value="healthcare">Healthcare</option>
                   <option value="other">Other</option>
                 </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
               <div className="relative">
                 <select value={sortBy} onChange={e => setSortBy(e.target.value as SortOption)} className={filterSelectCls}>
                   {SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
-              <button onClick={fetchTestimonials} className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-700 text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" title="Refresh">
+              <button onClick={fetchTestimonials} className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-700 text-slate-500 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" title="Refresh">
                 <RefreshCw size={14} />
               </button>
             </div>
@@ -619,7 +621,7 @@ export function TestimonialManager() {
                         onChange={handleSelectAll}
                         className="rounded border-slate-300 dark:border-slate-600 text-orange-500 focus:ring-orange-500/30"
                       />
-                      <span className="text-xs text-slate-400 dark:text-slate-500">{testimonials.length} testimonials</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400">{testimonials.length} testimonials</span>
                     </div>
                   )}
                   {testimonials.map(t => (
@@ -678,7 +680,7 @@ export function TestimonialManager() {
                 </div>
                 <div>
                   <h2 className="text-sm font-semibold text-slate-900 dark:text-white">What do you need a testimonial for?</h2>
-                  <p className="text-xs text-slate-400">Describe the context — AI finds the best matches</p>
+                  <p className="text-xs text-slate-500">Describe the context — AI finds the best matches</p>
                 </div>
               </div>
 
@@ -699,7 +701,7 @@ export function TestimonialManager() {
                     <option value="healthcare">Healthcare</option>
                     <option value="other">Other</option>
                   </select>
-                  <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 </div>
                 <button
                   onClick={() => handleFind()}
@@ -715,7 +717,7 @@ export function TestimonialManager() {
               {/* Example prompts */}
               {!finderSearched && (
                 <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
-                  <p className="text-xs text-slate-400 mb-2">Try these:</p>
+                  <p className="text-xs text-slate-500 mb-2">Try these:</p>
                   <div className="flex flex-wrap gap-1.5">
                     {FINDER_EXAMPLES.map(ex => (
                       <button
@@ -756,7 +758,7 @@ export function TestimonialManager() {
 
             {finderResults.length > 0 && !finderLoading && (
               <div className="space-y-3 stagger-children">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{finderResults.length} matches</p>
+                <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">{finderResults.length} matches</p>
                 {finderResults.map((match, idx) => (
                   <div
                     key={match.testimonialId}
@@ -782,7 +784,7 @@ export function TestimonialManager() {
                       "{match.quote}"
                     </blockquote>
                     <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 mb-3">
-                      <Building2 size={12} className="text-slate-400 shrink-0" />
+                      <Building2 size={12} className="text-slate-500 shrink-0" />
                       <span className="font-medium">{[match.name, match.title, match.organization].filter(Boolean).join(", ")}</span>
                       {match.sector && (
                         <span className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 text-[10px] font-medium">
@@ -806,7 +808,7 @@ export function TestimonialManager() {
             {/* Controls */}
             <div className="flex flex-wrap items-center gap-2 mb-3">
               <div className="relative flex-1 min-w-[200px]">
-                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search name, company, agency, category..."
@@ -816,7 +818,7 @@ export function TestimonialManager() {
                   style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03)" }}
                 />
                 {awardsSearch && (
-                  <button onClick={() => setAwardsSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
+                  <button onClick={() => setAwardsSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors">
                     <X size={13} />
                   </button>
                 )}
@@ -829,16 +831,16 @@ export function TestimonialManager() {
                   <option value="stamats-submission">Stamats Submission</option>
                   <option value="other">Other</option>
                 </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
               {/* Sort */}
               <div className="relative">
                 <select value={awardSort} onChange={e => setAwardSort(e.target.value as AwardSortOption)} className={filterSelectCls}>
                   {AWARD_SORT_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
-              <button onClick={fetchAwards} className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-700 text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" title="Refresh">
+              <button onClick={fetchAwards} className="p-2 rounded-xl border border-slate-200/80 dark:border-slate-700 text-slate-500 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800 dark:hover:text-slate-300 transition-colors" title="Refresh">
                 <RefreshCw size={14} />
               </button>
             </div>
@@ -846,10 +848,10 @@ export function TestimonialManager() {
             {/* Active filters summary */}
             {(awardSubmissionFilter !== "all" || awardsSearch) && (
               <div className="flex items-center gap-2 mb-3 text-xs text-slate-500">
-                <Filter size={11} className="text-slate-400" />
+                <Filter size={11} className="text-slate-500" />
                 {awardsSearch && <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">"{awardsSearch}"</span>}
                 {awardSubmissionFilter !== "all" && <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">{SUBMISSION_STATUS_LABELS[awardSubmissionFilter]}</span>}
-                <button onClick={() => { setAwardsSearch(""); setAwardSubmissionFilter("all") }} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center gap-0.5 ml-1">
+                <button onClick={() => { setAwardsSearch(""); setAwardSubmissionFilter("all") }} className="text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors flex items-center gap-0.5 ml-1">
                   <X size={11} /> Clear
                 </button>
               </div>
@@ -904,7 +906,7 @@ export function TestimonialManager() {
                   style={{ maxHeight: "calc(100vh - 300px)", boxShadow: "0 1px 3px rgb(0 0 0 / 0.04)" }}
                 >
                   <div className="px-3.5 py-2 border-b border-slate-100 dark:border-slate-700/50 shrink-0 flex items-center justify-between">
-                    <span className="text-xs text-slate-400 dark:text-slate-500">{filteredSortedAwards.length} award{filteredSortedAwards.length !== 1 ? "s" : ""}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{filteredSortedAwards.length} award{filteredSortedAwards.length !== 1 ? "s" : ""}</span>
                     {filteredSortedAwards.length !== awards.length && (
                       <span className="text-[10px] text-orange-500 dark:text-orange-400 font-medium">filtered</span>
                     )}
@@ -1014,8 +1016,8 @@ function TestimonialRow({
         <p className={`text-[13px] font-semibold truncate leading-snug ${isActive ? "text-orange-700 dark:text-orange-300" : "text-slate-700 dark:text-slate-200"}`}>
           {t.organization}
         </p>
-        {t.name && <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate mt-0.5">{t.name}{t.title ? `, ${t.title}` : ""}</p>}
-        <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-snug line-clamp-2 italic mt-1">"{t.quote}"</p>
+        {t.name && <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">{t.name}{t.title ? `, ${t.title}` : ""}</p>}
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug line-clamp-2 italic mt-1">"{t.quote}"</p>
       </div>
       {isAdmin && (
         <input
@@ -1091,14 +1093,14 @@ function TestimonialDetail({
             </button>
             {isAdmin && (
               <>
-                {t.status !== "approved" && <button onClick={() => onStatusChange("approved")} className="p-1.5 rounded-lg text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-all" title="Approve"><CheckCircle2 size={14} /></button>}
-                {t.status === "approved" && <button onClick={() => onStatusChange("draft")} className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 transition-all" title="Move to draft"><Clock size={14} /></button>}
-                {t.status !== "hidden" && <button onClick={() => onStatusChange("hidden")} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-all" title="Hide"><EyeOff size={14} /></button>}
-                <button onClick={onToggleFeatured} className={`p-1.5 rounded-lg transition-all ${t.featured ? "text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20" : "text-slate-400 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"}`} title={t.featured ? "Unfeature" : "Feature"}>
+                {t.status !== "approved" && <button onClick={() => onStatusChange("approved")} className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-400 transition-all" title="Approve"><CheckCircle2 size={14} /></button>}
+                {t.status === "approved" && <button onClick={() => onStatusChange("draft")} className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 dark:hover:text-amber-400 transition-all" title="Move to draft"><Clock size={14} /></button>}
+                {t.status !== "hidden" && <button onClick={() => onStatusChange("hidden")} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-slate-300 transition-all" title="Hide"><EyeOff size={14} /></button>}
+                <button onClick={onToggleFeatured} className={`p-1.5 rounded-lg transition-all ${t.featured ? "text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20" : "text-slate-500 hover:text-yellow-500 hover:bg-yellow-50 dark:hover:bg-yellow-900/20"}`} title={t.featured ? "Unfeature" : "Feature"}>
                   <Star size={14} fill={t.featured ? "currentColor" : "none"} />
                 </button>
-                <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all" title="Edit"><FileEdit size={14} /></button>
-                <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all" title="Delete"><Trash2 size={14} /></button>
+                <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all" title="Edit" aria-label="Edit"><FileEdit size={14} /></button>
+                <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all" title="Delete" aria-label="Delete"><Trash2 size={14} /></button>
               </>
             )}
           </div>
@@ -1116,7 +1118,7 @@ function TestimonialDetail({
           <div>
             <p className={fieldLabelCls}>School / Institution</p>
             <p className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
-              <Building2 size={11} className="text-slate-400 shrink-0" />{t.organization}
+              <Building2 size={11} className="text-slate-500 shrink-0" />{t.organization}
             </p>
           </div>
           <div>
@@ -1130,7 +1132,7 @@ function TestimonialDetail({
           <div>
             <p className={fieldLabelCls}>Date</p>
             <p className="text-xs text-slate-600 dark:text-slate-300 flex items-center gap-1">
-              {formattedDate ? <><Calendar size={11} className="text-slate-400 shrink-0" />{formattedDate}</> : <span className="text-slate-300 dark:text-slate-600 italic">—</span>}
+              {formattedDate ? <><Calendar size={11} className="text-slate-500 shrink-0" />{formattedDate}</> : <span className="text-slate-300 dark:text-slate-600 italic">—</span>}
             </p>
           </div>
         </div>
@@ -1142,7 +1144,7 @@ function TestimonialDetail({
             <div className="flex flex-wrap gap-1 mt-1">
               {t.tags.map(tag => (
                 <span key={tag} className="flex items-center gap-0.5 px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300">
-                  <Tag size={9} className="text-slate-400" />{tag}
+                  <Tag size={9} className="text-slate-500" />{tag}
                 </span>
               ))}
             </div>
@@ -1154,7 +1156,7 @@ function TestimonialDetail({
           <div className="mb-4">
             <p className={fieldLabelCls}>Notes</p>
             <div className="flex gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/40 mt-1">
-              <MessageSquare size={11} className="text-slate-400 shrink-0 mt-0.5" />
+              <MessageSquare size={11} className="text-slate-500 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{t.notes}</p>
             </div>
           </div>
@@ -1164,11 +1166,11 @@ function TestimonialDetail({
         {(t.usageCount > 0 || t.source) && (
           <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700/40">
             {t.usageCount > 0 && (
-              <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+              <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
                 <BarChart3 size={11} />Used {t.usageCount}x
               </span>
             )}
-            {t.source && <span className="text-[10px] text-slate-400 dark:text-slate-500 italic ml-auto">{t.source}</span>}
+            {t.source && <span className="text-[10px] text-slate-500 dark:text-slate-400 italic ml-auto">{t.source}</span>}
           </div>
         )}
       </div>
@@ -1190,18 +1192,18 @@ function AwardRow({ award: a, isActive, onSelect }: {
       }`}
     >
       <div className={`mt-0.5 shrink-0 w-6 h-6 rounded-lg flex items-center justify-center ${isActive ? "bg-orange-100 dark:bg-orange-900/30" : "bg-slate-100 dark:bg-slate-700/60"}`}>
-        <Trophy size={12} className={isActive ? "text-orange-500" : "text-slate-400 dark:text-slate-500"} />
+        <Trophy size={12} className={isActive ? "text-orange-500" : "text-slate-500 dark:text-slate-400"} />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-1.5 mb-0.5">
           <p className={`text-[13px] font-semibold leading-snug truncate flex-1 ${isActive ? "text-orange-700 dark:text-orange-300" : "text-slate-700 dark:text-slate-200"}`}>
             {a.name}
           </p>
-          <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 mt-0.5">{a.year}</span>
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 shrink-0 mt-0.5">{a.year}</span>
         </div>
         {company && <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{company}</p>}
         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-          {a.issuingAgency && <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[110px]">{a.issuingAgency}</span>}
+          {a.issuingAgency && <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate max-w-[110px]">{a.issuingAgency}</span>}
           {a.submissionStatus && (
             <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded border ${SUBMISSION_STATUS_COLORS[a.submissionStatus]}`}>
               {a.submissionStatus === "client-submission" ? "Client" : a.submissionStatus === "stamats-submission" ? "Stamats" : "Other"}
@@ -1274,7 +1276,7 @@ function AwardDetail({
               </div>
             ) : isAdmin ? (
               <button onClick={() => badgeRef.current?.click()} disabled={uploadingBadge}
-                className="w-[72px] h-[72px] flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-600 text-slate-400 hover:border-orange-300 hover:text-orange-500 dark:hover:border-orange-700 dark:hover:text-orange-400 transition-colors disabled:opacity-50"
+                className="w-[72px] h-[72px] flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-600 text-slate-500 hover:border-orange-300 hover:text-orange-500 dark:hover:border-orange-700 dark:hover:text-orange-400 transition-colors disabled:opacity-50"
                 title="Upload badge"
               >
                 {uploadingBadge ? <RefreshCw size={15} className="animate-spin" /> : <><Upload size={15} className="mb-1" /><span className="text-[9px] font-medium">Badge</span></>}
@@ -1304,8 +1306,8 @@ function AwardDetail({
                 </button>
                 {isAdmin && (
                   <>
-                    <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all" title="Edit"><FileEdit size={14} /></button>
-                    <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all" title="Delete"><Trash2 size={14} /></button>
+                    <button onClick={onEdit} className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 transition-all" title="Edit" aria-label="Edit"><FileEdit size={14} /></button>
+                    <button onClick={onDelete} className="p-1.5 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 transition-all" title="Delete" aria-label="Delete"><Trash2 size={14} /></button>
                   </>
                 )}
               </div>
@@ -1331,7 +1333,7 @@ function AwardDetail({
           <div>
             <p className={fieldLabelCls}>Company / Client</p>
             <p className="text-xs font-medium text-slate-700 dark:text-slate-200 flex items-center gap-1">
-              <Building2 size={10} className="text-slate-400 shrink-0" />
+              <Building2 size={10} className="text-slate-500 shrink-0" />
               {a.companyName || a.clientOrProject || <span className="text-slate-300 dark:text-slate-600 italic font-normal">—</span>}
             </p>
           </div>
@@ -1356,7 +1358,7 @@ function AwardDetail({
           <div className="mb-4">
             <p className={fieldLabelCls}>Notes</p>
             <div className="flex gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-700/40 mt-1">
-              <MessageSquare size={11} className="text-slate-400 shrink-0 mt-0.5" />
+              <MessageSquare size={11} className="text-slate-500 shrink-0 mt-0.5" />
               <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{a.notes}</p>
             </div>
           </div>
@@ -1365,7 +1367,7 @@ function AwardDetail({
         {/* Footer */}
         {a.usageCount > 0 && (
           <div className="flex items-center pt-3 border-t border-slate-100 dark:border-slate-700/40">
-            <span className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500">
+            <span className="flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400">
               <BarChart3 size={11} />Used {a.usageCount}x
             </span>
           </div>
@@ -1441,7 +1443,7 @@ function AwardFormModal({ award, onClose, onSaved }: {
             </div>
             <h2 className="text-base font-semibold text-slate-900 dark:text-white">{award ? "Edit Award" : "Add Award"}</h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Close award dialog" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"><X size={16} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -1472,12 +1474,12 @@ function AwardFormModal({ award, onClose, onSaved }: {
                     {AWARD_LEVEL_PRESETS.map(l => <option key={l} value={l}>{l}</option>)}
                     <option value="__custom__">Custom…</option>
                   </select>
-                  <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                  <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
                 </div>
               ) : (
                 <div className="flex gap-1.5">
                   <input type="text" value={awardLevelCustom} onChange={e => setAwardLevelCustom(e.target.value)} placeholder="e.g., Platinum" className={inputCls} autoFocus />
-                  <button type="button" onClick={() => { setUseCustomLevel(false); setAwardLevelCustom("") }} className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors shrink-0"><X size={13} /></button>
+                  <button type="button" onClick={() => { setUseCustomLevel(false); setAwardLevelCustom("") }} aria-label="Cancel custom level" className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors shrink-0"><X size={13} /></button>
                 </div>
               )}
             </div>
@@ -1508,12 +1510,12 @@ function AwardFormModal({ award, onClose, onSaved }: {
                 <option value="stamats-submission">Stamats Submission</option>
                 <option value="other">Other</option>
               </select>
-              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Comments <span className="text-xs text-slate-400 font-normal">(visible to all team members)</span></label>
+            <label className={labelCls}>Comments <span className="text-xs text-slate-500 font-normal">(visible to all team members)</span></label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal comments, submission history..." className={`${inputCls} resize-none`} />
           </div>
 
@@ -1604,7 +1606,7 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
               {testimonial ? "Edit Testimonial" : "Add Testimonial"}
             </h2>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"><X size={16} /></button>
+          <button onClick={onClose} aria-label="Close testimonial dialog" className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors"><X size={16} /></button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
@@ -1616,7 +1618,7 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
 
           {/* Attribution */}
           <div className="p-4 rounded-xl bg-slate-50/70 dark:bg-slate-900/40 border border-slate-200/60 dark:border-slate-700/40 space-y-3">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Attribution</p>
+            <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest">Attribution</p>
             <div>
               <label className={labelCls}>Organization <span className="text-red-500">*</span></label>
               <input type="text" value={organization} onChange={e => setOrganization(e.target.value)} className={inputCls} placeholder="e.g., University of Vermont" required />
@@ -1644,17 +1646,17 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
                   <option value="healthcare">Healthcare</option>
                   <option value="other">Other</option>
                 </select>
-                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <ChevronDown size={13} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
               </div>
             </div>
             <div>
-              <label className={labelCls}>Date <span className="text-xs text-slate-400 font-normal">(optional)</span></label>
+              <label className={labelCls}>Date <span className="text-xs text-slate-500 font-normal">(optional)</span></label>
               <input type="date" value={testimonialDate} onChange={e => setTestimonialDate(e.target.value)} className={inputCls} />
             </div>
           </div>
 
           <div>
-            <label className={labelCls}>Source <span className="text-xs text-slate-400 font-normal">(publication, event, etc.)</span></label>
+            <label className={labelCls}>Source <span className="text-xs text-slate-500 font-normal">(publication, event, etc.)</span></label>
             <input type="text" value={source} onChange={e => setSource(e.target.value)} placeholder="e.g., conference, publication, email" className={inputCls} />
           </div>
 
@@ -1687,7 +1689,7 @@ function TestimonialFormModal({ testimonial, onClose, onSaved }: {
           </div>
 
           <div>
-            <label className={labelCls}>Comments <span className="text-xs text-slate-400 font-normal">(internal)</span></label>
+            <label className={labelCls}>Comments <span className="text-xs text-slate-500 font-normal">(internal)</span></label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={3} placeholder="Internal comments visible to all team members..." className={`${inputCls} resize-none`} />
           </div>
 

@@ -49,3 +49,13 @@ Dyno.rtf
 
 # Vercel API build output
 api/index.js
+.env*
+
+# Compiled artifacts must never live in src/
+packages/client/src/**/*.js
+packages/client/src/**/*.js.map
+packages/client/src/**/*.d.ts
+packages/client/src/**/*.d.ts.map
+
+# Never commit DB backups (contain password hashes) — public repo
+backups/

@@ -55,12 +55,12 @@ export function AnswerTopicAccordion({
         <span className="text-[14px] font-semibold text-slate-800 dark:text-slate-100 tracking-[-0.01em] flex-1">
           {topic?.displayName || "Unknown"}
         </span>
-        <span className="text-[12px] font-medium text-slate-400 dark:text-slate-500 tabular-nums bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-md">
+        <span className="text-[12px] font-medium text-slate-500 dark:text-slate-400 tabular-nums bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-md">
           {topicAnswers.length}
         </span>
         <ChevronDown
           size={14}
-          className={`text-slate-400 dark:text-slate-500 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+          className={`text-slate-500 dark:text-slate-400 transition-transform duration-200 flex-shrink-0 ${isExpanded ? "rotate-0" : "-rotate-90"}`}
         />
       </button>
 

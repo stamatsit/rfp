@@ -273,7 +273,7 @@ function LetterheadBlock({ config, colorAccent, position }: { config: Letterhead
             {t.companyName && <div className="text-[12px] font-bold text-slate-800 dark:text-white leading-tight">{t.companyName}</div>}
             {t.tagline && <div className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight mt-0.5">{t.tagline}</div>}
             {infoLine && (
-              <div className="text-[8px] text-slate-400 dark:text-slate-500 mt-0.5 leading-tight">{infoLine}</div>
+              <div className="text-[8px] text-slate-500 dark:text-slate-400 mt-0.5 leading-tight">{infoLine}</div>
             )}
           </div>
         </div>
@@ -301,7 +301,7 @@ function PageHeader({ format, title }: { format: FormatSettings; title: string }
 
   if (format.headerStyle === "minimal") {
     return (
-      <div className="flex items-center justify-between px-8 pt-4 pb-2 text-[10px] text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-800">
+      <div className="flex items-center justify-between px-8 pt-4 pb-2 text-[10px] text-slate-500 dark:text-slate-400 border-b border-slate-100 dark:border-slate-800">
         <span>{title}</span>
         <span>{new Date().toLocaleDateString()}</span>
       </div>
@@ -314,7 +314,7 @@ function PageHeader({ format, title }: { format: FormatSettings; title: string }
         <div className="w-5 h-5 rounded" style={{ background: format.colorAccent }} />
         <span className="text-[11px] font-semibold tracking-wide" style={{ color: format.colorAccent }}>STAMATS</span>
       </div>
-      <span className="text-[10px] text-slate-400 dark:text-slate-500">{title} &middot; {new Date().toLocaleDateString()}</span>
+      <span className="text-[10px] text-slate-500 dark:text-slate-400">{title} &middot; {new Date().toLocaleDateString()}</span>
     </div>
   )
 }
@@ -332,7 +332,7 @@ function PageFooter({ format, pageNum, totalPages }: { format: FormatSettings; p
         <LetterheadBlock config={lf} colorAccent={format.colorAccent} position="footer" />
       )}
       {hasPageInfo && (
-        <div className="flex items-center justify-between px-8 py-3 text-[10px] text-slate-400 dark:text-slate-500">
+        <div className="flex items-center justify-between px-8 py-3 text-[10px] text-slate-500 dark:text-slate-400">
           {format.showFooter ? <span>Confidential</span> : <span />}
           {format.showPageNumbers && <span>Page {pageNum} of {totalPages}</span>}
         </div>
@@ -851,7 +851,7 @@ export function DocumentEditor({
 
       {/* Bottom status bar */}
       <div className="absolute bottom-0 left-0 right-0 flex items-center h-7 px-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200/40 dark:border-slate-800/40">
-        <div className="flex items-center gap-3 text-[10.5px] text-slate-400 dark:text-slate-500 tabular-nums font-medium tracking-wide">
+        <div className="flex items-center gap-3 text-[10.5px] text-slate-500 dark:text-slate-400 tabular-nums font-medium tracking-wide">
           {wordCount > 0 && (
             <span>{wordCount.toLocaleString()} words</span>
           )}
@@ -883,14 +883,14 @@ export function DocumentEditor({
           <button
             onClick={zoomOut}
             disabled={zoom <= 0.5}
-            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
+            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
             title="Zoom out"
           >
             <ZoomOut className="w-3 h-3" />
           </button>
           <button
             onClick={zoomReset}
-            className="px-1.5 text-[10.5px] tabular-nums text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200 font-medium"
+            className="px-1.5 text-[10.5px] tabular-nums text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors duration-200 font-medium"
             title="Reset zoom"
           >
             {Math.round(zoom * 100)}%
@@ -898,7 +898,7 @@ export function DocumentEditor({
           <button
             onClick={zoomIn}
             disabled={zoom >= 2}
-            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
+            className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100/80 dark:hover:bg-slate-800/60 transition-all duration-200 disabled:opacity-20"
             title="Zoom in"
           >
             <ZoomIn className="w-3 h-3" />

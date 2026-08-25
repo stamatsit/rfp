@@ -92,7 +92,7 @@ export function CommentPopover({
           {/* Prev/Next navigation */}
           {showNav && (
             <>
-              <span className="text-[9px] text-slate-400 mr-0.5 tabular-nums">
+              <span className="text-[9px] text-slate-500 mr-0.5 tabular-nums">
                 {(currentIndex ?? 0) + 1}/{totalCount}
               </span>
               <button
@@ -100,19 +100,19 @@ export function CommentPopover({
                 className="w-5 h-5 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors"
                 title="Previous"
               >
-                <ChevronLeft className="w-3 h-3 text-slate-400" />
+                <ChevronLeft className="w-3 h-3 text-slate-500" />
               </button>
               <button
                 onClick={() => onNavigate("next")}
                 className="w-5 h-5 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors"
                 title="Next"
               >
-                <ChevronRight className="w-3 h-3 text-slate-400" />
+                <ChevronRight className="w-3 h-3 text-slate-500" />
               </button>
             </>
           )}
           <button onClick={onClose} className="w-5 h-5 flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors">
-            <X className="w-3.5 h-3.5 text-slate-400" />
+            <X className="w-3.5 h-3.5 text-slate-500" />
           </button>
         </div>
       </div>

@@ -90,7 +90,7 @@ export function AdaptPanel({
       {/* Optional Context */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
-          <Label htmlFor="client-name" className="text-[12px]">Client Name <span className="text-slate-400">(optional)</span></Label>
+          <Label htmlFor="client-name" className="text-[12px]">Client Name <span className="text-slate-500">(optional)</span></Label>
           <Input
             id="client-name"
             value={adaptOptions.clientName}
@@ -100,7 +100,7 @@ export function AdaptPanel({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="industry" className="text-[12px]">Industry <span className="text-slate-400">(optional)</span></Label>
+          <Label htmlFor="industry" className="text-[12px]">Industry <span className="text-slate-500">(optional)</span></Label>
           <Input
             id="industry"
             value={adaptOptions.industry}

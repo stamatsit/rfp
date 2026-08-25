@@ -104,10 +104,10 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuRef, SlashCommandMenu
         <div className="w-64 bg-white dark:bg-slate-800 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4),0_0_0_1px_rgba(255,255,255,0.06)] overflow-hidden slash-command-menu animate-fade-in-up">
           <div className="flex flex-col items-center gap-2 px-4 py-6 text-center">
             <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700/60 flex items-center justify-center">
-              <Command className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <Command className="w-4 h-4 text-slate-500 dark:text-slate-400" />
             </div>
             <p className="text-[11px] font-medium text-slate-500 dark:text-slate-400">No matching commands</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500">Try a different keyword</p>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400">Try a different keyword</p>
           </div>
         </div>
       )
@@ -142,7 +142,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuRef, SlashCommandMenu
           <SlashIcon id={item.id} fallback={item.icon} />
           <div className="flex-1 min-w-0">
             <span className="text-[12px] font-medium block leading-tight">{item.label}</span>
-            <span className={`text-[10px] leading-tight ${isSelected ? "text-emerald-500/70 dark:text-emerald-400/60" : "text-slate-400 dark:text-slate-500"}`}>{item.description}</span>
+            <span className={`text-[10px] leading-tight ${isSelected ? "text-emerald-500/70 dark:text-emerald-400/60" : "text-slate-500 dark:text-slate-400"}`}>{item.description}</span>
           </div>
           {isSelected && (
             <kbd className="text-[9px] text-emerald-400/70 flex-shrink-0 font-mono bg-emerald-100/60 dark:bg-emerald-900/40 rounded px-1">↵</kbd>
@@ -153,7 +153,7 @@ export const SlashCommandMenu = forwardRef<SlashCommandMenuRef, SlashCommandMenu
 
     const SectionHeader = ({ label }: { label: string }) => (
       <div className="px-3 pt-2 pb-0.5 flex items-center gap-1.5">
-        <span className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</span>
+        <span className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest">{label}</span>
         <span className="flex-1 h-px bg-slate-100 dark:bg-slate-700/60" />
       </div>
     )

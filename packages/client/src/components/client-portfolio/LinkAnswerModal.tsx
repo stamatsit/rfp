@@ -65,10 +65,10 @@ export function LinkAnswerModal({ clientName, alreadyLinked, onClose, onLinked }
             </div>
             <div>
               <h2 className="text-base font-semibold text-slate-900 dark:text-white">Link Q&amp;A Answer</h2>
-              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{clientName}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{clientName}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 hover:bg-slate-100 dark:hover:text-slate-300 dark:hover:bg-slate-700 transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -76,7 +76,7 @@ export function LinkAnswerModal({ clientName, alreadyLinked, onClose, onLinked }
         {/* Search input */}
         <div className="px-4 pt-4 pb-3 shrink-0">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
             <input
               ref={inputRef}
               type="text"
@@ -85,7 +85,7 @@ export function LinkAnswerModal({ clientName, alreadyLinked, onClose, onLinked }
               placeholder="Search approved answers…"
               className="w-full pl-8 pr-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-400 transition-all"
             />
-            {searching && <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-400" />}
+            {searching && <Loader2 size={13} className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin text-slate-500" />}
           </div>
         </div>
 
@@ -94,7 +94,7 @@ export function LinkAnswerModal({ clientName, alreadyLinked, onClose, onLinked }
           {results.length === 0 && !searching ? (
             <div className="flex flex-col items-center justify-center py-8 text-center">
               <BookOpen size={20} className="text-slate-300 dark:text-slate-600 mb-2" />
-              <p className="text-xs text-slate-400">No approved answers found</p>
+              <p className="text-xs text-slate-500">No approved answers found</p>
             </div>
           ) : (
             results.map(answer => (
@@ -108,7 +108,7 @@ export function LinkAnswerModal({ clientName, alreadyLinked, onClose, onLinked }
                     <p className="text-sm font-medium text-slate-800 dark:text-slate-200 leading-snug">
                       {answer.question}
                     </p>
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
                       {answer.answer}
                     </p>
                   </div>

@@ -144,7 +144,7 @@ export function RelatedContent({
                 className={`flex-shrink-0 p-2 rounded-lg transition-all duration-200 ${
                   copiedId === item.id
                     ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600"
-                    : "bg-white dark:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100"
+                    : "bg-white dark:bg-slate-700 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 opacity-0 group-hover:opacity-100"
                 }`}
                 title="Copy answer"
               >

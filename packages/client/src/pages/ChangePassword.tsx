@@ -2,9 +2,11 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowRight, Lock, KeyRound } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 export default function ChangePassword() {
   const [currentPassword, setCurrentPassword] = useState("")
+  useDocumentTitle("Change Password")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
@@ -73,12 +75,14 @@ export default function ChangePassword() {
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Current password */}
           <div className="relative">
+            <label htmlFor="cp-current-password" className="sr-only">Current password</label>
             <Lock
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
               strokeWidth={1.75}
             />
             <input
+              id="cp-current-password"
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
@@ -92,12 +96,14 @@ export default function ChangePassword() {
 
           {/* New password */}
           <div className="relative">
+            <label htmlFor="cp-new-password" className="sr-only">New password</label>
             <Lock
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
               strokeWidth={1.75}
             />
             <input
+              id="cp-new-password"
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -110,12 +116,14 @@ export default function ChangePassword() {
 
           {/* Confirm password */}
           <div className="relative">
+            <label htmlFor="cp-confirm-password" className="sr-only">Confirm new password</label>
             <Lock
               size={18}
-              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+              className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
               strokeWidth={1.75}
             />
             <input
+              id="cp-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -142,7 +150,7 @@ export default function ChangePassword() {
               transition-all duration-150 ease-out
               focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950
               ${isLoading || !isFormValid
-                ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed disabled:opacity-50'
+                ? 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-600 cursor-not-allowed disabled:opacity-50'
                 : 'bg-gradient-to-b from-blue-500 to-blue-600 text-white hover:from-blue-400 hover:to-blue-500 active:scale-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.1),0_2px_4px_rgba(59,130,246,0.2),inset_0_1px_0_rgba(255,255,255,0.1)]'
               }
             `}
@@ -159,7 +167,7 @@ export default function ChangePassword() {
         </form>
 
         {/* Footer */}
-        <p className="text-center text-[12px] text-slate-400 mt-10">
+        <p className="text-center text-[12px] text-slate-500 mt-10">
           &copy; {new Date().getFullYear()} Stamats
         </p>
       </div>

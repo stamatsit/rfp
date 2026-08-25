@@ -4,9 +4,11 @@ import { ArrowLeft, Send, CheckCircle, Mail, Loader2 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { Button } from "@/components/ui"
 import { feedbackApi } from "@/lib/api"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 export function Support() {
   const [message, setMessage] = useState("")
+  useDocumentTitle("Support")
   const [submitted, setSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
@@ -142,7 +144,7 @@ export function Support() {
       {/* Footer */}
       <footer className="py-5 px-6 border-t border-black/[0.06] dark:border-white/[0.08] bg-white/60 dark:bg-slate-900/60 transition-colors">
         <div className="max-w-2xl mx-auto text-center">
-          <p className="text-[13px] text-slate-400 dark:text-slate-500 transition-colors">
+          <p className="text-[13px] text-slate-500 dark:text-slate-400 transition-colors">
             &copy; {new Date().getFullYear()} Stamats
           </p>
         </div>

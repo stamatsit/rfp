@@ -311,7 +311,7 @@ export function StudioHumanizerPanel({
               className={`flex items-center gap-1 px-2 h-6 rounded-md text-[10px] font-medium transition-colors ${
                 settingsOpen
                   ? "bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300"
-                  : "text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  : "text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
               }`}
               title="Humanizer settings"
             >
@@ -324,7 +324,7 @@ export function StudioHumanizerPanel({
 
                 {/* Mode */}
                 <div>
-                  <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Mode</p>
+                  <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 px-1">Mode</p>
                   <div className="flex bg-slate-100 dark:bg-slate-700/60 rounded-lg p-0.5 gap-0.5">
                     {([
                       { value: "humanize" as HumanizeMode, label: "Rewrite", icon: Wand2 },
@@ -349,7 +349,7 @@ export function StudioHumanizerPanel({
                 {/* Tone */}
                 {mode === "humanize" && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Tone</p>
+                    <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 px-1">Tone</p>
                     <div className="space-y-0.5">
                       {TONES.map(({ value, label, icon: Icon }) => (
                         <button
@@ -361,7 +361,7 @@ export function StudioHumanizerPanel({
                               : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/60"
                           }`}
                         >
-                          <Icon className={`w-3 h-3 flex-shrink-0 ${tone === value ? "text-violet-500" : "text-slate-400"}`} />
+                          <Icon className={`w-3 h-3 flex-shrink-0 ${tone === value ? "text-violet-500" : "text-slate-500"}`} />
                           {label}
                           {tone === value && <Check className="w-2.5 h-2.5 ml-auto" />}
                         </button>
@@ -373,7 +373,7 @@ export function StudioHumanizerPanel({
                 {/* Strength */}
                 {mode === "humanize" && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Strength</p>
+                    <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 px-1">Strength</p>
                     <div className="space-y-0.5">
                       {STRENGTHS.map(({ value, label, desc }) => (
                         <button
@@ -389,7 +389,7 @@ export function StudioHumanizerPanel({
                             <span className="font-medium">{label}</span>
                             {strength === value && <Check className="w-2.5 h-2.5" />}
                           </div>
-                          <span className="text-[9px] text-slate-400 dark:text-slate-500">{desc}</span>
+                          <span className="text-[9px] text-slate-500 dark:text-slate-400">{desc}</span>
                         </button>
                       ))}
                     </div>
@@ -399,7 +399,7 @@ export function StudioHumanizerPanel({
                 {/* Audience */}
                 {mode === "humanize" && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">Audience</p>
+                    <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 px-1">Audience</p>
                     <div className="grid grid-cols-2 gap-0.5">
                       {AUDIENCES.map(({ value, label, desc }) => (
                         <button
@@ -412,7 +412,7 @@ export function StudioHumanizerPanel({
                           }`}
                         >
                           <span className="font-medium block">{label}</span>
-                          <span className="text-[8px] text-slate-400 dark:text-slate-500">{desc}</span>
+                          <span className="text-[8px] text-slate-500 dark:text-slate-400">{desc}</span>
                         </button>
                       ))}
                     </div>
@@ -424,7 +424,7 @@ export function StudioHumanizerPanel({
                   <div className="flex items-center justify-between px-1 py-1">
                     <div>
                       <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">Two-pass</span>
-                      <p className="text-[9px] text-slate-400 dark:text-slate-500">Rewrite → score → rewrite</p>
+                      <p className="text-[9px] text-slate-500 dark:text-slate-400">Rewrite → score → rewrite</p>
                     </div>
                     <button
                       onClick={() => setTwoPass(!twoPass)}
@@ -447,7 +447,7 @@ export function StudioHumanizerPanel({
                 {personaLoaded && (
                   <div className="px-1 py-1">
                     <div className="flex items-center gap-1.5">
-                      <User className="w-3 h-3 text-slate-400" />
+                      <User className="w-3 h-3 text-slate-500" />
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">
                         {hasPersona
                           ? `${personaSamples.length} persona sample${personaSamples.length !== 1 ? "s" : ""} active`
@@ -461,7 +461,7 @@ export function StudioHumanizerPanel({
                 {/* Voice override */}
                 {mode === "humanize" && (
                   <div>
-                    <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1 px-1">
+                    <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-1 px-1">
                       Quick Voice Override
                     </p>
                     <textarea
@@ -487,7 +487,7 @@ export function StudioHumanizerPanel({
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors"
             title="Close humanizer"
           >
-            <X className="w-3.5 h-3.5 text-slate-400" />
+            <X className="w-3.5 h-3.5 text-slate-500" />
           </button>
         </div>
       </div>
@@ -533,13 +533,13 @@ export function StudioHumanizerPanel({
               style={{ background: "linear-gradient(135deg, #f59e0b 0%, #ea580c 100%)" }}>
               <Wand2 className="w-5 h-5 text-white" />
             </div>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed max-w-[180px]">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-[180px]">
               Add content to your document first, then humanize it.
             </p>
           </div>
         ) : isStreaming ? (
           <div className="px-3 py-3">
-            <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-2 flex items-center gap-1.5">
+            <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2 flex items-center gap-1.5">
               <Loader2 className="w-3 h-3 animate-spin text-amber-500" />
               {mode === "scan" ? "Scanning for AI patterns…" : twoPass ? "Rewriting (two-pass)…" : "Rewriting…"}
             </div>
@@ -584,7 +584,7 @@ export function StudioHumanizerPanel({
                 )}
                 <button
                   onClick={handleCopy}
-                  className="w-5 h-5 flex items-center justify-center rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  className="w-5 h-5 flex items-center justify-center rounded-md text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                   title="Copy result"
                 >
                   {copied ? <Check className="w-2.5 h-2.5 text-emerald-500" /> : <Copy className="w-2.5 h-2.5" />}
@@ -602,7 +602,7 @@ export function StudioHumanizerPanel({
             {/* AI flags */}
             {aiFlags.length > 0 && (
               <div className="space-y-1">
-                <p className="text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">AI Patterns</p>
+                <p className="text-[9px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">AI Patterns</p>
                 {aiFlags.slice(0, 4).map((flag, i) => (
                   <div key={i} className="flex items-start gap-1.5 px-2 py-1 rounded-lg bg-slate-50 dark:bg-slate-800/60">
                     <AlertTriangle className="w-2.5 h-2.5 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -610,7 +610,7 @@ export function StudioHumanizerPanel({
                   </div>
                 ))}
                 {aiFlags.length > 4 && (
-                  <span className="text-[9px] text-slate-400 px-2">+{aiFlags.length - 4} more</span>
+                  <span className="text-[9px] text-slate-500 px-2">+{aiFlags.length - 4} more</span>
                 )}
                 <button
                   onClick={() => handleRefineSubmit("Fix the AI patterns you flagged. Focus on the specific issues and rewrite only those sections.")}
@@ -659,7 +659,7 @@ export function StudioHumanizerPanel({
             <p className="text-[12px] font-medium text-slate-700 dark:text-slate-300 mb-1">
               {mode === "scan" ? "Scan for AI patterns" : "Humanize your document"}
             </p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed max-w-[200px]">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed max-w-[200px]">
               {mode === "scan"
                 ? "Score your document for AI detectability and get specific feedback."
                 : "Rewrite AI-generated text to sound naturally human and pass AI detectors."}

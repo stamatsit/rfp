@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { ArrowLeft, Printer } from "lucide-react"
+import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 
 // ---------------------------------------------------------------------------
 // Types (mirrored from URLScanner — sessionStorage data shape)
@@ -189,6 +190,7 @@ function ScoreRing({ score, size = 200 }: { score: number; size?: number }) {
 
 export function AccessibilitySnapshot() {
   const navigate = useNavigate()
+  useDocumentTitle("Accessibility Snapshot")
   const [data, setData] = useState<SnapshotData | null>(null)
   const [redirecting, setRedirecting] = useState(false)
 

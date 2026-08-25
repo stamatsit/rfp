@@ -82,7 +82,7 @@ export function AvatarCropDialog({ imageSrc, onSave, onCancel }: AvatarCropDialo
           <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Crop Avatar</h3>
           <button
             onClick={onCancel}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+            className="p-1.5 rounded-lg text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           >
             <X size={16} />
           </button>
@@ -105,7 +105,7 @@ export function AvatarCropDialog({ imageSrc, onSave, onCancel }: AvatarCropDialo
 
         {/* Zoom control */}
         <div className="flex items-center gap-3 px-5 py-3 border-t border-slate-200 dark:border-slate-700">
-          <ZoomIn size={14} className="text-slate-400 flex-shrink-0" />
+          <ZoomIn size={14} className="text-slate-500 flex-shrink-0" />
           <input
             type="range"
             min={1}

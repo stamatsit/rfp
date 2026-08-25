@@ -127,7 +127,7 @@ function DataSourceBadge({ metadata }: { metadata?: Record<string, unknown> }) {
   if (s.caseStudies) parts.push(`${s.caseStudies} case studies`)
   if (parts.length === 0) return null
   return (
-    <span className="text-[9px] text-slate-400 dark:text-slate-500 bg-slate-50 dark:bg-slate-800/50 px-2 py-0.5 rounded-full">
+    <span className="text-[9px] text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 px-2 py-0.5 rounded-full">
       Data: {parts.join(" · ")}
     </span>
   )
@@ -465,7 +465,7 @@ export function AICompanion() {
                   <div className="flex flex-col items-center justify-center h-full text-center px-6">
                     <Clock size={32} className="text-slate-300 dark:text-slate-600 mb-3" />
                     <p className="text-[13px] text-slate-500 dark:text-slate-400">No saved conversations yet</p>
-                    <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">Your conversations will appear here</p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Your conversations will appear here</p>
                   </div>
                 ) : (
                   <div className="py-2">
@@ -495,7 +495,7 @@ export function AICompanion() {
                             <p className="text-[12.5px] font-medium text-slate-700 dark:text-slate-200 truncate pr-6">
                               {conv.title || "Untitled conversation"}
                             </p>
-                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
                               {conv.messageCount} messages · {new Date(conv.updatedAt).toLocaleDateString()}
                             </p>
                           </button>
@@ -506,7 +506,7 @@ export function AICompanion() {
                             onClick={(e) => { e.stopPropagation(); setHistoryMenuId(historyMenuId === conv.id ? null : conv.id) }}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all"
                           >
-                            <MoreVertical size={12} className="text-slate-400" />
+                            <MoreVertical size={12} className="text-slate-500" />
                           </button>
                         )}
                         {/* Context menu dropdown */}
@@ -554,7 +554,7 @@ export function AICompanion() {
                         <BotMessageSquareIcon size={22} className="text-white" />
                       </div>
                       <h3 className="text-[14px] font-semibold text-slate-700 dark:text-slate-200 mb-1">Hi! I know everything.</h3>
-                      <p className="text-[12px] text-slate-400 dark:text-slate-500 text-center mb-4 px-4">
+                      <p className="text-[12px] text-slate-500 dark:text-slate-400 text-center mb-4 px-4">
                         Ask me about your data, proposals, case studies, win rates — or how to use any feature.
                       </p>
                       <div className="flex flex-col gap-1.5 w-full">
@@ -597,7 +597,7 @@ export function AICompanion() {
                               {/* Copy button — appears on hover */}
                               <button
                                 onClick={() => handleCopy(msg.content, msg.id)}
-                                className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/msg:opacity-100"
+                                className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors opacity-0 group-hover/msg:opacity-100"
                               >
                                 {copiedId === msg.id ? (
                                   <><Check size={10} className="text-sky-500" /> <span className="text-sky-500">Copied</span></>
@@ -674,7 +674,7 @@ export function AICompanion() {
                       </button>
                     )}
                   </div>
-                  <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-1.5 text-center">
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 mt-1.5 text-center">
                     ⌘. to toggle · Powered by GPT-4o
                   </p>
                 </div>

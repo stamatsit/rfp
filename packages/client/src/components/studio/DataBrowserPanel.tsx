@@ -117,7 +117,7 @@ export function DataBrowserPanel({ onInsert, onAskAI }: DataBrowserPanelProps) {
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
+            className="p-0.5 text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
           >
             <X className="w-2.5 h-2.5" />
           </button>
@@ -136,7 +136,7 @@ export function DataBrowserPanel({ onInsert, onAskAI }: DataBrowserPanelProps) {
               className={`flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-medium transition-all border-b-2 ${
                 isActive
                   ? "border-emerald-500 text-emerald-700 dark:text-emerald-300 bg-emerald-50/60 dark:bg-emerald-900/20"
-                  : "border-transparent text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/40"
+                  : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-600 dark:hover:text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40"
               }`}
             >
               <Icon className="w-2.5 h-2.5 flex-shrink-0" />
@@ -152,7 +152,7 @@ export function DataBrowserPanel({ onInsert, onAskAI }: DataBrowserPanelProps) {
       {/* Search */}
       <div className="px-2.5 pt-2 pb-1">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-slate-400" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-2.5 h-2.5 text-slate-500" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -242,7 +242,7 @@ function QAList({
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <BookOpen className="w-4 h-4 text-slate-300 dark:text-slate-600" />
-        <p className="text-[10px] text-slate-400 dark:text-slate-500">No approved Q&A answers</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">No approved Q&A answers</p>
       </div>
     )
   }
@@ -256,7 +256,7 @@ function QAList({
           >
             {expandedId === item.id
               ? <ChevronDown className="w-3 h-3 text-emerald-500 flex-shrink-0 mt-0.5" />
-              : <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />}
+              : <ChevronRight className="w-3 h-3 text-slate-500 flex-shrink-0 mt-0.5" />}
             <span className={`text-[10px] font-medium leading-snug ${expandedId === item.id ? "text-emerald-700 dark:text-emerald-300" : "text-slate-600 dark:text-slate-300"}`}>
               {item.question}
             </span>
@@ -306,7 +306,7 @@ function CaseStudyList({
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <BarChart3 className="w-4 h-4 text-slate-300 dark:text-slate-600" />
-        <p className="text-[10px] text-slate-400 dark:text-slate-500">No case studies found</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">No case studies found</p>
       </div>
     )
   }
@@ -322,12 +322,12 @@ function CaseStudyList({
             >
               {expandedId === id
                 ? <ChevronDown className="w-3 h-3 text-emerald-500 flex-shrink-0 mt-0.5" />
-                : <ChevronRight className="w-3 h-3 text-slate-400 flex-shrink-0 mt-0.5" />}
+                : <ChevronRight className="w-3 h-3 text-slate-500 flex-shrink-0 mt-0.5" />}
               <div className="flex-1 min-w-0">
                 <p className={`text-[10px] font-semibold leading-snug ${expandedId === id ? "text-emerald-700 dark:text-emerald-300" : "text-slate-700 dark:text-slate-300"}`}>
                   {cs.client}
                 </p>
-                <p className="text-[9px] text-slate-400 dark:text-slate-500">{cs.focus}</p>
+                <p className="text-[9px] text-slate-500 dark:text-slate-400">{cs.focus}</p>
               </div>
             </button>
             {expandedId === id && (
@@ -380,7 +380,7 @@ function ResultList({
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <Award className="w-4 h-4 text-slate-300 dark:text-slate-600" />
-        <p className="text-[10px] text-slate-400 dark:text-slate-500">No results found</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">No results found</p>
       </div>
     )
   }
@@ -394,7 +394,7 @@ function ResultList({
           <div className="flex-1 min-w-0">
             <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-300 tabular-nums leading-snug">{r.result}</p>
             <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-snug">{r.metric}</p>
-            <p className="text-[9px] text-slate-400 dark:text-slate-500 leading-snug truncate">{r.client}</p>
+            <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-snug truncate">{r.client}</p>
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-0.5">
             <button
@@ -431,7 +431,7 @@ function TestimonialList({
     return (
       <div className="flex flex-col items-center gap-2 py-6 text-center">
         <MessageSquareQuote className="w-4 h-4 text-slate-300 dark:text-slate-600" />
-        <p className="text-[10px] text-slate-400 dark:text-slate-500">No testimonials found</p>
+        <p className="text-[10px] text-slate-500 dark:text-slate-400">No testimonials found</p>
       </div>
     )
   }
@@ -448,7 +448,7 @@ function TestimonialList({
           <div className="flex items-center justify-between">
             <div className="min-w-0">
               <p className="text-[9px] font-semibold text-slate-700 dark:text-slate-300 truncate">{t.name}</p>
-              <p className="text-[9px] text-slate-400 dark:text-slate-500 truncate">{t.title}, {t.organization}</p>
+              <p className="text-[9px] text-slate-500 dark:text-slate-400 truncate">{t.title}, {t.organization}</p>
             </div>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 ml-2">
               <button

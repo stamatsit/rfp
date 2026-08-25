@@ -84,7 +84,7 @@ async function processDocumentAI(docId: string, text: string): Promise<void> {
   if (!openai || !db) return
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-5.6-luna",
       messages: [
         {
           role: "system",
@@ -93,8 +93,7 @@ async function processDocumentAI(docId: string, text: string): Promise<void> {
         { role: "user", content: text.slice(0, 15000) },
       ],
       response_format: { type: "json_object" },
-      temperature: 0.2,
-      max_tokens: 800,
+      max_completion_tokens: 800,
     })
     const raw = completion.choices[0]?.message?.content || "{}"
     const parsed = JSON.parse(raw)
@@ -1033,13 +1032,12 @@ Use this exact structure:
 If a section has no data, write "No data available" and move on. Keep it under 600 words total.`
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: "gpt-5.6-luna",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.4,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     })
 
     const markdown = completion.choices[0]?.message?.content || ""
