@@ -67,7 +67,7 @@ export async function streamMigrationChat(
     .from(mmSnapshots).orderBy(desc(mmSnapshots.createdAt)).limit(1)
   if (!row) return sseError(res, "No data has synced yet. Once the first snapshot arrives, I can answer.")
 
-  let system = `${SYSTEM}\n\nFACT SHEET (computed from the spreadsheets, snapshot ${new Date(row.createdAt as unknown as string).toISOString()}):\n${JSON.stringify(row.facts)}`
+  let system = `${SYSTEM}\n\nFACT SHEET (computed from the spreadsheets, snapshot ${new Date(row.createdAt as unknown as string).toISOString()}):\n${JSON.stringify(typeof row.facts === "string" ? JSON.parse(row.facts) : row.facts)}`
   if (viewContext && viewContext !== "overview") {
     system += `\n\nCURRENT VIEW: the user is looking at the '${viewContext}' dashboard. Scope answers to it by default; only go broader when the question clearly asks.`
   }

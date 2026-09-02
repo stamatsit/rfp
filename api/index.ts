@@ -1312,6 +1312,13 @@ async function createSession(data: Omit<SessionData, "expires">): Promise<string
 
 // Check if a non-GET path is exempt from admin-only write access
 // These are routes that read-only users are allowed to POST/PATCH/DELETE
+// Migration Matrix: jsonb values may arrive double-encoded (drizzle's
+// stringify quirk on the Express writer; old rows); normalize on read.
+function mmParse(v: unknown): any {
+  if (typeof v !== "string") return v
+  try { return JSON.parse(v) } catch { return v }
+}
+
 // Migration Matrix: human-readable diff between two snapshot data blobs.
 // Mirrors computeDiff in packages/server/src/routes/migration.ts.
 function mmComputeDiff(prev: any, cur: any): Array<{ kind: string; text: string }> {
@@ -1597,8 +1604,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmInserted = await queryClient`
         INSERT INTO mm_snapshots (contract, source, source_hash, week_label, data, facts, findings)
         VALUES (${mmBody.contract as string}, ${(mmBody.source as string) || "mac-agent"}, ${mmHash},
-                ${(mmBody.week_lbl as string) || null}, ${JSON.stringify(mmBody.data)}::jsonb,
-                ${JSON.stringify(mmBody.facts)}::jsonb, ${JSON.stringify(mmBody.findings || [])}::jsonb)
+                ${(mmBody.week_lbl as string) || null}, ${queryClient.json(mmBody.data as any)},
+                ${queryClient.json(mmBody.facts as any)}, ${queryClient.json((mmBody.findings as any) || [])})
         RETURNING id`
       const mmNames = ((mmData!.clients || []) as Array<{ name?: unknown }>).map((c) => String(c?.name || "")).filter(Boolean)
       for (const mmName of mmNames) {
@@ -9098,13 +9105,14 @@ Only include quotes where the client is clearly saying something positive or not
         const prev = rows.find((r) => r.source_hash !== latest.source_hash)
         const hb = await queryClient`SELECT created_at FROM mm_ingest_log ORDER BY created_at DESC LIMIT 1`
         const archive = await queryClient`SELECT name, archived, archived_by, archived_at FROM mm_projects`
+        const latestData = mmParse(latest.data)
         return res.json({
           snapshot: { id: latest.id, created_at: latest.created_at, contract: latest.contract,
-            source: latest.source, week_label: latest.week_label, data: latest.data,
-            facts: latest.facts, findings: latest.findings },
+            source: latest.source, week_label: latest.week_label, data: latestData,
+            facts: mmParse(latest.facts), findings: mmParse(latest.findings) },
           seconds_old: Math.round((Date.now() - new Date(latest.created_at).getTime()) / 1000),
           last_heartbeat_seconds: hb[0] ? Math.round((Date.now() - new Date(hb[0].created_at).getTime()) / 1000) : null,
-          diff: prev ? mmComputeDiff(prev.data, latest.data) : [],
+          diff: prev ? mmComputeDiff(mmParse(prev.data), latestData) : [],
           archive: archive.map((p) => ({ name: p.name, archived: p.archived,
             archived_by: p.archived_by, archived_at: p.archived_at })),
         })
@@ -9159,7 +9167,7 @@ VISUALIZATIONS:${CHART_PROMPT}
 Additional chart rule: chart ONLY values present in the fact sheet, never invented or extrapolated numbers.
 
 FACT SHEET (snapshot ${new Date(mmFactRows[0]!.created_at).toISOString()}):
-${JSON.stringify(mmFactRows[0]!.facts)}`
+${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
         if (mmCtx && mmCtx !== "overview") {
           mmSystem += `\n\nCURRENT VIEW: the user is looking at the '${mmCtx}' dashboard. Scope answers to it by default; only go broader when the question clearly asks.`
         }
