@@ -224,7 +224,10 @@ export function MigrationMatrix() {
         <Activity size={20} strokeWidth={2.25} />
       </div>
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
+        <div className="flex items-center gap-2.5">
+          <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
+          <span className="text-[9.5px] font-bold uppercase tracking-[0.08em] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300/70 dark:border-amber-700 rounded-full px-2 py-0.5">demo mode</span>
+        </div>
         <p className="text-xs text-slate-400">
           {data ? `${active.length} active projects · week of ${weekNow}` : "Migration Matrix"}
           {ageSec != null && <> · updated {ageSec < 90 ? "just now" : `${Math.round(ageSec / 60)} min ago`}</>}
