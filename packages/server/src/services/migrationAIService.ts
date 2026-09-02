@@ -32,7 +32,7 @@ function parseFollowUpPrompts(response: string): { cleanResponse: string; prompt
   return { cleanResponse: response, prompts: [] }
 }
 
-const SYSTEM = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers.
+const SYSTEM = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
 
 At the end, include 2-3 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?"]
@@ -92,9 +92,9 @@ export async function streamMigrationChat(
 
 // ─── morning reports (Phase 4) ───────────────────────────────────────────────
 
-const CRYSTAL_PROMPT = `Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. USING ONLY the fact sheet; never invent numbers.`
+const CRYSTAL_PROMPT = `Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers.`
 
-const MIGRATOR_PROMPT = (name: string) => `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. USING ONLY facts about ${name}; never invent numbers.`
+const MIGRATOR_PROMPT = (name: string) => `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; never invent numbers.`
 
 export async function generateMorningReports(): Promise<{ date: string; written: number; failed: string[] }> {
   const openai = getOpenAI()

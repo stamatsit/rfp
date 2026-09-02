@@ -1639,10 +1639,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmFactSheet = JSON.stringify(mmRepFacts)
       const mmRepDate = new Date().toISOString().slice(0, 10)
       const mmPeople: string[] = (mmRepFacts.team_performance || []).map((p: { person: string }) => p.person)
-      const mmCrystalPrompt = "Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. USING ONLY the fact sheet; never invent numbers."
+      const mmCrystalPrompt = "Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers."
       const mmJobs = [
         { audience: "crystal", prompt: mmCrystalPrompt },
-        ...mmPeople.map((name: string) => ({ audience: name, prompt: `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. USING ONLY facts about ${name}; never invent numbers.` })),
+        ...mmPeople.map((name: string) => ({ audience: name, prompt: `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; never invent numbers.` })),
       ]
       // concurrent: sequential calls would blow the 60s serverless budget
       const mmResults = await Promise.allSettled(mmJobs.map(async (j) => {
@@ -9215,7 +9215,7 @@ Only include quotes where the client is clearly saying something positive or not
           return res.end()
         }
         const mmCtx = typeof mmChatBody.context === "string" ? mmChatBody.context : "overview"
-        let mmSystem = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers.
+        let mmSystem = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
 
 At the end, include 2-3 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?"]
@@ -9265,8 +9265,9 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
         const mmQ = (req.query as any)?.date
         let mmRepQDate = typeof mmQ === "string" && /^\d{4}-\d{2}-\d{2}$/.test(mmQ) ? mmQ : null
         if (!mmRepQDate) {
-          const mmLatestRep = await queryClient`SELECT report_date FROM mm_reports ORDER BY report_date DESC LIMIT 1`
-          mmRepQDate = mmLatestRep[0]?.report_date ? String(mmLatestRep[0].report_date).slice(0, 10) : null
+          // postgres.js returns date columns as JS Date objects; format in SQL
+          const mmLatestRep = await queryClient`SELECT to_char(report_date, 'YYYY-MM-DD') AS d FROM mm_reports ORDER BY report_date DESC LIMIT 1`
+          mmRepQDate = mmLatestRep[0]?.d ?? null
         }
         if (!mmRepQDate) return res.json({ date: null, reports: [] })
         const mmRepRows = await queryClient`SELECT audience, body, created_at FROM mm_reports WHERE report_date = ${mmRepQDate}`
