@@ -2648,3 +2648,118 @@ export function downloadBase64Xlsx(base64: string, filename: string) {
     filename
   )
 }
+
+// ─── Migration Matrix ────────────────────────────────────────────────────────
+// Snapshot-fed dashboard for the content-migration team. The snapshot's data
+// blob is produced by the Python pipeline; shapes here mirror its output.
+
+export interface MmClientMatrix {
+  name: string
+  total: number
+  migrated: number
+  delivered: number
+  migrators: number
+  funnel: Array<[string, number]>
+  weekly_deliveries: Array<[string, number]>
+  cycle_med: number | null
+  cycle_min: number | null
+  cycle_max: number | null
+  rework: number
+  rework_pct: number
+}
+
+export interface MmClient {
+  name: string
+  total: number
+  done: number
+  done_source: string
+  remaining: number
+  pct: number
+  verdict: string
+  tone: "ok" | "warn" | "crit"
+  deadline: string | null
+  projected: string | null
+  days_left: number | null
+  required_pace: number | null
+  actual_pace: number
+  actual_rate: number | null
+  plan_rate: number | null
+  hours_left: number
+  qa_remaining: number
+  crew: Array<[string, number]>
+  moves: string[]
+  series: Array<[string, number, number]>
+  status: string
+  archived?: boolean
+  matrix: MmClientMatrix | null
+}
+
+export interface MmTeamMember {
+  name: string
+  role: string
+  hours: number
+  assigned: number
+  done: number
+  comp: number
+  vel: number | null
+  avail: number | null
+  wk_hours: number
+  weekly: Array<[string, number, number]>
+  projects: Array<[string, number, number, number]>
+}
+
+export interface MmSnapshotData {
+  overview: { active: number; archived: number; assigned: number; avail: number; over: string[] }
+  clients: MmClient[]
+  team: MmTeamMember[]
+  week_lbl: string
+  wk_hrs?: number
+}
+
+export interface MmFinding {
+  severity: string
+  code: string
+  message: string
+  location?: string
+}
+
+export interface MmLatest {
+  empty?: boolean
+  snapshot?: {
+    id: string
+    created_at: string
+    contract: string
+    source: string
+    week_label: string | null
+    data: MmSnapshotData
+    facts: Record<string, unknown>
+    findings: MmFinding[]
+  }
+  seconds_old?: number
+  last_heartbeat_seconds?: number | null
+  diff?: Array<{ kind: string; text: string }>
+  archive?: Array<{ name: string; archived: boolean; archived_by: string | null; archived_at: string | null }>
+}
+
+export const migrationApi = {
+  getLatest: async (): Promise<MmLatest> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/latest`)
+    return handleResponse<MmLatest>(response)
+  },
+  getHistory: async (limit = 20): Promise<Array<{ id: string; createdAt: string; source: string; weekLabel: string | null }>> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/history?limit=${limit}`)
+    return handleResponse(response)
+  },
+  setArchived: async (project: string, archived: boolean): Promise<{ ok: boolean; project: string; archived: boolean }> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/archive`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ project, archived }),
+    })
+    return handleResponse(response)
+  },
+  getStats: async (): Promise<{ snapshots: number; recent: Array<Record<string, unknown>> }> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/stats`)
+    return handleResponse(response)
+  },
+}

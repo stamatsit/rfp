@@ -1,5 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom"
 import {
+  Activity,
   Home,
   Search,
   Sparkles,
@@ -39,6 +40,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
   { to: "/scanner", icon: ScanSearch, label: "URL Scanner", settingKey: "urlScannerEnabled" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },
+  { to: "/migration", icon: Activity, label: "Migration Matrix", emailOnly: "eric.yerke@stamats.com" },
 ]
 
 export function NavRail() {

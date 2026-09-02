@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { createPortal } from "react-dom"
 import { useNavigate } from "react-router-dom"
 import {
+  Activity,
   Search,
   Home,
   Sparkles,
@@ -57,6 +58,7 @@ const ROUTE_ITEMS: PaletteItem[] = [
   { id: "humanize", type: "route", label: "AI Humanizer", description: "Rewrite AI text", icon: Wand2, href: "/humanize" },
   { id: "testimonials", type: "route", label: "Testimonials & Awards", description: "Client testimonials", icon: Quote, href: "/testimonials" },
   { id: "clients", type: "route", label: "Client Portfolio", description: "All assets by client", icon: Building2, href: "/clients" },
+  { id: "migration", type: "route", label: "Migration Matrix", description: "Web page build dashboard", icon: Activity, href: "/migration" },
   { id: "analyze", type: "route", label: "Document Scanner", description: "Scan RFPs for red flags", icon: FileSearch, href: "/analyze" },
   { id: "import", type: "route", label: "Import Data", description: "Bulk Excel import", icon: FileSpreadsheet, href: "/import" },
   { id: "photos", type: "route", label: "Photo Library", description: "Image assets", icon: Image, href: "/photos" },

@@ -20,6 +20,7 @@ interface AppHeaderProps {
 // Page metadata for automatic breadcrumb generation
 const pageConfig: Record<string, { title: string }> = {
   "/": { title: "Home" },
+  "/migration": { title: "Migration Matrix" },
   "/search": { title: "Search Library" },
   "/ai": { title: "AI Tools" },
   "/import": { title: "Import Data" },

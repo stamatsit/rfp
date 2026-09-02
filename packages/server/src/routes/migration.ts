@@ -221,6 +221,29 @@ router.post("/archive", async (req: Request, res: Response) => {
   }
 })
 
+// POST /api/migration/chat/stream — SSE, grounded + CHART_DATA graphics
+router.post("/chat/stream", async (req: Request, res: Response) => {
+  const { query, conversationHistory, context } = req.body || {}
+  if (!query || typeof query !== "string" || query.trim().length < 2) {
+    res.setHeader("Content-Type", "text/event-stream")
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "Query too short" })}\n\n`)
+    return res.end()
+  }
+  if (query.length > 2000) {
+    res.setHeader("Content-Type", "text/event-stream")
+    res.write(`event: error\ndata: ${JSON.stringify({ error: "Query too long (2000 char max)" })}\n\n`)
+    return res.end()
+  }
+  try {
+    const { streamMigrationChat } = await import("../services/migrationAIService.js")
+    await streamMigrationChat(query.trim(), conversationHistory, String(context || ""), res)
+  } catch (error) {
+    console.error("Migration chat failed:", error)
+    if (!res.headersSent) res.status(500).json({ error: "Chat failed" })
+    else res.end()
+  }
+})
+
 // GET /api/migration/stats
 router.get("/stats", async (_req: Request, res: Response) => {
   try {

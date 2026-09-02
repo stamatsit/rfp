@@ -39,6 +39,7 @@ const ScannerPortal = lazy(() => import("./pages/ScannerPortal").then(m => ({ de
 const AccessibilitySnapshot = lazy(() => import("./pages/AccessibilitySnapshot"))
 const Webinars = lazy(() => import("./pages/Webinars").then(m => ({ default: m.Webinars })))
 const ContentMatrix = lazy(() => import("./pages/ContentMatrix").then(m => ({ default: m.ContentMatrix })))
+const MigrationMatrix = lazy(() => import("./pages/MigrationMatrix").then(m => ({ default: m.MigrationMatrix })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -140,6 +141,7 @@ function AppRoutes() {
             <Route path="/scanner/snapshot" element={<ProtectedRoute><AccessibilitySnapshot /></ProtectedRoute>} />
             <Route path="/webinars" element={<ProtectedRoute><Webinars /></ProtectedRoute>} />
             <Route path="/content-matrix" element={<ProtectedRoute><ContentMatrix /></ProtectedRoute>} />
+            <Route path="/migration" element={<ProtectedRoute><MigrationMatrix /></ProtectedRoute>} />
           </Routes>
           </Suspense>
           </ErrorBoundary>

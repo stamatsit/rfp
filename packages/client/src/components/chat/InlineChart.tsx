@@ -31,6 +31,7 @@ const CHART_COLORS: Record<string, string[]> = {
   indigo: ["#6366F1", "#06B6D4", "#10B981", "#F59E0B", "#8B5CF6"],
   purple: ["#7C3AED", "#06B6D4", "#10B981", "#F59E0B", "#6366F1"],
   emerald: ["#10B981", "#06B6D4", "#F59E0B", "#6366F1", "#8B5CF6"],
+  crimson: ["#C41230", "#0EA5E9", "#059669", "#D97706", "#6366F1"],
 }
 
 const PIE_COLORS = ["#06B6D4", "#8B5CF6", "#10B981", "#F59E0B", "#6366F1", "#0EA5E9", "#14B8A6", "#A78BFA"]

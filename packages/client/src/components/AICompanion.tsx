@@ -61,6 +61,11 @@ const DEFAULT_STARTERS = [
 ]
 
 const PAGE_STARTERS: Record<string, string[]> = {
+  "/migration": [
+    "Are the web page builds on track?",
+    "Who is over capacity this week?",
+    "Which project needs attention first?",
+  ],
   "/": [
     "Give me a quick summary of our win rates and proposal stats",
     "What should I work on today?",

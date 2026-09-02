@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom"
 import { useTheme } from "@/contexts/ThemeContext"
 import { usePanelResize, ResizeHandles } from "@/hooks/usePanelResize"
 import {
+  Activity,
   FileSpreadsheet,
   Image,
   Search,
@@ -216,6 +217,16 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #0EA5E9 0%, #6366F1 50%, #7C3AED 100%)",
     shadowColor: "rgba(99, 102, 241, 0.15)",
     enabled: false,  // Hidden by default; also gated to eric.yerke@stamats.com (see HomePage ERIC_ONLY_TILES)
+  },
+  {
+    id: "migration-matrix",
+    to: "/migration",
+    icon: <Activity size={22} strokeWidth={2} />,
+    title: "Migration Matrix",
+    description: "Live web page build dashboard: project progress, team capacity, and an AI that answers with charts",
+    gradient: "linear-gradient(135deg, #C41230 0%, #96173F 50%, #6D1D45 100%)",
+    shadowColor: "rgba(196, 18, 48, 0.15)",
+    enabled: false,  // Soft launch: also gated to eric.yerke@stamats.com (ERIC_ONLY_TILES, defined here AND in HomePage)
   },
 ]
 
@@ -600,7 +611,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix", "migration-matrix"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()

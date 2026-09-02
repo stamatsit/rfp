@@ -9126,6 +9126,76 @@ Only include quotes where the client is clearly saying something positive or not
           WHERE id = ${found[0]!.id}`
         return res.json({ ok: true, project: project.trim(), archived })
       }
+      // POST /migration/chat/stream — SSE, grounded in the latest snapshot's
+      // fact sheet, chart-capable. Express twin: services/migrationAIService.ts.
+      if (path === "/migration/chat/stream" && method === "POST") {
+        const mmChatBody = (req.body || {}) as { query?: unknown; conversationHistory?: Array<{ role: string; content: string }>; context?: unknown }
+        const mmQuery = typeof mmChatBody.query === "string" ? mmChatBody.query.trim() : ""
+        res.setHeader("Content-Type", "text/event-stream")
+        res.setHeader("Cache-Control", "no-cache")
+        res.setHeader("Connection", "keep-alive")
+        res.setHeader("X-Accel-Buffering", "no")
+        if (mmQuery.length < 2 || mmQuery.length > 2000) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "Query must be 2 to 2000 characters" })}\n\n`)
+          return res.end()
+        }
+        const mmOpenai = getOpenAI()
+        if (!mmOpenai) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "AI is not configured" })}\n\n`)
+          return res.end()
+        }
+        const mmFactRows = await queryClient`SELECT facts, created_at FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
+        if (!mmFactRows.length) {
+          res.write(`event: error\ndata: ${JSON.stringify({ error: "No data has synced yet. Once the first snapshot arrives, I can answer." })}\n\n`)
+          return res.end()
+        }
+        const mmCtx = typeof mmChatBody.context === "string" ? mmChatBody.context : "overview"
+        let mmSystem = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers.
+
+At the end, include 2-3 follow-ups:
+FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?"]
+
+VISUALIZATIONS:${CHART_PROMPT}
+Additional chart rule: chart ONLY values present in the fact sheet, never invented or extrapolated numbers.
+
+FACT SHEET (snapshot ${new Date(mmFactRows[0]!.created_at).toISOString()}):
+${JSON.stringify(mmFactRows[0]!.facts)}`
+        if (mmCtx && mmCtx !== "overview") {
+          mmSystem += `\n\nCURRENT VIEW: the user is looking at the '${mmCtx}' dashboard. Scope answers to it by default; only go broader when the question clearly asks.`
+        }
+        const mmMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [{ role: "system", content: mmSystem }]
+        if (Array.isArray(mmChatBody.conversationHistory)) {
+          for (const m of truncateHistory(mmChatBody.conversationHistory as Array<{ role: "user" | "assistant"; content: string }>)) {
+            mmMessages.push({ role: m.role as "user" | "assistant", content: m.content })
+          }
+        }
+        mmMessages.push({ role: "user", content: mmQuery })
+        res.write(`event: metadata\ndata: ${JSON.stringify({ context: mmCtx, snapshotAt: mmFactRows[0]!.created_at })}\n\n`)
+        try {
+          const mmStream = await mmOpenai.chat.completions.create({
+            model: "gpt-5.6-luna",
+            messages: mmMessages,
+            max_completion_tokens: 1500,
+            stream: true
+          })
+          let mmFull = ""
+          for await (const chunk of mmStream) {
+            const token = chunk.choices[0]?.delta?.content
+            if (token) { mmFull += token; res.write(`data: ${JSON.stringify({ token })}\n\n`) }
+          }
+          const { cleanResponse: mmCleanFU, followUpPrompts: mmFollows } = parseFollowUpPrompts(mmFull, [
+            "Are we on track overall?",
+            "Who did the most pages this week?"
+          ])
+          const { cleanText: mmClean, chartData: mmChart } = parseChartData(mmCleanFU)
+          res.write(`event: done\ndata: ${JSON.stringify({ cleanResponse: mmClean, followUpPrompts: mmFollows, ...(mmChart ? { chartData: mmChart } : {}) })}\n\n`)
+          return res.end()
+        } catch (mmErr: any) {
+          console.error("Migration chat stream error:", mmErr?.message || mmErr)
+          res.write(`event: error\ndata: ${JSON.stringify({ error: mmErr?.message || "AI streaming failed" })}\n\n`)
+          return res.end()
+        }
+      }
       if (path === "/migration/stats" && method === "GET") {
         const log = await queryClient`SELECT * FROM mm_ingest_log ORDER BY created_at DESC LIMIT 20`
         const count = await queryClient`SELECT count(*)::int AS n FROM mm_snapshots`
