@@ -21,6 +21,7 @@ import scannerRouter from "./scanner.js"
 import screenshotRouter from "./screenshot.js"
 import webinarsRouter from "./webinars.js"
 import dynomapperRouter from "./dynomapper.js"
+import migrationRouter from "./migration.js"
 
 const router = Router()
 
@@ -46,5 +47,6 @@ router.use("/scanner", scannerRouter)
 router.use("/screenshot", screenshotRouter)
 router.use("/webinars", webinarsRouter)
 router.use("/dynomapper", dynomapperRouter)
+router.use("/migration", migrationRouter)
 
 export default router

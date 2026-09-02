@@ -639,3 +639,50 @@ export type StudioAssetRow = typeof studioAssets.$inferSelect
 export type NewStudioAsset = typeof studioAssets.$inferInsert
 export type WritingPersonaSample = typeof writingPersonaSamples.$inferSelect
 export type NewWritingPersonaSample = typeof writingPersonaSamples.$inferInsert
+
+// ─── Migration Matrix ────────────────────────────────────────────────────────
+// Snapshot-fed dashboard for the content-migration team. Snapshots are
+// immutable JSONB pushed by the ingest agent; archive state lives in
+// mm_projects. CHECK constraints and the lower(name) unique index are in
+// migrations/005_migration_matrix.sql (drizzle cannot emit them).
+
+export const mmSnapshots = pgTable("mm_snapshots", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  contract: text("contract").notNull(),
+  source: text("source", { enum: ["mac-agent", "github-action", "graph", "manual"] }).notNull().default("mac-agent"),
+  sourceHash: text("source_hash").notNull(),
+  weekLabel: text("week_label"),
+  data: jsonb("data").notNull(),
+  facts: jsonb("facts").notNull(),
+  findings: jsonb("findings").notNull().default([]),
+}, (t) => ({
+  createdIdx: index("mm_snapshots_created_idx").on(t.createdAt),
+}))
+
+export const mmProjects = pgTable("mm_projects", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  clientId: uuid("client_id").references(() => clients.id, { onDelete: "set null" }),
+  archived: boolean("archived").notNull().default(false),
+  archivedBy: text("archived_by"),
+  archivedAt: timestamp("archived_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const mmIngestLog = pgTable("mm_ingest_log", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  outcome: text("outcome", { enum: ["stored", "deduped", "rejected", "heartbeat"] }).notNull(),
+  snapshotId: uuid("snapshot_id").references(() => mmSnapshots.id, { onDelete: "set null" }),
+  detail: text("detail"),
+}, (t) => ({
+  createdIdx: index("mm_ingest_log_created_idx").on(t.createdAt),
+}))
+
+export type MmSnapshot = typeof mmSnapshots.$inferSelect
+export type NewMmSnapshot = typeof mmSnapshots.$inferInsert
+export type MmProject = typeof mmProjects.$inferSelect
+export type NewMmProject = typeof mmProjects.$inferInsert
+export type MmIngestLogEntry = typeof mmIngestLog.$inferSelect
+export type NewMmIngestLogEntry = typeof mmIngestLog.$inferInsert

@@ -8,6 +8,20 @@ Living index of features currently being designed, built, or recently shipped (b
 
 ## Active
 
+### Migration Matrix
+Live dashboard for the content-migration team: project ring-tiles, per-project
+drill-down, team and person pages, grounded AI chat with inline charts. Data
+arrives as computed JSON snapshots pushed by an agent on Eric's Mac that reads
+the tracker + client matrices synced from OneDrive (later: Microsoft Graph).
+New tables mm_snapshots / mm_projects / mm_ingest_log; first machine-auth
+endpoint (pre-auth zone, x-mm-ingest-token); route /migration, tile gated to
+eric.yerke@stamats.com until go-live.
+
+- **Status:** Phase 1 (server + ingest) in progress on branch `migration-matrix`. Migration 005 written, NOT yet applied to rfp-prod.
+- **Full plan:** `~/Desktop/Apps/migration matrix/PRODUCT-PLAN.md` (v3.1, reviewed; build manifest + acceptance script live there)
+- **Detail doc:** [in-progress/migration-matrix.md](in-progress/migration-matrix.md)
+
+
 ### Content Matrix (DynoMapper)
 One-page tool (eric.yerke@stamats.com only) that turns an existing DynoMapper crawl into a per-page remediation worksheet — export to CSV, with optional AI-drafted fixes (meta descriptions, titles, ROT verdicts, classifications). DynoMapper supplies the facts; the LLM drafts the fixes on the way out.
 

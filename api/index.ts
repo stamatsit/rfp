@@ -1312,6 +1312,37 @@ async function createSession(data: Omit<SessionData, "expires">): Promise<string
 
 // Check if a non-GET path is exempt from admin-only write access
 // These are routes that read-only users are allowed to POST/PATCH/DELETE
+// Migration Matrix: human-readable diff between two snapshot data blobs.
+// Mirrors computeDiff in packages/server/src/routes/migration.ts.
+function mmComputeDiff(prev: any, cur: any): Array<{ kind: string; text: string }> {
+  const out: Array<{ kind: string; text: string; mag: number }> = []
+  try {
+    const pc = new Map((prev.clients || []).map((c: any) => [c.name, c]))
+    const cc = new Map((cur.clients || []).map((c: any) => [c.name, c]))
+    const pDone = (prev.clients || []).reduce((t: number, c: any) => t + (c.done || 0), 0)
+    const cDone = (cur.clients || []).reduce((t: number, c: any) => t + (c.done || 0), 0)
+    if (pDone !== cDone)
+      out.push({ kind: "pages", text: `${pDone.toLocaleString()} to ${cDone.toLocaleString()} pages done`, mag: Math.abs(cDone - pDone) + 1e6 })
+    for (const [name, c] of cc) {
+      const p: any = pc.get(name)
+      if (!p) { out.push({ kind: "project", text: `new project: ${name}`, mag: 1e5 }); continue }
+      if ((p.done || 0) !== (c as any).done)
+        out.push({ kind: "project", text: `${name}: ${p.done} to ${(c as any).done} pages done`, mag: Math.abs(((c as any).done || 0) - (p.done || 0)) })
+      if (p.verdict !== (c as any).verdict)
+        out.push({ kind: "project", text: `${name}: ${p.verdict} to ${(c as any).verdict}`, mag: 1e4 })
+    }
+    for (const name of pc.keys())
+      if (!cc.has(name)) out.push({ kind: "project", text: `project no longer in tracker: ${name}`, mag: 1e5 })
+    const pOver = new Set(prev.overview?.over || [])
+    const cOver = new Set(cur.overview?.over || [])
+    for (const p of cOver) if (!pOver.has(p)) out.push({ kind: "capacity", text: `${p} is now over capacity`, mag: 1e3 })
+    for (const p of pOver) if (!cOver.has(p)) out.push({ kind: "capacity", text: `${p} is no longer over capacity`, mag: 1e3 })
+  } catch (error) {
+    console.error("mm diff computation failed:", error)
+  }
+  return out.sort((a, b) => b.mag - a.mag).slice(0, 12).map(({ kind, text }) => ({ kind, text }))
+}
+
 function isWriteExemptPath(path: string, _method: string): boolean {
   // AI tools — always allowed
   if (path.startsWith("/ai/")) return true
@@ -1349,6 +1380,10 @@ function isWriteExemptPath(path: string, _method: string): boolean {
   // stay admin-only, matching the Express routes in packages/server.
   if (path === "/webinars/upload") return true
   if (/^\/webinars\/[^/]+\/registrants\/[^/]+$/.test(path)) return true
+  // Migration Matrix — archive toggle + chat are open to any authenticated
+  // user (attributed via session.userName); ingest never reaches this gate
+  // (it is handled pre-auth). Matches the Express routes in packages/server.
+  if (path.startsWith("/migration/")) return true
   return false
 }
 
@@ -1507,6 +1542,73 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         res.setHeader("Set-Cookie", `${CSRF_COOKIE_NAME}=${csrfToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${4 * 60 * 60}`)
       }
       return res.json({ csrfToken })
+    }
+
+    // Migration Matrix ingest — machine auth via x-mm-ingest-token, the only
+    // pre-auth POST besides /auth/*. The 401 below is OUR token check; this
+    // route never reaches the session gate. mm_* tables are queried with raw
+    // queryClient SQL (like clients / client_success_*), NOT drizzle.
+    // Express twin: packages/server/src/routes/migration.ts (ingestHandler).
+    if (path === "/migration/ingest" && method === "POST") {
+      const mmExpected = process.env.MM_INGEST_TOKEN || ""
+      const mmHeader = req.headers["x-mm-ingest-token"]
+      const mmA = Buffer.from(typeof mmHeader === "string" ? mmHeader : "")
+      const mmB = Buffer.from(mmExpected)
+      if (!mmExpected || mmA.length !== mmB.length || !crypto.timingSafeEqual(mmA, mmB)) {
+        return res.status(401).json({ error: "Unauthorized" })
+      }
+      if (!queryClient) return res.status(500).json({ error: "Database not configured" })
+      const mmBody = (req.body || {}) as Record<string, unknown>
+      if (typeof mmBody !== "object" || Array.isArray(mmBody))
+        return res.status(400).json({ error: "JSON object body required" })
+      if (JSON.stringify(mmBody).length > 2 * 1024 * 1024)
+        return res.status(400).json({ error: "Payload exceeds 2MB cap" })
+      if (mmBody.heartbeat === true) {
+        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('heartbeat', ${String(mmBody.detail || "")})`
+        return res.json({ ok: true, heartbeat: true })
+      }
+      const mmProblems: string[] = []
+      if (typeof mmBody.contract !== "string" || !/^1\.\d+$/.test(mmBody.contract as string))
+        mmProblems.push("contract must be a '1.x' string")
+      if (typeof mmBody.generated_at !== "string") mmProblems.push("generated_at missing")
+      const mmSf = mmBody.source_files as { tracker?: { sha256?: string }; matrices?: Array<{ sha256?: string }> } | undefined
+      if (!mmSf?.tracker || typeof mmSf.tracker.sha256 !== "string") mmProblems.push("source_files.tracker.sha256 missing")
+      if (!Array.isArray(mmSf?.matrices)) mmProblems.push("source_files.matrices must be an array")
+      const mmData = mmBody.data as { clients?: unknown[]; team?: unknown[]; overview?: unknown } | undefined
+      if (!mmData || !Array.isArray(mmData.clients) || !Array.isArray(mmData.team) || !mmData.overview)
+        mmProblems.push("data must carry clients[], team[], overview")
+      if (!mmBody.facts || typeof mmBody.facts !== "object") mmProblems.push("facts missing")
+      if (!Array.isArray(mmBody.findings)) mmProblems.push("findings must be an array")
+      if (mmProblems.length) {
+        // invalid + dry_run short-circuits before ANY db access (db-pure)
+        if (mmBody.dry_run === true) return res.json({ ok: false, would: "rejected", problems: mmProblems })
+        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('rejected', ${mmProblems.join("; ").slice(0, 500)})`
+        return res.status(400).json({ error: "Invalid snapshot", problems: mmProblems })
+      }
+      const mmHash = [mmSf!.tracker!.sha256 || "", ...(mmSf!.matrices || []).map((m) => m.sha256 || "").sort()].join("|")
+      const mmLatestRows = await queryClient`SELECT id, source_hash FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
+      const mmLatest = mmLatestRows[0]
+      const mmWould = mmLatest?.source_hash === mmHash ? "deduped" : "stored"
+      if (mmBody.dry_run === true) return res.json({ ok: true, would: mmWould, problems: [] })
+      if (mmWould === "deduped") {
+        await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id) VALUES ('deduped', ${mmLatest!.id})`
+        return res.json({ ok: true, deduped: true })
+      }
+      const mmInserted = await queryClient`
+        INSERT INTO mm_snapshots (contract, source, source_hash, week_label, data, facts, findings)
+        VALUES (${mmBody.contract as string}, ${(mmBody.source as string) || "mac-agent"}, ${mmHash},
+                ${(mmBody.week_lbl as string) || null}, ${JSON.stringify(mmBody.data)}::jsonb,
+                ${JSON.stringify(mmBody.facts)}::jsonb, ${JSON.stringify(mmBody.findings || [])}::jsonb)
+        RETURNING id`
+      const mmNames = ((mmData!.clients || []) as Array<{ name?: unknown }>).map((c) => String(c?.name || "")).filter(Boolean)
+      for (const mmName of mmNames) {
+        const mmExisting = await queryClient`SELECT id FROM mm_projects WHERE lower(name) = lower(${mmName}) LIMIT 1`
+        if (!mmExisting.length) {
+          try { await queryClient`INSERT INTO mm_projects (name) VALUES (${mmName})` } catch { /* race, harmless */ }
+        }
+      }
+      await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id) VALUES ('stored', ${mmInserted[0]!.id})`
+      return res.status(201).json({ ok: true, snapshot_id: mmInserted[0]!.id })
     }
 
     // Auth routes
@@ -8984,6 +9086,54 @@ Only include quotes where the client is clearly saying something positive or not
     }
 
     // ─── DynoMapper Content Matrix (eric.yerke@stamats.com only) ───────────────
+    // ─── Migration Matrix (session routes; ingest is handled pre-auth) ───
+    // Express twin: packages/server/src/routes/migration.ts. Raw queryClient
+    // SQL for mm_* (not in the drizzle schema registration by design).
+    if (path.startsWith("/migration")) {
+      if (!queryClient) return res.status(500).json({ error: "Database not configured" })
+      if (path === "/migration/latest" && method === "GET") {
+        const rows = await queryClient`SELECT * FROM mm_snapshots ORDER BY created_at DESC LIMIT 10`
+        const latest = rows[0]
+        if (!latest) return res.json({ empty: true })
+        const prev = rows.find((r) => r.source_hash !== latest.source_hash)
+        const hb = await queryClient`SELECT created_at FROM mm_ingest_log ORDER BY created_at DESC LIMIT 1`
+        const archive = await queryClient`SELECT name, archived, archived_by, archived_at FROM mm_projects`
+        return res.json({
+          snapshot: { id: latest.id, created_at: latest.created_at, contract: latest.contract,
+            source: latest.source, week_label: latest.week_label, data: latest.data,
+            facts: latest.facts, findings: latest.findings },
+          seconds_old: Math.round((Date.now() - new Date(latest.created_at).getTime()) / 1000),
+          last_heartbeat_seconds: hb[0] ? Math.round((Date.now() - new Date(hb[0].created_at).getTime()) / 1000) : null,
+          diff: prev ? mmComputeDiff(prev.data, latest.data) : [],
+          archive: archive.map((p) => ({ name: p.name, archived: p.archived,
+            archived_by: p.archived_by, archived_at: p.archived_at })),
+        })
+      }
+      if (path === "/migration/history" && method === "GET") {
+        const limit = Math.min(Number((req.query as any)?.limit) || 20, 100)
+        const rows = await queryClient`SELECT id, created_at, source, week_label FROM mm_snapshots ORDER BY created_at DESC LIMIT ${limit}`
+        return res.json(rows)
+      }
+      if (path === "/migration/archive" && method === "POST") {
+        const { project, archived } = (req.body || {}) as { project?: unknown; archived?: unknown }
+        if (typeof project !== "string" || !project.trim() || typeof archived !== "boolean")
+          return res.status(400).json({ error: "project (string) and archived (boolean) required" })
+        const found = await queryClient`SELECT id FROM mm_projects WHERE lower(name) = lower(${project.trim()}) LIMIT 1`
+        if (!found.length) return res.status(404).json({ error: "Unknown project" })
+        const actor = session?.userName || "unknown"
+        await queryClient`UPDATE mm_projects SET archived = ${archived},
+          archived_by = ${archived ? actor : null}, archived_at = ${archived ? new Date() : null}
+          WHERE id = ${found[0]!.id}`
+        return res.json({ ok: true, project: project.trim(), archived })
+      }
+      if (path === "/migration/stats" && method === "GET") {
+        const log = await queryClient`SELECT * FROM mm_ingest_log ORDER BY created_at DESC LIMIT 20`
+        const count = await queryClient`SELECT count(*)::int AS n FROM mm_snapshots`
+        return res.json({ snapshots: count[0]?.n ?? 0, recent: log })
+      }
+      return res.status(404).json({ error: "Not found" })
+    }
+
     if (path.startsWith("/dynomapper")) {
       if (session?.userEmail !== "eric.yerke@stamats.com") {
         return res.status(403).json({ error: "Access denied" })

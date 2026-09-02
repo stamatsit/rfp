@@ -17,6 +17,7 @@ import { generateCsrfToken, validateCsrfToken, getCsrfToken } from "./middleware
 import { initializeDatabase, supabaseAdmin } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
 import { startPipelineSyncPolling } from "./services/pipelineSyncService.js"
+import { ingestHandler } from "./routes/migration.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -164,6 +165,11 @@ app.get("/api/auth/avatar/:userId", async (req, res) => {
     res.status(500).json({ error: "Failed to get avatar" })
   }
 })
+
+// Migration Matrix ingest: machine auth (x-mm-ingest-token), so it mounts
+// BEFORE requireAuth/CSRF like the auth routes above. The handler does its
+// own 401. Session-based /api/migration/* routes stay behind auth below.
+app.post("/api/migration/ingest", ingestHandler)
 
 // Require authentication for all other API routes
 app.use("/api", requireAuth)
