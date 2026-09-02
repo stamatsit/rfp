@@ -391,6 +391,9 @@ export function MigrationMatrix() {
     )
   }
 
+  // ── reports view ──
+  if (tab === "reports") return shell(<ReportsView back={() => setView({ tab: null })} />)
+
   // ── team view ──
   if (tab === "team") return shell(<TeamView team={data.team} back={() => setView({ tab: null })} openPerson={(n) => setView({ tab: null, p: n })} />)
 
@@ -406,9 +409,14 @@ export function MigrationMatrix() {
       <Card>
         <div className="flex items-center justify-between">
           <Label>This week · all active projects</Label>
-          <button onClick={() => setView({ tab: "team" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-            <Users size={13} /> view the team
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setView({ tab: "reports" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+              <Sparkles size={13} /> morning briefs
+            </button>
+            <button onClick={() => setView({ tab: "team" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+              <Users size={13} /> view the team
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div><p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{data.overview.avail}</p><p className="text-[11px] text-slate-400 mt-0.5">hours available</p></div>
@@ -473,6 +481,41 @@ export function MigrationMatrix() {
 }
 
 // ─── team + person subviews ──────────────────────────────────────────────────
+
+function ReportsView({ back }: { back: () => void }) {
+  const [data, setData] = useState<{ date: string | null; reports: Array<{ audience: string; body: string }> } | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    migrationApi.getReports().then(setData).catch((e) => setErr(e.message))
+  }, [])
+  return (
+    <div className="space-y-4">
+      <button onClick={back} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+        <ArrowLeft size={14} /> overview
+      </button>
+      {err && <Card><p className="text-[13px] text-slate-500">Could not load briefs: {err}</p></Card>}
+      {!err && !data && <div className="shimmer h-40 rounded-2xl" />}
+      {data && !data.date && (
+        <Card className="text-center py-10 border-dashed">
+          <p className="text-slate-700 dark:text-slate-200 font-medium">No morning briefs yet</p>
+          <p className="text-[13px] text-slate-400 mt-1">The first ones generate on the next weekday morning run.</p>
+        </Card>
+      )}
+      {data?.date && (
+        <>
+          <p className="text-[12.5px] text-slate-400">Briefs for {fmtDate(data.date)} · generated from the live snapshot</p>
+          {data.reports.map((r) => (
+            <Card key={r.audience}>
+              <Label>{r.audience === "crystal" ? "Manager brief" : r.audience}</Label>
+              <div className="text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200 whitespace-pre-wrap"
+                dangerouslySetInnerHTML={{ __html: r.body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>") }} />
+            </Card>
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
 
 function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () => void; openPerson: (n: string) => void }) {
   const [q, setQ] = useState("")

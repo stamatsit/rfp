@@ -2,6 +2,9 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "packages/client/dist",
   "installCommand": "npm install --legacy-peer-deps && npm install --legacy-peer-deps --prefix packages/client",
+  "crons": [
+    { "path": "/api/migration/morning", "schedule": "30 12 * * 1-5" }
+  ],
   "functions": {
     "api/**/*.ts": {
       "maxDuration": 60,

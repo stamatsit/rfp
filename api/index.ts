@@ -1618,6 +1618,63 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(201).json({ ok: true, snapshot_id: mmInserted[0]!.id })
     }
 
+    // Migration Matrix morning reports — Vercel cron sends
+    // Authorization: Bearer $CRON_SECRET; pre-auth like ingest.
+    // Express twin: morningHandler + generateMorningReports.
+    if (path === "/migration/morning" && method === "GET") {
+      const mmCronSecret = process.env.CRON_SECRET || ""
+      const mmAuth = String(req.headers.authorization || "")
+      const mmExpectedAuth = `Bearer ${mmCronSecret}`
+      const mmAuthA = Buffer.from(mmAuth)
+      const mmAuthB = Buffer.from(mmExpectedAuth)
+      if (!mmCronSecret || mmAuthA.length !== mmAuthB.length || !crypto.timingSafeEqual(mmAuthA, mmAuthB)) {
+        return res.status(401).json({ error: "Unauthorized" })
+      }
+      if (!queryClient) return res.status(500).json({ error: "Database not configured" })
+      const mmRepOpenai = getOpenAI()
+      if (!mmRepOpenai) return res.status(500).json({ error: "AI is not configured" })
+      const mmSnapRows = await queryClient`SELECT id, facts FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
+      if (!mmSnapRows.length) return res.status(200).json({ ok: false, error: "No snapshot yet" })
+      const mmRepFacts = mmParse(mmSnapRows[0]!.facts)
+      const mmFactSheet = JSON.stringify(mmRepFacts)
+      const mmRepDate = new Date().toISOString().slice(0, 10)
+      const mmPeople: string[] = (mmRepFacts.team_performance || []).map((p: { person: string }) => p.person)
+      const mmCrystalPrompt = "Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. USING ONLY the fact sheet; never invent numbers."
+      const mmJobs = [
+        { audience: "crystal", prompt: mmCrystalPrompt },
+        ...mmPeople.map((name: string) => ({ audience: name, prompt: `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. USING ONLY facts about ${name}; never invent numbers.` })),
+      ]
+      // concurrent: sequential calls would blow the 60s serverless budget
+      const mmResults = await Promise.allSettled(mmJobs.map(async (j) => {
+        const c = await mmRepOpenai.chat.completions.create({
+          model: "gpt-5.6-luna",
+          messages: [
+            { role: "system", content: `${j.prompt}\n\nFACT SHEET:\n${mmFactSheet}` },
+            { role: "user", content: "Write the brief." },
+          ],
+          max_completion_tokens: 600,
+        })
+        const body = (c.choices[0]?.message?.content || "").trim()
+        if (!body) throw new Error("empty reply")
+        return { audience: j.audience, body }
+      }))
+      await queryClient`DELETE FROM mm_reports WHERE report_date = ${mmRepDate}`
+      let mmWritten = 0
+      for (const r of mmResults) {
+        if (r.status === "fulfilled") {
+          await queryClient`INSERT INTO mm_reports (report_date, audience, body, snapshot_id)
+            VALUES (${mmRepDate}, ${r.value.audience}, ${r.value.body}, ${mmSnapRows[0]!.id})`
+          mmWritten++
+        }
+      }
+      const mmFailed = mmJobs.filter((_, i) => mmResults[i]?.status === "rejected").map((j) => j.audience)
+      await queryClient`DELETE FROM mm_snapshots WHERE created_at < now() - interval '90 days'
+        AND id NOT IN (SELECT DISTINCT ON (created_at::date) id FROM mm_snapshots
+                       WHERE created_at < now() - interval '90 days'
+                       ORDER BY created_at::date, created_at DESC)`
+      return res.json({ ok: true, date: mmRepDate, written: mmWritten, failed: mmFailed })
+    }
+
     // Auth routes
     if (path.startsWith("/auth")) {
       if (path === "/auth/login" && method === "POST") {
@@ -9203,6 +9260,18 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
           res.write(`event: error\ndata: ${JSON.stringify({ error: mmErr?.message || "AI streaming failed" })}\n\n`)
           return res.end()
         }
+      }
+      if (path === "/migration/reports" && method === "GET") {
+        const mmQ = (req.query as any)?.date
+        let mmRepQDate = typeof mmQ === "string" && /^\d{4}-\d{2}-\d{2}$/.test(mmQ) ? mmQ : null
+        if (!mmRepQDate) {
+          const mmLatestRep = await queryClient`SELECT report_date FROM mm_reports ORDER BY report_date DESC LIMIT 1`
+          mmRepQDate = mmLatestRep[0]?.report_date ? String(mmLatestRep[0].report_date).slice(0, 10) : null
+        }
+        if (!mmRepQDate) return res.json({ date: null, reports: [] })
+        const mmRepRows = await queryClient`SELECT audience, body, created_at FROM mm_reports WHERE report_date = ${mmRepQDate}`
+        mmRepRows.sort((x, y) => (x.audience === "crystal" ? -1 : y.audience === "crystal" ? 1 : String(x.audience).localeCompare(String(y.audience))))
+        return res.json({ date: mmRepQDate, reports: mmRepRows })
       }
       if (path === "/migration/stats" && method === "GET") {
         const log = await queryClient`SELECT * FROM mm_ingest_log ORDER BY created_at DESC LIMIT 20`

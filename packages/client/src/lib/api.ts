@@ -2762,4 +2762,8 @@ export const migrationApi = {
     const response = await fetchWithCredentials(`${API_BASE}/migration/stats`)
     return handleResponse(response)
   },
+  getReports: async (date?: string): Promise<{ date: string | null; reports: Array<{ audience: string; body: string; created_at: string }> }> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/reports${date ? `?date=${date}` : ""}`)
+    return handleResponse(response)
+  },
 }

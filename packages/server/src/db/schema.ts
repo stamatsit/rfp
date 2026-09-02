@@ -686,3 +686,14 @@ export type MmProject = typeof mmProjects.$inferSelect
 export type NewMmProject = typeof mmProjects.$inferInsert
 export type MmIngestLogEntry = typeof mmIngestLog.$inferSelect
 export type NewMmIngestLogEntry = typeof mmIngestLog.$inferInsert
+
+export const mmReports = pgTable("mm_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  reportDate: date("report_date").notNull(),
+  audience: text("audience").notNull(),
+  body: text("body").notNull(),
+  snapshotId: uuid("snapshot_id").references(() => mmSnapshots.id, { onDelete: "set null" }),
+})
+export type MmReport = typeof mmReports.$inferSelect
+export type NewMmReport = typeof mmReports.$inferInsert

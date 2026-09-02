@@ -17,7 +17,7 @@ import { generateCsrfToken, validateCsrfToken, getCsrfToken } from "./middleware
 import { initializeDatabase, supabaseAdmin } from "./db/index.js"
 import { startSyncPolling } from "./services/proposalSyncService.js"
 import { startPipelineSyncPolling } from "./services/pipelineSyncService.js"
-import { ingestHandler } from "./routes/migration.js"
+import { ingestHandler, morningHandler } from "./routes/migration.js"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -170,6 +170,7 @@ app.get("/api/auth/avatar/:userId", async (req, res) => {
 // BEFORE requireAuth/CSRF like the auth routes above. The handler does its
 // own 401. Session-based /api/migration/* routes stay behind auth below.
 app.post("/api/migration/ingest", ingestHandler)
+app.get("/api/migration/morning", morningHandler)
 
 // Require authentication for all other API routes
 app.use("/api", requireAuth)

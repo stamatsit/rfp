@@ -155,7 +155,49 @@ export async function ingestHandler(req: Request, res: Response) {
   }
 }
 
+/** PRE-AUTH cron endpoint: Vercel sends Authorization: Bearer $CRON_SECRET. */
+export async function morningHandler(req: Request, res: Response) {
+  try {
+    const secret = process.env.CRON_SECRET || ""
+    const auth = String(req.headers.authorization || "")
+    const expected = `Bearer ${secret}`
+    if (!secret || auth.length !== expected.length ||
+        !timingSafeEqual(Buffer.from(auth), Buffer.from(expected))) {
+      return res.status(401).json({ error: "Unauthorized" })
+    }
+    const { generateMorningReports } = await import("../services/migrationAIService.js")
+    const out = await generateMorningReports()
+    return res.json({ ok: true, ...out })
+  } catch (error) {
+    console.error("Morning reports failed:", error)
+    return res.status(500).json({ error: error instanceof Error ? error.message : "Morning reports failed" })
+  }
+}
+
 const router = Router()
+
+// GET /api/migration/reports?date=YYYY-MM-DD (default: latest date on file)
+router.get("/reports", async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const { mmReports } = await import("../db/schema.js")
+    let date = typeof req.query.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+      ? req.query.date : null
+    if (!date) {
+      const [latest] = await db.select({ d: mmReports.reportDate }).from(mmReports)
+        .orderBy(desc(mmReports.reportDate)).limit(1)
+      date = latest?.d ?? null
+    }
+    if (!date) return res.json({ date: null, reports: [] })
+    const rows = await db.select().from(mmReports).where(eq(mmReports.reportDate, date))
+    rows.sort((a, b) => (a.audience === "crystal" ? -1 : b.audience === "crystal" ? 1 : a.audience.localeCompare(b.audience)))
+    res.json({ date, reports: rows.map((r) => ({ audience: r.audience, body: r.body, created_at: r.createdAt })) })
+  } catch (error) {
+    console.error("Reports fetch failed:", error)
+    res.status(500).json({ error: "Failed to load reports" })
+  }
+})
+
 
 // GET /api/migration/latest
 router.get("/latest", async (_req: Request, res: Response) => {
