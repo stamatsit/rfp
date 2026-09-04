@@ -329,7 +329,7 @@ export function MigrationMatrix() {
               </p>
               {c.crew.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
-                  {c.crew.map(([person, hrs]) => (
+                  {c.crew.map(({ name: person, hours: hrs }) => (
                     <button key={person} onClick={() => setView({ c: null, p: person })}
                       className="text-[12px] font-medium bg-slate-50 dark:bg-slate-800 border border-black/[0.06] dark:border-white/[0.08] rounded-full px-3 py-1 hover:border-[#C41230]/50 hover:text-[#C41230] dark:text-slate-200">
                       {person} <span className="text-slate-400">{hrs}h</span>

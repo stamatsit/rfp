@@ -16,12 +16,13 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
+import { ERIC_ONLY, MIGRATION_MATRIX_ALLOW, canAccess } from "@/lib/featureAccess"
 
 interface NavItem {
   to: string
   icon: React.ElementType
   label: string
-  emailOnly?: string
+  emailAllow?: readonly string[]
   settingKey?: string
 }
 
@@ -39,8 +40,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/meetings", icon: Mic, label: "Meeting Intake" },
   { to: "/analytics", icon: BarChart3, label: "Proposal Analytics" },
   { to: "/scanner", icon: ScanSearch, label: "URL Scanner", settingKey: "urlScannerEnabled" },
-  { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailOnly: "eric.yerke@stamats.com" },
-  { to: "/migration", icon: Activity, label: "Migration Matrix", emailOnly: "eric.yerke@stamats.com" },
+  { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailAllow: ERIC_ONLY },
+  { to: "/migration", icon: Activity, label: "Migration Matrix", emailAllow: MIGRATION_MATRIX_ALLOW },
 ]
 
 export function NavRail() {
@@ -57,7 +58,7 @@ export function NavRail() {
   }, [])
 
   const visibleItems = NAV_ITEMS.filter(item => {
-    if (item.emailOnly && user?.email !== item.emailOnly) return false
+    if (item.emailAllow && !canAccess(item.emailAllow, user?.email)) return false
     if (item.settingKey && !settings[item.settingKey]) return false
     return true
   })

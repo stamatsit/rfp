@@ -2686,7 +2686,7 @@ export interface MmClient {
   plan_rate: number | null
   hours_left: number
   qa_remaining: number
-  crew: Array<[string, number]>
+  crew: Array<{ name: string; hours: number }>
   moves: string[]
   series: Array<[string, number, number]>
   status: string
