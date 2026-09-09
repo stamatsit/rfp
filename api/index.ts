@@ -9276,6 +9276,62 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
         mmRepRows.sort((x, y) => (x.audience === "crystal" ? -1 : y.audience === "crystal" ? 1 : String(x.audience).localeCompare(String(y.audience))))
         return res.json({ date: mmRepQDate, reports: mmRepRows })
       }
+      // spreadsheet sources in Supabase Storage (mm-sources): the cloud
+      // sync Action pulls these. Express twin: routes/migration.ts.
+      if (path === "/migration/sources" && method === "GET") {
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const mmOut: Array<{ kind: string; name: string; size: number; updated_at: string | null }> = []
+        for (const kind of ["tracker", "matrices"]) {
+          const { data, error } = await supabase.storage.from("mm-sources").list(kind, { limit: 100 })
+          if (error) return res.status(500).json({ error: "Failed to list sources" })
+          for (const o of data || []) if (o.name && !o.name.startsWith(".")) mmOut.push({ kind, name: o.name, size: Number((o as any).metadata?.size || 0), updated_at: (o as any).updated_at || null })
+        }
+        return res.json({ sources: mmOut, sync: process.env.GH_DISPATCH_TOKEN ? "on upload + every 10 min" : "every 10 min (weekdays)" })
+      }
+      if (path === "/migration/sources" && method === "POST") {
+        if (!supabase) return res.status(503).json({ error: "Storage unavailable" })
+        const mmKind = String((req.query as any)?.kind || "")
+        if (!["tracker", "matrix"].includes(mmKind)) return res.status(400).json({ error: "kind must be tracker or matrix" })
+        let mmFile: { buffer: Buffer; mimetype: string; filename: string }
+        try { mmFile = await parseMultipartForm(req) } catch { return res.status(400).json({ error: "file is required (multipart)" }) }
+        const mmBase = (mmFile.filename || "").split(/[\\/]/).pop() || ""
+        if (!/\.xlsx$/i.test(mmBase) || mmBase.startsWith("~$")) return res.status(400).json({ error: "Upload an .xlsx file" })
+        const mmName = mmBase.replace(/[^A-Za-z0-9 ._()\-]/g, "_").slice(0, 120)
+        if (mmKind === "matrix" && !mmName.toLowerCase().includes("content-matrix"))
+          return res.status(400).json({ error: "Matrix files must be named content-matrix-<client>.xlsx so they link to their project" })
+        const mmFolder = mmKind === "tracker" ? "tracker" : "matrices"
+        if (mmKind === "tracker") {
+          const { data } = await supabase.storage.from("mm-sources").list("tracker", { limit: 100 })
+          const old = (data || []).map((o) => `tracker/${o.name}`).filter((k) => k !== `tracker/${mmName}`)
+          if (old.length) await supabase.storage.from("mm-sources").remove(old)
+        }
+        const { error: mmUpErr } = await supabase.storage.from("mm-sources").upload(`${mmFolder}/${mmName}`, mmFile.buffer, {
+          contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true })
+        if (mmUpErr) return res.status(500).json({ error: "Upload failed" })
+        let mmTriggered = false
+        if (process.env.GH_DISPATCH_TOKEN) {
+          try {
+            const gh = await fetch("https://api.github.com/repos/stamatsit/rfp/dispatches", { method: "POST",
+              headers: { Authorization: `Bearer ${process.env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+              body: JSON.stringify({ event_type: "mm-sources-updated" }) })
+            mmTriggered = gh.status === 204
+          } catch { mmTriggered = false }
+        }
+        return res.status(201).json({ ok: true, kind: mmKind, name: mmName, size: mmFile.buffer.length, by: session?.userName || "unknown", triggered: mmTriggered,
+          note: mmTriggered ? "sync started, the dashboard updates in about 2 minutes" : "picked up by the next scheduled sync (within 10 minutes on weekdays)" })
+      }
+      if (path === "/migration/sources/sync" && method === "POST") {
+        let mmT = false
+        if (process.env.GH_DISPATCH_TOKEN) {
+          try {
+            const gh = await fetch("https://api.github.com/repos/stamatsit/rfp/dispatches", { method: "POST",
+              headers: { Authorization: `Bearer ${process.env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+              body: JSON.stringify({ event_type: "mm-sources-updated" }) })
+            mmT = gh.status === 204
+          } catch { mmT = false }
+        }
+        return res.json({ triggered: mmT, note: mmT ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
+      }
       if (path === "/migration/stats" && method === "GET") {
         const log = await queryClient`SELECT * FROM mm_ingest_log ORDER BY created_at DESC LIMIT 20`
         const count = await queryClient`SELECT count(*)::int AS n FROM mm_snapshots`

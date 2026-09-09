@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Migration Matrix snapshot contract v1.x",
+  "description": "The payload push_snapshot.py POSTs to /api/migration/ingest. Additive-tolerant: unknown top-level keys are allowed (minor version bumps). The server's hand-rolled guards (snapshotProblems in routes/migration.ts and its api/index.ts twin) enforce the same required set.",
+  "type": "object",
+  "required": ["contract", "generated_at", "source", "source_files", "data", "facts", "findings"],
+  "properties": {
+    "contract": { "type": "string", "pattern": "^1\\.\\d+$" },
+    "generated_at": { "type": "string" },
+    "source": { "enum": ["mac-agent", "github-action", "graph", "manual"] },
+    "source_files": {
+      "type": "object",
+      "required": ["tracker", "matrices"],
+      "properties": {
+        "tracker": { "$ref": "#/definitions/filemeta" },
+        "matrices": { "type": "array", "items": { "$ref": "#/definitions/filemeta" } }
+      }
+    },
+    "week": { "type": "string" },
+    "week_lbl": { "type": "string" },
+    "data": {
+      "type": "object",
+      "required": ["clients", "team", "overview"],
+      "properties": {
+        "clients": { "type": "array" },
+        "team": { "type": "array" },
+        "overview": { "type": "object" }
+      }
+    },
+    "facts": { "type": "object" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "code", "message"],
+        "properties": {
+          "severity": { "type": "string" },
+          "code": { "type": "string" },
+          "message": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "filemeta": {
+      "type": "object",
+      "required": ["name", "sha256"],
+      "properties": {
+        "name": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "mtime": { "type": "string" },
+        "web_url": { "type": "string" }
+      }
+    }
+  }
+}

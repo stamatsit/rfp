@@ -2763,6 +2763,20 @@ export const migrationApi = {
     const response = await fetchWithCredentials(`${API_BASE}/migration/stats`)
     return handleResponse(response)
   },
+  listSources: async (): Promise<{ sources: Array<{ kind: string; name: string; size: number; updated_at: string | null }>; sync: string }> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/sources`)
+    return handleResponse(response)
+  },
+  uploadSource: async (kind: "tracker" | "matrix", file: File): Promise<{ ok: boolean; name: string; triggered: boolean; note: string }> => {
+    const form = new FormData()
+    form.append("file", file)
+    const response = await fetchWithCredentials(`${API_BASE}/migration/sources?kind=${kind}`, { method: "POST", body: form })
+    return handleResponse(response)
+  },
+  syncNow: async (): Promise<{ triggered: boolean; note: string }> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/sources/sync`, { method: "POST" })
+    return handleResponse(response)
+  },
   getReports: async (date?: string): Promise<{ date: string | null; reports: Array<{ audience: string; body: string; created_at: string }> }> => {
     const response = await fetchWithCredentials(`${API_BASE}/migration/reports${date ? `?date=${date}` : ""}`)
     return handleResponse(response)

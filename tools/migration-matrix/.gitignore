@@ -1,0 +1,9 @@
+sources/
+master.db
+master-report.xlsx
+morning-report-*.md
+findings.json
+present.html
+state_snapshot.json
+last_changes.json
+__pycache__/

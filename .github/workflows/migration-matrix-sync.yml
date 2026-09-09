@@ -1,0 +1,29 @@
+name: migration-matrix-sync
+# Runs the Migration Matrix pipeline in the cloud: spreadsheets from Supabase
+# Storage (uploaded in the app) -> snapshot -> ai.stamats.com. No Mac needed.
+on:
+  schedule:
+    - cron: "*/10 12-23 * * 1-5"   # every 10 min, 7am-6pm Central, weekdays
+    - cron: "0 */3 * * *"          # heartbeat off-hours
+  workflow_dispatch:
+  repository_dispatch:
+    types: [mm-sources-updated]
+concurrency:
+  group: migration-matrix-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install --quiet openpyxl
+      - name: pull sources, build, push snapshot
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          MM_INGEST_TOKEN: ${{ secrets.MM_INGEST_TOKEN }}
+        run: python tools/migration-matrix/cloud_sync.py

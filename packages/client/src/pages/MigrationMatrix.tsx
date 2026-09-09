@@ -392,6 +392,9 @@ export function MigrationMatrix() {
     )
   }
 
+  // ── sources view ──
+  if (tab === "sources") return shell(<SourcesView back={() => setView({ tab: null })} />)
+
   // ── reports view ──
   if (tab === "reports") return shell(<ReportsView back={() => setView({ tab: null })} />)
 
@@ -411,6 +414,9 @@ export function MigrationMatrix() {
         <div className="flex items-center justify-between">
           <Label>This week · all active projects</Label>
           <div className="flex items-center gap-4">
+            <button onClick={() => setView({ tab: "sources" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
+              <RefreshCw size={13} /> spreadsheets
+            </button>
             <button onClick={() => setView({ tab: "reports" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
               <Sparkles size={13} /> morning briefs
             </button>
@@ -494,6 +500,67 @@ export function MigrationMatrix() {
 }
 
 // ─── team + person subviews ──────────────────────────────────────────────────
+
+function SourcesView({ back }: { back: () => void }) {
+  const [data, setData] = useState<{ sources: Array<{ kind: string; name: string; size: number; updated_at: string | null }>; sync: string } | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+  const load = () => migrationApi.listSources().then(setData).catch((e) => toast.error(e.message))
+  useEffect(() => { load() }, [])
+  const onPick = async (kind: "tracker" | "matrix", input: HTMLInputElement) => {
+    const file = input.files?.[0]; if (!file) return
+    setBusy(kind)
+    try {
+      const r = await migrationApi.uploadSource(kind, file)
+      toast.success(`${r.name} uploaded. ${r.note}`)
+      load()
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed") }
+    finally { setBusy(null); input.value = "" }
+  }
+  const syncNow = async () => {
+    try { const r = await migrationApi.syncNow(); (r.triggered ? toast.success : toast.info)(r.note) } catch (e) { toast.error(e instanceof Error ? e.message : "Sync failed") }
+  }
+  const fmtSize = (n: number) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`
+  return (
+    <div className="space-y-4">
+      <button onClick={back} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
+        <ArrowLeft size={14} /> overview
+      </button>
+      <Card>
+        <Label>Spreadsheets the dashboard reads</Label>
+        <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-4">
+          These live in the cloud. Upload a newer version of the tracker or a client content matrix and the dashboard rebuilds itself
+          {data ? ` (${data.sync}).` : "."} Matrix files must be named content-matrix-&lt;client&gt;.xlsx.
+        </p>
+        {!data && <div className="shimmer h-20 rounded-xl" />}
+        {data && (
+          <div className="space-y-2">
+            {data.sources.map((s) => (
+              <div key={s.kind + s.name} className="flex items-center gap-3 text-[13px] border-t border-black/[0.04] dark:border-white/[0.05] pt-2 first:border-0 first:pt-0">
+                <span className="text-[10.5px] font-medium uppercase tracking-[0.05em] text-slate-400 w-16 shrink-0">{s.kind === "tracker" ? "tracker" : "matrix"}</span>
+                <span className="font-medium text-slate-900 dark:text-white truncate">{s.name}</span>
+                <span className="ml-auto text-slate-400 tabular-nums shrink-0">{fmtSize(s.size)}{s.updated_at ? ` · ${new Date(s.updated_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
+              </div>
+            ))}
+            {data.sources.length === 0 && <p className="text-[13px] text-slate-400">No spreadsheets uploaded yet.</p>}
+          </div>
+        )}
+        <div className="flex flex-wrap gap-2 mt-5">
+          <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-white rounded-xl px-3.5 h-9 cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`} style={{ background: GRADIENT }}>
+            {busy === "tracker" ? "uploading..." : "Replace the tracker"}
+            <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("tracker", e.currentTarget)} />
+          </label>
+          <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
+            {busy === "matrix" ? "uploading..." : "Add or update a content matrix"}
+            <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("matrix", e.currentTarget)} />
+          </label>
+          <button onClick={syncNow} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 hover:bg-slate-50 dark:hover:bg-slate-800">
+            <RefreshCw size={13} /> sync now
+          </button>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
 function ReportsView({ back }: { back: () => void }) {
   const [data, setData] = useState<{ date: string | null; reports: Array<{ audience: string; body: string }> } | null>(null)

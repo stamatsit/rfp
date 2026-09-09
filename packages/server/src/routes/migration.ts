@@ -21,6 +21,8 @@ import { desc, eq, sql } from "drizzle-orm"
 import { db } from "../db/index.js"
 import { mmSnapshots, mmProjects, mmIngestLog } from "../db/schema.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
+import multer from "multer"
+import { supabaseAdmin } from "../db/index.js"
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 
@@ -287,6 +289,82 @@ router.post("/chat/stream", async (req: Request, res: Response) => {
     if (!res.headersSent) res.status(500).json({ error: "Chat failed" })
     else res.end()
   }
+})
+
+// ─── spreadsheet sources (Supabase Storage bucket mm-sources) ───────────────
+// tracker/<file> (exactly one) and matrices/<file> (many). A GitHub Action
+// pulls these every 10 minutes and pushes the snapshot: no Mac in the loop.
+const SOURCES_BUCKET = "mm-sources"
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } })
+
+export function safeSourceName(name: string): string | null {
+  const base = (name || "").split(/[\\/]/).pop() || ""
+  if (!/\.xlsx$/i.test(base) || base.startsWith("~$")) return null
+  return base.replace(/[^A-Za-z0-9 ._()\-]/g, "_").slice(0, 120)
+}
+
+export async function triggerCloudSync(): Promise<boolean> {
+  const token = process.env.GH_DISPATCH_TOKEN
+  if (!token) return false
+  try {
+    const r = await fetch("https://api.github.com/repos/stamatsit/rfp/dispatches", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+      body: JSON.stringify({ event_type: "mm-sources-updated" }),
+    })
+    return r.status === 204
+  } catch { return false }
+}
+
+router.get("/sources", async (_req: Request, res: Response) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ error: "Storage unavailable" })
+    const out: Array<{ kind: string; name: string; size: number; updated_at: string | null }> = []
+    for (const kind of ["tracker", "matrices"]) {
+      const { data, error } = await supabaseAdmin.storage.from(SOURCES_BUCKET).list(kind, { limit: 100 })
+      if (error) throw error
+      for (const o of data || []) if (o.name && !o.name.startsWith(".")) out.push({ kind, name: o.name, size: Number(o.metadata?.size || 0), updated_at: o.updated_at || null })
+    }
+    res.json({ sources: out, sync: process.env.GH_DISPATCH_TOKEN ? "on upload + every 10 min" : "every 10 min (weekdays)" })
+  } catch (error) {
+    console.error("Sources list failed:", error)
+    res.status(500).json({ error: "Failed to list sources" })
+  }
+})
+
+// POST /api/migration/sources?kind=tracker|matrix  (multipart field: file)
+router.post("/sources", upload.single("file"), async (req: Request, res: Response) => {
+  try {
+    if (!supabaseAdmin) return res.status(503).json({ error: "Storage unavailable" })
+    const kind = String(req.query.kind || "")
+    if (!["tracker", "matrix"].includes(kind)) return res.status(400).json({ error: "kind must be tracker or matrix" })
+    const file = req.file
+    if (!file) return res.status(400).json({ error: "file is required" })
+    const name = safeSourceName(file.originalname)
+    if (!name) return res.status(400).json({ error: "Upload an .xlsx file" })
+    if (kind === "matrix" && !name.toLowerCase().includes("content-matrix"))
+      return res.status(400).json({ error: "Matrix files must be named content-matrix-<client>.xlsx so they link to their project" })
+    const folder = kind === "tracker" ? "tracker" : "matrices"
+    if (kind === "tracker") {  // exactly one tracker
+      const { data } = await supabaseAdmin.storage.from(SOURCES_BUCKET).list("tracker", { limit: 100 })
+      const old = (data || []).map((o) => `tracker/${o.name}`).filter((k) => k !== `tracker/${name}`)
+      if (old.length) await supabaseAdmin.storage.from(SOURCES_BUCKET).remove(old)
+    }
+    const { error } = await supabaseAdmin.storage.from(SOURCES_BUCKET).upload(`${folder}/${name}`, file.buffer, {
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true })
+    if (error) throw error
+    const triggered = await triggerCloudSync()
+    res.status(201).json({ ok: true, kind, name, size: file.size, by: getCurrentUserName(req), triggered,
+      note: triggered ? "sync started, the dashboard updates in about 2 minutes" : "picked up by the next scheduled sync (within 10 minutes on weekdays)" })
+  } catch (error) {
+    console.error("Source upload failed:", error)
+    res.status(500).json({ error: "Upload failed" })
+  }
+})
+
+router.post("/sources/sync", async (_req: Request, res: Response) => {
+  const triggered = await triggerCloudSync()
+  res.json({ triggered, note: triggered ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
 })
 
 // GET /api/migration/stats
