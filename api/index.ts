@@ -1596,7 +1596,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmLatestRows = await queryClient`SELECT id, source_hash, data FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
       const mmLatest = mmLatestRows[0]
       // dedupe only when source files AND computed data match (parser fixes re-push)
-      const mmSameData = !!mmLatest && JSON.stringify(mmParse(mmLatest.data)) === JSON.stringify(mmBody.data)
+      const mmStored = mmLatest ? mmParse(mmLatest.data) : null
+      if (mmStored && typeof mmStored === "object") delete mmStored.source_files   // links are metadata, not data
+      const mmSameData = !!mmStored && JSON.stringify(mmStored) === JSON.stringify(mmBody.data)
       const mmWould = mmLatest?.source_hash === mmHash && mmSameData ? "deduped" : "stored"
       if (mmBody.dry_run === true) return res.json({ ok: true, would: mmWould, problems: [] })
       if (mmWould === "deduped") {
@@ -1606,7 +1608,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmInserted = await queryClient`
         INSERT INTO mm_snapshots (contract, source, source_hash, week_label, data, facts, findings)
         VALUES (${mmBody.contract as string}, ${(mmBody.source as string) || "mac-agent"}, ${mmHash},
-                ${(mmBody.week_lbl as string) || null}, ${queryClient.json(mmBody.data as any)},
+                ${(mmBody.week_lbl as string) || null}, ${queryClient.json({ ...(mmBody.data as any), source_files: mmBody.source_files } as any)},
                 ${queryClient.json(mmBody.facts as any)}, ${queryClient.json((mmBody.findings as any) || [])})
         RETURNING id`
       const mmNames = ((mmData!.clients || []) as Array<{ name?: unknown }>).map((c) => String(c?.name || "")).filter(Boolean)

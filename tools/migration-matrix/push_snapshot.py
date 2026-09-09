@@ -93,6 +93,7 @@ def build_snapshot():
         "source_files": {
             "tracker": fmeta(os.path.abspath(bm.SRC)),
             "matrices": [fmeta(p) for p in cm.find_matrices()],
+            "folder_url": urlmap.get("_folder", ""),
         },
         "week": str(bm.CUR_WEEK),
         "week_lbl": str(data.get("week_lbl", "")),

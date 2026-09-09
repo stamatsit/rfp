@@ -6,6 +6,10 @@ import {
   ArchiveRestore,
   ArrowLeft,
   ChevronRight,
+  ExternalLink,
+  FileSpreadsheet,
+  FolderOpen,
+  LayoutGrid,
   RefreshCw,
   Sparkles,
   Users,
@@ -17,6 +21,7 @@ import {
   migrationApi,
   type MmClient,
   type MmLatest,
+  type MmSnapshotData,
   type MmTeamMember,
 } from "@/lib/api"
 import { MigrationAIChat } from "@/components/migration-matrix/MigrationAIChat"
@@ -38,6 +43,26 @@ const TONE_TEXT: Record<string, string> = {
   ok: "text-emerald-600 dark:text-emerald-400",
   warn: "text-amber-600 dark:text-amber-400",
   crit: "text-red-600 dark:text-red-400",
+}
+
+const TABS = [
+  { id: "", label: "Overview", icon: LayoutGrid },
+  { id: "team", label: "Team", icon: Users },
+  { id: "reports", label: "Morning briefs", icon: Sparkles },
+  { id: "sources", label: "Spreadsheets", icon: FileSpreadsheet },
+] as const
+
+/** Small external link pill used for "open in Excel" everywhere. */
+function OpenLink({ href, children, primary = false }: { href?: string; children: React.ReactNode; primary?: boolean }) {
+  if (!href) return null
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer"
+      className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium rounded-xl px-3 h-9 border transition ${primary
+        ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
+        : "text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border-black/[0.06] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
+      <ExternalLink size={13} /> {children}
+    </a>
+  )
 }
 
 // ─── tiny shared pieces ──────────────────────────────────────────────────────
@@ -165,6 +190,12 @@ export function MigrationMatrix() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showMoves, setShowMoves] = useState(false)
+  const [syncStatus, setSyncStatus] = useState<string | null>(null)
+  const headerSync = async () => {
+    const h = await loadDirHandle()
+    if (!h || !("showDirectoryPicker" in window)) { setView({ tab: "sources", c: null, p: null }); return }
+    await syncFromOneDrive({ onStatus: setSyncStatus })
+  }
   const [now, setNow] = useState(Date.now())
 
   const load = useCallback(() => {
@@ -232,11 +263,32 @@ export function MigrationMatrix() {
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2">
-        <button onClick={() => { setLoading(true); load() }}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 hover:bg-slate-50 dark:hover:bg-slate-800">
-          <RefreshCw size={14} /> refresh
+        <OpenLink href={data?.source_files?.tracker?.web_url}>Open the tracker</OpenLink>
+        <button onClick={headerSync} disabled={!!syncStatus}
+          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-xl px-4 h-9 disabled:opacity-60 shadow-[0_1px_2px_rgba(0,0,0,.1),0_2px_6px_rgba(196,18,48,.25)]"
+          style={{ background: GRADIENT }} title="Read the spreadsheets from your OneDrive folder and rebuild the dashboard">
+          <RefreshCw size={14} className={syncStatus ? "animate-spin" : ""} /> {syncStatus ? "Syncing" : "Sync"}
         </button>
       </div>
+    </div>
+  )
+
+  const tabBar = (
+    <div className="flex items-center gap-1 border-b border-black/[0.06] dark:border-white/[0.08] mb-6 -mt-2 overflow-x-auto">
+      {TABS.map((t) => {
+        const Icon = t.icon
+        const isActive = (tab || "") === t.id   // drill-downs (?c=, ?p=) belong to Overview
+        return (
+          <button key={t.id} onClick={() => setView({ tab: t.id || null, c: null, p: null })}
+            className={`flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-medium border-b-2 transition-all duration-200 whitespace-nowrap ${isActive
+              ? "border-[#C41230] text-[#C41230] dark:text-rose-300"
+              : "border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600"}`}>
+            <Icon size={13} strokeWidth={isActive ? 2.5 : 2} />
+            {t.label}
+          </button>
+        )
+      })}
+      {syncStatus && <span className="ml-auto text-[12px] text-slate-500 pr-1">{syncStatus}</span>}
     </div>
   )
 
@@ -276,6 +328,7 @@ export function MigrationMatrix() {
       <AppHeader />
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 pb-24">
         {header}
+        {tabBar}
         {staleBanner}
         {body}
       </div>
@@ -336,10 +389,13 @@ export function MigrationMatrix() {
                 </div>
               )}
             </div>
-            <button onClick={() => toggleArchive(c)}
-              className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-9 hover:bg-slate-50 dark:hover:bg-slate-800 shrink-0">
-              {c.archived ? <><ArchiveRestore size={14} /> restore</> : <><Archive size={14} /> archive</>}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <OpenLink primary href={c.matrix ? data.source_files?.matrices?.find((m) => m.name.toLowerCase().startsWith(c.matrix!.name.toLowerCase()))?.web_url : undefined}>Open client matrix</OpenLink>
+              <button onClick={() => toggleArchive(c)}
+                className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-9 hover:bg-slate-50 dark:hover:bg-slate-800">
+                {c.archived ? <><ArchiveRestore size={14} /> restore</> : <><Archive size={14} /> archive</>}
+              </button>
+            </div>
           </div>
         </Card>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -393,7 +449,7 @@ export function MigrationMatrix() {
   }
 
   // ── sources view ──
-  if (tab === "sources") return shell(<SourcesView back={() => setView({ tab: null })} />)
+  if (tab === "sources") return shell(<SourcesView back={() => setView({ tab: null })} links={data.source_files} />)
 
   // ── reports view ──
   if (tab === "reports") return shell(<ReportsView back={() => setView({ tab: null })} />)
@@ -411,20 +467,7 @@ export function MigrationMatrix() {
         </div>
       )}
       <Card>
-        <div className="flex items-center justify-between">
-          <Label>This week · all active projects</Label>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setView({ tab: "sources" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-              <RefreshCw size={13} /> spreadsheets
-            </button>
-            <button onClick={() => setView({ tab: "reports" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-              <Sparkles size={13} /> morning briefs
-            </button>
-            <button onClick={() => setView({ tab: "team" })} className="text-[12.5px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-              <Users size={13} /> view the team
-            </button>
-          </div>
-        </div>
+        <Label>This week · all active projects</Label>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div><p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{data.overview.avail}</p><p className="text-[11px] text-slate-400 mt-0.5">hours available</p></div>
           <div><p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{data.overview.assigned}</p><p className="text-[11px] text-slate-400 mt-0.5">hours assigned</p></div>
@@ -529,7 +572,51 @@ function classify(files: File[]): { tracker: File | null; matrices: File[] } {
   return { tracker, matrices }
 }
 
-function SourcesView({ back }: { back: () => void }) {
+/** Upload the chosen files, trigger the cloud rebuild once, reload when the snapshot lands. */
+async function runSyncFiles(files: File[], onStatus: (s: string | null) => void, onUploaded?: () => void) {
+  const { tracker, matrices } = classify(files)
+  if (!tracker && matrices.length === 0) { toast.error("No .xlsx files found (need the tracker and content-matrix-*.xlsx files)"); return }
+  const started = Date.now()
+  try {
+    onStatus("uploading spreadsheets...")
+    if (tracker) await migrationApi.uploadSource("tracker", tracker, { nosync: true })
+    for (const m of matrices) await migrationApi.uploadSource("matrix", m, { nosync: true })
+    const r = await migrationApi.syncNow()
+    onUploaded?.()
+    if (!r.triggered) { onStatus(null); toast.info(`Uploaded ${files.length} file(s). ${r.note}`); return }
+    onStatus("rebuilding the dashboard in the cloud, about a minute...")
+    for (let i = 0; i < 40; i++) {              // poll up to ~4 min for the new snapshot
+      await new Promise((res) => setTimeout(res, 6000))
+      const latest = await migrationApi.getLatest().catch(() => null)
+      const at = latest?.snapshot?.created_at ? new Date(latest.snapshot.created_at).getTime() : 0
+      if (at > started) { toast.success("Dashboard updated from your spreadsheets"); window.location.href = "/migration"; return }
+    }
+    onStatus(null); toast.warning("Still rebuilding. Refresh the dashboard in a minute.")
+  } catch (e) {
+    onStatus(null); toast.error(e instanceof Error ? e.message : "Sync failed")
+  }
+}
+
+/** Folder-handle path (Chrome/Edge): first time asks for the folder, then one click. */
+async function syncFromOneDrive({ onStatus, onFolder, onUploaded }: { onStatus: (s: string | null) => void; onFolder?: (name: string) => void; onUploaded?: () => void }) {
+  try {
+    let h = await loadDirHandle()
+    if (h && h.queryPermission && (await h.queryPermission({ mode: "read" })) !== "granted" && h.requestPermission)
+      if ((await h.requestPermission({ mode: "read" })) !== "granted") h = null
+    if (!h) {
+      h = await (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
+      await saveDirHandle(h); onFolder?.(h.name)
+    }
+    const files: File[] = []
+    for await (const entry of h.values()) if (entry.kind === "file") files.push(await entry.getFile())
+    await runSyncFiles(files, onStatus, onUploaded)
+  } catch (e) {
+    if ((e as { name?: string })?.name === "AbortError") return
+    toast.error(e instanceof Error ? e.message : "Could not read the folder")
+  }
+}
+
+function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData["source_files"] }) {
   const [data, setData] = useState<{ sources: Array<{ kind: string; name: string; size: number; updated_at: string | null }>; sync: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
@@ -537,48 +624,12 @@ function SourcesView({ back }: { back: () => void }) {
   const canPickFolder = typeof window !== "undefined" && "showDirectoryPicker" in window
   const load = () => migrationApi.listSources().then(setData).catch((e) => toast.error(e.message))
   useEffect(() => { load(); loadDirHandle().then((h) => h && setFolderName(h.name)) }, [])
-
-  const runSync = async (files: File[]) => {
-    const { tracker, matrices } = classify(files)
-    if (!tracker && matrices.length === 0) { toast.error("No .xlsx files found (need the tracker and content-matrix-*.xlsx files)"); return }
-    setBusy("sync")
-    const started = Date.now()
-    try {
-      setStatus("uploading spreadsheets...")
-      if (tracker) await migrationApi.uploadSource("tracker", tracker, { nosync: true })
-      for (const m of matrices) await migrationApi.uploadSource("matrix", m, { nosync: true })
-      const r = await migrationApi.syncNow()
-      load()
-      if (!r.triggered) { setStatus(null); toast.info(`Uploaded ${files.length} file(s). ${r.note}`); return }
-      setStatus("rebuilding the dashboard in the cloud (about 2 minutes)...")
-      for (let i = 0; i < 40; i++) {              // poll up to ~4 min for the new snapshot
-        await new Promise((res) => setTimeout(res, 6000))
-        const latest = await migrationApi.getLatest().catch(() => null)
-        const at = latest?.snapshot?.created_at ? new Date(latest.snapshot.created_at).getTime() : 0
-        if (at > started) { toast.success("Dashboard updated from your spreadsheets"); window.location.href = "/migration"; return }
-      }
-      setStatus(null); toast.warning("Still rebuilding. Refresh the dashboard in a minute.")
-    } catch (e) {
-      setStatus(null); toast.error(e instanceof Error ? e.message : "Sync failed")
-    } finally { setBusy(null) }
-  }
-
-  const syncFromFolder = async () => {
-    try {
-      let h = await loadDirHandle()
-      if (h && h.queryPermission && (await h.queryPermission({ mode: "read" })) !== "granted" && h.requestPermission)
-        if ((await h.requestPermission({ mode: "read" })) !== "granted") h = null
-      if (!h) {
-        h = await (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
-        await saveDirHandle(h); setFolderName(h.name)
-      }
-      const files: File[] = []
-      for await (const entry of h.values()) if (entry.kind === "file") files.push(await entry.getFile())
-      await runSync(files)
-    } catch (e) {
-      if ((e as { name?: string })?.name === "AbortError") return
-      toast.error(e instanceof Error ? e.message : "Could not read the folder")
-    }
+  const runSync = async (files: File[]) => { setBusy("sync"); await runSyncFiles(files, setStatus, load); setBusy(null) }
+  const syncFromFolder = async () => { setBusy("sync"); await syncFromOneDrive({ onStatus: setStatus, onFolder: setFolderName, onUploaded: load }); setBusy(null) }
+  const linkFor = (name: string) => {
+    if (!links) return undefined
+    if (links.tracker?.name === name) return links.tracker.web_url
+    return links.matrices?.find((m) => m.name === name)?.web_url
   }
 
   const onPick = async (kind: "tracker" | "matrix", input: HTMLInputElement) => {
@@ -595,7 +646,10 @@ function SourcesView({ back }: { back: () => void }) {
         <ArrowLeft size={14} /> overview
       </button>
       <Card>
-        <Label>Sync from OneDrive</Label>
+        <div className="flex items-start justify-between gap-3">
+          <Label>Sync from OneDrive</Label>
+          <OpenLink href={links?.folder_url}><FolderOpen size={13} /> Open the OneDrive folder</OpenLink>
+        </div>
         <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-4">
           Edit the spreadsheets in the shared OneDrive folder like always. When you want the dashboard to catch up, press Sync: it reads the files from your synced folder, uploads them, and rebuilds the dashboard{data?.sync?.startsWith("on upload") ? " in about two minutes" : " on the next scheduled run"}.
           {canPickFolder ? (folderName ? ` Folder: ${folderName}.` : " The first time, it asks you to pick the Migration Matrix folder.") : " Your browser will ask you to choose the files."}
@@ -630,6 +684,7 @@ function SourcesView({ back }: { back: () => void }) {
               <div key={s.kind + s.name} className="flex items-center gap-3 text-[13px] border-t border-black/[0.04] dark:border-white/[0.05] pt-2 first:border-0 first:pt-0">
                 <span className="text-[10.5px] font-medium uppercase tracking-[0.05em] text-slate-400 w-16 shrink-0">{s.kind === "tracker" ? "tracker" : "matrix"}</span>
                 <span className="font-medium text-slate-900 dark:text-white truncate">{s.name}</span>
+                {linkFor(s.name) && <a href={linkFor(s.name)} target="_blank" rel="noopener noreferrer" className="text-[12px] font-medium text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1 shrink-0"><ExternalLink size={12} /> open in Excel</a>}
                 <span className="ml-auto text-slate-400 tabular-nums shrink-0">{fmtSize(s.size)}{s.updated_at ? ` · ${new Date(s.updated_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
               </div>
             ))}

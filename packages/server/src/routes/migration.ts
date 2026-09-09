@@ -119,7 +119,9 @@ export async function ingestHandler(req: Request, res: Response) {
       .from(mmSnapshots).orderBy(desc(mmSnapshots.createdAt)).limit(1)
     // dedupe only when the SOURCE files and the COMPUTED data both match:
     // a parser fix on unchanged spreadsheets must still reach the dashboard
-    const sameData = !!latest && JSON.stringify(typeof latest.data === "string" ? JSON.parse(latest.data) : latest.data) === JSON.stringify(body.data)
+    const storedData = latest ? (typeof latest.data === "string" ? JSON.parse(latest.data) : latest.data) as Record<string, unknown> : null
+    if (storedData) delete storedData.source_files   // links are metadata, not data
+    const sameData = !!storedData && JSON.stringify(storedData) === JSON.stringify(body.data)
     const would = latest?.sourceHash === sourceHash && sameData ? "deduped" : "stored"
 
     if (body.dry_run === true) {
@@ -135,7 +137,7 @@ export async function ingestHandler(req: Request, res: Response) {
       source: (body.source as any) || "mac-agent",
       sourceHash,
       weekLabel: (body.week_lbl as string) || null,
-      data: body.data as object,
+      data: { ...(body.data as object), source_files: body.source_files } as object,  // spreadsheet links ride along
       facts: body.facts as object,
       findings: (body.findings as object[]) || [],
     }).returning({ id: mmSnapshots.id })

@@ -2709,7 +2709,9 @@ export interface MmTeamMember {
   projects: Array<[string, number, number, number]>
 }
 
+export interface MmSourceLink { name: string; web_url?: string; sha256?: string; mtime?: string }
 export interface MmSnapshotData {
+  source_files?: { tracker?: MmSourceLink; matrices?: MmSourceLink[]; folder_url?: string }
   overview: { active: number; archived: number; assigned: number; avail: number; over: string[] }
   clients: MmClient[]
   team: MmTeamMember[]
