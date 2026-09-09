@@ -2767,10 +2767,10 @@ export const migrationApi = {
     const response = await fetchWithCredentials(`${API_BASE}/migration/sources`)
     return handleResponse(response)
   },
-  uploadSource: async (kind: "tracker" | "matrix", file: File): Promise<{ ok: boolean; name: string; triggered: boolean; note: string }> => {
+  uploadSource: async (kind: "tracker" | "matrix", file: File, opts?: { nosync?: boolean }): Promise<{ ok: boolean; name: string; triggered: boolean; note: string }> => {
     const form = new FormData()
     form.append("file", file)
-    const response = await fetchWithCredentials(`${API_BASE}/migration/sources?kind=${kind}`, { method: "POST", body: form })
+    const response = await fetchWithCredentials(`${API_BASE}/migration/sources?kind=${kind}${opts?.nosync ? "&nosync=1" : ""}`, { method: "POST", body: form })
     return handleResponse(response)
   },
   syncNow: async (): Promise<{ triggered: boolean; note: string }> => {

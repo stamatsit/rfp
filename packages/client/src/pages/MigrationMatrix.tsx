@@ -501,23 +501,92 @@ export function MigrationMatrix() {
 
 // ─── team + person subviews ──────────────────────────────────────────────────
 
+// ─── Sync from OneDrive ──────────────────────────────────────────────────────
+// The person clicking is signed in and has the spreadsheets in their synced
+// OneDrive folder, so no robot credentials are needed: read the files from
+// disk (File System Access API where available, file chooser elsewhere),
+// upload them, trigger the cloud rebuild, reload when the snapshot lands.
+type DirHandle = { name: string; values: () => AsyncIterable<{ kind: string; name: string; getFile: () => Promise<File> }>; queryPermission?: (o: { mode: string }) => Promise<string>; requestPermission?: (o: { mode: string }) => Promise<string> }
+const HANDLE_DB = "mm-sync"
+function idb(): Promise<IDBDatabase> {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(HANDLE_DB, 1)
+    r.onupgradeneeded = () => r.result.createObjectStore("kv")
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
+  })
+}
+async function loadDirHandle(): Promise<DirHandle | null> {
+  try { const db = await idb(); return await new Promise((res) => { const t = db.transaction("kv").objectStore("kv").get("dir"); t.onsuccess = () => res(t.result || null); t.onerror = () => res(null) }) } catch { return null }
+}
+async function saveDirHandle(h: DirHandle) {
+  try { const db = await idb(); await new Promise((res) => { const t = db.transaction("kv", "readwrite").objectStore("kv").put(h, "dir"); t.onsuccess = () => res(null); t.onerror = () => res(null) }) } catch { /* ignore */ }
+}
+function classify(files: File[]): { tracker: File | null; matrices: File[] } {
+  const xlsx = files.filter((f) => /\.xlsx$/i.test(f.name) && !f.name.startsWith("~$"))
+  const matrices = xlsx.filter((f) => f.name.toLowerCase().includes("content-matrix"))
+  const rest = xlsx.filter((f) => !matrices.includes(f))
+  const tracker = rest.find((f) => f.name.toLowerCase().includes("tracker")) || rest[0] || null
+  return { tracker, matrices }
+}
+
 function SourcesView({ back }: { back: () => void }) {
   const [data, setData] = useState<{ sources: Array<{ kind: string; name: string; size: number; updated_at: string | null }>; sync: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+  const [folderName, setFolderName] = useState<string | null>(null)
+  const canPickFolder = typeof window !== "undefined" && "showDirectoryPicker" in window
   const load = () => migrationApi.listSources().then(setData).catch((e) => toast.error(e.message))
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); loadDirHandle().then((h) => h && setFolderName(h.name)) }, [])
+
+  const runSync = async (files: File[]) => {
+    const { tracker, matrices } = classify(files)
+    if (!tracker && matrices.length === 0) { toast.error("No .xlsx files found (need the tracker and content-matrix-*.xlsx files)"); return }
+    setBusy("sync")
+    const started = Date.now()
+    try {
+      setStatus("uploading spreadsheets...")
+      if (tracker) await migrationApi.uploadSource("tracker", tracker, { nosync: true })
+      for (const m of matrices) await migrationApi.uploadSource("matrix", m, { nosync: true })
+      const r = await migrationApi.syncNow()
+      load()
+      if (!r.triggered) { setStatus(null); toast.info(`Uploaded ${files.length} file(s). ${r.note}`); return }
+      setStatus("rebuilding the dashboard in the cloud (about 2 minutes)...")
+      for (let i = 0; i < 40; i++) {              // poll up to ~4 min for the new snapshot
+        await new Promise((res) => setTimeout(res, 6000))
+        const latest = await migrationApi.getLatest().catch(() => null)
+        const at = latest?.snapshot?.created_at ? new Date(latest.snapshot.created_at).getTime() : 0
+        if (at > started) { toast.success("Dashboard updated from your spreadsheets"); window.location.href = "/migration"; return }
+      }
+      setStatus(null); toast.warning("Still rebuilding. Refresh the dashboard in a minute.")
+    } catch (e) {
+      setStatus(null); toast.error(e instanceof Error ? e.message : "Sync failed")
+    } finally { setBusy(null) }
+  }
+
+  const syncFromFolder = async () => {
+    try {
+      let h = await loadDirHandle()
+      if (h && h.queryPermission && (await h.queryPermission({ mode: "read" })) !== "granted" && h.requestPermission)
+        if ((await h.requestPermission({ mode: "read" })) !== "granted") h = null
+      if (!h) {
+        h = await (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
+        await saveDirHandle(h); setFolderName(h.name)
+      }
+      const files: File[] = []
+      for await (const entry of h.values()) if (entry.kind === "file") files.push(await entry.getFile())
+      await runSync(files)
+    } catch (e) {
+      if ((e as { name?: string })?.name === "AbortError") return
+      toast.error(e instanceof Error ? e.message : "Could not read the folder")
+    }
+  }
+
   const onPick = async (kind: "tracker" | "matrix", input: HTMLInputElement) => {
     const file = input.files?.[0]; if (!file) return
     setBusy(kind)
-    try {
-      const r = await migrationApi.uploadSource(kind, file)
-      toast.success(`${r.name} uploaded. ${r.note}`)
-      load()
-    } catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed") }
+    try { const r = await migrationApi.uploadSource(kind, file); toast.success(`${r.name} uploaded. ${r.note}`); load() }
+    catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed") }
     finally { setBusy(null); input.value = "" }
-  }
-  const syncNow = async () => {
-    try { const r = await migrationApi.syncNow(); (r.triggered ? toast.success : toast.info)(r.note) } catch (e) { toast.error(e instanceof Error ? e.message : "Sync failed") }
   }
   const fmtSize = (n: number) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`
   return (
@@ -526,11 +595,34 @@ function SourcesView({ back }: { back: () => void }) {
         <ArrowLeft size={14} /> overview
       </button>
       <Card>
-        <Label>Spreadsheets the dashboard reads</Label>
+        <Label>Sync from OneDrive</Label>
         <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-4">
-          These live in the cloud. Upload a newer version of the tracker or a client content matrix and the dashboard rebuilds itself
-          {data ? ` (${data.sync}).` : "."} Matrix files must be named content-matrix-&lt;client&gt;.xlsx.
+          Edit the spreadsheets in the shared OneDrive folder like always. When you want the dashboard to catch up, press Sync: it reads the files from your synced folder, uploads them, and rebuilds the dashboard{data?.sync?.startsWith("on upload") ? " in about two minutes" : " on the next scheduled run"}.
+          {canPickFolder ? (folderName ? ` Folder: ${folderName}.` : " The first time, it asks you to pick the Migration Matrix folder.") : " Your browser will ask you to choose the files."}
         </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {canPickFolder ? (
+            <button onClick={syncFromFolder} disabled={!!busy}
+              className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-white rounded-xl px-5 h-11 disabled:opacity-60" style={{ background: GRADIENT }}>
+              <RefreshCw size={16} className={busy === "sync" ? "animate-spin" : ""} /> {busy === "sync" ? "Syncing" : folderName ? "Sync now" : "Choose folder and sync"}
+            </button>
+          ) : (
+            <label className={`inline-flex items-center gap-2 text-[13.5px] font-semibold text-white rounded-xl px-5 h-11 cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`} style={{ background: GRADIENT }}>
+              <RefreshCw size={16} className={busy === "sync" ? "animate-spin" : ""} /> {busy === "sync" ? "Syncing" : "Choose the spreadsheets and sync"}
+              <input type="file" accept=".xlsx" multiple className="hidden" data-testid="sync-files" onChange={(e) => { const fs = Array.from(e.currentTarget.files || []); e.currentTarget.value = ""; runSync(fs) }} />
+            </label>
+          )}
+          {canPickFolder && (
+            <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
+              or choose files
+              <input type="file" accept=".xlsx" multiple className="hidden" data-testid="sync-files" onChange={(e) => { const fs = Array.from(e.currentTarget.files || []); e.currentTarget.value = ""; runSync(fs) }} />
+            </label>
+          )}
+          {status && <span className="text-[12.5px] text-slate-500">{status}</span>}
+        </div>
+      </Card>
+      <Card>
+        <Label>Spreadsheets the dashboard reads</Label>
         {!data && <div className="shimmer h-20 rounded-xl" />}
         {data && (
           <div className="space-y-2">
@@ -541,21 +633,18 @@ function SourcesView({ back }: { back: () => void }) {
                 <span className="ml-auto text-slate-400 tabular-nums shrink-0">{fmtSize(s.size)}{s.updated_at ? ` · ${new Date(s.updated_at).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}` : ""}</span>
               </div>
             ))}
-            {data.sources.length === 0 && <p className="text-[13px] text-slate-400">No spreadsheets uploaded yet.</p>}
+            {data.sources.length === 0 && <p className="text-[13px] text-slate-400">No spreadsheets synced yet.</p>}
           </div>
         )}
-        <div className="flex flex-wrap gap-2 mt-5">
-          <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-white rounded-xl px-3.5 h-9 cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`} style={{ background: GRADIENT }}>
-            {busy === "tracker" ? "uploading..." : "Replace the tracker"}
+        <div className="flex flex-wrap gap-2 mt-4">
+          <label className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-8 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
+            {busy === "tracker" ? "uploading..." : "replace only the tracker"}
             <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("tracker", e.currentTarget)} />
           </label>
-          <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
-            {busy === "matrix" ? "uploading..." : "Add or update a content matrix"}
+          <label className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-8 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
+            {busy === "matrix" ? "uploading..." : "add or update one matrix"}
             <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("matrix", e.currentTarget)} />
           </label>
-          <button onClick={syncNow} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 hover:bg-slate-50 dark:hover:bg-slate-800">
-            <RefreshCw size={13} /> sync now
-          </button>
         </div>
       </Card>
     </div>

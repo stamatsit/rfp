@@ -353,7 +353,7 @@ router.post("/sources", upload.single("file"), async (req: Request, res: Respons
     const { error } = await supabaseAdmin.storage.from(SOURCES_BUCKET).upload(`${folder}/${name}`, file.buffer, {
       contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true })
     if (error) throw error
-    const triggered = await triggerCloudSync()
+    const triggered = String(req.query.nosync || "") === "1" ? false : await triggerCloudSync()
     res.status(201).json({ ok: true, kind, name, size: file.size, by: getCurrentUserName(req), triggered,
       note: triggered ? "sync started, the dashboard updates in about 2 minutes" : "picked up by the next scheduled sync (within 10 minutes on weekdays)" })
   } catch (error) {

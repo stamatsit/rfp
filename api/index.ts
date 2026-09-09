@@ -9309,7 +9309,7 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
           contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", upsert: true })
         if (mmUpErr) return res.status(500).json({ error: "Upload failed" })
         let mmTriggered = false
-        if (process.env.GH_DISPATCH_TOKEN) {
+        if (process.env.GH_DISPATCH_TOKEN && String((req.query as any)?.nosync || "") !== "1") {
           try {
             const gh = await fetch("https://api.github.com/repos/stamatsit/rfp/dispatches", { method: "POST",
               headers: { Authorization: `Bearer ${process.env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
