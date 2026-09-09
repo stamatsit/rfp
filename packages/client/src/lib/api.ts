@@ -8,7 +8,7 @@ import { addCsrfHeader } from "./csrfToken"
 const API_BASE = import.meta.env.VITE_API_URL || "/api"
 
 // Default fetch options to include credentials for session auth
-const fetchWithCredentials = async (url: string, options: RequestInit = {}): Promise<Response> => {
+export const fetchWithCredentials = async (url: string, options: RequestInit = {}): Promise<Response> => {
   // Add CSRF token for state-changing requests
   const needsCsrf = ["POST", "PUT", "PATCH", "DELETE"].includes(options.method?.toUpperCase() || "GET")
 
@@ -33,7 +33,7 @@ export class ApiError extends Error {
   }
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
+export async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
     throw new ApiError(response.status, errorData.error || `Request failed with status ${response.status}`)
@@ -2691,6 +2691,7 @@ export interface MmClient {
   series: Array<[string, number, number]>
   status: string
   archived?: boolean
+  list?: "active" | "planned" | "completed"
   matrix: MmClientMatrix | null
 }
 

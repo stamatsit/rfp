@@ -113,9 +113,12 @@ export async function ingestHandler(req: Request, res: Response) {
       return res.status(400).json({ error: "Invalid snapshot", problems })
     }
     const sourceHash = computeSourceHash(body)
-    const [latest] = await db.select({ id: mmSnapshots.id, sourceHash: mmSnapshots.sourceHash })
+    const [latest] = await db.select({ id: mmSnapshots.id, sourceHash: mmSnapshots.sourceHash, data: mmSnapshots.data })
       .from(mmSnapshots).orderBy(desc(mmSnapshots.createdAt)).limit(1)
-    const would = latest?.sourceHash === sourceHash ? "deduped" : "stored"
+    // dedupe only when the SOURCE files and the COMPUTED data both match:
+    // a parser fix on unchanged spreadsheets must still reach the dashboard
+    const sameData = !!latest && JSON.stringify(typeof latest.data === "string" ? JSON.parse(latest.data) : latest.data) === JSON.stringify(body.data)
+    const would = latest?.sourceHash === sourceHash && sameData ? "deduped" : "stored"
 
     if (body.dry_run === true) {
       return res.json({ ok: true, would, problems: [] })

@@ -1593,9 +1593,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "Invalid snapshot", problems: mmProblems })
       }
       const mmHash = [mmSf!.tracker!.sha256 || "", ...(mmSf!.matrices || []).map((m) => m.sha256 || "").sort()].join("|")
-      const mmLatestRows = await queryClient`SELECT id, source_hash FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
+      const mmLatestRows = await queryClient`SELECT id, source_hash, data FROM mm_snapshots ORDER BY created_at DESC LIMIT 1`
       const mmLatest = mmLatestRows[0]
-      const mmWould = mmLatest?.source_hash === mmHash ? "deduped" : "stored"
+      // dedupe only when source files AND computed data match (parser fixes re-push)
+      const mmSameData = !!mmLatest && JSON.stringify(mmParse(mmLatest.data)) === JSON.stringify(mmBody.data)
+      const mmWould = mmLatest?.source_hash === mmHash && mmSameData ? "deduped" : "stored"
       if (mmBody.dry_run === true) return res.json({ ok: true, would: mmWould, problems: [] })
       if (mmWould === "deduped") {
         await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id) VALUES ('deduped', ${mmLatest!.id})`

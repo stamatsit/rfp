@@ -190,9 +190,10 @@ export function MigrationMatrix() {
     return m
   }, [latest])
   const clients = useMemo(() =>
-    (data?.clients || []).map((c) => ({ ...c, archived: archiveMap.get(c.name.toLowerCase()) || false })),
+    (data?.clients || []).map((c) => ({ ...c, archived: archiveMap.get(c.name.toLowerCase()) || c.list === "completed" })),
     [data, archiveMap])
-  const active = clients.filter((c) => !c.archived)
+  const active = clients.filter((c) => !c.archived && c.list !== "planned")
+  const planned = clients.filter((c) => !c.archived && c.list === "planned")
   const archived = clients.filter((c) => c.archived)
   const weekNow = data?.week_lbl || ""
 
@@ -224,10 +225,7 @@ export function MigrationMatrix() {
         <Activity size={20} strokeWidth={2.25} />
       </div>
       <div className="min-w-0">
-        <div className="flex items-center gap-2.5">
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
-          <span className="text-[9.5px] font-bold uppercase tracking-[0.08em] bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300/70 dark:border-amber-700 rounded-full px-2 py-0.5">demo mode</span>
-        </div>
+        <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
         <p className="text-xs text-slate-400">
           {data ? `${active.length} active projects · week of ${weekNow}` : "Migration Matrix"}
           {ageSec != null && <> · updated {ageSec < 90 ? "just now" : `${Math.round(ageSec / 60)} min ago`}</>}
@@ -433,7 +431,46 @@ export function MigrationMatrix() {
       <div>
         <Label>Projects · click to drill in</Label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 stagger-children">
-          {active.map((c) => {
+          {active.map((c) => tile(c))}
+        </div>
+      </div>
+      {planned.length > 0 && (
+        <div>
+          <Label>Planned · on the tracker's Planned Projects sheet, not started</Label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {planned.map((c) => tile(c))}
+          </div>
+        </div>
+      )}
+      {archived.length > 0 && (
+        <details className="text-[13px] text-slate-500">
+          <summary className="cursor-pointer font-medium">Archived ({archived.length}): suppressed from the overview</summary>
+          <div className="mt-2 space-y-1.5">
+            {archived.map((c) => (
+              <div key={c.name} className="flex items-center gap-3">
+                <span>{c.name}</span>
+                {c.list === "completed"
+                  ? <span className="text-[12px] text-slate-400">on the Completed Projects sheet</span>
+                  : <button onClick={() => toggleArchive(c)} className="text-blue-600 dark:text-blue-400 hover:underline text-[12px]">restore</button>}
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+      {findings.filter((f) => f.severity === "high").length > 0 && (
+        <Card>
+          <Label>Data quality · from the validator</Label>
+          <ul className="space-y-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
+            {findings.filter((f) => f.severity === "high").slice(0, 6).map((f, i) => (
+              <li key={i} className="flex gap-2"><span className="text-red-500 shrink-0">●</span> {f.message}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  )
+
+  function tile(c: MmClient & { archived: boolean }) {
             const mism = c.matrix && Math.abs(c.matrix.total - c.total) > c.total * 0.05
             return (
               <button key={c.name} onClick={() => setView({ c: c.name })}
@@ -453,34 +490,7 @@ export function MigrationMatrix() {
                 <ChevronRight size={16} className="text-slate-300 shrink-0" />
               </button>
             )
-          })}
-        </div>
-      </div>
-      {archived.length > 0 && (
-        <details className="text-[13px] text-slate-500">
-          <summary className="cursor-pointer font-medium">Archived ({archived.length}): suppressed from the overview</summary>
-          <div className="mt-2 space-y-1.5">
-            {archived.map((c) => (
-              <div key={c.name} className="flex items-center gap-3">
-                <span>{c.name}</span>
-                <button onClick={() => toggleArchive(c)} className="text-blue-600 dark:text-blue-400 hover:underline text-[12px]">restore</button>
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
-      {findings.filter((f) => f.severity === "high").length > 0 && (
-        <Card>
-          <Label>Data quality · from the validator</Label>
-          <ul className="space-y-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
-            {findings.filter((f) => f.severity === "high").slice(0, 6).map((f, i) => (
-              <li key={i} className="flex gap-2"><span className="text-red-500 shrink-0">●</span> {f.message}</li>
-            ))}
-          </ul>
-        </Card>
-      )}
-    </div>
-  )
+  }
 }
 
 // ─── team + person subviews ──────────────────────────────────────────────────
