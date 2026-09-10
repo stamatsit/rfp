@@ -737,6 +737,28 @@ export function ImageConverter() {
     }
   }
 
+  const handleSaveAllToLibrary = async () => {
+    if (!toolkit.saveToLibrary || images.length === 0) return
+    setSavingToLibrary(true)
+    setConvertProgress(0)
+    try {
+      for (let i = 0; i < images.length; i++) {
+        const img = images[i]!
+        const blob = await exportImage(img.src, img.outputWidth, img.outputHeight, outputFormat, quality)
+        const name = `${stripExtension(img.fileName)}.${formatExt[outputFormat]}`
+        await toolkit.saveToLibrary(new File([blob], name, { type: blob.type || `image/${outputFormat}` }))
+        updateImage(img.id, { converted: true, convertedSize: blob.size })
+        setConvertProgress(i + 1)
+      }
+    } catch (err) {
+      console.error("Save all to library failed:", err)
+      window.alert(err instanceof Error ? err.message : "Could not save to My Uploads")
+    } finally {
+      setSavingToLibrary(false)
+      setConvertProgress(0)
+    }
+  }
+
   // ---- Download all (ZIP) ----
 
   const handleDownloadAll = async () => {
@@ -2794,6 +2816,20 @@ export function ImageConverter() {
                               Download All as ZIP ({images.length})
                             </span>
                           )}
+                        </Button>
+                      )}
+
+                      {isPortal && images.length > 1 && (
+                        <Button
+                          onClick={handleSaveAllToLibrary}
+                          disabled={savingToLibrary || converting}
+                          variant="outline"
+                          className="w-full h-10 rounded-xl font-medium"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Save size={15} />
+                            {savingToLibrary ? `Saving ${convertProgress}/${images.length}...` : `Save all ${images.length} to My Uploads`}
+                          </span>
                         </Button>
                       )}
                     </div>
