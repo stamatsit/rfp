@@ -3,11 +3,11 @@
  * Header, two tabs (Toolkit, My Uploads), sign out, and a help assistant
  * that knows nothing except how the toolkit works.
  */
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useMemo } from "react"
 import { Navigate, NavLink, Outlet, useLocation, useNavigate, useOutletContext } from "react-router-dom"
 import { ImageDown, Image as ImagesIcon, LogOut } from "lucide-react"
 import { PortalAuthProvider, portalFetch, usePortalAuth } from "@/contexts/PortalAuthContext"
-import { ToolkitApiProvider, PORTAL_HEADERS, type ToolkitApi } from "@/lib/toolkitApi"
+import { ToolkitApiProvider, PORTAL_HEADERS, queueToolkitFiles, type ToolkitApi } from "@/lib/toolkitApi"
 import { ImageConverter } from "@/pages/ImageConverter"
 import { PortalHelpFab } from "./PortalHelpFab"
 import { toast } from "@/hooks/useToast"
@@ -36,7 +36,6 @@ export function PortalShell() {
   const { isLoading, isAuthenticated, user, client, logout } = usePortalAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
 
   const saveToLibrary = useCallback(async (file: File) => {
     const form = new FormData()
@@ -49,7 +48,7 @@ export function PortalShell() {
   }, [])
 
   const openInToolkit = useCallback((files: File[]) => {
-    setPendingFiles(files)
+    queueToolkitFiles(files)
     navigate("/portal")
   }, [navigate])
 
@@ -57,10 +56,8 @@ export function PortalShell() {
     mode: "portal",
     aiBase: "/api/portal/ai",
     headers: async (init) => ({ ...(init ?? {}), ...PORTAL_HEADERS }),
-    pendingFiles,
-    clearPendingFiles: () => setPendingFiles([]),
     saveToLibrary,
-  }), [pendingFiles, saveToLibrary])
+  }), [saveToLibrary])
 
   if (isLoading) {
     return (

@@ -46,7 +46,7 @@ import {
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { SitemapCaptureModal } from "@/components/SitemapCaptureModal"
-import { useToolkitApi } from "@/lib/toolkitApi"
+import { useToolkitApi, takeToolkitFiles, TOOLKIT_QUEUE_EVENT } from "@/lib/toolkitApi"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -491,13 +491,19 @@ export function ImageConverter() {
     setPresetKey("")
   }
 
-  // Files handed in by the portal shell ("Open in toolkit"). Wait for the
-  // saved session to restore first, or its async setImages would replace them.
+  // Files handed in by the portal shell ("Open in toolkit"). Drain the queue
+  // only after the saved session has restored, or its async setImages would
+  // replace them; keep listening in case more arrive while mounted.
   useEffect(() => {
-    if (!sessionLoaded || !toolkit.pendingFiles.length) return
-    addFiles(toolkit.pendingFiles)
-    toolkit.clearPendingFiles()
-  }, [sessionLoaded, toolkit, addFiles])
+    if (!sessionLoaded) return
+    const drain = () => {
+      const files = takeToolkitFiles()
+      if (files.length) addFiles(files)
+    }
+    drain()
+    window.addEventListener(TOOLKIT_QUEUE_EVENT, drain)
+    return () => window.removeEventListener(TOOLKIT_QUEUE_EVENT, drain)
+  }, [sessionLoaded, addFiles])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
