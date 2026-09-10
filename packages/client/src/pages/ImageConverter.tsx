@@ -491,12 +491,13 @@ export function ImageConverter() {
     setPresetKey("")
   }
 
-  // Files handed in by the portal shell ("Open in toolkit")
+  // Files handed in by the portal shell ("Open in toolkit"). Wait for the
+  // saved session to restore first, or its async setImages would replace them.
   useEffect(() => {
-    if (!toolkit.pendingFiles.length) return
+    if (!sessionLoaded || !toolkit.pendingFiles.length) return
     addFiles(toolkit.pendingFiles)
     toolkit.clearPendingFiles()
-  }, [toolkit, addFiles])
+  }, [sessionLoaded, toolkit, addFiles])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
