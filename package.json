@@ -15,7 +15,7 @@
     "test": "npm run test --workspaces --if-present",
     "lint": "eslint .",
     "check:drift": "node scripts/check-route-drift.mjs",
-    "typecheck:api": "tsc --noEmit --skipLibCheck --esModuleInterop --module esnext --moduleResolution bundler --target es2022 api/index.ts",
+    "typecheck:api": "tsc --noEmit --skipLibCheck --esModuleInterop --module esnext --moduleResolution bundler --target es2022 api/index.ts api/portal.ts",
     "verify:targets": "bash scripts/verify-targets.sh",
     "ship": "bash scripts/verify-targets.sh && git push origin main && echo \"\\n\u2192 watch https://vercel.com/stamats/rfp\"",
     "whichdb": "node scripts/whichdb.mjs"

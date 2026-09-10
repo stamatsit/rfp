@@ -11,7 +11,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react'
-import { addCsrfHeader } from '@/lib/csrfToken'
+import { useToolkitApi } from '@/lib/toolkitApi'
 
 // ── Operation catalogue ────────────────────────────────────────────────────
 
@@ -109,6 +109,7 @@ export function useUpscaler(): UseUpscalerReturn {
   const [status, setStatus] = useState('')
   const [error, setError] = useState<string | null>(null)
   const abortRef = useRef(false)
+  const toolkit = useToolkitApi()
 
   const enhance = useCallback(async (imageSrc: string, opId: string): Promise<string | null> => {
     const op = ENHANCE_OPS.find((o) => o.id === opId)
@@ -129,8 +130,8 @@ export function useUpscaler(): UseUpscalerReturn {
       if (abortRef.current) { setIsProcessing(false); return null }
 
       setStatus(runningLabel)
-      const headers = await addCsrfHeader({ 'Content-Type': 'application/json' })
-      const createRes = await fetch('/api/ai/enhance', {
+      const headers = await toolkit.headers({ 'Content-Type': 'application/json' })
+      const createRes = await fetch(`${toolkit.aiBase}/enhance`, {
         method: 'POST',
         credentials: 'include',
         headers,
@@ -153,7 +154,7 @@ export function useUpscaler(): UseUpscalerReturn {
         if (Date.now() - startedAt > 360_000) {
           throw new Error('Timed out — the model is taking too long to start. Try again in a moment.')
         }
-        const statusRes = await fetch(`/api/ai/enhance-status?id=${encodeURIComponent(created.id)}`, {
+        const statusRes = await fetch(`${toolkit.aiBase}/enhance-status?id=${encodeURIComponent(created.id)}`, {
           credentials: 'include',
         })
         if (!statusRes.ok) continue // transient — keep polling
@@ -162,7 +163,7 @@ export function useUpscaler(): UseUpscalerReturn {
           setStatus('Finishing...')
           // Fetch the finished image same-origin (binary) → data URL so it's
           // usable on a canvas (convert/crop/download) without CORS taint.
-          const resultRes = await fetch(`/api/ai/enhance-result?id=${encodeURIComponent(created.id)}`, {
+          const resultRes = await fetch(`${toolkit.aiBase}/enhance-result?id=${encodeURIComponent(created.id)}`, {
             credentials: 'include',
           })
           if (!resultRes.ok) {
@@ -194,7 +195,7 @@ export function useUpscaler(): UseUpscalerReturn {
       setStatus('')
       return null
     }
-  }, [])
+  }, [toolkit])
 
   return { enhance, isProcessing, progress, status, error }
 }

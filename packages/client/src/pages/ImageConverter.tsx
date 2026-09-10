@@ -42,10 +42,11 @@ import {
   Wand2,
   ChevronDown,
   Copy,
+  Save,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { SitemapCaptureModal } from "@/components/SitemapCaptureModal"
-import { addCsrfHeader } from "@/lib/csrfToken"
+import { useToolkitApi } from "@/lib/toolkitApi"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -359,6 +360,11 @@ export function ImageConverter() {
 
   // Webpage screenshot capture (sitemap-driven modal)
   const [captureModalOpen, setCaptureModalOpen] = useState(false)
+  // Portal mode: server calls go to /api/portal, internal-only UI is hidden,
+  // and "Save to My Uploads" persists to the client library.
+  const toolkit = useToolkitApi()
+  const isPortal = toolkit.mode === "portal"
+  const [savingToLibrary, setSavingToLibrary] = useState(false)
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const addInputRef = useRef<HTMLInputElement>(null)
@@ -484,6 +490,13 @@ export function ImageConverter() {
     setAspect(undefined)
     setPresetKey("")
   }
+
+  // Files handed in by the portal shell ("Open in toolkit")
+  useEffect(() => {
+    if (!toolkit.pendingFiles.length) return
+    addFiles(toolkit.pendingFiles)
+    toolkit.clearPendingFiles()
+  }, [toolkit, addFiles])
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -702,6 +715,24 @@ export function ImageConverter() {
       console.error("Conversion failed:", err)
     } finally {
       setConverting(false)
+    }
+  }
+
+  // ---- Save to My Uploads (portal only) ----
+
+  const handleSaveToLibrary = async () => {
+    if (!selected || !toolkit.saveToLibrary) return
+    setSavingToLibrary(true)
+    try {
+      const blob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
+      const name = `${stripExtension(selected.fileName)}.${formatExt[outputFormat]}`
+      await toolkit.saveToLibrary(new File([blob], name, { type: blob.type || `image/${outputFormat}` }))
+      updateImage(selected.id, { converted: true, convertedSize: blob.size })
+    } catch (err) {
+      console.error("Save to library failed:", err)
+      window.alert(err instanceof Error ? err.message : "Could not save to My Uploads")
+    } finally {
+      setSavingToLibrary(false)
     }
   }
 
@@ -1351,8 +1382,8 @@ export function ImageConverter() {
       ctx.drawImage(imgEl, 0, 0, w, h)
       const base64 = canvas.toDataURL("image/jpeg", 0.8).split(",")[1]
 
-      const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-      const res = await fetch("/api/ai/alt-text", {
+      const headers = await toolkit.headers({ "Content-Type": "application/json" })
+      const res = await fetch(`${toolkit.aiBase}/alt-text`, {
         method: "POST",
         credentials: "include",
         headers,
@@ -1366,7 +1397,7 @@ export function ImageConverter() {
       updateImage(imageId, { altTextGenerating: false })
       window.alert("Alt text generation failed. Please try again — if it keeps failing, refresh the page.")
     }
-  }, [images, updateImage])
+  }, [images, updateImage, toolkit])
 
   const convertedCount = images.filter((img) => img.converted).length
 
@@ -1440,7 +1471,7 @@ export function ImageConverter() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900 transition-colors animate-in fade-in-0 duration-300">
-      <AppHeader />
+      {!isPortal && <AppHeader />}
 
       <main className="flex-1 px-6 py-8">
         <div className="max-w-5xl mx-auto">
@@ -1457,6 +1488,7 @@ export function ImageConverter() {
                 Convert, crop, enhance, erase &amp; remove backgrounds
               </p>
             </div>
+            {!isPortal && (
             <Button
               type="button"
               onClick={() => setCaptureModalOpen(true)}
@@ -1465,6 +1497,7 @@ export function ImageConverter() {
               <Globe size={14} className="mr-1.5" />
               Capture from URL
             </Button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
@@ -2602,6 +2635,19 @@ export function ImageConverter() {
                           </span>
                         )}
                       </Button>
+                      {isPortal && (
+                        <Button
+                          onClick={handleSaveToLibrary}
+                          disabled={savingToLibrary || converting || selected.outputWidth < 1 || selected.outputHeight < 1}
+                          variant="outline"
+                          className="w-full h-10 rounded-xl font-medium"
+                        >
+                          <span className="flex items-center gap-2">
+                            <Save size={15} />
+                            {savingToLibrary ? "Saving..." : "Save to My Uploads"}
+                          </span>
+                        </Button>
+                      )}
 
                       {/* Multi-size export */}
                       <button
@@ -2778,11 +2824,13 @@ export function ImageConverter() {
       </main>
 
       {/* Capture-from-URL modal (sitemap-driven) */}
+      {!isPortal && (
       <SitemapCaptureModal
         open={captureModalOpen}
         onClose={() => setCaptureModalOpen(false)}
         addFiles={addFiles}
       />
+      )}
 
       {/* Shimmer animation keyframes */}
       <style>{`

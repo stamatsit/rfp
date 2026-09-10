@@ -24,7 +24,10 @@ const ALLOWLIST = new Set([
   "/photos/import-folder",     // reads a server filesystem path; not meaningful on serverless
 ])
 
-const bundle = fs.readFileSync(bundlePath, "utf8")
+let bundle = fs.readFileSync(bundlePath, "utf8")
+// api/portal.ts is a separate function; count its routes as present in production.
+const portalBundlePath = path.join(root, "api/portal.ts")
+if (fs.existsSync(portalBundlePath)) bundle += "\n" + fs.readFileSync(portalBundlePath, "utf8")
 const indexTs = fs.readFileSync(path.join(routesDir, "index.ts"), "utf8")
 
 // import <ident> from "./<file>.js"  +  router.use("/<mount>", <ident>)

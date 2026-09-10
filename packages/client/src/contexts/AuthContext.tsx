@@ -52,6 +52,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setAuthenticated = setIsAuthenticated
 
   const checkAuth = async () => {
+    // Client portal pages have their own auth (PortalAuthContext); the staff
+    // session is irrelevant there and must never redirect them to /login.
+    if (/^\/portal(\/|$)/.test(location.pathname)) {
+      setIsLoading(false)
+      return
+    }
     try {
       const response = await fetch("/api/auth/status", {
         credentials: "include",

@@ -44,6 +44,7 @@ import {
   Mic,
   ScanSearch,
   Table2,
+  Users,
 } from "lucide-react"
 import { useAuth, useIsAdmin } from "@/contexts/AuthContext"
 import { UserAvatar } from "@/components/UserAvatar"
@@ -157,6 +158,16 @@ const defaultTiles: TileConfig[] = [
     description: "Convert, crop, erase & remove backgrounds",
     gradient: "linear-gradient(135deg, #10B981 0%, #14B8A6 50%, #0D9488 100%)",
     shadowColor: "rgba(16, 185, 129, 0.15)",
+    enabled: true,
+  },
+  {
+    id: "client-portal",
+    to: "/portal-admin",
+    icon: <Users size={22} strokeWidth={2} />,
+    title: "Client Portal",
+    description: "Invite clients to the Image Toolkit and manage their access",
+    gradient: "linear-gradient(135deg, #C41230 0%, #9F0E27 60%, #6D1D45 100%)",
+    shadowColor: "rgba(196, 18, 48, 0.15)",
     enabled: true,
   },
   {

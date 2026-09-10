@@ -40,6 +40,15 @@ const AccessibilitySnapshot = lazy(() => import("./pages/AccessibilitySnapshot")
 const Webinars = lazy(() => import("./pages/Webinars").then(m => ({ default: m.Webinars })))
 const ContentMatrix = lazy(() => import("./pages/ContentMatrix").then(m => ({ default: m.ContentMatrix })))
 const MigrationMatrix = lazy(() => import("./pages/MigrationMatrix").then(m => ({ default: m.MigrationMatrix })))
+const PortalAdmin = lazy(() => import("./pages/PortalAdmin").then(m => ({ default: m.PortalAdmin })))
+const PortalArea = lazy(() => import("./pages/portal/PortalShell").then(m => ({ default: m.PortalArea })))
+const PortalShell = lazy(() => import("./pages/portal/PortalShell").then(m => ({ default: m.PortalShell })))
+const PortalToolkit = lazy(() => import("./pages/portal/PortalShell").then(m => ({ default: m.PortalToolkit })))
+const PortalLibrary = lazy(() => import("./pages/portal/PortalLibrary").then(m => ({ default: m.PortalLibrary })))
+const PortalLogin = lazy(() => import("./pages/portal/PortalAuthPages").then(m => ({ default: m.PortalLogin })))
+const PortalSignup = lazy(() => import("./pages/portal/PortalAuthPages").then(m => ({ default: m.PortalSignup })))
+const PortalForgot = lazy(() => import("./pages/portal/PortalAuthPages").then(m => ({ default: m.PortalForgot })))
+const PortalInvite = lazy(() => import("./pages/portal/PortalAuthPages").then(m => ({ default: m.PortalInvite })))
 
 function PageTransition({ children }: { children: React.ReactNode }) {
   const location = useLocation()
@@ -58,6 +67,8 @@ function applyFontSize(fontSize: string) {
 function AppRoutes() {
   const location = useLocation()
   const isAuthPage = ["/login", "/register", "/change-password"].includes(location.pathname)
+  // Client portal: its own auth, its own shell. No rail, palette, shortcuts, entry panel or companion.
+  const isPortalRoute = /^\/portal(\/|$)/.test(location.pathname)
   const [showNewEntry, setShowNewEntry] = useState(false)
   const [newEntryDefaultType, setNewEntryDefaultType] = useState<string | undefined>()
   const [showCommandPalette, setShowCommandPalette] = useState(false)
@@ -99,16 +110,18 @@ function AppRoutes() {
 
   return (
     <>
-      <KeyboardShortcuts />
-      <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />
-      {navRailEnabled && !isAuthPage && <NavRail />}
+      {!isPortalRoute && <KeyboardShortcuts />}
+      {!isPortalRoute && <CommandPalette isOpen={showCommandPalette} onClose={() => setShowCommandPalette(false)} />}
+      {navRailEnabled && !isAuthPage && !isPortalRoute && <NavRail />}
+      {!isPortalRoute && (
       <NewEntryPanel
         isOpen={showNewEntry}
         onClose={() => setShowNewEntry(false)}
         onSaved={handleNewEntrySaved}
         defaultType={newEntryDefaultType as any}
       />
-      <div className={navRailEnabled && !isAuthPage ? "pl-14" : ""}>
+      )}
+      <div className={navRailEnabled && !isAuthPage && !isPortalRoute ? "pl-14" : ""}>
         <PageTransition>
           <ErrorBoundary>
           <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>}>
@@ -142,11 +155,23 @@ function AppRoutes() {
             <Route path="/webinars" element={<ProtectedRoute><Webinars /></ProtectedRoute>} />
             <Route path="/content-matrix" element={<ProtectedRoute><ContentMatrix /></ProtectedRoute>} />
             <Route path="/migration" element={<ProtectedRoute><MigrationMatrix /></ProtectedRoute>} />
+            <Route path="/portal-admin" element={<ProtectedRoute><PortalAdmin /></ProtectedRoute>} />
+            <Route path="/portal" element={<PortalArea />}>
+              <Route path="login" element={<PortalLogin />} />
+              <Route path="signup" element={<PortalSignup />} />
+              <Route path="forgot" element={<PortalForgot />} />
+              <Route path="invite/:token" element={<PortalInvite />} />
+              <Route element={<PortalShell />}>
+                <Route index element={<PortalToolkit />} />
+                <Route path="uploads" element={<PortalLibrary />} />
+              </Route>
+              <Route path="*" element={<Navigate to="/portal" replace />} />
+            </Route>
           </Routes>
           </Suspense>
           </ErrorBoundary>
         </PageTransition>
-        <AICompanion />
+        {!isPortalRoute && <AICompanion />}
         <Toaster />
       </div>
     </>

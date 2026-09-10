@@ -13,6 +13,7 @@ import {
   Mic,
   BarChart3,
   ScanSearch,
+  Users,
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
@@ -42,6 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/scanner", icon: ScanSearch, label: "URL Scanner", settingKey: "urlScannerEnabled" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailAllow: ERIC_ONLY },
   { to: "/migration", icon: Activity, label: "Migration Matrix", emailAllow: MIGRATION_MATRIX_ALLOW },
+  { to: "/portal-admin", icon: Users, label: "Client Portal" },
 ]
 
 export function NavRail() {
