@@ -13,6 +13,7 @@ export const MIGRATION_MATRIX_ALLOW = [
   "eric.yerke@stamats.com",
   "laura.hynes@stamats.com",
   "crystal.weber@stamats.com",
+  "sandra.fancher@stamats.com",
 ] as const
 
 /** Case-insensitive membership test; tolerates a missing/loading user. */
