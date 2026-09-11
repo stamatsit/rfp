@@ -369,8 +369,6 @@ ERASE (magic eraser): paint over the object you want removed and the toolkit fil
 
 REMOVE BACKGROUND: one click removes the background and leaves a transparent PNG. Runs in the browser, so the first use downloads a model and can take a moment. Undo restores the original.
 
-AI ENHANCE: Upscale 2x, Upscale 4x, Denoise, Deblur, Low Light Fix and Auto Retouch. These run on a server and usually take 10 to 30 seconds, sometimes a few minutes when the model is cold. You can stack operations. Undo restores the previous version. If Enhance reports it is not configured, tell your Stamats contact.
-
 ALT TEXT: the alt text button writes a short accessibility description for the selected image. You can edit it. Alt text is included in the ZIP metadata.
 
 MY PHOTOS: images you save are kept for your organization only. Use "Save to My Photos" in the toolkit to store the current version of an image, or upload files directly on the My Photos page. From My Photos you can open an image in the toolkit, download it, or delete it. Tap photos to select several at once, then use "Open N in toolkit" to send them all in together, which is how you batch rename or export several sizes from work you already saved. Only people invited to your organization can see them. Stamats staff can also see them to help you.

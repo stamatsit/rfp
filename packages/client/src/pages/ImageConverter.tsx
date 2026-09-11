@@ -333,6 +333,9 @@ type Mode = "convert" | "crop" | "erase"
 // Component
 // ---------------------------------------------------------------------------
 
+/** Feature cards the client portal does not advertise. */
+const PORTAL_HIDDEN_FEATURES = new Set(["AI Enhance"])
+
 export function ImageConverter() {
   const [images, setImages] = useState<ImageItem[]>([])
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -2233,7 +2236,8 @@ export function ImageConverter() {
                       )}
                     </div>
 
-                    {/* AI Enhance / Upscale */}
+                    {/* AI Enhance / Upscale. Hidden for portal clients. */}
+                    {!isPortal && (<>
                     <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
                       <div className="flex items-center justify-between mb-2">
                         <Label className="text-[12px] font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -2334,6 +2338,7 @@ export function ImageConverter() {
                         </p>
                       </div>
                     </div>
+                    </>)}
 
                     {/* Eraser controls (shown in erase mode) */}
                     {mode === "erase" && (
@@ -2851,7 +2856,7 @@ export function ImageConverter() {
                     { icon: <Sparkles size={16} />, color: "text-purple-500", title: "Remove Background", desc: "One-click, runs locally — no API cost" },
                     { icon: <Layers size={16} />, color: "text-emerald-500", title: "Batch Export", desc: "Convert all images at once as ZIP" },
                     { icon: <TextCursorInput size={16} />, color: "text-sky-500", title: "Batch Rename", desc: "Pattern-based naming with live preview" },
-                  ].map((f) => (
+                  ].filter((f) => !isPortal || !PORTAL_HIDDEN_FEATURES.has(f.title)).map((f) => (
                     <div key={f.title} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 p-3 flex items-start gap-3">
                       <span className={`mt-0.5 ${f.color}`}>{f.icon}</span>
                       <div>
