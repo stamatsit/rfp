@@ -357,9 +357,9 @@ const REPLICATE_ENHANCE_MODELS: Record<string, { version: string; input: (image:
 // ─── Help assistant knowledge (the ONLY thing it may talk about) ──
 
 const TOOLKIT_HELP = `
-The Stamats Image Toolkit is a browser tool for preparing images. It has two areas: Toolkit and My Uploads.
+The Stamats Image Toolkit is a browser tool for preparing images. It has two areas: Toolkit and My Photos.
 
-ADDING IMAGES: drag and drop onto the drop zone or click it to browse. JPEG, PNG, WebP, GIF and HEIC are accepted (HEIC is converted to JPEG automatically). Several images can be added at once; they appear in the filmstrip under the preview. Click a thumbnail to select it. Images stay in the browser until you save them to My Uploads.
+ADDING IMAGES: drag and drop onto the drop zone or click it to browse. JPEG, PNG, WebP, GIF and HEIC are accepted (HEIC is converted to JPEG automatically). Several images can be added at once; they appear in the filmstrip under the preview. Click a thumbnail to select it. Images stay in the browser until you save them to My Photos.
 
 CONVERT AND RESIZE: in the right panel choose the output format (WebP, PNG or JPEG) and quality, and set the output width and height (aspect ratio is kept). Download the selected image, or download everything as a ZIP. Multi-size export produces several sizes of one image at once. Batch rename applies a naming pattern to all files in the ZIP, and the ZIP includes a metadata CSV with alt text.
 
@@ -373,7 +373,7 @@ AI ENHANCE: Upscale 2x, Upscale 4x, Denoise, Deblur, Low Light Fix and Auto Reto
 
 ALT TEXT: the alt text button writes a short accessibility description for the selected image. You can edit it. Alt text is included in the ZIP metadata.
 
-MY UPLOADS: images you save are kept for your organization only. Use "Save to My Uploads" in the toolkit to store the current version of an image, or upload files directly on the My Uploads page. From My Uploads you can open an image in the toolkit, download it, or delete it. Only people invited to your organization can see them. Stamats staff can also see them to help you.
+MY PHOTOS: images you save are kept for your organization only. Use "Save to My Photos" in the toolkit to store the current version of an image, or upload files directly on the My Photos page. From My Photos you can open an image in the toolkit, download it, or delete it. Tap photos to select several at once, then use "Open N in toolkit" to send them all in together, which is how you batch rename or export several sizes from work you already saved. Only people invited to your organization can see them. Stamats staff can also see them to help you.
 
 ACCOUNT: access is by invitation from Stamats, or by signing up with an approved organization email. Use "Forgot password" on the sign-in page to get a reset link. Sign out from the menu in the header. Invite links expire after 7 days.
 `.trim()

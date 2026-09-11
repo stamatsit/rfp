@@ -1,6 +1,6 @@
 /**
  * Client portal: the only thing an invited client user can reach.
- * Header, two tabs (Toolkit, My Uploads), sign out, and a help assistant
+ * Header, two tabs (Toolkit, My Photos), sign out, and a help assistant
  * that knows nothing except how the toolkit works.
  */
 import { useCallback, useMemo } from "react"
@@ -44,7 +44,7 @@ export function PortalShell() {
     const res = await portalFetch("/images", { method: "POST", body: form })
     const data = (await res.json().catch(() => ({}))) as { error?: string }
     if (!res.ok) throw new Error(data.error || `Save failed (${res.status})`)
-    toast.success(`Saved ${file.name} to My Uploads`)
+    toast.success(`Saved ${file.name} to My Photos`)
   }, [])
 
   const openInToolkit = useCallback((files: File[]) => {
@@ -90,8 +90,8 @@ export function PortalShell() {
               <NavLink to="/portal" end className={({ isActive }) => `${tab} ${isActive ? active : idle}`}>
                 <span className="flex items-center gap-1.5"><ImageDown size={14} /> Toolkit</span>
               </NavLink>
-              <NavLink to="/portal/uploads" className={({ isActive }) => `${tab} ${isActive ? active : idle}`}>
-                <span className="flex items-center gap-1.5"><ImagesIcon size={14} /> My Uploads</span>
+              <NavLink to="/portal/photos" className={({ isActive }) => `${tab} ${isActive ? active : idle}`}>
+                <span className="flex items-center gap-1.5"><ImagesIcon size={14} /> My Photos</span>
               </NavLink>
             </nav>
             <div className="ml-auto flex items-center gap-3">

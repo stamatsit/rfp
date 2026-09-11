@@ -163,7 +163,8 @@ function AppRoutes() {
               <Route path="invite/:token" element={<PortalInvite />} />
               <Route element={<PortalShell />}>
                 <Route index element={<PortalToolkit />} />
-                <Route path="uploads" element={<PortalLibrary />} />
+                <Route path="photos" element={<PortalLibrary />} />
+                <Route path="uploads" element={<Navigate to="/portal/photos" replace />} />
               </Route>
               <Route path="*" element={<Navigate to="/portal" replace />} />
             </Route>

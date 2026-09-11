@@ -3,7 +3,7 @@
  *
  * Internal (default): /api/ai/* with the app's CSRF header, exactly as before.
  * Portal: /api/portal/ai/* with the portal request header, plus a way to
- * receive files from the toolkit ("Save to My Uploads").
+ * receive files from the toolkit ("Save to My Photos").
  *
  * Files handed INTO the toolkit ("Open in toolkit") go through a module-level
  * queue rather than React state: route transitions remount the shell, so

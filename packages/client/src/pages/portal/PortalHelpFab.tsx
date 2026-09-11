@@ -12,7 +12,7 @@ const STARTERS = [
   "How do I remove a background?",
   "How do I crop to a square?",
   "What does AI Enhance do?",
-  "How do I save an image to My Uploads?",
+  "How do I save an image to My Photos?",
 ]
 
 export function PortalHelpFab() {

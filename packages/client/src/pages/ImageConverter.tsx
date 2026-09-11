@@ -361,7 +361,7 @@ export function ImageConverter() {
   // Webpage screenshot capture (sitemap-driven modal)
   const [captureModalOpen, setCaptureModalOpen] = useState(false)
   // Portal mode: server calls go to /api/portal, internal-only UI is hidden,
-  // and "Save to My Uploads" persists to the client library.
+  // and "Save to My Photos" persists to the client library.
   const toolkit = useToolkitApi()
   const isPortal = toolkit.mode === "portal"
   const [savingToLibrary, setSavingToLibrary] = useState(false)
@@ -725,7 +725,7 @@ export function ImageConverter() {
     }
   }
 
-  // ---- Save to My Uploads (portal only) ----
+  // ---- Save to My Photos (portal only) ----
 
   const handleSaveToLibrary = async () => {
     if (!selected || !toolkit.saveToLibrary) return
@@ -737,7 +737,7 @@ export function ImageConverter() {
       updateImage(selected.id, { converted: true, convertedSize: blob.size })
     } catch (err) {
       console.error("Save to library failed:", err)
-      window.alert(err instanceof Error ? err.message : "Could not save to My Uploads")
+      window.alert(err instanceof Error ? err.message : "Could not save to My Photos")
     } finally {
       setSavingToLibrary(false)
     }
@@ -758,7 +758,7 @@ export function ImageConverter() {
       }
     } catch (err) {
       console.error("Save all to library failed:", err)
-      window.alert(err instanceof Error ? err.message : "Could not save to My Uploads")
+      window.alert(err instanceof Error ? err.message : "Could not save to My Photos")
     } finally {
       setSavingToLibrary(false)
       setConvertProgress(0)
@@ -2673,7 +2673,7 @@ export function ImageConverter() {
                         >
                           <span className="flex items-center gap-2">
                             <Save size={15} />
-                            {savingToLibrary ? "Saving..." : "Save to My Uploads"}
+                            {savingToLibrary ? "Saving..." : "Save to My Photos"}
                           </span>
                         </Button>
                       )}
@@ -2834,7 +2834,7 @@ export function ImageConverter() {
                         >
                           <span className="flex items-center gap-2">
                             <Save size={15} />
-                            {savingToLibrary ? `Saving ${convertProgress}/${images.length}...` : `Save all ${images.length} to My Uploads`}
+                            {savingToLibrary ? `Saving ${convertProgress}/${images.length}...` : `Save all ${images.length} to My Photos`}
                           </span>
                         </Button>
                       )}
