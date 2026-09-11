@@ -161,16 +161,6 @@ const defaultTiles: TileConfig[] = [
     enabled: true,
   },
   {
-    id: "client-portal",
-    to: "/portal-admin",
-    icon: <Users size={22} strokeWidth={2} />,
-    title: "Client Portal",
-    description: "Invite clients to the Image Toolkit and manage their access",
-    gradient: "linear-gradient(135deg, #C41230 0%, #9F0E27 60%, #6D1D45 100%)",
-    shadowColor: "rgba(196, 18, 48, 0.15)",
-    enabled: true,
-  },
-  {
     id: "pitch-deck-designer",
     to: "/pitch-deck",
     icon: <Presentation size={22} strokeWidth={2} />,
@@ -593,7 +583,7 @@ function TrafficLights({ onClose, onRestore, onMaximize }: { onClose: () => void
 // Settings Categories
 // ============================================================================
 
-type SettingsCategory = "account" | "general" | "appearance" | "home" | "widgets" | "ai" | "accessibility" | "labs"
+type SettingsCategory = "account" | "general" | "appearance" | "home" | "widgets" | "ai" | "accessibility" | "portal" | "labs"
 
 const categories = [
   { id: "account" as const, label: "Account", icon: User },
@@ -603,6 +593,7 @@ const categories = [
   { id: "widgets" as const, label: "Widgets", icon: BarChart3, badge: "New" },
   { id: "ai" as const, label: "AI", icon: Sparkles },
   { id: "accessibility" as const, label: "Accessibility", icon: Eye },
+  { id: "portal" as const, label: "Client Portal", icon: Users },
   { id: "labs" as const, label: "Labs", icon: Beaker },
 ]
 
@@ -1469,6 +1460,39 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
               )}
 
               {/* Labs Settings */}
+              {activeCategory === "portal" && (
+                <div className="space-y-6">
+                  <div className="p-4 rounded-xl bg-[#C41230]/5 dark:bg-[#C41230]/10 border border-[#C41230]/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Users size={16} className="text-[#C41230]" />
+                      <span className="text-[13px] font-semibold text-[#C41230]">Share the Image Toolkit</span>
+                    </div>
+                    <p className="text-[12px] text-slate-600 dark:text-slate-400">
+                      Invite a client by email, or approve their whole email domain. They sign in to the
+                      Image Toolkit and their own uploads, and nothing else in this app. Any Stamats
+                      team member can send invitations.
+                    </p>
+                  </div>
+
+                  <div>
+                    <h3 className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3">Manage</h3>
+                    <button
+                      onClick={() => { onClose(); navigate("/portal-admin") }}
+                      className="flex items-center justify-between w-full p-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-[#C41230]/40 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Users size={16} className="text-slate-500 dark:text-slate-400" />
+                        <div className="text-left">
+                          <p className="text-[13px] text-slate-700 dark:text-slate-300">Client Portal</p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400">Invite clients, approve domains, manage access</p>
+                        </div>
+                      </div>
+                      <span className="text-[12px] text-slate-500 dark:text-slate-400">Open</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {activeCategory === "labs" && (
                 <div className="space-y-6">
                   <div className="p-4 rounded-xl bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
