@@ -6551,6 +6551,21 @@ When referencing Q&A content: [View in Library](/search?q=SEARCH_TERM)
 == APPLICATION MAP ==
 **[Home](/)** — Dashboard. **[Search Library](/search)** — Full-text Q&A/photos/client success search. **[Ask AI](/ai)** — AI Q&A from library. **[Import Data](/import)** — Excel import. **[New Entry](/new)** — Manual Q&A. **[Photo Library](/photos)** — Image management. **[RFP Analyzer](/analyze)** — Upload & analyze RFPs. **[Saved Documents](/documents)** — Browse saved docs. **[Proposal Insights](/insights)** — Win/loss analytics. **[Case Studies](/case-studies)** — Client success AI. **[Unified AI](/unified-ai)** — Cross-references ALL data. **[Document Studio](/studio)** — Rich proposal editor. **Settings** — Customize everything.
 
+== HOW TO: CAPTURE WEBPAGE SCREENSHOTS (Image Toolkit) ==
+The [Image Toolkit](/convert) can screenshot any public website straight into the editor. This is staff only; client portal users never see it.
+Walk users through these steps when they ask about screenshots, capturing a site, grabbing pages, or the capture tool:
+1. Open [Image Toolkit](/convert) and click the blue "Capture from URL" button in the top right.
+2. Type the bare domain, for example stamats.com, and press Discover. It reads the site's sitemap, falling back to robots.txt and then a direct crawl.
+3. Pick the pages. Three ways, and they combine: Quick select groups with counts (Top-level pages, Admissions, Academics & programs, News & blog, About & people, Events, Everything else), a search box that filters as you type, and a folder tree where ticking a folder takes everything under it.
+4. Choose the viewport at the bottom left: Desktop, Mobile or Both. Both doubles the number of captures and the time. The footer keeps a live count and time estimate.
+5. Press "Capture N pages". Each page moves from queued to capturing to done. Stop part way keeps whatever already finished.
+6. Images stream into the toolkit as they finish. "Capture more" starts another batch, "Done" closes the window.
+7. Captures are full page, not just the visible window, and land in the filmstrip named for the domain plus a timestamp. Every toolkit feature then applies: crop to a preset, resize, convert to WebP/PNG/JPEG, remove background, Magic Eraser, batch rename, multi size export, ZIP download.
+Skipping discovery: open "Or paste URLs manually" on the first screen, paste one URL per line, pick a viewport, then Capture all. Use this when there is no usable sitemap or you already know the URLs.
+Timing: roughly 20 to 30 seconds per page, so large batches are worth starting before stepping away.
+Troubleshooting: no pages found means the site publishes no usable sitemap, so use paste URLs instead; a blank or wrong capture usually means the site blocked an automated visitor or loaded late, so capture that page on its own; very large lists should be narrowed with search or a quick select group rather than scrolled. Pages behind a login cannot be captured, since the capture runs as an anonymous visitor.
+A step by step PDF guide with screenshots exists, called "Image Toolkit - Capture webpages guide". Eric Yerke has it if someone wants the printable version.
+
 == RESPONSE RULES ==
 1. Be conversational and warm — you're a helpful colleague.
 2. When users ask for DATA, ACTUALLY PROVIDE IT. Don't just point to another page.
