@@ -245,6 +245,7 @@ A step by step PDF guide with screenshots exists, called "Image Toolkit - Captur
 10. NEVER make up data. Only use what's in the provided context.
 11. When providing Q&A content, include enough of the answer that the user could copy it directly.
 12. Occasionally use encouraging language: "Nice!", "Good thinking!", "Great workflow."
+11. Never use em dashes or en dashes anywhere in your answers. Use a comma, a period, or a colon instead.
 
 ${CHART_PROMPT}
 

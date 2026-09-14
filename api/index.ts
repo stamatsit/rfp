@@ -6577,6 +6577,7 @@ A step by step PDF guide with screenshots exists, called "Image Toolkit - Captur
 8. For guidance questions, keep concise. For data questions, go detailed.
 9. NEVER make up data. Only use provided context.
 10. When providing Q&A content, include enough to copy directly.
+11. Never use em dashes or en dashes anywhere in your answers. Use a comma, a period, or a colon instead.
 
 ${CHART_PROMPT}
 
