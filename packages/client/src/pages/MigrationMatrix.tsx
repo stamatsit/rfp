@@ -75,8 +75,24 @@ const n = (v: number) => v.toLocaleString()
 const pctOf = (done: number, assigned: number) => (assigned > 0 ? `${Math.round((100 * done) / assigned)}%` : done > 0 ? `+${n(done)}` : "")
 const NUM = "px-3 py-2.5 text-right tabular-nums"
 
+const OFFICE_DOC = /\.(xlsx|xlsm|xlsb|xls|docx|doc|pptx|ppt)$/i
+/**
+ * SharePoint serves a plain document path as a DOWNLOAD, which defeats the
+ * point of everyone editing one shared file. web=1 is the flag Microsoft's
+ * own Excel-for-the-web links carry and it opens the file in Excel Online.
+ * Applied here as well as in the pipeline so snapshots stored before the fix
+ * open correctly too. Folders, share links and Doc.aspx links are untouched.
+ */
+function officeUrl(href?: string): string | undefined {
+  if (!href) return href
+  const [path = "", query = ""] = href.split("?")
+  if (!OFFICE_DOC.test(path) || /(^|&)web=1(&|$)/.test(query)) return href
+  return `${path}?${query ? `${query}&` : ""}web=1`
+}
+
 /** Small external link pill used for "open in Excel" everywhere. */
-function OpenLink({ href, children, primary = false }: { href?: string; children: React.ReactNode; primary?: boolean }) {
+function OpenLink({ href: rawHref, children, primary = false }: { href?: string; children: React.ReactNode; primary?: boolean }) {
+  const href = officeUrl(rawHref)
   if (!href) return null
   return (
     <a href={href} target="_blank" rel="noopener noreferrer"
@@ -686,8 +702,8 @@ function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData
   const syncFromFolder = async () => { setBusy("sync"); await syncFromOneDrive({ onStatus: setStatus, onFolder: setFolderName, onUploaded: load }); setBusy(null) }
   const linkFor = (name: string) => {
     if (!links) return undefined
-    if (links.tracker?.name === name) return links.tracker.web_url
-    return links.matrices?.find((m) => m.name === name)?.web_url
+    if (links.tracker?.name === name) return officeUrl(links.tracker.web_url)
+    return officeUrl(links.matrices?.find((m) => m.name === name)?.web_url)
   }
 
   const onPick = async (kind: "tracker" | "matrix", input: HTMLInputElement) => {

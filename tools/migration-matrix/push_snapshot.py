@@ -25,6 +25,7 @@ import os
 import re
 import sys
 import urllib.error
+import urllib.parse
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,11 +81,15 @@ def build_snapshot():
         except Exception:
             pass
 
+    folder = (urlmap.get("_folder") or "").rstrip("/")
+
     def fmeta(path):
         base = os.path.basename(path)
+        url = urlmap.get(base) or (
+            f"{folder}/{urllib.parse.quote(base)}" if folder else "")
         return {"name": base, "sha256": sha256(path),
                 "mtime": utc(os.path.getmtime(path)),
-                "web_url": urlmap.get(base, "")}
+                "web_url": office_url(url)}
 
     return {
         "contract": "1.1",
@@ -101,6 +106,25 @@ def build_snapshot():
         "facts": facts,
         "findings": findings,
     }
+
+
+OFFICE_EXT = (".xlsx", ".xlsm", ".xlsb", ".xls", ".docx", ".doc", ".pptx",
+              ".ppt")
+
+
+def office_url(url):
+    """SharePoint serves a plain document path as a DOWNLOAD. web=1 is the
+    flag Microsoft's own Excel-for-the-web links carry; it opens the file in
+    Excel Online instead, which is the whole point of one shared spreadsheet.
+    Folders and links that already open a web app are left alone."""
+    if not url:
+        return url
+    path, _, query = url.partition("?")
+    if not path.lower().endswith(OFFICE_EXT):
+        return url
+    if re.search(r"(^|&)web=1(&|$)", query):
+        return url
+    return f"{path}?{query + '&' if query else ''}web=1"
 
 
 def problems(s):
