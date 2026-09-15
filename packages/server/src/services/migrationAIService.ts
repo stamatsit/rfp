@@ -94,14 +94,14 @@ export async function streamMigrationChat(
 
 const CRYSTAL_PROMPT = `Write the migration manager's morning brief from the fact sheet below. The team wants a scan, not a read: no paragraphs, no sentences longer than a line. Format exactly:
 PROJECTS (one line per active project, from projects_table): Name: done/total pages, N left, N assigned this week.
-PEOPLE (one line per person who has anything assigned or done in the current or previous week, from weekly_by_person): Name: N of N pages this week, N of N last week.
+PEOPLE (one line per person who has anything assigned or done in the current or previous week, from weekly_by_person): Name: N done of N assigned this week, N done of N assigned last week.
 WATCH (0-3 lines, only real problems: a missed deadline, someone over capacity, unmatched matrix initials, a HIGH finding).
 NEXT: one line, one action.
 Plain text, no greeting, no headings other than those four words, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers; skip a line rather than guess.`
 
 const MIGRATOR_PROMPT = (name: string) => `Write ${name}'s morning line from the fact sheet below (weekly_by_person and team_performance). At most three short lines, each on its own line, no paragraphs:
 This week: N pages assigned on Project (N done so far).
-Last week: N of N pages done.
+Last week: N done of N assigned.
 One short nudge or thanks (under ten words).
 No greeting, **bold** the numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; if a number is missing, leave that line out; never invent numbers.`
 
@@ -121,9 +121,12 @@ export async function generateMorningReports(): Promise<{ date: string; written:
   const date = new Date().toISOString().slice(0, 10)
 
   const people: string[] = (facts.team_performance || []).map((p: { person: string }) => p.person)
-  const jobs: Array<{ audience: string; prompt: string }> = [
-    { audience: "crystal", prompt: CRYSTAL_PROMPT },
-    ...people.map((name) => ({ audience: name, prompt: MIGRATOR_PROMPT(name) })),
+  // the model reasons before it writes and reasoning counts against
+  // max_completion_tokens: 600 left the manager brief empty (all 600 spent
+  // thinking), so each job carries its own budget
+  const jobs: Array<{ audience: string; prompt: string; budget: number }> = [
+    { audience: "crystal", prompt: CRYSTAL_PROMPT, budget: 2000 },
+    ...people.map((name) => ({ audience: name, prompt: MIGRATOR_PROMPT(name), budget: 900 })),
   ]
 
   // concurrent: 11 sequential calls would blow the 60s serverless budget
@@ -134,7 +137,7 @@ export async function generateMorningReports(): Promise<{ date: string; written:
         { role: "system", content: `${j.prompt}\n\nFACT SHEET:\n${factSheet}` },
         { role: "user", content: "Write the brief." },
       ],
-      max_completion_tokens: 600,
+      max_completion_tokens: j.budget,
     })
     const body = (completion.choices[0]?.message?.content || "").trim()
     if (!body) throw new Error("empty reply")

@@ -1643,10 +1643,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmFactSheet = JSON.stringify(mmRepFacts)
       const mmRepDate = new Date().toISOString().slice(0, 10)
       const mmPeople: string[] = (mmRepFacts.team_performance || []).map((p: { person: string }) => p.person)
-      const mmCrystalPrompt = "Write the migration manager's morning brief from the fact sheet below. The team wants a scan, not a read: no paragraphs, no sentences longer than a line. Format exactly:\nPROJECTS (one line per active project, from projects_table): Name: done/total pages, N left, N assigned this week.\nPEOPLE (one line per person who has anything assigned or done in the current or previous week, from weekly_by_person): Name: N of N pages this week, N of N last week.\nWATCH (0-3 lines, only real problems: a missed deadline, someone over capacity, unmatched matrix initials, a HIGH finding).\nNEXT: one line, one action.\nPlain text, no greeting, no headings other than those four words, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers; skip a line rather than guess."
+      const mmCrystalPrompt = "Write the migration manager's morning brief from the fact sheet below. The team wants a scan, not a read: no paragraphs, no sentences longer than a line. Format exactly:\nPROJECTS (one line per active project, from projects_table): Name: done/total pages, N left, N assigned this week.\nPEOPLE (one line per person who has anything assigned or done in the current or previous week, from weekly_by_person): Name: N done of N assigned this week, N done of N assigned last week.\nWATCH (0-3 lines, only real problems: a missed deadline, someone over capacity, unmatched matrix initials, a HIGH finding).\nNEXT: one line, one action.\nPlain text, no greeting, no headings other than those four words, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers; skip a line rather than guess."
+      // reasoning counts against max_completion_tokens: 600 left the manager
+      // brief empty (all 600 spent thinking), so each job carries its own budget
       const mmJobs = [
-        { audience: "crystal", prompt: mmCrystalPrompt },
-        ...mmPeople.map((name: string) => ({ audience: name, prompt: `Write ${name}'s morning line from the fact sheet below (weekly_by_person and team_performance). At most three short lines, each on its own line, no paragraphs:\nThis week: N pages assigned on Project (N done so far).\nLast week: N of N pages done.\nOne short nudge or thanks (under ten words).\nNo greeting, **bold** the numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; if a number is missing, leave that line out; never invent numbers.` })),
+        { audience: "crystal", prompt: mmCrystalPrompt, budget: 2000 },
+        ...mmPeople.map((name: string) => ({ audience: name, budget: 900, prompt: `Write ${name}'s morning line from the fact sheet below (weekly_by_person and team_performance). At most three short lines, each on its own line, no paragraphs:\nThis week: N pages assigned on Project (N done so far).\nLast week: N done of N assigned.\nOne short nudge or thanks (under ten words).\nNo greeting, **bold** the numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; if a number is missing, leave that line out; never invent numbers.` })),
       ]
       // concurrent: sequential calls would blow the 60s serverless budget
       const mmResults = await Promise.allSettled(mmJobs.map(async (j) => {
@@ -1656,7 +1658,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             { role: "system", content: `${j.prompt}\n\nFACT SHEET:\n${mmFactSheet}` },
             { role: "user", content: "Write the brief." },
           ],
-          max_completion_tokens: 600,
+          max_completion_tokens: j.budget,
         })
         const body = (c.choices[0]?.message?.content || "").trim()
         if (!body) throw new Error("empty reply")

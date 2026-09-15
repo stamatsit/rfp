@@ -340,6 +340,57 @@ def normalize_role(raw):
     return (raw or "").strip()
 
 
+_RATE_INFERRED = set()
+# Rates from the tracker's legacy 'Projects' sheet: it is not the project
+# list any more, but the Assignments tabs' Pages/Hr VLOOKUP still resolves
+# older job names ('On Health Articles') against it, so it is the second
+# place to look when a row's own rate cell has no cached value.
+LEGACY_RATES = {}
+_GENERIC_WORDS = {"pages", "page", "articles", "article", "strategy", "intros",
+                  "linking", "blogs", "blog", "redos", "qa", "only", "and", "the"}
+
+
+def _norm(name):
+    return " ".join(re.sub(r"[^a-z0-9 ]+", " ", (name or "").lower()).split())
+
+
+def lookup_rate(rates, project, role, sheet=""):
+    """Pages/hour for an assignment row whose own rate cell is empty (files
+    saved by Excel Online carry no cached formula values). Exact project name
+    first; then a project whose name contains this one or vice versa; then
+    one whose name carries every significant word of this one ('On Health
+    Articles' -> 'HM Publishing "On Health"'). Inferred matches are recorded
+    once as a LOW finding so nobody mistakes them for the sheet's own value."""
+    exact = rates.get((project.lower(), role))
+    if exact is not None:
+        return exact
+    legacy = LEGACY_RATES.get((project.lower(), role))
+    if legacy:
+        return legacy
+    want = _norm(project)
+    words = [w for w in want.split() if w not in _GENERIC_WORDS and len(w) > 1]
+    best = None
+    for (pname, prole), rate in rates.items():
+        if prole != role or not rate:
+            continue
+        have = _norm(pname)
+        if want and (want in have or have in want):
+            best = (pname, rate); break
+        if len(words) >= 2 and all(w in have.split() for w in words):
+            best = best or (pname, rate)
+    if not best:
+        return None
+    key = (project, best[0], role)
+    if key not in _RATE_INFERRED:
+        _RATE_INFERRED.add(key)
+        STRUCTURE_FINDINGS.append((
+            "LOW", "assignment-rate-inferred",
+            f"Sheet '{sheet}': assignment '{project}' ({role}) has no rate of its "
+            f"own and is not a project on the project sheets; hours use the "
+            f"{best[1]:g} pages/hour rate of '{best[0]}'."))
+    return best[1]
+
+
 def parse_assignments(wb, sheet, source, rates=None):
     ws = wb[sheet]
     assigns, orphans = [], []
@@ -355,8 +406,11 @@ def parse_assignments(wb, sheet, source, rates=None):
         if role_raw:
             seen_roles.add(role_raw)
         rate = to_num(ws.cell(r, 4).value)
-        if rate is None and rates and project and role in ("Migration", "QA"):
-            rate = rates.get((project.lower(), role))
+        if rate is None and rates and project:
+            # the sheet's own Pages/Hr (auto) looks the project up whatever
+            # the role says, so hours for Strategy/Publish rows derive the
+            # same way (their pages still do not count as migration or QA)
+            rate = lookup_rate(rates, project, "QA" if role == "QA" else "Migration", sheet)
         week_cells = []
         for col, week in weeks:
             pages = to_num(ws.cell(r, col).value)
@@ -1132,6 +1186,12 @@ def main():
             rates[(pr["name"].lower(), "Migration")] = pr["mig_rate"]
         if pr.get("qa_rate"):
             rates[(pr["name"].lower(), "QA")] = pr["qa_rate"]
+    if "Active Projects" in wb.sheetnames and "Projects" in wb.sheetnames:
+        for pr in _parse_project_sheet(wb["Projects"], "legacy"):
+            if pr.get("mig_rate"):
+                LEGACY_RATES.setdefault((pr["name"].lower(), "Migration"), pr["mig_rate"])
+            if pr.get("qa_rate"):
+                LEGACY_RATES.setdefault((pr["name"].lower(), "QA"), pr["qa_rate"])
     a_main, o_main = parse_assignments(wb, "Assignments", "Assignments", rates)
     if "Assignments On Health" in wb.sheetnames:  # optional fork tab
         a_oh, o_oh = parse_assignments(wb, "Assignments On Health",
