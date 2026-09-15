@@ -8,13 +8,14 @@ matrix, prove it, add more: this module globs for *content-matrix*.xlsx
 files in the parent folder and ingests every one it finds."""
 
 import glob
+import re
 import os
 
 import openpyxl
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# 2-programs sheet layout (1-indexed columns; headers on rows 2-3, data 6+)
+# page-lifecycle sheet layout (1-indexed columns; headers on rows 2-3, data from row 4 on, detected by content)
 COL = {
     "url": 1, "assigned_to": 2, "page_id": 3, "title": 4, "new_url": 5,
     "disp_delete": 6, "disp_reuse": 7, "disp_write_new": 8, "disp_revise": 9,
@@ -38,6 +39,19 @@ FUNNEL = [
     ("Delivered to client", "delivered"),
     ("Client final review", "client_final"),
 ]
+
+
+def _iso(v):
+    """'2026-09-03 00:00:00' / datetime -> '2026-09-03'; free text -> None."""
+    s = str(v or "").strip()[:10]
+    return s if re.match(r"^\d{4}-\d{2}-\d{2}$", s) else None
+
+
+def _is_page(url, title, new_url):
+    vals = [str(v).strip() for v in (url, title, new_url) if v]
+    if not vals:
+        return False
+    return not all(v.replace(".", "").replace(",", "").isdigit() for v in vals)
 
 
 def _val(ws, r, key):
@@ -73,8 +87,13 @@ def parse_matrix(path):
         if ws.max_column < 60:  # not a page-lifecycle sheet
             continue
         out["sections"].append(ws.title)
-        for r in range(6, ws.max_row + 1):
-            if not _val(ws, r, "url"):
+        # A page row has a legacy URL, a title or a new URL (write-new pages
+        # have no legacy URL). Crystal's live file starts data on row 5;
+        # the counts row (row 4) is all numbers and is skipped by content,
+        # not by position.
+        for r in range(4, ws.max_row + 1):
+            if not _is_page(_val(ws, r, "url"), _val(ws, r, "title"),
+                            _val(ws, r, "new_url")):
                 continue
             page = {k: _val(ws, r, k) for k in COL}
             disp = next((lab for lab, key in zip(DISPOSITIONS, DISP_COLS)
@@ -92,6 +111,10 @@ def parse_matrix(path):
                 "stage": stage,
                 "draft_date": (page["draft_delivered"] or "")[:10] or None,
                 "delivered_date": (page["delivered"] or "")[:10] or None,
+                # migration / QA completion dates (Round 1) drive the weekly
+                # done-per-person view; initials in migrator / qa say who
+                "migrated_date": _iso(page["mig_r1_done"]),
+                "qa_date": _iso(page["qa_r1_done"]),
                 "rework": bool(page["mig_r2_done"] or page["mig_r3_done"]),
                 **{key: bool(page[key]) for _, key in FUNNEL},
             })
@@ -122,7 +145,8 @@ def ingest(db):
             reviewer TEXT, migrator TEXT, qa TEXT, stage TEXT,
             draft_delivered INT, writing_done INT, migrated INT,
             qa_done INT, delivered INT, client_final INT,
-            draft_date TEXT, delivered_date TEXT, rework INT);
+            draft_date TEXT, delivered_date TEXT, rework INT,
+            migrated_date TEXT, qa_date TEXT);
     """)
     summaries = []
     for path in find_matrices():
@@ -130,13 +154,13 @@ def ingest(db):
         for p in m["pages"]:
             db.execute(
                 "INSERT INTO client_pages VALUES "
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (m["name"], p["section"], p["url"], p["page_id"], p["title"],
                  p["disposition"], p["writer"], p["reviewer"], p["migrator"],
                  p["qa"], p["stage"], p["draft_delivered"], p["r1_updates"],
                  p["mig_r1_done"], p["qa_r1_done"], p["delivered"],
                  p["client_final"], p["draft_date"], p["delivered_date"],
-                 p["rework"]))
+                 p["rework"], p["migrated_date"], p["qa_date"]))
         summaries.append(summarize(m))
     db.commit()
     return summaries

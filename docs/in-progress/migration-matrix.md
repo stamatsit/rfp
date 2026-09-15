@@ -33,3 +33,28 @@ this doc tracks only what is done in THIS repo.
 - Apply 005 to rfp-prod (whichdb first), vercel env add MM_INGEST_TOKEN.
 - Phase 2: client module (pages/MigrationMatrix.tsx + components/migration-matrix/).
 - Phase 3: chat + CHART_DATA graphics. Phase 4: morning cron. Phase 5: Graph.
+
+## Phase 1 (2026-09-15): pages first, weekly view, contract 1.1
+Team review (Laura, Crystal, Sandra) asked for a projects table, pages not
+hours, and a Monday-morning weekly view. Shipped:
+- Contract 1.1 (additive): client rows carry assigned / left / min_per_page /
+  hours_to_finish / rate_set / priority / dates; data.weekly holds per person,
+  per week, per project pages assigned (tracker) vs done. Done follows
+  Crystal's rule: client matrix Completion (Date) cells where a matrix exists
+  (attributed to people by initials, contract/initials-map.json overrides;
+  unresolved initials surface on the Weekly tab and as a MEDIUM finding),
+  else the tracker's Pages Completed.
+- client_matrix.py detects page rows by content (row 4 counts row skipped,
+  data from row 5, write-new pages without a legacy URL counted): Morehead
+  went 152/81 -> 157/84, matching Crystal's own dashboard counts.
+- chat_server.facts_blob adds projects_table, weekly_by_person and an
+  up-to-date team_performance from present_data.json (make_present writes it).
+- Client: ProjectsTable (sort, filter chips, text filter, totals row),
+  Weekly tab (week picker, per-person assigned vs done with per-project
+  expand, capacity, unmatched initials), Team and Person views pages first
+  (hours muted), project page pages-first stats + by-person table.
+- Briefs: manager brief is PROJECTS / PEOPLE / WATCH / NEXT one-liners;
+  migrator brief is three lines. Both twins (service + api/index.ts).
+Not done: Laura's tracker restructure (single sheet + status column) lands
+later; HM projects have no matrix in the app, so their weekly "done" is the
+tracker's Pages Completed until Crystal's HM sheets arrive.

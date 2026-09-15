@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
   Activity,
   Archive,
   ArchiveRestore,
   ArrowLeft,
+  CalendarDays,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ExternalLink,
   FileSpreadsheet,
@@ -23,6 +26,7 @@ import {
   type MmLatest,
   type MmSnapshotData,
   type MmTeamMember,
+  type MmWeekly,
 } from "@/lib/api"
 import { MigrationAIChat } from "@/components/migration-matrix/MigrationAIChat"
 
@@ -33,7 +37,7 @@ const TONE_RING: Record<string, [string, string]> = {
   warn: ["#FBBF24", "#D97706"],
   crit: ["#F87171", "#DC2626"],
 }
-const fmtDate = (d: string | null) => {
+const fmtDate = (d: string | null | undefined) => {
   if (!d) return ""
   const dt = new Date(d + (d.length === 10 ? "T12:00:00" : ""))
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: dt.getFullYear() === new Date().getFullYear() ? undefined : "numeric" })
@@ -47,10 +51,29 @@ const TONE_TEXT: Record<string, string> = {
 
 const TABS = [
   { id: "", label: "Overview", icon: LayoutGrid },
+  { id: "weekly", label: "Weekly", icon: CalendarDays },
   { id: "team", label: "Team", icon: Users },
   { id: "reports", label: "Morning briefs", icon: Sparkles },
   { id: "sources", label: "Spreadsheets", icon: FileSpreadsheet },
 ] as const
+
+// ─── pages-first helpers (contract 1.1; older snapshots fall back) ───────────
+
+type Group = "active" | "planned" | "archived"
+type Row = MmClient & { archived: boolean }
+const GROUP_ORDER: Record<Group, number> = { active: 0, planned: 1, archived: 2 }
+const GROUP_PILL: Record<Group, string> = {
+  active: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  planned: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300",
+  archived: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
+}
+const groupOf = (c: Row): Group => (c.archived ? "archived" : c.list === "planned" ? "planned" : "active")
+const leftOf = (c: MmClient) => c.left ?? Math.max(c.total - c.done, 0)
+const assignedOf = (c: MmClient) => c.assigned ?? Math.max(c.total - c.remaining, 0)
+const isoLbl = (iso: string) => { const [, m, d] = iso.split("-"); return `${parseInt(m || "0", 10)}/${parseInt(d || "0", 10)}` }
+const n = (v: number) => v.toLocaleString()
+const pctOf = (done: number, assigned: number) => (assigned > 0 ? `${Math.round((100 * done) / assigned)}%` : done > 0 ? `+${n(done)}` : "")
+const NUM = "px-3 py-2.5 text-right tabular-nums"
 
 /** Small external link pill used for "open in Excel" everywhere. */
 function OpenLink({ href, children, primary = false }: { href?: string; children: React.ReactNode; primary?: boolean }) {
@@ -220,12 +243,27 @@ export function MigrationMatrix() {
     for (const a of latest?.archive || []) m.set(a.name.toLowerCase(), a.archived)
     return m
   }, [latest])
-  const clients = useMemo(() =>
+  const clients: Row[] = useMemo(() =>
     (data?.clients || []).map((c) => ({ ...c, archived: archiveMap.get(c.name.toLowerCase()) || c.list === "completed" })),
     [data, archiveMap])
+  const weekly = data?.weekly
+  const weekIdx = weekly ? weekly.weeks.indexOf(weekly.current) : -1
+  /** pages assigned / done this tracker week, per project, summed over people */
+  const thisWeekByProject = useMemo(() => {
+    const m = new Map<string, { assigned: number; done: number }>()
+    if (!weekly || weekIdx < 0) return m
+    for (const p of weekly.people) {
+      const w = p.weeks[weekIdx]
+      if (!w) continue
+      for (const pr of w.projects) {
+        const s = m.get(pr.project) || { assigned: 0, done: 0 }
+        s.assigned += pr.assigned; s.done += pr.done
+        m.set(pr.project, s)
+      }
+    }
+    return m
+  }, [weekly, weekIdx])
   const active = clients.filter((c) => !c.archived && c.list !== "planned")
-  const planned = clients.filter((c) => !c.archived && c.list === "planned")
-  const archived = clients.filter((c) => c.archived)
   const weekNow = data?.week_lbl || ""
 
   const ageSec = latest?.seconds_old != null ? latest.seconds_old + Math.round((now - (loading ? now : now)) / 1000) : null
@@ -237,7 +275,7 @@ export function MigrationMatrix() {
     setSearchParams(next)
   }
 
-  const toggleArchive = async (c: MmClient & { archived: boolean }) => {
+  const toggleArchive = async (c: Row) => {
     try {
       const r = await migrationApi.setArchived(c.name, !c.archived)
       toast.success(r.archived ? `${c.name} archived` : `${c.name} restored`)
@@ -247,7 +285,7 @@ export function MigrationMatrix() {
     }
   }
 
-  const chatContext = selPerson ? `person:${selPerson}` : selClient ? `client:${selClient}` : tab === "team" ? "team" : "overview"
+  const chatContext = selPerson ? `person:${selPerson}` : selClient ? `client:${selClient}` : tab === "team" ? "team" : tab === "weekly" ? "weekly" : "overview"
 
   // ── shells ──
   const header = (
@@ -347,7 +385,7 @@ export function MigrationMatrix() {
       <Sparkles size={22} className="mx-auto text-slate-300 mb-3" />
       <p className="text-slate-700 dark:text-slate-200 font-medium">Waiting for the first sync</p>
       <p className="text-[13px] text-slate-400 mt-1 max-w-md mx-auto">
-        No snapshot has arrived yet. Once the agent on Eric's Mac pushes one, everything appears here automatically.
+        No snapshot has arrived yet. Press Sync on the Spreadsheets tab and everything appears here.
       </p>
     </Card>
   )
@@ -355,13 +393,18 @@ export function MigrationMatrix() {
   // ── person view ──
   if (selPerson) {
     const t = data.team.find((m) => m.name === selPerson)
-    return shell(!t ? <Card>Unknown person: {selPerson}</Card> : <PersonView t={t} back={() => setView({ p: null, tab: "team" })} openProject={(name) => setView({ p: null, c: name })} />)
+    return shell(!t ? <Card>Unknown person: {selPerson}</Card> : <PersonView t={t} weekly={weekly} back={() => setView({ p: null, tab: "team" })} openProject={(name) => setView({ p: null, tab: null, c: name })} />)
   }
 
   // ── client view ──
   if (selClient) {
     const c = clients.find((x) => x.name === selClient)
     if (!c) return shell(<Card>Unknown project: {selClient}</Card>)
+    const g = groupOf(c)
+    const left = leftOf(c)
+    const assigned = assignedOf(c)
+    const byPerson = personRowsForProject(weekly, c.name)
+    const dl = c.days_left
     return shell(
       <div className="space-y-4">
         <button onClick={() => setView({ c: null })} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
@@ -373,17 +416,18 @@ export function MigrationMatrix() {
             <div className="min-w-0 flex-1">
               <h2 className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white truncate">{c.name}</h2>
               <p className={`text-[13.5px] font-semibold ${TONE_TEXT[c.tone]}`}>{c.verdict}</p>
-              <p className="text-[12.5px] text-slate-500 mt-0.5">
-                {c.done.toLocaleString()} of {c.total.toLocaleString()} pages done ({c.done_source}) · {c.remaining.toLocaleString()} to assign
-                {c.deadline && <> · due {fmtDate(c.deadline)}</>}
-                {c.projected && <> · projected {fmtDate(c.projected)}</>}
+              <p className="text-[12.5px] text-slate-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${GROUP_PILL[g]}`}>{g}</span>
+                {c.status && <span>{c.status}</span>}
+                {c.deadline && <span>· due {fmtDate(c.deadline)}</span>}
+                {c.projected && <span>· projected {fmtDate(c.projected)}</span>}
               </p>
               {c.crew.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mt-2.5">
                   {c.crew.map(({ name: person, hours: hrs }) => (
                     <button key={person} onClick={() => setView({ c: null, p: person })}
                       className="text-[12px] font-medium bg-slate-50 dark:bg-slate-800 border border-black/[0.06] dark:border-white/[0.08] rounded-full px-3 py-1 hover:border-[#C41230]/50 hover:text-[#C41230] dark:text-slate-200">
-                      {person} <span className="text-slate-400">{hrs}h</span>
+                      {person} <span className="text-slate-400">{hrs}h this week</span>
                     </button>
                   ))}
                 </div>
@@ -398,16 +442,56 @@ export function MigrationMatrix() {
             </div>
           </div>
         </Card>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[[String(c.actual_pace), "pages/wk actual"], [c.required_pace != null ? String(c.required_pace) : "n/a", "pages/wk needed"],
-            [c.actual_rate != null ? String(c.actual_rate) : "n/a", `pages/hr · plan ${c.plan_rate ?? "n/a"}`],
-            [c.days_left != null ? String(Math.abs(c.days_left)) : "n/a", `day${Math.abs(c.days_left ?? 0) === 1 ? "" : "s"} ${(c.days_left ?? 0) < 0 ? "past deadline" : "to deadline"}`]].map(([v, k]) => (
-            <Card key={k} className="text-center py-4">
-              <p className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">{v}</p>
-              <p className="text-[11px] text-slate-400 mt-1">{k}</p>
-            </Card>
-          ))}
-        </div>
+        <Card>
+          <Label>Pages · done counted from the {c.done_source}</Label>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
+            {([[n(c.total), "total"], [n(assigned), "assigned"], [n(c.done), "done"], [n(left), "left to build"], [n(c.remaining), "unassigned"]] as Array<[string, string]>).map(([v, k]) => (
+              <div key={k}>
+                <p className={`text-2xl font-bold tabular-nums ${k === "left to build" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{k}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[12px] text-slate-500 mt-4 text-center">
+            {c.min_per_page != null ? `${c.min_per_page} min per page` : "no minutes-per-page on the tracker"}
+            {" · "}{c.hours_to_finish != null ? `about ${n(c.hours_to_finish)} hours to finish` : "hours unknown without a rate"}
+            {" · "}pace {c.actual_pace}/wk{c.required_pace != null ? `, need ${c.required_pace}/wk` : ""}
+            {dl != null && <>{" · "}{Math.abs(dl)} day{Math.abs(dl) === 1 ? "" : "s"} {dl < 0 ? "past deadline" : "to deadline"}</>}
+          </p>
+        </Card>
+        {byPerson.length > 0 && weekly && (
+          <Card>
+            <Label>By person · week of {weekly.labels[weekIdx] ?? weekNow}{weekIdx > 0 ? ` vs week of ${weekly.labels[weekIdx - 1]}` : ""}</Label>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[13px] min-w-[560px]">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400">
+                    <th className="py-2 font-medium">Person</th>
+                    <th className="py-2 px-3 font-medium text-right" colSpan={2}>Last week</th>
+                    <th className="py-2 px-3 font-medium text-right" colSpan={2}>This week</th>
+                    <th className="py-2 px-3 font-medium text-right" colSpan={3}>All weeks</th>
+                  </tr>
+                  <tr className="text-[10.5px] text-slate-400">
+                    <th />
+                    <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th>
+                    <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th>
+                    <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th><th className="pb-1 px-3 text-right font-normal">left</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {byPerson.map((r) => (
+                    <tr key={r.name} className="border-t border-black/[0.04] dark:border-white/[0.05]">
+                      <td className="py-2"><button onClick={() => setView({ c: null, p: r.name })} className="text-slate-900 dark:text-white hover:text-[#C41230] font-medium text-left">{r.name}</button></td>
+                      <td className="py-2 px-3 text-right tabular-nums text-slate-500">{n(r.lw.a)}</td><td className="py-2 px-3 text-right tabular-nums text-slate-500">{n(r.lw.d)}</td>
+                      <td className="py-2 px-3 text-right tabular-nums">{n(r.tw.a)}</td><td className="py-2 px-3 text-right tabular-nums font-semibold">{n(r.tw.d)}</td>
+                      <td className="py-2 px-3 text-right tabular-nums">{n(r.all.a)}</td><td className="py-2 px-3 text-right tabular-nums font-semibold">{n(r.all.d)}</td><td className="py-2 px-3 text-right tabular-nums">{n(Math.max(r.all.a - r.all.d, 0))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        )}
         <Card>
           <Label>Weekly throughput · % of that week's assignment completed</Label>
           <ThroughputChart series={c.series} weekNow={weekNow} />
@@ -417,13 +501,13 @@ export function MigrationMatrix() {
             <Label>Client content matrix · {c.matrix.total} pages{Math.abs(c.matrix.total - c.total) > c.total * 0.05 ? " · page counts disagree with the tracker: QA check" : ""}</Label>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
-                {c.matrix.funnel.map(([stage, n]) => (
+                {c.matrix.funnel.map(([stage, k]) => (
                   <div key={stage} className="flex items-center gap-3 text-[12.5px]">
                     <span className="w-40 shrink-0 text-slate-500 truncate">{stage}</span>
                     <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${Math.round((100 * n) / Math.max(c.matrix!.total, 1))}%`, background: GRADIENT }} />
+                      <div className="h-full rounded-full" style={{ width: `${Math.round((100 * k) / Math.max(c.matrix!.total, 1))}%`, background: GRADIENT }} />
                     </div>
-                    <span className="w-16 text-right tabular-nums text-slate-700 dark:text-slate-200">{n}</span>
+                    <span className="w-16 text-right tabular-nums text-slate-700 dark:text-slate-200">{k}</span>
                   </div>
                 ))}
               </div>
@@ -455,7 +539,10 @@ export function MigrationMatrix() {
   if (tab === "reports") return shell(<ReportsView back={() => setView({ tab: null })} />)
 
   // ── team view ──
-  if (tab === "team") return shell(<TeamView team={data.team} back={() => setView({ tab: null })} openPerson={(n) => setView({ tab: null, p: n })} />)
+  if (tab === "team") return shell(<TeamView team={data.team} back={() => setView({ tab: null })} openPerson={(name) => setView({ tab: null, p: name })} />)
+
+  // ── weekly view ──
+  if (tab === "weekly") return shell(<WeeklyView weekly={weekly} openPerson={(name) => setView({ tab: null, p: name })} openProject={(name) => setView({ tab: null, c: name })} />)
 
   // ── overview ──
   const findings = snap.findings || []
@@ -467,7 +554,7 @@ export function MigrationMatrix() {
         </div>
       )}
       <Card>
-        <Label>This week · all active projects</Label>
+        <Label>This week · team capacity in hours</Label>
         <div className="grid grid-cols-3 gap-4 text-center">
           <div><p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{data.overview.avail}</p><p className="text-[11px] text-slate-400 mt-0.5">hours available</p></div>
           <div><p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{data.overview.assigned}</p><p className="text-[11px] text-slate-400 mt-0.5">hours assigned</p></div>
@@ -478,34 +565,9 @@ export function MigrationMatrix() {
         </div>
       </Card>
       <div>
-        <Label>Projects · click to drill in</Label>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 stagger-children">
-          {active.map((c) => tile(c))}
-        </div>
+        <Label>Projects · pages first · click a heading to sort, a row to drill in</Label>
+        <ProjectsTable rows={clients} weekOf={thisWeekByProject} open={(name) => setView({ c: name })} />
       </div>
-      {planned.length > 0 && (
-        <div>
-          <Label>Planned · on the tracker's Planned Projects sheet, not started</Label>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {planned.map((c) => tile(c))}
-          </div>
-        </div>
-      )}
-      {archived.length > 0 && (
-        <details className="text-[13px] text-slate-500">
-          <summary className="cursor-pointer font-medium">Archived ({archived.length}): suppressed from the overview</summary>
-          <div className="mt-2 space-y-1.5">
-            {archived.map((c) => (
-              <div key={c.name} className="flex items-center gap-3">
-                <span>{c.name}</span>
-                {c.list === "completed"
-                  ? <span className="text-[12px] text-slate-400">on the Completed Projects sheet</span>
-                  : <button onClick={() => toggleArchive(c)} className="text-blue-600 dark:text-blue-400 hover:underline text-[12px]">restore</button>}
-              </div>
-            ))}
-          </div>
-        </details>
-      )}
       {findings.filter((f) => f.severity === "high").length > 0 && (
         <Card>
           <Label>Data quality · from the validator</Label>
@@ -518,31 +580,27 @@ export function MigrationMatrix() {
       )}
     </div>
   )
-
-  function tile(c: MmClient & { archived: boolean }) {
-            const mism = c.matrix && Math.abs(c.matrix.total - c.total) > c.total * 0.05
-            return (
-              <button key={c.name} onClick={() => setView({ c: c.name })}
-                className="flex items-center gap-4 bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl px-5 py-4 text-left hover:shadow-md hover:-translate-y-px transition">
-                <MiniRing pct={c.pct} tone={c.tone} />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-[14.5px] text-slate-900 dark:text-white truncate">{c.name}</span>
-                  <span className="block text-[12.5px] text-slate-500 truncate">
-                    {c.verdict === "fully assigned"
-                      ? <><span className="text-emerald-600 dark:text-emerald-400 font-medium">fully assigned</span> · {c.done.toLocaleString()} of {c.total.toLocaleString()} done</>
-                      : c.tone !== "ok"
-                        ? <><span className={`font-medium ${TONE_TEXT[c.tone]}`}>{c.verdict}</span> · {c.remaining.toLocaleString()} to assign</>
-                        : <>{c.deadline ? `due ${fmtDate(c.deadline)} · ` : ""}{c.remaining.toLocaleString()} to assign</>}
-                    {mism && <span title={`matrix has ${c.matrix!.total} pages but tracker says ${c.total}: QA check`} className="text-amber-500"> ⚠</span>}
-                  </span>
-                </span>
-                <ChevronRight size={16} className="text-slate-300 shrink-0" />
-              </button>
-            )
-  }
 }
 
-// ─── team + person subviews ──────────────────────────────────────────────────
+/** Per-person rows for one project from the weekly block: last week, this week, all weeks. */
+function personRowsForProject(weekly: MmWeekly | undefined, project: string) {
+  if (!weekly) return [] as Array<{ name: string; lw: { a: number; d: number }; tw: { a: number; d: number }; all: { a: number; d: number } }>
+  const cur = weekly.weeks.indexOf(weekly.current)
+  const out: Array<{ name: string; lw: { a: number; d: number }; tw: { a: number; d: number }; all: { a: number; d: number } }> = []
+  for (const p of weekly.people) {
+    const all = { a: 0, d: 0 }, tw = { a: 0, d: 0 }, lw = { a: 0, d: 0 }
+    p.weeks.forEach((w, i) => {
+      for (const pr of w.projects) {
+        if (pr.project !== project) continue
+        all.a += pr.assigned; all.d += pr.done
+        if (i === cur) { tw.a += pr.assigned; tw.d += pr.done }
+        if (i === cur - 1) { lw.a += pr.assigned; lw.d += pr.done }
+      }
+    })
+    if (all.a || all.d) out.push({ name: p.name, lw, tw, all })
+  }
+  return out.sort((x, y) => (y.tw.a + y.tw.d) - (x.tw.a + x.tw.d) || (y.all.d - x.all.d) || x.name.localeCompare(y.name))
+}
 
 // ─── Sync from OneDrive ──────────────────────────────────────────────────────
 // The person clicking is signed in and has the spreadsheets in their synced
@@ -741,12 +799,274 @@ function ReportsView({ back }: { back: () => void }) {
   )
 }
 
+// ─── projects table (overview) ───────────────────────────────────────────────
+
+type SortKey = "name" | "group" | "total" | "assigned" | "done" | "left" | "week" | "hours" | "deadline"
+const COLS: Array<{ key: SortKey; label: string; num?: boolean; title: string }> = [
+  { key: "name", label: "Project", title: "Sort by name" },
+  { key: "group", label: "Status", title: "active, planned or archived, then the tracker's own status" },
+  { key: "total", label: "Total", num: true, title: "Total pages on the tracker" },
+  { key: "assigned", label: "Assigned", num: true, title: "Pages assigned to people so far" },
+  { key: "done", label: "Done", num: true, title: "Pages built: client matrix where one exists, else the tracker" },
+  { key: "left", label: "Left", num: true, title: "Total minus done" },
+  { key: "week", label: "This week", num: true, title: "Pages assigned in the current tracker week" },
+  { key: "hours", label: "Hours left", num: true, title: "Left pages at the project's minutes per page, plus QA" },
+  { key: "deadline", label: "Due", title: "Client deadline" },
+]
+const TEXT_SORT: SortKey[] = ["name", "group", "deadline"]
+
+function ProjectsTable({ rows, weekOf, open }: { rows: Row[]; weekOf: Map<string, { assigned: number; done: number }>; open: (name: string) => void }) {
+  const [filter, setFilter] = useState<"all" | Group>("all")
+  const [q, setQ] = useState("")
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "group", dir: 1 })
+  const counts: Record<"all" | Group, number> = {
+    all: rows.length,
+    active: rows.filter((r) => groupOf(r) === "active").length,
+    planned: rows.filter((r) => groupOf(r) === "planned").length,
+    archived: rows.filter((r) => groupOf(r) === "archived").length,
+  }
+  const val = (c: Row, k: SortKey): number | string => {
+    switch (k) {
+      case "name": return c.name.toLowerCase()
+      case "group": return GROUP_ORDER[groupOf(c)]
+      case "total": return c.total
+      case "assigned": return assignedOf(c)
+      case "done": return c.done
+      case "left": return leftOf(c)
+      case "week": return weekOf.get(c.name)?.assigned ?? 0
+      case "hours": return c.hours_to_finish ?? -1
+      case "deadline": return c.deadline || "9999-12-31"
+    }
+  }
+  const visible = useMemo(() => {
+    const ql = q.trim().toLowerCase()
+    const f = rows.filter((c) => (filter === "all" || groupOf(c) === filter)
+      && (!ql || c.name.toLowerCase().includes(ql) || (c.status || "").toLowerCase().includes(ql) || groupOf(c).includes(ql)))
+    const tie = (a: Row, b: Row) => GROUP_ORDER[groupOf(a)] - GROUP_ORDER[groupOf(b)]
+      || (a.deadline || "9999-12-31").localeCompare(b.deadline || "9999-12-31") || a.name.localeCompare(b.name)
+    return [...f].sort((a, b) => {
+      const av = val(a, sort.key), bv = val(b, sort.key)
+      const cmp = typeof av === "number" && typeof bv === "number" ? av - bv : String(av).localeCompare(String(bv))
+      return cmp * sort.dir || tie(a, b)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows, filter, q, sort, weekOf])
+  const clickSort = (k: SortKey) => setSort((s) => s.key === k ? { key: k, dir: (s.dir * -1) as 1 | -1 } : { key: k, dir: TEXT_SORT.includes(k) ? 1 : -1 })
+  const tot = visible.reduce((acc, c) => {
+    acc.total += c.total; acc.assigned += assignedOf(c); acc.done += c.done; acc.left += leftOf(c)
+    acc.week += weekOf.get(c.name)?.assigned ?? 0
+    if (c.hours_to_finish != null) acc.hours += c.hours_to_finish; else acc.norate += 1
+    return acc
+  }, { total: 0, assigned: 0, done: 0, left: 0, week: 0, hours: 0, norate: 0 })
+  const chip = (g: "all" | Group) => (
+    <button key={g} onClick={() => setFilter(g)}
+      className={`h-8 px-3 text-[12.5px] font-medium rounded-xl border capitalize ${filter === g
+        ? "border-[#C41230] text-[#C41230] dark:text-rose-300 bg-white dark:bg-slate-900"
+        : "border-black/[0.06] dark:border-white/[0.08] text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800"}`}>
+      {g} <span className="text-slate-400 font-normal tabular-nums">{counts[g]}</span>
+    </button>
+  )
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {(["all", "active", "planned", "archived"] as const).map(chip)}
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="filter projects or statuses"
+          className="ml-auto h-8 px-3 text-[13px] rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-900 dark:text-white outline-none focus:border-[#C41230]/60 w-56" />
+      </div>
+      <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl overflow-x-auto">
+        <table className="w-full text-[13px] min-w-[880px]">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
+              {COLS.map((col) => (
+                <th key={col.key} onClick={() => clickSort(col.key)} title={col.title}
+                  className={`px-3 py-3 font-medium select-none cursor-pointer whitespace-nowrap hover:text-slate-700 dark:hover:text-slate-200 ${col.num ? "text-right" : "text-left"} ${sort.key === col.key ? "text-[#C41230] dark:text-rose-300" : ""}`}>
+                  {col.label}{sort.key === col.key ? (sort.dir === 1 ? " ↑" : " ↓") : ""}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((c) => {
+              const g = groupOf(c)
+              const tw = weekOf.get(c.name)
+              const overdue = c.days_left != null && c.days_left < 0 && g === "active"
+              return (
+                <tr key={c.name} onClick={() => open(c.name)}
+                  className="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer">
+                  <td className="px-3 py-2.5 min-w-[220px]">
+                    <span className="block font-medium text-slate-900 dark:text-white">{c.name}</span>
+                    <span className={`block text-[11.5px] ${TONE_TEXT[c.tone]}`}>{c.verdict}</span>
+                  </td>
+                  <td className="px-3 py-2.5 whitespace-nowrap">
+                    <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${GROUP_PILL[g]}`}>{g}</span>
+                    {c.status && <span className="block text-[11.5px] text-slate-400 mt-0.5">{c.status}</span>}
+                  </td>
+                  <td className={NUM}>{n(c.total)}</td>
+                  <td className={NUM}>{n(assignedOf(c))}</td>
+                  <td className={`${NUM} font-semibold`}>{n(c.done)} <span className="text-slate-400 font-normal text-[11px]">{c.pct}%</span></td>
+                  <td className={`${NUM} ${leftOf(c) > 0 && g !== "archived" ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOf(c))}</td>
+                  <td className={NUM}>{tw?.assigned ? n(tw.assigned) : <span className="text-slate-300 dark:text-slate-600">0</span>}</td>
+                  <td className={NUM}>{c.hours_to_finish != null ? n(c.hours_to_finish) : <span title="no minutes-per-page on the tracker" className="text-amber-600 dark:text-amber-400 text-[11.5px]">no rate</span>}</td>
+                  <td className={`px-3 py-2.5 whitespace-nowrap ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-500"}`}>{c.deadline ? fmtDate(c.deadline) : <span className="text-slate-300 dark:text-slate-600">none</span>}</td>
+                </tr>
+              )
+            })}
+            {visible.length === 0 && <tr><td colSpan={COLS.length} className="px-3 py-6 text-center text-slate-400">No projects match.</td></tr>}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-black/[0.08] dark:border-white/[0.1] font-semibold text-slate-900 dark:text-white">
+              <td className="px-3 py-2.5">{visible.length} project{visible.length === 1 ? "" : "s"}</td>
+              <td />
+              <td className={NUM}>{n(tot.total)}</td>
+              <td className={NUM}>{n(tot.assigned)}</td>
+              <td className={NUM}>{n(tot.done)}</td>
+              <td className={`${NUM} text-[#C41230] dark:text-rose-300`}>{n(tot.left)}</td>
+              <td className={NUM}>{n(tot.week)}</td>
+              <td className={NUM}>{n(tot.hours)}{tot.norate > 0 && <span className="block text-[10.5px] font-normal text-amber-600 dark:text-amber-400">+{tot.norate} without a rate</span>}</td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ─── weekly view ─────────────────────────────────────────────────────────────
+
+function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; openPerson: (n: string) => void; openProject: (n: string) => void }) {
+  const [idx, setIdx] = useState(() => (weekly ? Math.max(weekly.weeks.indexOf(weekly.current), 0) : 0))
+  const [expanded, setExpanded] = useState<string | null>(null)
+  if (!weekly || weekly.weeks.length === 0) return (
+    <Card className="text-center py-10 border-dashed">
+      <p className="text-slate-700 dark:text-slate-200 font-medium">No weekly data yet</p>
+      <p className="text-[13px] text-slate-400 mt-1">Press Sync to rebuild the dashboard; the weekly view arrives with the next snapshot.</p>
+    </Card>
+  )
+  const last = weekly.weeks.length - 1
+  const lbl = weekly.labels[idx] ?? ""
+  const prevLbl = idx > 0 ? weekly.labels[idx - 1] ?? null : null
+  const isCurrent = weekly.weeks[idx] === weekly.current
+  const behind = !!weekly.calendar_week && weekly.current !== weekly.calendar_week
+  const empty = { week: "", assigned: 0, hours: 0, done: 0, projects: [] as MmWeekly["people"][number]["weeks"][number]["projects"] }
+  const rows = weekly.people
+    .map((p) => ({ p, w: p.weeks[idx] ?? empty, lw: idx > 0 ? p.weeks[idx - 1] : undefined, avail: p.avail[idx] ?? 0 }))
+    .sort((a, b) => (b.w.assigned + b.w.done) - (a.w.assigned + a.w.done)
+      || ((b.lw?.assigned ?? 0) + (b.lw?.done ?? 0)) - ((a.lw?.assigned ?? 0) + (a.lw?.done ?? 0))
+      || a.p.name.localeCompare(b.p.name))
+  const tot = rows.reduce((acc, r) => ({
+    a: acc.a + r.w.assigned, d: acc.d + r.w.done, la: acc.la + (r.lw?.assigned ?? 0), ld: acc.ld + (r.lw?.done ?? 0),
+    h: acc.h + r.w.hours, av: acc.av + r.avail,
+  }), { a: 0, d: 0, la: 0, ld: 0, h: 0, av: 0 })
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="inline-flex items-center rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-900">
+          <button onClick={() => setIdx(Math.max(idx - 1, 0))} disabled={idx === 0} aria-label="previous week"
+            className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"><ChevronLeft size={16} /></button>
+          <span className="px-2 text-[13.5px] font-semibold text-slate-900 dark:text-white whitespace-nowrap">Week of {lbl}{isCurrent ? " · now" : ""}</span>
+          <button onClick={() => setIdx(Math.min(idx + 1, last))} disabled={idx === last} aria-label="next week"
+            className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"><ChevronRight size={16} /></button>
+        </div>
+        <p className="text-[12.5px] text-slate-500 max-w-2xl">
+          Assigned is what Laura's tracker planned for the week. Done is what the client matrix records as built (projects without a matrix use the tracker's Pages Completed).
+          {behind && isCurrent ? ` This is the tracker's latest staffed week; today is the week of ${isoLbl(weekly.calendar_week!)}.` : ""}
+        </p>
+      </div>
+      <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl overflow-x-auto">
+        <table className="w-full text-[13px] min-w-[760px]">
+          <thead>
+            <tr className="text-[11px] uppercase tracking-[0.05em] text-slate-400">
+              <th className="px-5 pt-3 pb-1 font-medium text-left">Person</th>
+              <th className="px-3 pt-3 pb-1 font-medium text-right" colSpan={2}>{prevLbl ? `Week of ${prevLbl}` : "Previous week"}</th>
+              <th className="px-3 pt-3 pb-1 font-medium text-right text-slate-700 dark:text-slate-200" colSpan={3}>Week of {lbl}</th>
+              <th className="px-5 pt-3 pb-1 font-medium text-right">Hours</th>
+            </tr>
+            <tr className="text-[10.5px] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <th />
+              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">done</th>
+              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">done</th><th className="px-3 pb-2 text-right font-normal">of assigned</th>
+              <th className="px-5 pb-2 text-right font-normal">planned / available</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ p, w, lw, avail }) => {
+              const quiet = !w.assigned && !w.done && !(lw?.assigned) && !(lw?.done)
+              const isOpen = expanded === p.name
+              const over = avail > 0 && w.hours > avail + 0.1
+              return (
+                <Fragment key={p.name}>
+                  <tr onClick={() => setExpanded(isOpen ? null : p.name)}
+                    className={`border-b border-black/[0.04] dark:border-white/[0.05] hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer ${quiet ? "text-slate-400" : ""}`}>
+                    <td className="px-5 py-2.5 font-medium">
+                      <span className="inline-flex items-center gap-1.5">
+                        {w.projects.length ? (isOpen ? <ChevronDown size={13} className="text-slate-400" /> : <ChevronRight size={13} className="text-slate-400" />) : <span className="inline-block w-[13px]" />}
+                        <button onClick={(e) => { e.stopPropagation(); openPerson(p.name) }} className={`${quiet ? "" : "text-slate-900 dark:text-white"} hover:text-[#C41230]`}>{p.name}</button>
+                        {p.role && <span className="text-[11px] text-slate-400 font-normal">{p.role}</span>}
+                      </span>
+                    </td>
+                    <td className={`${NUM} text-slate-500`}>{lw ? n(lw.assigned) : ""}</td>
+                    <td className={`${NUM} text-slate-500`}>{lw ? n(lw.done) : ""}</td>
+                    <td className={NUM}>{n(w.assigned)}</td>
+                    <td className={`${NUM} font-semibold`}>{n(w.done)}</td>
+                    <td className={`${NUM} text-slate-500`}>{pctOf(w.done, w.assigned)}</td>
+                    <td className={`px-5 py-2.5 text-right tabular-nums ${over ? "text-red-600 dark:text-red-400" : "text-slate-500"}`}>{w.hours || avail ? `${w.hours} / ${avail}` : ""}</td>
+                  </tr>
+                  {isOpen && w.projects.map((pr) => (
+                    <tr key={p.name + pr.project} className="border-b border-black/[0.04] dark:border-white/[0.05] bg-slate-50/60 dark:bg-slate-800/40 text-[12.5px]">
+                      <td className="pl-12 pr-3 py-1.5">
+                        <button onClick={() => openProject(pr.project)} className="text-slate-700 dark:text-slate-200 hover:text-[#C41230] text-left">{pr.project}</button>
+                        <span className="ml-2 text-[10.5px] text-slate-400">{pr.done_source === "matrix" ? "done from the client matrix" : "done from the tracker"}</span>
+                      </td>
+                      <td /><td />
+                      <td className={`${NUM} py-1.5`}>{n(pr.assigned)}</td>
+                      <td className={`${NUM} py-1.5`}>{n(pr.done)}</td>
+                      <td className={`${NUM} py-1.5 text-slate-500`}>{pctOf(pr.done, pr.assigned)}</td>
+                      <td className="px-5 py-1.5 text-right tabular-nums text-slate-400">{pr.hours ? pr.hours : ""}</td>
+                    </tr>
+                  ))}
+                </Fragment>
+              )
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-black/[0.08] dark:border-white/[0.1] font-semibold text-slate-900 dark:text-white">
+              <td className="px-5 py-2.5">Team</td>
+              <td className={`${NUM} text-slate-500`}>{n(tot.la)}</td><td className={`${NUM} text-slate-500`}>{n(tot.ld)}</td>
+              <td className={NUM}>{n(tot.a)}</td><td className={NUM}>{n(tot.d)}</td><td className={`${NUM} text-slate-500`}>{pctOf(tot.d, tot.a)}</td>
+              <td className="px-5 py-2.5 text-right tabular-nums">{Math.round(tot.h * 10) / 10} / {Math.round(tot.av * 10) / 10}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {weekly.unmatched.length > 0 && (
+        <Card>
+          <Label>Pages nobody on the roster is credited for</Label>
+          <p className="text-[12.5px] text-slate-500 mb-2">The client matrix names people by initials. These match no name on the tracker's roster, so their pages count for the project but not for a person. Tell Eric who they are and it is a one-line fix.</p>
+          <ul className="space-y-1 text-[13px] text-slate-700 dark:text-slate-200">
+            {weekly.unmatched.map((u) => (
+              <li key={u.initials + u.role + u.project}>
+                <b>{u.initials}</b> · {u.role.toLowerCase()} · {n(u.pages)} page{u.pages === 1 ? "" : "s"} on {u.project}
+                <span className="text-slate-400"> ({Object.entries(u.weeks).map(([w, k]) => `${w}: ${k}`).join(", ")})</span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+    </div>
+  )
+}
+
+// ─── team + person subviews ──────────────────────────────────────────────────
+
 function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () => void; openPerson: (n: string) => void }) {
   const [q, setQ] = useState("")
-  const [sort, setSort] = useState<"done" | "hours" | "vel">("done")
+  const [sort, setSort] = useState<"done" | "left" | "week" | "hours">("done")
+  const leftOfT = (t: MmTeamMember) => t.left ?? Math.max(t.assigned - t.done, 0)
   const rows = useMemo(() => {
     const f = team.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) || t.role.toLowerCase().includes(q.toLowerCase()))
-    return [...f].sort((a, b) => (b[sort] ?? 0) - (a[sort] ?? 0))
+    const key = (t: MmTeamMember) => sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : t[sort]
+    return [...f].sort((a, b) => key(b) - key(a) || a.name.localeCompare(b.name))
   }, [team, q, sort])
   return (
     <div className="space-y-4">
@@ -755,22 +1075,25 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
       </button>
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="filter people or roles"
-          className="h-9 px-3 text-[13px] rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-900 dark:text-white outline-none focus:border-blue-400 w-56" />
-        {(["done", "hours", "vel"] as const).map((s) => (
+          className="h-9 px-3 text-[13px] rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-900 dark:text-white outline-none focus:border-[#C41230]/60 w-56" />
+        {(["done", "left", "week", "hours"] as const).map((s) => (
           <button key={s} onClick={() => setSort(s)}
-            className={`h-9 px-3 text-[12.5px] font-medium rounded-xl border ${sort === s ? "border-blue-400 text-blue-600 dark:text-blue-400" : "border-black/[0.06] dark:border-white/[0.08] text-slate-500"}`}>
-            by {s === "vel" ? "pages/hr" : s}
+            className={`h-9 px-3 text-[12.5px] font-medium rounded-xl border ${sort === s ? "border-[#C41230] text-[#C41230] dark:text-rose-300" : "border-black/[0.06] dark:border-white/[0.08] text-slate-500"}`}>
+            by {s === "week" ? "this week" : s}
           </button>
         ))}
       </div>
       <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl overflow-x-auto">
-        <table className="w-full text-[13px]">
+        <table className="w-full text-[13px] min-w-[760px]">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
               <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
-              <th className="px-3 py-3 font-medium text-right">Hours</th><th className="px-3 py-3 font-medium text-right">Assigned</th>
-              <th className="px-3 py-3 font-medium text-right">Done</th><th className="px-3 py-3 font-medium text-right">Done %</th>
-              <th className="px-5 py-3 font-medium text-right">Pages/hr</th>
+              <th className="px-3 py-3 font-medium text-right">Assigned</th><th className="px-3 py-3 font-medium text-right">Done</th>
+              <th className="px-3 py-3 font-medium text-right">Left</th>
+              <th className="px-3 py-3 font-medium text-right" title="pages assigned and done in the current tracker week">This week</th>
+              <th className="px-3 py-3 font-medium text-right" title="pages assigned and done the week before">Last week</th>
+              <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th>
+              <th className="px-5 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Pages/hr</th>
             </tr>
           </thead>
           <tbody>
@@ -779,11 +1102,13 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
                 className="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer">
                 <td className="px-5 py-2.5 font-medium text-slate-900 dark:text-white">{t.name}</td>
                 <td className="px-3 py-2.5 text-slate-500">{t.role}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{t.hours}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{t.assigned.toLocaleString()}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums font-semibold">{t.done.toLocaleString()}</td>
-                <td className="px-3 py-2.5 text-right tabular-nums">{t.comp}%</td>
-                <td className={`px-5 py-2.5 text-right tabular-nums ${t.vel != null && t.vel >= 3 ? "text-emerald-600" : t.vel != null && t.vel < 1.5 ? "text-amber-600" : ""}`}>{t.vel ?? "n/a"}</td>
+                <td className={NUM}>{n(t.assigned)}</td>
+                <td className={`${NUM} font-semibold`}>{n(t.done)} <span className="text-slate-400 font-normal text-[11px]">{t.comp}%</span></td>
+                <td className={`${NUM} ${leftOfT(t) > 0 ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOfT(t))}</td>
+                <td className={NUM}>{t.this_week ? <>{n(t.this_week.assigned)} <span className="text-slate-400">→</span> {n(t.this_week.done)}</> : ""}</td>
+                <td className={`${NUM} text-slate-500`}>{t.last_week ? <>{n(t.last_week.assigned)} <span className="text-slate-400">→</span> {n(t.last_week.done)}</> : ""}</td>
+                <td className={`${NUM} text-slate-400`}>{t.hours}</td>
+                <td className="px-5 py-2.5 text-right tabular-nums text-slate-400">{t.vel ?? "n/a"}</td>
               </tr>
             ))}
           </tbody>
@@ -793,8 +1118,17 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
   )
 }
 
-function PersonView({ t, back, openProject }: { t: MmTeamMember; back: () => void; openProject: (n: string) => void }) {
+function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?: MmWeekly; back: () => void; openProject: (n: string) => void }) {
   const room = (t.avail ?? 0) - t.wk_hours
+  const left = t.left ?? Math.max(t.assigned - t.done, 0)
+  const wp = weekly?.people.find((p) => p.name === t.name)
+  const curIdx = weekly ? weekly.weeks.indexOf(weekly.current) : -1
+  const weekRows = wp && weekly
+    ? wp.weeks.map((w, i) => ({ i, lbl: weekly.labels[i] ?? "", w })).filter((r) => r.w.assigned || r.w.done || r.w.hours)
+    : []
+  const series: Array<[string, number, number]> = weekRows.length
+    ? weekRows.map((r) => [r.lbl, r.w.assigned, r.w.done])
+    : t.weekly.map(([w, , c]) => [w, 0, c])
   return (
     <div className="space-y-4">
       <button onClick={back} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
@@ -805,35 +1139,78 @@ function PersonView({ t, back, openProject }: { t: MmTeamMember; back: () => voi
         <span className="text-[11.5px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full px-2.5 py-1">{t.role}</span>
         {t.avail != null && (
           <span className={`text-[11.5px] font-medium rounded-full px-2.5 py-1 ${room < 0 ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300" : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"}`}>
-            this week: {t.wk_hours}h of {t.avail}h{room < 0 ? ` · over by ${(-room).toFixed(1)}` : ""}
+            capacity this week: {t.wk_hours}h planned of {t.avail}h{room < 0 ? ` · over by ${(-room).toFixed(1)}` : ""}
           </span>
         )}
       </div>
-      <Card>
-        <Label>All-time on the tracker</Label>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-          {[[String(t.hours), "hours logged"], [t.assigned.toLocaleString(), "pages assigned"], [t.done.toLocaleString(), "pages done"],
-            [`${t.comp}%`, "of assigned"], [t.vel != null ? String(t.vel) : "n/a", "pages/hr"]].map(([v, k]) => (
-            <div key={k}><p className="text-xl font-bold tabular-nums text-slate-900 dark:text-white">{v}</p><p className="text-[11px] text-slate-400 mt-0.5">{k}</p></div>
-          ))}
-        </div>
-      </Card>
       <div className="grid md:grid-cols-2 gap-3">
-        <Card><Label>Hours per week</Label><ColChart series={t.weekly.map(([w, h]) => [w, h])} color="#2563EB" unit="h" /></Card>
-        <Card><Label>Pages completed per week</Label><ColChart series={t.weekly.map(([w, , c]) => [w, c])} color="#059669" /></Card>
+        <Card>
+          <Label>Pages · all weeks on the tracker</Label>
+          <div className="grid grid-cols-3 gap-4 text-center">
+            {([[n(t.assigned), "assigned"], [n(t.done), "done"], [n(left), "left"]] as Array<[string, string]>).map(([v, k]) => (
+              <div key={k}>
+                <p className={`text-2xl font-bold tabular-nums ${k === "left" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{k}</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[12px] text-slate-400 mt-3 text-center">{t.comp}% of assigned done · {t.hours} hours logged · {t.vel != null ? `${t.vel} pages per hour` : "no rate yet"}</p>
+        </Card>
+        <Card>
+          <Label>This week vs last week</Label>
+          <div className="grid grid-cols-2 gap-4 text-center">
+            {([["this week", t.this_week], ["last week", t.last_week]] as Array<[string, MmTeamMember["this_week"]]>).map(([k, v]) => (
+              <div key={k}>
+                <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{v ? <>{n(v.done)}<span className="text-slate-300 dark:text-slate-600 font-normal"> / {n(v.assigned)}</span></> : "n/a"}</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{k} · done / assigned</p>
+              </div>
+            ))}
+          </div>
+          <p className="text-[12px] text-slate-400 mt-3 text-center">{t.this_week?.hours ? `${t.this_week.hours} hours planned this week` : "no hours planned this week"}</p>
+        </Card>
       </div>
+      <Card>
+        <Label>Pages per week · track = assigned, fill = done</Label>
+        <ThroughputChart series={series} weekNow={weekly?.labels[curIdx] ?? ""} />
+      </Card>
+      {weekRows.length > 0 && (
+        <Card>
+          <Label>Week by week</Label>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px] min-w-[520px]">
+              <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Week</th><th className="py-2 px-3 font-medium text-right">Assigned</th><th className="py-2 px-3 font-medium text-right">Done</th><th className="py-2 px-3 font-medium text-right">Of assigned</th><th className="py-2 px-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th><th className="py-2 pl-3 font-medium">Projects</th></tr></thead>
+              <tbody>
+                {weekRows.map((r) => (
+                  <tr key={r.w.week} className={`border-t border-black/[0.04] dark:border-white/[0.05] ${r.i === curIdx ? "bg-slate-50/70 dark:bg-slate-800/40" : ""}`}>
+                    <td className="py-2 font-medium text-slate-900 dark:text-white">{r.lbl}{r.i === curIdx ? <span className="text-[10.5px] text-slate-400 font-normal"> now</span> : ""}</td>
+                    <td className="py-2 px-3 text-right tabular-nums">{n(r.w.assigned)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums font-semibold">{n(r.w.done)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums text-slate-500">{pctOf(r.w.done, r.w.assigned)}</td>
+                    <td className="py-2 px-3 text-right tabular-nums text-slate-400">{r.w.hours || ""}</td>
+                    <td className="py-2 pl-3 text-[12px] text-slate-500">
+                      {r.w.projects.map((pr, k) => (
+                        <span key={pr.project}>{k > 0 ? " · " : ""}<button onClick={() => openProject(pr.project)} className="hover:text-[#C41230]">{pr.project}</button> {n(pr.assigned)} → {n(pr.done)}</span>
+                      ))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
       <Card>
         <Label>Projects</Label>
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Hours</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Done</th><th className="py-2 font-medium text-right">Done %</th></tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Done</th><th className="py-2 font-medium text-right">Left</th><th className="py-2 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th></tr></thead>
           <tbody>
             {t.projects.map(([pr, h, x, d]) => (
               <tr key={pr} className="border-t border-black/[0.04] dark:border-white/[0.05]">
-                <td className="py-2"><button onClick={() => openProject(pr)} className="text-slate-900 dark:text-white hover:text-blue-600 font-medium text-left">{pr}</button></td>
-                <td className="py-2 text-right tabular-nums">{h}</td>
-                <td className="py-2 text-right tabular-nums">{x.toLocaleString()}</td>
-                <td className="py-2 text-right tabular-nums font-semibold">{d.toLocaleString()}</td>
-                <td className="py-2 text-right tabular-nums">{x ? `${Math.round((100 * d) / x)}%` : "n/a"}</td>
+                <td className="py-2"><button onClick={() => openProject(pr)} className="text-slate-900 dark:text-white hover:text-[#C41230] font-medium text-left">{pr}</button></td>
+                <td className="py-2 text-right tabular-nums">{n(x)}</td>
+                <td className="py-2 text-right tabular-nums font-semibold">{n(d)}</td>
+                <td className={`py-2 text-right tabular-nums ${x - d > 0 ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(Math.max(x - d, 0))}</td>
+                <td className="py-2 text-right tabular-nums text-slate-400">{h}</td>
               </tr>
             ))}
           </tbody>

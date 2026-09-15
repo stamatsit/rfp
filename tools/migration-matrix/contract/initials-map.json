@@ -1,0 +1,4 @@
+{
+  "_comment": "Client matrices name people by initials (Migrator (Initials), QA (Initials)). The pipeline maps initials to tracker roster names on its own when exactly one roster name fits (first initial, and the surname initial when the roster carries one, e.g. 'Kelly H'). Add a line here for anything it cannot resolve; keys are upper-case initials, values are the exact roster name from the tracker's weekly schedule sheet. Unresolved initials are listed on the dashboard's Weekly tab and in the findings.",
+  "_example": {"KE": "Kelly H"}
+}

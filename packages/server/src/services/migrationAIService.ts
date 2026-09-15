@@ -32,7 +32,7 @@ function parseFollowUpPrompts(response: string): { cleanResponse: string; prompt
   return { cleanResponse: response, prompts: [] }
 }
 
-const SYSTEM = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
+const SYSTEM = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Pages come first: projects_table has total, assigned, done, left_to_build and hours_to_finish per project; weekly_by_person has each person's pages assigned vs done for the last three weeks (done comes from the client matrix where one exists). Hours matter only for capacity questions. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
 
 At the end, include 2-3 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?"]
@@ -92,9 +92,18 @@ export async function streamMigrationChat(
 
 // ─── morning reports (Phase 4) ───────────────────────────────────────────────
 
-const CRYSTAL_PROMPT = `Write the migration manager's morning brief from the fact sheet below. Structure: one headline sentence on overall health, then 3-5 tight bullets (biggest risk, best mover, capacity note, any QA flags from findings), then one recommended action. Under 200 words, plain text, no greeting, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers.`
+const CRYSTAL_PROMPT = `Write the migration manager's morning brief from the fact sheet below. The team wants a scan, not a read: no paragraphs, no sentences longer than a line. Format exactly:
+PROJECTS (one line per active project, from projects_table): Name: done/total pages, N left, N assigned this week.
+PEOPLE (one line per person who has anything assigned or done in the current or previous week, from weekly_by_person): Name: N of N pages this week, N of N last week.
+WATCH (0-3 lines, only real problems: a missed deadline, someone over capacity, unmatched matrix initials, a HIGH finding).
+NEXT: one line, one action.
+Plain text, no greeting, no headings other than those four words, **bold** the key numbers. Never use em dashes or en dashes; use commas or colons. USING ONLY the fact sheet; never invent numbers; skip a line rather than guess.`
 
-const MIGRATOR_PROMPT = (name: string) => `Write a personal morning brief for ${name}, a content migrator, from the fact sheet below. 2-4 sentences: their recent output, what they are assigned this week and where, one specific encouragement or focus. Friendly and direct, no greeting line, **bold** key numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; never invent numbers.`
+const MIGRATOR_PROMPT = (name: string) => `Write ${name}'s morning line from the fact sheet below (weekly_by_person and team_performance). At most three short lines, each on its own line, no paragraphs:
+This week: N pages assigned on Project (N done so far).
+Last week: N of N pages done.
+One short nudge or thanks (under ten words).
+No greeting, **bold** the numbers. Never use em dashes or en dashes. USING ONLY facts about ${name}; if a number is missing, leave that line out; never invent numbers.`
 
 export async function generateMorningReports(): Promise<{ date: string; written: number; failed: string[] }> {
   const openai = getOpenAI()

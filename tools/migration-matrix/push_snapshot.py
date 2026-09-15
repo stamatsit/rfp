@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the Migration Matrix snapshot (contract 1.0) and push it to the app.
+"""Build the Migration Matrix snapshot (contract 1.1) and push it to the app.
 
   push_snapshot.py                 build + validate + print a summary
   push_snapshot.py --fixture       write ../contract/fixture-v1.json (the
@@ -87,7 +87,7 @@ def build_snapshot():
                 "web_url": urlmap.get(base, "")}
 
     return {
-        "contract": "1.0",
+        "contract": "1.1",
         "generated_at": utc(),
         "source": os.environ.get("MM_SOURCE_NAME", "mac-agent"),
         "source_files": {

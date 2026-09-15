@@ -109,6 +109,48 @@ def facts_blob():
         for m, t, mg, qa, dv in db.execute(
             "SELECT matrix, COUNT(*), SUM(migrated), SUM(qa_done), "
             "SUM(delivered) FROM client_pages GROUP BY matrix")]
+    # contract 1.1: the pages-first table and weekly assigned-vs-done, taken
+    # from make_present's output so chat and briefs quote the same numbers
+    # the dashboard shows (done follows the client matrix where one exists)
+    pd_path = os.path.join(HERE, "present_data.json")
+    if os.path.exists(pd_path):
+        try:
+            pdata = json.load(open(pd_path))
+        except Exception:
+            pdata = None
+        if pdata:
+            facts["projects_table"] = [
+                {"project": c["name"], "list": c.get("list"),
+                 "status": c.get("status"), "total_pages": c["total"],
+                 "assigned": c.get("assigned"), "done": c["done"],
+                 "left_to_build": c.get("left"), "unassigned": c.get("remaining"),
+                 "hours_to_finish": c.get("hours_to_finish"),
+                 "build_minutes_per_page": c.get("min_per_page"),
+                 "client_deadline": c.get("deadline"),
+                 "done_source": c.get("done_source")}
+                for c in pdata.get("clients", [])]
+            facts["team_performance"] = [
+                {"person": t["name"], "role": t.get("role"),
+                 "hours": t["hours"], "pages_assigned": t["assigned"],
+                 "pages_done": t["done"], "pages_left": t.get("left"),
+                 "done_pct_of_assigned": t["comp"], "pages_per_hour": t.get("vel"),
+                 "this_week": t.get("this_week"), "last_week": t.get("last_week")}
+                for t in pdata.get("team", [])]
+            wk = pdata.get("weekly") or {}
+            weeks = wk.get("weeks", [])
+            keep = [i for i, w in enumerate(weeks) if w <= wk.get("current", "")][-3:]
+            facts["weekly_by_person"] = [
+                {"person": p["name"], "weeks": [
+                    {"week_of": wk["labels"][i],
+                     "pages_assigned": p["weeks"][i]["assigned"],
+                     "pages_done": p["weeks"][i]["done"],
+                     "hours": p["weeks"][i]["hours"],
+                     "projects": [{"project": x["project"], "assigned": x["assigned"],
+                                   "done": x["done"]} for x in p["weeks"][i]["projects"]]}
+                    for i in keep]}
+                for p in wk.get("people", [])]
+            if wk.get("unmatched"):
+                facts["matrix_initials_unmatched"] = wk["unmatched"]
     return json.dumps(facts)
 
 

@@ -2693,7 +2693,20 @@ export interface MmClient {
   archived?: boolean
   list?: "active" | "planned" | "completed"
   matrix: MmClientMatrix | null
+  // contract 1.1: pages-first table fields
+  assigned?: number
+  left?: number
+  qa_done?: number
+  min_per_page?: number | null
+  qa_min_per_page?: number | null
+  hours_to_finish?: number | null
+  rate_set?: boolean
+  priority?: string | null
+  start_date?: string | null
+  mig_deadline?: string | null
 }
+
+export interface MmWeekTotals { assigned: number; done: number; hours: number }
 
 export interface MmTeamMember {
   name: string
@@ -2707,6 +2720,25 @@ export interface MmTeamMember {
   wk_hours: number
   weekly: Array<[string, number, number]>
   projects: Array<[string, number, number, number]>
+  // contract 1.1
+  left?: number
+  this_week?: MmWeekTotals
+  last_week?: MmWeekTotals
+}
+
+export interface MmWeeklyProject { project: string; assigned: number; hours: number; done: number; done_source: "matrix" | "tracker" }
+export interface MmWeeklyWeek { week: string; assigned: number; hours: number; done: number; projects: MmWeeklyProject[] }
+export interface MmWeeklyPerson { name: string; role: string | null; avail: number[]; weeks: MmWeeklyWeek[] }
+export interface MmWeeklyUnmatched { initials: string; role: string; project: string; pages: number; weeks: Record<string, number> }
+/** contract 1.1: per person, per week pages assigned (tracker) vs done (client matrix where one exists). */
+export interface MmWeekly {
+  weeks: string[]
+  labels: string[]
+  current: string
+  calendar_week?: string
+  people: MmWeeklyPerson[]
+  unmatched: MmWeeklyUnmatched[]
+  initials: Record<string, string | null>
 }
 
 export interface MmSourceLink { name: string; web_url?: string; sha256?: string; mtime?: string }
@@ -2715,6 +2747,7 @@ export interface MmSnapshotData {
   overview: { active: number; archived: number; assigned: number; avail: number; over: string[] }
   clients: MmClient[]
   team: MmTeamMember[]
+  weekly?: MmWeekly
   week_lbl: string
   wk_hrs?: number
 }

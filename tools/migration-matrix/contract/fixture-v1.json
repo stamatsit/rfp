@@ -1,0 +1,3569 @@
+{
+ "contract": "1.1",
+ "generated_at": "2026-09-15T17:53:54Z",
+ "source": "manual",
+ "source_files": {
+  "tracker": {
+   "name": "migrator-assignment-tracker-NEW VERSION.xlsx",
+   "sha256": "e04ffb4df8e94372f68ea39875ba9402e4234ba9589bb0e5a6b4ec29816838cf",
+   "mtime": "2026-09-09T16:09:40Z",
+   "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/migrator-assignment-tracker-NEW%20VERSION.xlsx"
+  },
+  "matrices": [
+   {
+    "name": "content-matrix-morehead.xlsx",
+    "sha256": "9adeae89d7d2d8ad2435ffeacc24d5145749b2656567e5f5c5bbd246da34bfa5",
+    "mtime": "2026-09-11T13:58:02Z",
+    "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/content-matrix-morehead.xlsx"
+   }
+  ],
+  "folder_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix"
+ },
+ "week": "2026-09-07",
+ "week_lbl": "9/7",
+ "data": {
+  "changes": [],
+  "generated": "2026-09-15",
+  "week": "2026-09-07",
+  "week_lbl": "9/7",
+  "wk_hrs": 166.5,
+  "logo": "assets/stamats-logo.svg",
+  "clients": [
+   {
+    "name": "HM Publishing \"On Health\"",
+    "type": "Pages",
+    "total": 800.0,
+    "done": 0,
+    "remaining": 800,
+    "pct": 0,
+    "deadline": null,
+    "projected": "2026-10-11",
+    "hours_left": 107,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": "Not Started",
+    "crew": [],
+    "moves": [
+     "Nobody is on this project this week: it moves zero pages until someone is assigned.",
+     "800 pages of QA backlog: Amanda (10h free) could take it this week."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "7/27",
+      0,
+      100.0
+     ]
+    ],
+    "actual_pace": 100,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": 7.5,
+    "actual_rate": null,
+    "qa_remaining": 800,
+    "detail": {
+     "weeks": [
+      "7/27"
+     ],
+     "rows": [
+      {
+       "name": "Amanda",
+       "cells": [
+        [
+         0,
+         0,
+         100
+        ]
+       ]
+      }
+     ]
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "active",
+    "assigned": 0,
+    "left": 800,
+    "qa_done": 0,
+    "min_per_page": 8.0,
+    "qa_min_per_page": null,
+    "hours_to_finish": 107,
+    "rate_set": true,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   },
+   {
+    "name": "Washtenaw Community College",
+    "type": "Pages",
+    "total": 650.0,
+    "done": 0,
+    "remaining": 650,
+    "pct": 0,
+    "deadline": "2027-01-02",
+    "projected": "2026-10-04",
+    "hours_left": 379,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": "Not Started",
+    "crew": [],
+    "moves": [
+     "Pace gap: doing 0/wk, need 42/wk, about 21 more hrs/wk (Debbie has 19.4h free).",
+     "Nobody is on this project this week: it moves zero pages until someone is assigned.",
+     "650 pages of QA backlog: Amanda (10h free) could take it this week."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": 42,
+    "days_left": 109,
+    "plan_rate": 2.0,
+    "actual_rate": null,
+    "qa_remaining": 650,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 650,
+    "qa_done": 0,
+    "min_per_page": 30.0,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 379,
+    "rate_set": true,
+    "priority": null,
+    "start_date": "2026-10-01",
+    "mig_deadline": null
+   },
+   {
+    "name": "UTPB Blogs",
+    "type": "Blogs",
+    "total": 75.0,
+    "done": 0,
+    "remaining": 75,
+    "pct": 0,
+    "deadline": null,
+    "projected": "2026-10-11",
+    "hours_left": 25,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": "In Progress",
+    "crew": [],
+    "moves": [
+     "Nobody is on this project this week: it moves zero pages until someone is assigned."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": 4.0,
+    "actual_rate": null,
+    "qa_remaining": 75,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 75,
+    "qa_done": 0,
+    "min_per_page": 15.0,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 25,
+    "rate_set": true,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   },
+   {
+    "name": "Morehead Alumni Foundation",
+    "type": "Pages",
+    "total": 132.0,
+    "done": 84,
+    "remaining": 59,
+    "pct": 64,
+    "deadline": null,
+    "projected": "2026-10-04",
+    "hours_left": 17,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": "Not Started",
+    "crew": [
+     {
+      "name": "Debbie",
+      "hours": 4.6
+     }
+    ],
+    "moves": [],
+    "archived": false,
+    "series": [
+     [
+      "6/22",
+      50.0,
+      0
+     ],
+     [
+      "8/31",
+      0,
+      63
+     ],
+     [
+      "9/7",
+      23.0,
+      9
+     ]
+    ],
+    "actual_pace": 24,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": 5.0,
+    "actual_rate": 4.93,
+    "qa_remaining": 59,
+    "detail": {
+     "weeks": [
+      "6/22",
+      "8/31",
+      "9/7"
+     ],
+     "rows": [
+      {
+       "name": "Debbie",
+       "cells": [
+        [
+         50,
+         10.0,
+         0
+        ],
+        [
+         0,
+         0,
+         63
+        ],
+        [
+         23,
+         4.6,
+         9
+        ]
+       ]
+      }
+     ]
+    },
+    "done_source": "client matrix",
+    "matrix": {
+     "name": "content-matrix-morehead",
+     "total": 157,
+     "funnel": [
+      [
+       "Draft delivered",
+       0
+      ],
+      [
+       "Writing review done",
+       0
+      ],
+      [
+       "Migrated",
+       84
+      ],
+      [
+       "QA passed",
+       49
+      ],
+      [
+       "Delivered to client",
+       46
+      ],
+      [
+       "Client final review",
+       0
+      ]
+     ],
+     "delivered": 46,
+     "migrated": 84,
+     "qa_done": 49,
+     "cycle_med": null,
+     "cycle_min": null,
+     "cycle_max": null,
+     "rework": 3,
+     "rework_pct": 2,
+     "weekly_deliveries": [
+      [
+       "8/31",
+       36
+      ],
+      [
+       "9/7",
+       10
+      ]
+     ],
+     "migrators": [
+      [
+       "DS",
+       72,
+       2
+      ],
+      [
+       "KE",
+       12,
+       1
+      ]
+     ]
+    },
+    "list": "active",
+    "assigned": 73,
+    "left": 48,
+    "qa_done": 49,
+    "min_per_page": 12.0,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 17,
+    "rate_set": true,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   },
+   {
+    "name": "Northwestern Michigan - 20 pgs",
+    "type": "Pages",
+    "total": 20.0,
+    "done": 0,
+    "remaining": 20,
+    "pct": 0,
+    "deadline": null,
+    "projected": null,
+    "hours_left": 0,
+    "verdict": "no rates set",
+    "tone": "warn",
+    "status": "Not Started",
+    "crew": [],
+    "moves": [
+     "Nobody is on this project this week: it moves zero pages until someone is assigned."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": null,
+    "actual_rate": null,
+    "qa_remaining": 20,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 20,
+    "qa_done": 0,
+    "min_per_page": null,
+    "qa_min_per_page": null,
+    "hours_to_finish": null,
+    "rate_set": false,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   },
+   {
+    "name": "CCC",
+    "type": "Pages",
+    "total": 13.0,
+    "done": 0,
+    "remaining": 13,
+    "pct": 0,
+    "deadline": null,
+    "projected": null,
+    "hours_left": 0,
+    "verdict": "no rates set",
+    "tone": "warn",
+    "status": "Not Started",
+    "crew": [],
+    "moves": [
+     "Nobody is on this project this week: it moves zero pages until someone is assigned."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": null,
+    "actual_rate": null,
+    "qa_remaining": 13,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 13,
+    "qa_done": 0,
+    "min_per_page": null,
+    "qa_min_per_page": null,
+    "hours_to_finish": null,
+    "rate_set": false,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   },
+   {
+    "name": "HM \"All the Rest\" Pages",
+    "type": "Pages",
+    "total": 60.0,
+    "done": 23,
+    "remaining": 0,
+    "pct": 38,
+    "deadline": "2026-08-31",
+    "projected": null,
+    "hours_left": 0,
+    "verdict": "fully assigned",
+    "tone": "ok",
+    "status": "In Progress",
+    "crew": [
+     {
+      "name": "Chris J",
+      "hours": 30.0
+     }
+    ],
+    "moves": [],
+    "archived": false,
+    "series": [
+     [
+      "6/22",
+      20.0,
+      0
+     ],
+     [
+      "7/27",
+      0,
+      23.0
+     ],
+     [
+      "9/7",
+      60.0,
+      0
+     ]
+    ],
+    "actual_pace": 8,
+    "required_pace": null,
+    "days_left": -15,
+    "plan_rate": 2.0,
+    "actual_rate": 0.57,
+    "qa_remaining": 0,
+    "detail": {
+     "weeks": [
+      "6/22",
+      "7/27",
+      "9/7"
+     ],
+     "rows": [
+      {
+       "name": "Chris J",
+       "cells": [
+        null,
+        [
+         0,
+         0,
+         23
+        ],
+        [
+         60,
+         30.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Brian",
+       "cells": [
+        [
+         20,
+         10.0,
+         0
+        ],
+        null,
+        null
+       ]
+      }
+     ]
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "active",
+    "assigned": 80,
+    "left": 37,
+    "qa_done": 0,
+    "min_per_page": 30.0,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 24,
+    "rate_set": true,
+    "priority": "Medium",
+    "start_date": "2026-05-01",
+    "mig_deadline": null
+   },
+   {
+    "name": "Premier Physicians",
+    "type": "Optimize",
+    "total": 35.0,
+    "done": 0,
+    "remaining": 35,
+    "pct": 0,
+    "deadline": "2026-07-29",
+    "projected": "2026-09-20",
+    "hours_left": 15,
+    "verdict": "48 days overdue, not started",
+    "tone": "crit",
+    "status": "Not Started",
+    "crew": [],
+    "moves": [
+     "Only about 14.6 hrs of work: Debbie (19.4h free) could clear it alone."
+    ],
+    "archived": true,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": -48,
+    "plan_rate": 3.0,
+    "actual_rate": null,
+    "qa_remaining": 35,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "completed",
+    "assigned": 0,
+    "left": 35,
+    "qa_done": 0,
+    "min_per_page": 20.0,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 15,
+    "rate_set": true,
+    "priority": null,
+    "start_date": "2026-07-01",
+    "mig_deadline": null
+   },
+   {
+    "name": "HMAI redos",
+    "type": "Pages",
+    "total": 96.0,
+    "done": 0,
+    "remaining": 96,
+    "pct": 0,
+    "deadline": null,
+    "projected": "2026-10-11",
+    "hours_left": 24,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": null,
+    "crew": [],
+    "moves": [
+     "Nobody is on this project this week: it moves zero pages until someone is assigned."
+    ],
+    "archived": true,
+    "series": [
+     [
+      "9/7",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": 4.0,
+    "actual_rate": null,
+    "qa_remaining": 96,
+    "detail": {
+     "weeks": [
+      "9/7"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "completed",
+    "assigned": 0,
+    "left": 96,
+    "qa_done": 0,
+    "min_per_page": 30.0,
+    "qa_min_per_page": null,
+    "hours_to_finish": 24,
+    "rate_set": true,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null
+   }
+  ],
+  "team": [
+   {
+    "name": "Joe",
+    "role": "Strategy",
+    "hours": 67.8,
+    "assigned": 407,
+    "done": 415,
+    "left": 0,
+    "comp": 102,
+    "vel": 6.12,
+    "avail": 0.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "8/3",
+      20.0,
+      210
+     ],
+     [
+      "8/10",
+      20.0,
+      205
+     ],
+     [
+      "8/17",
+      16.7,
+      0
+     ],
+     [
+      "8/24",
+      11.2,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Intros/Linking",
+      47.8,
+      287,
+      180
+     ],
+     [
+      "On Health Articles",
+      20.0,
+      120,
+      150
+     ],
+     [
+      "On Health Strategy",
+      0,
+      0,
+      85
+     ]
+    ]
+   },
+   {
+    "name": "Kelly H",
+    "role": "Senior migrator/Writer",
+    "hours": 133.9,
+    "assigned": 623,
+    "done": 409,
+    "left": 214,
+    "comp": 66,
+    "vel": 3.05,
+    "avail": 15.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "7/27",
+      15.0,
+      60
+     ],
+     [
+      "8/3",
+      24.6,
+      91
+     ],
+     [
+      "8/10",
+      38.3,
+      258
+     ],
+     [
+      "8/17",
+      34.7,
+      0
+     ],
+     [
+      "8/24",
+      21.3,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Strategy",
+      82.7,
+      248,
+      168
+     ],
+     [
+      "On Health Articles",
+      30.0,
+      120,
+      150
+     ],
+     [
+      "On Health Add to Finish",
+      21.2,
+      255,
+      91
+     ]
+    ]
+   },
+   {
+    "name": "Michelle",
+    "role": "Q/A",
+    "hours": 53.3,
+    "assigned": 320,
+    "done": 338,
+    "left": 0,
+    "comp": 106,
+    "vel": 6.34,
+    "avail": 0.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "7/27",
+      0,
+      84
+     ],
+     [
+      "8/3",
+      14.2,
+      119
+     ],
+     [
+      "8/10",
+      14.2,
+      135
+     ],
+     [
+      "8/24",
+      25.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      53.3,
+      320,
+      338
+     ]
+    ]
+   },
+   {
+    "name": "Debbie",
+    "role": "Senior migrator",
+    "hours": 92.8,
+    "assigned": 386,
+    "done": 272,
+    "left": 114,
+    "comp": 70,
+    "vel": 2.93,
+    "avail": 24.0,
+    "wk_hours": 4.6,
+    "this_week": {
+     "assigned": 23,
+     "done": 9,
+     "hours": 4.6
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 63,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "6/22",
+      10.0,
+      0
+     ],
+     [
+      "7/6",
+      7.5,
+      0
+     ],
+     [
+      "8/3",
+      17.0,
+      53
+     ],
+     [
+      "8/10",
+      24.8,
+      147
+     ],
+     [
+      "8/17",
+      25.0,
+      0
+     ],
+     [
+      "8/24",
+      4.0,
+      0
+     ],
+     [
+      "8/31",
+      0,
+      63
+     ],
+     [
+      "9/7",
+      4.6,
+      9
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      78.2,
+      313,
+      200
+     ],
+     [
+      "Morehead Alumni Foundation",
+      14.6,
+      73,
+      72
+     ]
+    ]
+   },
+   {
+    "name": "Morgan",
+    "role": "n/a",
+    "hours": 68.8,
+    "assigned": 275,
+    "done": 192,
+    "left": 83,
+    "comp": 70,
+    "vel": 2.79,
+    "avail": 0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "8/3",
+      23.8,
+      96
+     ],
+     [
+      "8/10",
+      24.0,
+      96
+     ],
+     [
+      "8/17",
+      21.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      68.8,
+      275,
+      192
+     ]
+    ]
+   },
+   {
+    "name": "Heather",
+    "role": "Q/A/Senior migrator",
+    "hours": 31.7,
+    "assigned": 190,
+    "done": 165,
+    "left": 25,
+    "comp": 87,
+    "vel": 5.21,
+    "avail": 0.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "8/3",
+      10.0,
+      44
+     ],
+     [
+      "8/10",
+      10.0,
+      121
+     ],
+     [
+      "8/24",
+      11.7,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      31.7,
+      190,
+      165
+     ]
+    ]
+   },
+   {
+    "name": "Amanda",
+    "role": "Q/A/Senior migrator",
+    "hours": 12.2,
+    "assigned": 73,
+    "done": 100,
+    "left": 0,
+    "comp": 137,
+    "vel": 8.22,
+    "avail": 10.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "7/27",
+      0,
+      100
+     ],
+     [
+      "8/24",
+      12.2,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      12.2,
+      73,
+      0
+     ],
+     [
+      "HM Publishing \"On Health\"",
+      0,
+      0,
+      100
+     ]
+    ]
+   },
+   {
+    "name": "Chris J",
+    "role": "Senior migrator/Proofer",
+    "hours": 57.3,
+    "assigned": 142,
+    "done": 23,
+    "left": 119,
+    "comp": 16,
+    "vel": 0.4,
+    "avail": 27.0,
+    "wk_hours": 30.0,
+    "this_week": {
+     "assigned": 60,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "7/27",
+      0,
+      23
+     ],
+     [
+      "8/17",
+      16.0,
+      0
+     ],
+     [
+      "8/24",
+      11.3,
+      0
+     ],
+     [
+      "9/7",
+      30.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "HM \"All the Rest\" Pages",
+      30.0,
+      60,
+      23
+     ],
+     [
+      "On Health Strategy",
+      27.3,
+      82,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Sophie",
+    "role": "n/a",
+    "hours": 20.0,
+    "assigned": 80,
+    "done": 23,
+    "left": 57,
+    "comp": 29,
+    "vel": 1.15,
+    "avail": 0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "8/3",
+      20.0,
+      23
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      20.0,
+      80,
+      23
+     ]
+    ]
+   },
+   {
+    "name": "Brian",
+    "role": "Senior migrator",
+    "hours": 44.8,
+    "assigned": 159,
+    "done": 0,
+    "left": 159,
+    "comp": 0,
+    "vel": 0.0,
+    "avail": 0.0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "weekly": [
+     [
+      "6/22",
+      10.0,
+      0
+     ],
+     [
+      "8/10",
+      14.2,
+      0
+     ],
+     [
+      "8/17",
+      12.0,
+      0
+     ],
+     [
+      "8/24",
+      8.5,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "On Health Articles",
+      34.8,
+      139,
+      0
+     ],
+     [
+      "HM \"All the Rest\" Pages",
+      10.0,
+      20,
+      0
+     ]
+    ]
+   }
+  ],
+  "weekly": {
+   "weeks": [
+    "2026-06-22",
+    "2026-07-06",
+    "2026-07-27",
+    "2026-08-03",
+    "2026-08-10",
+    "2026-08-17",
+    "2026-08-24",
+    "2026-08-31",
+    "2026-09-07"
+   ],
+   "labels": [
+    "6/22",
+    "7/6",
+    "7/27",
+    "8/3",
+    "8/10",
+    "8/17",
+    "8/24",
+    "8/31",
+    "9/7"
+   ],
+   "current": "2026-09-07",
+   "calendar_week": "2026-09-14",
+   "people": [
+    {
+     "name": "Brian",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      24.0,
+      29.0,
+      31.0,
+      31.0,
+      30.0,
+      30.0,
+      0,
+      0.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 20,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "HM \"All the Rest\" Pages",
+         "assigned": 20,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 57,
+       "hours": 14.2,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 57,
+         "hours": 14.2,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 48,
+       "hours": 12.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 48,
+         "hours": 12.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 34,
+       "hours": 8.5,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 34,
+         "hours": 8.5,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Debbie",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      30.0,
+      22.0,
+      28.0,
+      30.0,
+      29.0,
+      30.0,
+      0,
+      24.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 50,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Morehead Alumni Foundation",
+         "assigned": 50,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ]
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 30,
+       "hours": 7.5,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 30,
+         "hours": 7.5,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 68,
+       "hours": 17.0,
+       "done": 53,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 68,
+         "hours": 17.0,
+         "done": 53,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 99,
+       "hours": 24.8,
+       "done": 147,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 99,
+         "hours": 24.8,
+         "done": 147,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 100,
+       "hours": 25.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 100,
+         "hours": 25.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 16,
+       "hours": 4.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 16,
+         "hours": 4.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 63,
+       "projects": [
+        {
+         "project": "Morehead Alumni Foundation",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 63,
+         "done_source": "matrix"
+        }
+       ]
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 23,
+       "hours": 4.6,
+       "done": 9,
+       "projects": [
+        {
+         "project": "Morehead Alumni Foundation",
+         "assigned": 23,
+         "hours": 4.6,
+         "done": 9,
+         "done_source": "matrix"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Chris J",
+     "role": "Senior migrator/Proofer",
+     "avail": [
+      0,
+      25.0,
+      30.0,
+      32.0,
+      30.0,
+      30.0,
+      30.0,
+      0,
+      27.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 23,
+       "projects": [
+        {
+         "project": "HM \"All the Rest\" Pages",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 23,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 48,
+       "hours": 16.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Strategy",
+         "assigned": 48,
+         "hours": 16.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 34,
+       "hours": 11.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Strategy",
+         "assigned": 34,
+         "hours": 11.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 60,
+       "hours": 30.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "HM \"All the Rest\" Pages",
+         "assigned": 60,
+         "hours": 30.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "name": "Kelly H",
+     "role": "Senior migrator/Writer",
+     "avail": [
+      0,
+      0.0,
+      16.0,
+      29.0,
+      24.0,
+      30.0,
+      30.0,
+      0,
+      15.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 60,
+       "hours": 15.0,
+       "done": 60,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 60,
+         "hours": 15.0,
+         "done": 60,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 175,
+       "hours": 24.6,
+       "done": 91,
+       "projects": [
+        {
+         "project": "On Health Add to Finish",
+         "assigned": 115,
+         "hours": 9.6,
+         "done": 91,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Articles",
+         "assigned": 60,
+         "hours": 15.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 160,
+       "hours": 38.3,
+       "done": 258,
+       "projects": [
+        {
+         "project": "On Health Strategy",
+         "assigned": 100,
+         "hours": 33.3,
+         "done": 168,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Articles",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 90,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Add to Finish",
+         "assigned": 60,
+         "hours": 5.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 164,
+       "hours": 34.7,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Strategy",
+         "assigned": 84,
+         "hours": 28.0,
+         "done": 0,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Add to Finish",
+         "assigned": 80,
+         "hours": 6.7,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 64,
+       "hours": 21.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Strategy",
+         "assigned": 64,
+         "hours": 21.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Amanda",
+     "role": "Q/A/Senior migrator",
+     "avail": [
+      0,
+      28.0,
+      18.0,
+      20.0,
+      20.0,
+      18.0,
+      10.0,
+      0,
+      10.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 100,
+       "projects": [
+        {
+         "project": "HM Publishing \"On Health\"",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 100,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 73,
+       "hours": 12.2,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 73,
+         "hours": 12.2,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Heather",
+     "role": "Q/A/Senior migrator",
+     "avail": [
+      0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      0,
+      0.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 60,
+       "hours": 10.0,
+       "done": 44,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 60,
+         "hours": 10.0,
+         "done": 44,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 60,
+       "hours": 10.0,
+       "done": 121,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 60,
+         "hours": 10.0,
+         "done": 121,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 70,
+       "hours": 11.7,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 70,
+         "hours": 11.7,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Michelle",
+     "role": "Q/A",
+     "avail": [
+      0,
+      15.0,
+      10.0,
+      15.0,
+      13.0,
+      15.0,
+      20.0,
+      0,
+      0.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 84,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 84,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 85,
+       "hours": 14.2,
+       "done": 119,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 85,
+         "hours": 14.2,
+         "done": 119,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 85,
+       "hours": 14.2,
+       "done": 135,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 85,
+         "hours": 14.2,
+         "done": 135,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 150,
+       "hours": 25.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 150,
+         "hours": 25.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Joe",
+     "role": "Strategy",
+     "avail": [
+      0,
+      0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      20.0,
+      0,
+      0.0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 120,
+       "hours": 20.0,
+       "done": 210,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 120,
+         "hours": 20.0,
+         "done": 150,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Intros/Linking",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 60,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 120,
+       "hours": 20.0,
+       "done": 205,
+       "projects": [
+        {
+         "project": "On Health Intros/Linking",
+         "assigned": 120,
+         "hours": 20.0,
+         "done": 120,
+         "done_source": "tracker"
+        },
+        {
+         "project": "On Health Strategy",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 85,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 100,
+       "hours": 16.7,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Intros/Linking",
+         "assigned": 100,
+         "hours": 16.7,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 67,
+       "hours": 11.2,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Intros/Linking",
+         "assigned": 67,
+         "hours": 11.2,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Morgan",
+     "role": null,
+     "avail": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 95,
+       "hours": 23.8,
+       "done": 96,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 95,
+         "hours": 23.8,
+         "done": 96,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 96,
+       "hours": 24.0,
+       "done": 96,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 96,
+         "hours": 24.0,
+         "done": 96,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 84,
+       "hours": 21.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 84,
+         "hours": 21.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    },
+    {
+     "name": "Sophie",
+     "role": null,
+     "avail": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-06-22",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-06",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-07-27",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-03",
+       "assigned": 80,
+       "hours": 20.0,
+       "done": 23,
+       "projects": [
+        {
+         "project": "On Health Articles",
+         "assigned": 80,
+         "hours": 20.0,
+         "done": 23,
+         "done_source": "tracker"
+        }
+       ]
+      },
+      {
+       "week": "2026-08-10",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-17",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-24",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-08-31",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      },
+      {
+       "week": "2026-09-07",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": []
+      }
+     ]
+    }
+   ],
+   "unmatched": [
+    {
+     "initials": "CW",
+     "role": "QA",
+     "project": "Morehead Alumni Foundation",
+     "pages": 31,
+     "weeks": {
+      "8/31": 28,
+      "9/7": 3
+     }
+    },
+    {
+     "initials": "KE",
+     "role": "Migration",
+     "project": "Morehead Alumni Foundation",
+     "pages": 12,
+     "weeks": {
+      "8/31": 11,
+      "9/7": 1
+     }
+    },
+    {
+     "initials": "KE",
+     "role": "QA",
+     "project": "Morehead Alumni Foundation",
+     "pages": 18,
+     "weeks": {
+      "8/31": 9,
+      "9/7": 9
+     }
+    }
+   ],
+   "initials": {
+    "KE": null,
+    "DS": "Debbie",
+    "CW": null
+   }
+  },
+  "overview": {
+   "avail": 76.0,
+   "assigned": 34.6,
+   "over": [
+    "Chris J"
+   ],
+   "active": 7,
+   "archived": 2
+  }
+ },
+ "facts": {
+  "as_of": "2026-09-15",
+  "current_week": "2026-09-07",
+  "typical_team_hours_per_week": 166.5,
+  "queue_hours_total": 566,
+  "forecast": [
+   {
+    "name": "Premier Physicians",
+    "deadline": "2026-07-29",
+    "hours": 14.6,
+    "finish": "2026-09-20",
+    "slip": 53,
+    "pages_remaining": 35,
+    "status": "Not Started"
+   },
+   {
+    "name": "Washtenaw Community College",
+    "deadline": "2027-01-02",
+    "hours": 379.2,
+    "finish": "2026-10-04",
+    "slip": -90,
+    "pages_remaining": 650,
+    "status": "Not Started"
+   },
+   {
+    "name": "Morehead Alumni Foundation",
+    "deadline": null,
+    "hours": 16.7,
+    "finish": "2026-10-04",
+    "slip": null,
+    "pages_remaining": 59,
+    "status": "Not Started"
+   },
+   {
+    "name": "HM Publishing \"On Health\"",
+    "deadline": null,
+    "hours": 106.7,
+    "finish": "2026-10-11",
+    "slip": null,
+    "pages_remaining": 800,
+    "status": "Not Started"
+   },
+   {
+    "name": "CCC",
+    "deadline": null,
+    "hours": 0,
+    "finish": null,
+    "slip": null,
+    "pages_remaining": 13,
+    "status": "Not Started"
+   },
+   {
+    "name": "Northwestern Michigan - 20 pgs",
+    "deadline": null,
+    "hours": 0,
+    "finish": null,
+    "slip": null,
+    "pages_remaining": 20,
+    "status": "Not Started"
+   },
+   {
+    "name": "UTPB Blogs",
+    "deadline": null,
+    "hours": 25.0,
+    "finish": "2026-10-11",
+    "slip": null,
+    "pages_remaining": 75,
+    "status": "In Progress"
+   },
+   {
+    "name": "HMAI redos",
+    "deadline": null,
+    "hours": 24.0,
+    "finish": "2026-10-11",
+    "slip": null,
+    "pages_remaining": 96,
+    "status": null
+   }
+  ],
+  "capacity_this_week": [
+   {
+    "person": "Amanda",
+    "available": 10.0,
+    "assigned": 0
+   },
+   {
+    "person": "Chris J",
+    "available": 27.0,
+    "assigned": 30.0
+   },
+   {
+    "person": "Debbie",
+    "available": 24.0,
+    "assigned": 4.6
+   },
+   {
+    "person": "Kelly H",
+    "available": 15.0,
+    "assigned": 0
+   }
+  ],
+  "high_findings": [
+   "Tracker Weekly Capacity 'Assigned' disagrees with summed hours in 4 person-weeks; its SUMIFs point at Pages Completed columns. e.g. Brian wk 2026-06-22: tracker says 0, actual hours 10.",
+   "'Joe' has assignments but no row on the Weekly Capacity sheet \u2014 their hours are never capacity-checked.",
+   "'Morehead Alumni Foundation': Pages Remaining shows 23 but total 132 \u2212 assigned 73 = 59 (the cell is overridden by hand, or its formula is stale).",
+   "'HM \"All the Rest\" Pages': Pages Remaining shows 60 but total 60 \u2212 assigned 80 = -20 (the cell is overridden by hand, or its formula is stale).",
+   "'HM Publishing \"On Health\"': Pages Remaining shows 23 but total 800 \u2212 assigned 0 = 800 (the cell is overridden by hand, or its formula is stale).",
+   "'HM LMB: Leading Medicine Blogs': Pages Remaining shows 4 but total 0 \u2212 assigned 0 = 0 (the cell is overridden by hand, or its formula is stale).",
+   "'HM The Rest - 157 QA Only Priority 1s': Pages Remaining shows 6 but total 0 \u2212 assigned 0 = 0 (the cell is overridden by hand, or its formula is stale)."
+  ],
+  "weeks_with_no_roster_hours": [
+   "2026-09-14",
+   "2026-09-21",
+   "2026-09-28",
+   "2026-10-05",
+   "2026-10-12",
+   "2026-10-19",
+   "2026-10-26"
+  ],
+  "crew_this_week": {
+   "Morehead Alumni Foundation": [
+    "Debbie 4.6h"
+   ],
+   "HM \"All the Rest\" Pages": [
+    "Chris J 30.0h"
+   ]
+  },
+  "team_performance": [
+   {
+    "person": "Joe",
+    "role": "Strategy",
+    "hours": 67.8,
+    "pages_assigned": 407,
+    "pages_done": 415,
+    "pages_left": 0,
+    "done_pct_of_assigned": 102,
+    "pages_per_hour": 6.12,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Kelly H",
+    "role": "Senior migrator/Writer",
+    "hours": 133.9,
+    "pages_assigned": 623,
+    "pages_done": 409,
+    "pages_left": 214,
+    "done_pct_of_assigned": 66,
+    "pages_per_hour": 3.05,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Michelle",
+    "role": "Q/A",
+    "hours": 53.3,
+    "pages_assigned": 320,
+    "pages_done": 338,
+    "pages_left": 0,
+    "done_pct_of_assigned": 106,
+    "pages_per_hour": 6.34,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Debbie",
+    "role": "Senior migrator",
+    "hours": 92.8,
+    "pages_assigned": 386,
+    "pages_done": 272,
+    "pages_left": 114,
+    "done_pct_of_assigned": 70,
+    "pages_per_hour": 2.93,
+    "this_week": {
+     "assigned": 23,
+     "done": 9,
+     "hours": 4.6
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 63,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Morgan",
+    "role": "n/a",
+    "hours": 68.8,
+    "pages_assigned": 275,
+    "pages_done": 192,
+    "pages_left": 83,
+    "done_pct_of_assigned": 70,
+    "pages_per_hour": 2.79,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Heather",
+    "role": "Q/A/Senior migrator",
+    "hours": 31.7,
+    "pages_assigned": 190,
+    "pages_done": 165,
+    "pages_left": 25,
+    "done_pct_of_assigned": 87,
+    "pages_per_hour": 5.21,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Amanda",
+    "role": "Q/A/Senior migrator",
+    "hours": 12.2,
+    "pages_assigned": 73,
+    "pages_done": 100,
+    "pages_left": 0,
+    "done_pct_of_assigned": 137,
+    "pages_per_hour": 8.22,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Chris J",
+    "role": "Senior migrator/Proofer",
+    "hours": 57.3,
+    "pages_assigned": 142,
+    "pages_done": 23,
+    "pages_left": 119,
+    "done_pct_of_assigned": 16,
+    "pages_per_hour": 0.4,
+    "this_week": {
+     "assigned": 60,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Sophie",
+    "role": "n/a",
+    "hours": 20.0,
+    "pages_assigned": 80,
+    "pages_done": 23,
+    "pages_left": 57,
+    "done_pct_of_assigned": 29,
+    "pages_per_hour": 1.15,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   },
+   {
+    "person": "Brian",
+    "role": "Senior migrator",
+    "hours": 44.8,
+    "pages_assigned": 159,
+    "pages_done": 0,
+    "pages_left": 159,
+    "done_pct_of_assigned": 0,
+    "pages_per_hour": 0.0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    }
+   }
+  ],
+  "person_by_project": [
+   {
+    "person": "Michelle",
+    "project": "On Health Articles",
+    "hours": 53.3,
+    "pages_done": 338
+   },
+   {
+    "person": "Debbie",
+    "project": "On Health Articles",
+    "hours": 78.2,
+    "pages_done": 200
+   },
+   {
+    "person": "Morgan",
+    "project": "On Health Articles",
+    "hours": 68.8,
+    "pages_done": 192
+   },
+   {
+    "person": "Joe",
+    "project": "On Health Intros/Linking",
+    "hours": 47.8,
+    "pages_done": 180
+   },
+   {
+    "person": "Kelly H",
+    "project": "On Health Strategy",
+    "hours": 82.7,
+    "pages_done": 168
+   },
+   {
+    "person": "Heather",
+    "project": "On Health Articles",
+    "hours": 31.7,
+    "pages_done": 165
+   },
+   {
+    "person": "Joe",
+    "project": "On Health Articles",
+    "hours": 20.0,
+    "pages_done": 150
+   },
+   {
+    "person": "Kelly H",
+    "project": "On Health Articles",
+    "hours": 30.0,
+    "pages_done": 150
+   },
+   {
+    "person": "Amanda",
+    "project": "HM Publishing \"On Health\"",
+    "hours": 0,
+    "pages_done": 100
+   },
+   {
+    "person": "Kelly H",
+    "project": "On Health Add to Finish",
+    "hours": 21.2,
+    "pages_done": 91
+   },
+   {
+    "person": "Joe",
+    "project": "On Health Strategy",
+    "hours": 0,
+    "pages_done": 85
+   },
+   {
+    "person": "Chris J",
+    "project": "HM \"All the Rest\" Pages",
+    "hours": 30.0,
+    "pages_done": 23
+   },
+   {
+    "person": "Sophie",
+    "project": "On Health Articles",
+    "hours": 20.0,
+    "pages_done": 23
+   },
+   {
+    "person": "Debbie",
+    "project": "Morehead Alumni Foundation",
+    "hours": 14.6,
+    "pages_done": 21
+   },
+   {
+    "person": "Brian",
+    "project": "HM \"All the Rest\" Pages",
+    "hours": 10.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Brian",
+    "project": "On Health Articles",
+    "hours": 34.8,
+    "pages_done": 0
+   },
+   {
+    "person": "Chris J",
+    "project": "On Health Strategy",
+    "hours": 27.3,
+    "pages_done": 0
+   },
+   {
+    "person": "Amanda",
+    "project": "On Health Articles",
+    "hours": 12.2,
+    "pages_done": 0
+   }
+  ],
+  "project_velocity": [
+   {
+    "project": "Morehead Alumni Foundation",
+    "plan_pages_per_hour": 5.0,
+    "actual_pages_per_hour": 1.44
+   },
+   {
+    "project": "HM \"All the Rest\" Pages",
+    "plan_pages_per_hour": 2.0,
+    "actual_pages_per_hour": 0.57
+   }
+  ],
+  "client_matrices": [
+   {
+    "name": "content-matrix-morehead",
+    "pages": 157,
+    "migrated": 84,
+    "qa": 49,
+    "delivered": 46
+   }
+  ],
+  "projects_table": [
+   {
+    "project": "HM Publishing \"On Health\"",
+    "list": "active",
+    "status": "Not Started",
+    "total_pages": 800.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 800,
+    "unassigned": 800,
+    "hours_to_finish": 107,
+    "build_minutes_per_page": 8.0,
+    "client_deadline": null,
+    "done_source": "tracker"
+   },
+   {
+    "project": "Washtenaw Community College",
+    "list": "planned",
+    "status": "Not Started",
+    "total_pages": 650.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 650,
+    "unassigned": 650,
+    "hours_to_finish": 379,
+    "build_minutes_per_page": 30.0,
+    "client_deadline": "2027-01-02",
+    "done_source": "tracker"
+   },
+   {
+    "project": "UTPB Blogs",
+    "list": "planned",
+    "status": "In Progress",
+    "total_pages": 75.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 75,
+    "unassigned": 75,
+    "hours_to_finish": 25,
+    "build_minutes_per_page": 15.0,
+    "client_deadline": null,
+    "done_source": "tracker"
+   },
+   {
+    "project": "Morehead Alumni Foundation",
+    "list": "active",
+    "status": "Not Started",
+    "total_pages": 132.0,
+    "assigned": 73,
+    "done": 84,
+    "left_to_build": 48,
+    "unassigned": 59,
+    "hours_to_finish": 17,
+    "build_minutes_per_page": 12.0,
+    "client_deadline": null,
+    "done_source": "client matrix"
+   },
+   {
+    "project": "Northwestern Michigan - 20 pgs",
+    "list": "planned",
+    "status": "Not Started",
+    "total_pages": 20.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 20,
+    "unassigned": 20,
+    "hours_to_finish": null,
+    "build_minutes_per_page": null,
+    "client_deadline": null,
+    "done_source": "tracker"
+   },
+   {
+    "project": "CCC",
+    "list": "planned",
+    "status": "Not Started",
+    "total_pages": 13.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 13,
+    "unassigned": 13,
+    "hours_to_finish": null,
+    "build_minutes_per_page": null,
+    "client_deadline": null,
+    "done_source": "tracker"
+   },
+   {
+    "project": "HM \"All the Rest\" Pages",
+    "list": "active",
+    "status": "In Progress",
+    "total_pages": 60.0,
+    "assigned": 80,
+    "done": 23,
+    "left_to_build": 37,
+    "unassigned": 0,
+    "hours_to_finish": 24,
+    "build_minutes_per_page": 30.0,
+    "client_deadline": "2026-08-31",
+    "done_source": "tracker"
+   },
+   {
+    "project": "Premier Physicians",
+    "list": "completed",
+    "status": "Not Started",
+    "total_pages": 35.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 35,
+    "unassigned": 35,
+    "hours_to_finish": 15,
+    "build_minutes_per_page": 20.0,
+    "client_deadline": "2026-07-29",
+    "done_source": "tracker"
+   },
+   {
+    "project": "HMAI redos",
+    "list": "completed",
+    "status": null,
+    "total_pages": 96.0,
+    "assigned": 0,
+    "done": 0,
+    "left_to_build": 96,
+    "unassigned": 96,
+    "hours_to_finish": 24,
+    "build_minutes_per_page": 30.0,
+    "client_deadline": null,
+    "done_source": "tracker"
+   }
+  ],
+  "weekly_by_person": [
+   {
+    "person": "Brian",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 34,
+      "pages_done": 0,
+      "hours": 8.5,
+      "projects": [
+       {
+        "project": "On Health Articles",
+        "assigned": 34,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Debbie",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 16,
+      "pages_done": 0,
+      "hours": 4.0,
+      "projects": [
+       {
+        "project": "On Health Articles",
+        "assigned": 16,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 63,
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Morehead Alumni Foundation",
+        "assigned": 0,
+        "done": 63
+       }
+      ]
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 23,
+      "pages_done": 9,
+      "hours": 4.6,
+      "projects": [
+       {
+        "project": "Morehead Alumni Foundation",
+        "assigned": 23,
+        "done": 9
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Chris J",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 34,
+      "pages_done": 0,
+      "hours": 11.3,
+      "projects": [
+       {
+        "project": "On Health Strategy",
+        "assigned": 34,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 60,
+      "pages_done": 0,
+      "hours": 30.0,
+      "projects": [
+       {
+        "project": "HM \"All the Rest\" Pages",
+        "assigned": 60,
+        "done": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Kelly H",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 64,
+      "pages_done": 0,
+      "hours": 21.3,
+      "projects": [
+       {
+        "project": "On Health Strategy",
+        "assigned": 64,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Amanda",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 73,
+      "pages_done": 0,
+      "hours": 12.2,
+      "projects": [
+       {
+        "project": "On Health Articles",
+        "assigned": 73,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Heather",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 70,
+      "pages_done": 0,
+      "hours": 11.7,
+      "projects": [
+       {
+        "project": "On Health Articles",
+        "assigned": 70,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Michelle",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 150,
+      "pages_done": 0,
+      "hours": 25.0,
+      "projects": [
+       {
+        "project": "On Health Articles",
+        "assigned": 150,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Joe",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 67,
+      "pages_done": 0,
+      "hours": 11.2,
+      "projects": [
+       {
+        "project": "On Health Intros/Linking",
+        "assigned": 67,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Morgan",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   },
+   {
+    "person": "Sophie",
+    "weeks": [
+     {
+      "week_of": "8/24",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "8/31",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "9/7",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "hours": 0,
+      "projects": []
+     }
+    ]
+   }
+  ],
+  "matrix_initials_unmatched": [
+   {
+    "initials": "CW",
+    "role": "QA",
+    "project": "Morehead Alumni Foundation",
+    "pages": 31,
+    "weeks": {
+     "8/31": 28,
+     "9/7": 3
+    }
+   },
+   {
+    "initials": "KE",
+    "role": "Migration",
+    "project": "Morehead Alumni Foundation",
+    "pages": 12,
+    "weeks": {
+     "8/31": 11,
+     "9/7": 1
+    }
+   },
+   {
+    "initials": "KE",
+    "role": "QA",
+    "project": "Morehead Alumni Foundation",
+    "pages": 18,
+    "weeks": {
+     "8/31": 9,
+     "9/7": 9
+    }
+   }
+  ]
+ },
+ "findings": [
+  {
+   "severity": "HIGH",
+   "code": "duplicate-week-header",
+   "message": "Sheet 'USE THIS for weekly schedule' header row 4 lists the week of 2026-09-07 twice (column 15); hours in both columns were combined. Fix the header so each week appears once.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "legacy-projects-sheet",
+   "message": "The workbook still carries the old 'Projects' sheet next to 'Active Projects'; it was ignored. Delete it to avoid stale numbers (its On Health Articles row says 2,000 pages).",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "roles-outside-rollup",
+   "message": "Sheet 'Assignments' uses role(s) Publish: their hours count toward capacity, their pages do not count as migration or QA progress.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "roles-outside-rollup",
+   "message": "Sheet 'Assignments On Health' uses role(s) Strategy: their hours count toward capacity, their pages do not count as migration or QA progress.",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "capacity-wrong-column",
+   "message": "Tracker Weekly Capacity 'Assigned' disagrees with summed hours in 4 person-weeks; its SUMIFs point at Pages Completed columns. e.g. Brian wk 2026-06-22: tracker says 0, actual hours 10.",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "person-missing-from-capacity",
+   "message": "'Joe' has assignments but no row on the Weekly Capacity sheet \u2014 their hours are never capacity-checked.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "ghost-capacity-row",
+   "message": "'Jack' is on the Weekly Capacity sheet but not on the roster (source formula shows #REF!).",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "ghost-capacity-row",
+   "message": "'Morgan' is on the Weekly Capacity sheet but not on the roster (source formula shows #REF!).",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "ghost-capacity-row",
+   "message": "'Sophie' is on the Weekly Capacity sheet but not on the roster (source formula shows #REF!).",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "hardcoded-remaining",
+   "message": "'Morehead Alumni Foundation': Pages Remaining shows 23 but total 132 \u2212 assigned 73 = 59 (the cell is overridden by hand, or its formula is stale).",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "hardcoded-remaining",
+   "message": "'HM \"All the Rest\" Pages': Pages Remaining shows 60 but total 60 \u2212 assigned 80 = -20 (the cell is overridden by hand, or its formula is stale).",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "hardcoded-remaining",
+   "message": "'HM Publishing \"On Health\"': Pages Remaining shows 23 but total 800 \u2212 assigned 0 = 800 (the cell is overridden by hand, or its formula is stale).",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "hardcoded-remaining",
+   "message": "'HM LMB: Leading Medicine Blogs': Pages Remaining shows 4 but total 0 \u2212 assigned 0 = 0 (the cell is overridden by hand, or its formula is stale).",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "hardcoded-remaining",
+   "message": "'HM The Rest - 157 QA Only Priority 1s': Pages Remaining shows 6 but total 0 \u2212 assigned 0 = 0 (the cell is overridden by hand, or its formula is stale).",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Add to Finish' (Migration): main tab has 0 pages assigned, 'Assignments On Health' tab has 255. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Articles' (Migration): main tab has 0 pages assigned, 'Assignments On Health' tab has 714. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Articles' (QA): main tab has 0 pages assigned, 'Assignments On Health' tab has 583. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Articles' (Strategy): main tab has 0 pages assigned, 'Assignments On Health' tab has 333. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Intros/Linking' (Strategy): main tab has 0 pages assigned, 'Assignments On Health' tab has 287. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Strategy' (Migration): main tab has 0 pages assigned, 'Assignments On Health' tab has 82. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "fork-divergence",
+   "message": "'On Health Strategy' (Strategy): main tab has 0 pages assigned, 'Assignments On Health' tab has 248. The fork tab feeds no rollup \u2014 the two conflict.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 10 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 11 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 12 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 13 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 14 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 15 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 18 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "LOW",
+   "code": "orphan-row",
+   "message": "Assignments row 19 holds week data but no team member/project.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "no-capacity-entered",
+   "message": "Week 2026-06-22 has assigned hours but no availability entered on the roster.",
+   "location": ""
+  },
+  {
+   "severity": "HIGH",
+   "code": "sheet-rollup-stale",
+   "message": "2 'Pages Assigned (so far)' cells on the project sheets disagree with the assignment rows (e.g. Morehead Alumni Foundation/Migration: computed 73 vs sheet 0; HM \"All the Rest\" Pages/Migration: computed 80 vs sheet 0). The sheet formulas count the role 'Migration' only; rows now use 'Page Building'. The dashboard uses the recomputed numbers.",
+   "location": ""
+  },
+  {
+   "severity": "MEDIUM",
+   "code": "matrix-initials-unmatched",
+   "message": "Client matrix initials not matched to a tracker roster name, so their pages count for the project but not for a person: 'CW' (qa, 31 pages on Morehead Alumni Foundation); 'KE' (migration, 12 pages on Morehead Alumni Foundation); 'KE' (qa, 18 pages on Morehead Alumni Foundation). Add them to contract/initials-map.json.",
+   "location": ""
+  }
+ ]
+}
