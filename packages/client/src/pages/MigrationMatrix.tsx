@@ -231,8 +231,10 @@ export function MigrationMatrix() {
   const [showMoves, setShowMoves] = useState(false)
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
   const headerSync = async () => {
-    const h = await loadDirHandle()
-    if (!h || !("showDirectoryPicker" in window)) { setView({ tab: "sources", c: null, p: null }); return }
+    // syncFromOneDrive asks for the folder itself the first time, so the only
+    // reason to send someone to the Spreadsheets tab is a browser without the
+    // folder picker (Safari, Firefox), where files have to be uploaded by hand.
+    if (!("showDirectoryPicker" in window)) { setView({ tab: "sources", c: null, p: null }); return }
     await syncFromOneDrive({ onStatus: setSyncStatus })
   }
   const [now, setNow] = useState(Date.now())
