@@ -318,6 +318,7 @@ export function MigrationMatrix() {
       </div>
       <div className="ml-auto flex items-center gap-2">
         <OpenLink href={data?.source_files?.tracker?.web_url}>Open the tracker</OpenLink>
+        <OpenLink href={data?.source_files?.matrices?.[0]?.web_url}>Open the matrix</OpenLink>
         <button onClick={headerSync} disabled={!!syncStatus}
           className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-xl px-4 h-9 disabled:opacity-60 shadow-[0_1px_2px_rgba(0,0,0,.1),0_2px_6px_rgba(196,18,48,.25)]"
           style={{ background: GRADIENT }} title="Read the spreadsheets from your OneDrive folder and rebuild the dashboard">
