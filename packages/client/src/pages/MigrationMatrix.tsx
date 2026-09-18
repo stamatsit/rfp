@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
   Activity,
@@ -230,12 +230,19 @@ export function MigrationMatrix() {
   const [error, setError] = useState<string | null>(null)
   const [showMoves, setShowMoves] = useState(false)
   const [syncStatus, setSyncStatus] = useState<string | null>(null)
+  // Chrome only honours a folder permission prompt while the click that caused
+  // it is still "active". Awaiting IndexedDB first burns that activation, so the
+  // saved handle is kept in a ref and the prompt fires with nothing awaited
+  // before it. Without this, Sync re-asks for the folder on every press.
+  const dirHandleRef = useRef<DirHandle | null>(null)
+  useEffect(() => { loadDirHandle().then((h) => { dirHandleRef.current = h }) }, [])
   const headerSync = async () => {
-    // syncFromOneDrive asks for the folder itself the first time, so the only
-    // reason to send someone to the Spreadsheets tab is a browser without the
-    // folder picker (Safari, Firefox), where files have to be uploaded by hand.
     if (!("showDirectoryPicker" in window)) { setView({ tab: "sources", c: null, p: null }); return }
-    await syncFromOneDrive({ onStatus: setSyncStatus })
+    await syncFromOneDrive({
+      onStatus: setSyncStatus,
+      preloaded: dirHandleRef.current,
+      onHandle: (h) => { dirHandleRef.current = h },
+    })
   }
   const [now, setNow] = useState(Date.now())
 
@@ -675,20 +682,25 @@ async function runSyncFiles(files: File[], onStatus: (s: string | null) => void,
 }
 
 /** Folder-handle path (Chrome/Edge): first time asks for the folder, then one click. */
-async function syncFromOneDrive({ onStatus, onFolder, onUploaded }: { onStatus: (s: string | null) => void; onFolder?: (name: string) => void; onUploaded?: () => void }) {
+async function syncFromOneDrive({ onStatus, onFolder, onUploaded, preloaded, onHandle }: { onStatus: (s: string | null) => void; onFolder?: (name: string) => void; onUploaded?: () => void; preloaded?: DirHandle | null; onHandle?: (h: DirHandle) => void }) {
   try {
-    let h = await loadDirHandle()
-    if (h && h.queryPermission && (await h.queryPermission({ mode: "read" })) !== "granted" && h.requestPermission)
-      if ((await h.requestPermission({ mode: "read" })) !== "granted") h = null
+    // Start the permission work immediately: everything here runs before the
+    // first await so the click's user activation is still valid.
+    let h = preloaded ?? null
+    const granting = h?.requestPermission ? h.requestPermission({ mode: "read" }) : null
+    const picking = h ? null : (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
+    if (granting && (await granting) !== "granted") h = null
+    if (picking) h = await picking
     if (!h) {
       h = await (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
-      await saveDirHandle(h); onFolder?.(h.name)
     }
+    if (h !== preloaded) { await saveDirHandle(h); onFolder?.(h.name); onHandle?.(h) }
     const files: File[] = []
     for await (const entry of h.values()) if (entry.kind === "file") files.push(await entry.getFile())
     await runSyncFiles(files, onStatus, onUploaded)
   } catch (e) {
-    if ((e as { name?: string })?.name === "AbortError") return
+    if ((e as { name?: string })?.name === "AbortError") { onStatus(null); toast.info("Sync cancelled. Choose the Migration Matrix folder to let the dashboard read your spreadsheets."); return }
+    onStatus(null)
     toast.error(e instanceof Error ? e.message : "Could not read the folder")
   }
 }
