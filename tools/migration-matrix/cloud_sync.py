@@ -7,13 +7,18 @@
      MS_DRIVE_PATH names the folder (default "Migration Matrix").
      Files fetched this way are mirrored into Supabase Storage so the app's
      Spreadsheets view shows the same copies.
-  2. Supabase Storage bucket mm-sources (tracker/<file>, matrices/<file>),
-     fed by uploads in the app. Used when no MS_* env is present.
+  2. A OneDrive "Anyone with the link" share of the same folder, via
+     MM_SHARE_URL. Needs no Microsoft credentials: following the link mints an
+     anonymous guest session, and SharePoint's REST API then lists and serves
+     the files with that session. Used when no MS_* env is present. Files are
+     mirrored into Supabase Storage the same way.
+  3. Supabase Storage bucket mm-sources (tracker/<file>, matrices/<file>),
+     fed by uploads in the app. Last resort when neither of the above is set.
 Then: build_master -> make_present -> push_snapshot (source github-action).
 Redundant runs are harmless: the server dedupes on source hash + data.
 Other env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MM_INGEST_TOKEN, MM_INGEST_URL.
 """
-import json, os, subprocess, sys, urllib.error, urllib.parse, urllib.request
+import http.cookiejar, json, os, re, subprocess, sys, urllib.error, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SB = os.environ["SUPABASE_URL"].rstrip("/")
@@ -99,6 +104,61 @@ def graph_fetch_sources():
     return tracker, n_mat
 
 
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/140.0 Safari/537.36")
+
+
+def share_fetch_sources():
+    """Read the folder behind an anonymous share link; returns (tracker_path, n_matrices).
+
+    SharePoint refuses the REST API outright (401) until the share link itself
+    has been followed, which sets a guest cookie. So: open the link, keep the
+    jar, then list and download through the same opener.
+    """
+    share = os.environ["MM_SHARE_URL"]
+    jar = http.cookiejar.CookieJar()
+    opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    opener.addheaders = [("User-Agent", UA)]
+    with opener.open(urllib.request.Request(share), timeout=60) as r:
+        landing = r.geturl()
+    # The landing URL carries the folder's server-relative path in ?id=
+    q = urllib.parse.parse_qs(urllib.parse.urlparse(landing).query)
+    rel = (q.get("id") or [None])[0]
+    if not rel:
+        sys.exit("share link did not resolve to a folder path; is it still shared?")
+    site = "https://" + urllib.parse.urlparse(landing).netloc + re.sub(r"^(/personal/[^/]+).*", r"\1", rel)
+    api = f"{site}/_api/web/GetFolderByServerRelativeUrl('{urllib.parse.quote(rel)}')/Files?$select=Name,Length,TimeLastModified"
+    req = urllib.request.Request(api, headers={"Accept": "application/json;odata=nometadata"})
+    with opener.open(req, timeout=60) as r:
+        items = json.load(r).get("value", [])
+    tracker, n_mat = None, 0
+    for it in items:
+        name = it["Name"]
+        if not name.lower().endswith(".xlsx") or name.startswith("~$"):
+            continue
+        furl = (f"{site}/_api/web/GetFileByServerRelativeUrl("
+                f"'{urllib.parse.quote(rel + '/' + name)}')/$value")
+        with opener.open(urllib.request.Request(furl), timeout=180) as r:
+            data = r.read()
+        if not data[:2] == b"PK":
+            print(f"  share: {name} did not come back as a workbook, skipped")
+            continue
+        is_matrix = "content-matrix" in name.lower()
+        sub = "matrices" if is_matrix else "tracker"
+        dest = os.path.join(OUT, sub, name)
+        open(dest, "wb").write(data)
+        try:
+            sb_upload(f"{sub}/{name}", data)   # mirror for the app's Spreadsheets view
+        except Exception as e:
+            print("mirror to storage failed (non-fatal):", str(e)[:120])
+        if is_matrix:
+            n_mat += 1
+        elif tracker is None or "tracker" in name.lower():
+            tracker = dest
+        print(f"  share: {name} ({len(data)} bytes, modified {it.get('TimeLastModified')})")
+    return tracker, n_mat
+
+
 def main():
     os.makedirs(os.path.join(OUT, "tracker"), exist_ok=True)
     os.makedirs(os.path.join(OUT, "matrices"), exist_ok=True)
@@ -107,6 +167,11 @@ def main():
         if not tracker:
             sys.exit("no tracker .xlsx in the OneDrive folder")
         origin = "onedrive"
+    elif os.environ.get("MM_SHARE_URL"):
+        tracker, n_mat = share_fetch_sources()
+        if not tracker:
+            sys.exit("no tracker .xlsx behind the share link")
+        origin = "onedrive-share"
     else:
         trackers = sb_list("tracker")
         if not trackers:

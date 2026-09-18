@@ -31,4 +31,5 @@ jobs:
           MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
           MS_USER: ${{ secrets.MS_USER }}
+          MM_SHARE_URL: ${{ secrets.MM_SHARE_URL }}
         run: python tools/migration-matrix/cloud_sync.py
