@@ -1625,6 +1625,35 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Migration Matrix morning reports — Vercel cron sends
     // Authorization: Bearer $CRON_SECRET; pre-auth like ingest.
     // Express twin: morningHandler + generateMorningReports.
+    // Vercel cron beat. GitHub's own scheduler drops most runs of a */10
+    // cron (observed gaps of three to six hours), so the dashboard went stale
+    // between edits. Vercel fires reliably, and this just pokes the same
+    // repository_dispatch the app's Sync button uses.
+    if (path === "/migration/tick" && method === "GET") {
+      const tkSecret = process.env.CRON_SECRET || ""
+      const tkAuth = String(req.headers.authorization || "")
+      const tkExpected = `Bearer ${tkSecret}`
+      const tkA = Buffer.from(tkAuth)
+      const tkB = Buffer.from(tkExpected)
+      if (!tkSecret || tkA.length !== tkB.length || !crypto.timingSafeEqual(tkA, tkB)) {
+        return res.status(401).json({ error: "Unauthorized" })
+      }
+      if (!process.env.GH_DISPATCH_TOKEN) {
+        return res.status(503).json({ error: "GH_DISPATCH_TOKEN not configured" })
+      }
+      try {
+        const tkGh = await fetch("https://api.github.com/repos/stamatsit/rfp/dispatches", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${process.env.GH_DISPATCH_TOKEN}`, Accept: "application/vnd.github+json", "Content-Type": "application/json" },
+          body: JSON.stringify({ event_type: "mm-sources-updated" }),
+        })
+        return res.json({ triggered: tkGh.status === 204, status: tkGh.status })
+      } catch (tkErr) {
+        console.error("migration tick failed:", (tkErr as Error)?.message)
+        return res.status(502).json({ error: "dispatch failed" })
+      }
+    }
+
     if (path === "/migration/morning" && method === "GET") {
       const mmCronSecret = process.env.CRON_SECRET || ""
       const mmAuth = String(req.headers.authorization || "")
