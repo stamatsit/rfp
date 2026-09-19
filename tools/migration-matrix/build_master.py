@@ -722,7 +722,7 @@ def validate(db, projects):
         "SELECT DISTINCT person FROM reported_capacity")}
     for p in sorted(assigned_people - reported_people):
         add("HIGH", "person-missing-from-capacity",
-            f"'{p}' has assignments but no row on the Weekly Capacity sheet — "
+            f"'{p}' has assignments but no row on the Weekly Capacity sheet, so "
             f"their hours are never capacity-checked.")
     for p in sorted(reported_people - roster):
         add("MEDIUM", "ghost-capacity-row",
@@ -750,7 +750,7 @@ def validate(db, projects):
             add("MEDIUM", "fork-divergence",
                 f"'{project}' ({role}): main tab has {s['main_pages']:g} pages "
                 f"assigned, 'Assignments On Health' tab has {s['fork_pages']:g}. "
-                f"The fork tab feeds no rollup — the two conflict.")
+                f"The fork tab feeds no rollup, so the two conflict.")
 
     # 5. Orphan rows with data but no person/project.
     for src, row in db.execute(
@@ -1088,7 +1088,7 @@ def write_morning_report(db, projects, findings):
     people = [r[0] for r in db.execute("SELECT name FROM people")]
 
     lines = [
-        f"# Morning Report — {TODAY.strftime('%A, %B %-d, %Y')}",
+        f"# Morning Report, {TODAY.strftime('%A, %B %-d, %Y')}",
         "",
         f"_Week of {week}. Generated from the master database "
         f"(tracker snapshot 8/17)._",
@@ -1124,9 +1124,9 @@ def write_morning_report(db, projects, findings):
                    else f"due in {days}d" if days <= 21 else f"due in {days}d")
         if days <= 21 or (pr["status"] or "").lower() == "blocked":
             flagged += 1
-            extra = f" — status: {pr['status']}" if pr["status"] else ""
+            extra = f", status: {pr['status']}" if pr["status"] else ""
             hrs = f", ≈{hours_left:.0f} migration hrs left" if hours_left else ""
-            lines.append(f"- **{pr['name']}** — {remaining:g} pages remaining"
+            lines.append(f"- **{pr['name']}**: {remaining:g} pages remaining"
                          f"{hrs}, {urgency}{extra}")
     if not flagged:
         lines.append("- Nothing inside the 3-week window. 👍")
@@ -1138,7 +1138,7 @@ def write_morning_report(db, projects, findings):
     worst = max((d for d in fc if d["slip"] is not None),
                 key=lambda d: d["slip"], default=None)
     lines += ["", "## Forecast", "",
-              f"The queue holds **{queue:,.0f} hours** of remaining work — "
+              f"The queue holds **{queue:,.0f} hours** of remaining work. "
               f"about **{queue / wk_hrs:.1f} weeks** at the typical "
               f"{wk_hrs:g} team hrs/week."]
     if worst and worst["slip"] > 0:
@@ -1152,7 +1152,7 @@ def write_morning_report(db, projects, findings):
             "SELECT COUNT(*), SUM(migrated), SUM(qa_done), SUM(delivered) "
             "FROM client_pages WHERE matrix=?", (mname,)).fetchone()
         lines += ["", "## Client matrix", "",
-                  f"**{mname}**: {tot} pages — {mig or 0} migrated, "
+                  f"**{mname}**: {tot} pages, {mig or 0} migrated, "
                   f"{qa or 0} QA'd, {dlv or 0} delivered to client."]
 
     high = [f for f in findings if f["severity"] == "HIGH"]
@@ -1166,7 +1166,7 @@ def write_morning_report(db, projects, findings):
     if no_cap:
         lines += ["", f"⚠ No availability entered on the roster for "
                       f"{len(no_cap)} upcoming weeks (from {no_cap[0][5:]} on) "
-                      f"— scheduling beyond this week is flying blind."]
+                      f"Scheduling beyond this week is flying blind."]
 
     path = os.path.join(HERE, f"morning-report-{TODAY.isoformat()}.md")
     with open(path, "w") as fh:
@@ -1233,9 +1233,6 @@ def main():
         print(f"reconciliation: {len(bad)} of {checked} sheet rollups stale (finding)")
     else:
         print(f"reconciliation OK: {checked} tracker rollups reproduced")
-    # persisted so push_snapshot.py can ship them without rebuilding
-    # (a rebuild here would clobber master.db before client-matrix ingest)
-    json.dump(findings, open(os.path.join(HERE, "findings.json"), "w"))
 
     # Client content matrices (Phase 1's "matrices feeding the master list").
     import client_matrix
@@ -1246,7 +1243,7 @@ def main():
             findings.append({"severity": "HIGH", "check": "matrix-dashboard-rot",
                              "detail": f"Client matrix '{s['name']}': its own "
                              f"DASHBOARD sheet has {s['broken_refs']} #REF! "
-                             f"errors — the manual rollup is broken. The "
+                             f"errors, so the manual rollup is broken. The "
                              f"master now computes these rollups instead."})
         if s["no_disposition"]:
             findings.append({"severity": "MEDIUM", "check": "pages-no-disposition",
@@ -1262,8 +1259,14 @@ def main():
                              f"project '{link['project']}' "
                              f"({link['total_pages']:g} pages total) via "
                              f"reviewer '{link['hint']}'."})
-        print(f"client matrix: {s['name']} — {s['total']} pages, "
+        print(f"client matrix: {s['name']}, {s['total']} pages, "
               f"funnel {[(l, n) for l, n in s['funnel']]}")
+
+    # Persisted so push_snapshot.py can ship them without rebuilding (a rebuild
+    # there would clobber master.db before client-matrix ingest). Written after
+    # the matrix loop, not before it: dumping early silently dropped every
+    # matrix finding, including the HIGH matrix-dashboard-rot.
+    json.dump(findings, open(os.path.join(HERE, "findings.json"), "w"))
 
     write_report(db, projects, findings)
     morning = write_morning_report(db, projects, findings)

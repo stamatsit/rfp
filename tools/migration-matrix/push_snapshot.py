@@ -71,7 +71,10 @@ def build_snapshot():
     # first e2e run caught): read the file instead
     fpath = os.path.join(HERE, "findings.json")
     raw = json.load(open(fpath)) if os.path.exists(fpath) else []
-    findings = [{"severity": f["severity"], "code": f["check"],
+    # severity is lower-cased here because the contract and the dashboard both
+    # use "high"/"medium"/"low"; the pipeline carries HIGH/MEDIUM/LOW internally
+    # for the xlsx colouring and sort order.
+    findings = [{"severity": str(f["severity"]).lower(), "code": f["check"],
                  "message": f["detail"], "location": ""} for f in raw]
 
     urlmap = {}

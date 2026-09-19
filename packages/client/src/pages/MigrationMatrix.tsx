@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useMemo, useState, useRef } from "react"
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import {
   Activity,
@@ -13,7 +13,6 @@ import {
   FileSpreadsheet,
   FolderOpen,
   LayoutGrid,
-  RefreshCw,
   Sparkles,
   Users,
 } from "lucide-react"
@@ -41,6 +40,22 @@ const fmtDate = (d: string | null | undefined) => {
   if (!d) return ""
   const dt = new Date(d + (d.length === 10 ? "T12:00:00" : ""))
   return isNaN(dt.getTime()) ? d : dt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: dt.getFullYear() === new Date().getFullYear() ? undefined : "numeric" })
+}
+
+/**
+ * How fresh the numbers are. Minutes while that still reads as "a moment ago",
+ * then a clock time, because "142 min ago" is arithmetic the reader should not
+ * have to do. This is the only freshness signal on the page now that the
+ * spreadsheets are pulled on a schedule rather than synced by hand.
+ */
+const fmtAge = (sec: number, createdAt?: string | null) => {
+  if (sec < 90) return "just now"
+  if (sec < 60 * 60) return `${Math.round(sec / 60)} min ago`
+  const dt = createdAt ? new Date(createdAt) : null
+  if (!dt || isNaN(dt.getTime())) return `${Math.round(sec / 3600)} h ago`
+  const today = dt.toDateString() === new Date().toDateString()
+  const time = dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+  return today ? `at ${time}` : `${dt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}, ${time}`
 }
 
 const TONE_TEXT: Record<string, string> = {
@@ -229,32 +244,21 @@ export function MigrationMatrix() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showMoves, setShowMoves] = useState(false)
-  const [syncStatus, setSyncStatus] = useState<string | null>(null)
-  // Chrome only honours a folder permission prompt while the click that caused
-  // it is still "active". Awaiting IndexedDB first burns that activation, so the
-  // saved handle is kept in a ref and the prompt fires with nothing awaited
-  // before it. Without this, Sync re-asks for the folder on every press.
-  const dirHandleRef = useRef<DirHandle | null>(null)
-  useEffect(() => { loadDirHandle().then((h) => { dirHandleRef.current = h }) }, [])
-  const headerSync = async () => {
-    if (!("showDirectoryPicker" in window)) { setView({ tab: "sources", c: null, p: null }); return }
-    await syncFromOneDrive({
-      onStatus: setSyncStatus,
-      preloaded: dirHandleRef.current,
-      onHandle: (h) => { dirHandleRef.current = h },
-    })
-  }
   const [now, setNow] = useState(Date.now())
+  // When the snapshot was fetched, so the "updated" age keeps counting between
+  // reloads instead of freezing at whatever the server last reported.
+  const [fetchedAt, setFetchedAt] = useState(Date.now())
 
   const load = useCallback(() => {
     migrationApi.getLatest()
-      .then((d) => { setLatest(d); setError(null); setLoading(false); setNow(Date.now()) })
+      .then((d) => { setLatest(d); setError(null); setLoading(false); setNow(Date.now()); setFetchedAt(Date.now()) })
       .catch((e) => { setError(e.message); setLoading(false) })
   }, [])
   useEffect(() => { load() }, [load])
   useEffect(() => {
-    const t = setInterval(() => { setNow(Date.now()); load() }, 5 * 60 * 1000)
-    return () => clearInterval(t)
+    const tick = setInterval(() => setNow(Date.now()), 30 * 1000)
+    const refetch = setInterval(load, 5 * 60 * 1000)
+    return () => { clearInterval(tick); clearInterval(refetch) }
   }, [load])
 
   const selClient = searchParams.get("c")
@@ -291,8 +295,7 @@ export function MigrationMatrix() {
   const active = clients.filter((c) => !c.archived && c.list !== "planned")
   const weekNow = data?.week_lbl || ""
 
-  const ageSec = latest?.seconds_old != null ? latest.seconds_old + Math.round((now - (loading ? now : now)) / 1000) : null
-  const hbSec = latest?.last_heartbeat_seconds ?? null
+  const ageSec = latest?.seconds_old != null ? latest.seconds_old + Math.round((now - fetchedAt) / 1000) : null
 
   const setView = (params: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams)
@@ -322,17 +325,12 @@ export function MigrationMatrix() {
         <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
         <p className="text-xs text-slate-400">
           {data ? `${active.length} active projects · week of ${weekNow}` : "Migration Matrix"}
-          {ageSec != null && <> · updated {ageSec < 90 ? "just now" : `${Math.round(ageSec / 60)} min ago`}</>}
+          {ageSec != null && <> · reads the spreadsheets automatically · updated {fmtAge(ageSec, snap?.created_at)}</>}
         </p>
       </div>
       <div className="ml-auto flex items-center gap-2">
         <OpenLink href={data?.source_files?.tracker?.web_url}>Open the tracker</OpenLink>
         <OpenLink href={data?.source_files?.matrices?.[0]?.web_url}>Open the matrix</OpenLink>
-        <button onClick={headerSync} disabled={!!syncStatus}
-          className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-white rounded-xl px-4 h-9 disabled:opacity-60 shadow-[0_1px_2px_rgba(0,0,0,.1),0_2px_6px_rgba(196,18,48,.25)]"
-          style={{ background: GRADIENT }} title="Read the spreadsheets from your OneDrive folder and rebuild the dashboard">
-          <RefreshCw size={14} className={syncStatus ? "animate-spin" : ""} /> {syncStatus ? "Syncing" : "Sync"}
-        </button>
       </div>
     </div>
   )
@@ -352,23 +350,26 @@ export function MigrationMatrix() {
           </button>
         )
       })}
-      {syncStatus && <span className="ml-auto text-[12px] text-slate-500 pr-1">{syncStatus}</span>}
     </div>
   )
 
+  // The pipeline pulls the spreadsheets from SharePoint on a schedule, so a
+  // quiet hour is normal and only a long silence is worth flagging. Weekends
+  // and evenings are quiet by design: the sync runs on weekdays.
   const staleBanner = (() => {
     if (ageSec == null) return null
-    const hour = new Date().getHours(); const workhrs = hour >= 7 && hour <= 18
-    if (ageSec < 30 * 60 || !workhrs) return null
-    const agentAlive = hbSec != null && hbSec < 90 * 60
-    const cls = ageSec > 2 * 60 * 60 && !agentAlive
+    const d = new Date()
+    const workhrs = d.getHours() >= 8 && d.getHours() <= 17 && d.getDay() >= 1 && d.getDay() <= 5
+    if (ageSec < 60 * 60 || !workhrs) return null
+    const bad = ageSec > 3 * 60 * 60
+    const cls = bad
       ? "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900"
       : "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-900"
     return (
       <div className={`border rounded-xl px-4 py-2.5 text-[13px] mb-5 ${cls}`}>
-        {agentAlive
-          ? `Sync agent is alive but the spreadsheets have not changed in ${Math.round(ageSec / 60)} minutes.`
-          : `Data is ${Math.round(ageSec / 60)} minutes old and the sync agent is not reporting. Check the Mac running the agent.`}
+        {bad
+          ? `The spreadsheets have not been read for ${Math.round(ageSec / 3600)} hours. The scheduled sync looks stuck, so these numbers may be behind what is in the tracker. Tell Eric.`
+          : `The spreadsheets have not been read for ${Math.round(ageSec / 60)} minutes. Usually it is every few minutes on weekdays, so this may be catching up.`}
       </div>
     )
   })()
@@ -409,9 +410,9 @@ export function MigrationMatrix() {
   if (!snap || latest?.empty || !data) return shell(
     <Card className="text-center py-14 border-dashed">
       <Sparkles size={22} className="mx-auto text-slate-300 mb-3" />
-      <p className="text-slate-700 dark:text-slate-200 font-medium">Waiting for the first sync</p>
+      <p className="text-slate-700 dark:text-slate-200 font-medium">Waiting for the first snapshot</p>
       <p className="text-[13px] text-slate-400 mt-1 max-w-md mx-auto">
-        No snapshot has arrived yet. Press Sync on the Spreadsheets tab and everything appears here.
+        Nothing has arrived yet. The spreadsheets are read automatically through the day, so this fills in on the next run.
       </p>
     </Card>
   )
@@ -501,7 +502,7 @@ export function MigrationMatrix() {
                     <th />
                     <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th>
                     <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th>
-                    <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th><th className="pb-1 px-3 text-right font-normal">left</th>
+                    <th className="pb-1 px-3 text-right font-normal">assigned</th><th className="pb-1 px-3 text-right font-normal">done</th><th className="pb-1 px-3 text-right font-normal">remaining</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -571,7 +572,12 @@ export function MigrationMatrix() {
   if (tab === "weekly") return shell(<WeeklyView weekly={weekly} openPerson={(name) => setView({ tab: null, p: name })} openProject={(name) => setView({ tab: null, c: name })} />)
 
   // ── overview ──
+  // Severity is compared case-insensitively: the contract says "high", but
+  // snapshots pushed before 2026-09-19 carry "HIGH" and are still in the table.
   const findings = snap.findings || []
+  const sevOf = (f: { severity?: string }) => (f.severity || "").toLowerCase()
+  const highFindings = findings.filter((f) => sevOf(f) === "high")
+  const otherFindings = findings.length - highFindings.length
   return shell(
     <div className="space-y-5">
       {(latest?.diff?.length ?? 0) > 0 && (
@@ -594,14 +600,27 @@ export function MigrationMatrix() {
         <Label>Projects · pages first · click a heading to sort, a row to drill in</Label>
         <ProjectsTable rows={clients} weekOf={thisWeekByProject} open={(name) => setView({ c: name })} />
       </div>
-      {findings.filter((f) => f.severity === "high").length > 0 && (
+      {findings.length > 0 && (
         <Card>
-          <Label>Data quality · from the validator</Label>
-          <ul className="space-y-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
-            {findings.filter((f) => f.severity === "high").slice(0, 6).map((f, i) => (
-              <li key={i} className="flex gap-2"><span className="text-red-500 shrink-0">●</span> {f.message}</li>
-            ))}
-          </ul>
+          <Label>Spreadsheet health · checked on every sync</Label>
+          {highFindings.length > 0 ? (
+            <ul className="space-y-1.5 text-[12.5px] text-slate-600 dark:text-slate-300">
+              {highFindings.slice(0, 6).map((f, i) => (
+                <li key={i} className="flex gap-2"><span className="text-red-500 shrink-0">●</span> {f.message}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12.5px] text-slate-600 dark:text-slate-300">
+              <span className="text-emerald-500">●</span> Nothing serious. The spreadsheets pass every high severity check.
+            </p>
+          )}
+          {(otherFindings > 0 || highFindings.length > 6) && (
+            <p className="text-[11.5px] text-slate-400 mt-2">
+              {highFindings.length > 6 ? `${highFindings.length - 6} more high, ` : ""}
+              {otherFindings > 0 ? `${otherFindings} lower severity` : ""}
+              {otherFindings > 0 ? " noted in the weekly report." : "noted in the weekly report."}
+            </p>
+          )}
         </Card>
       )}
     </div>
@@ -628,105 +647,14 @@ function personRowsForProject(weekly: MmWeekly | undefined, project: string) {
   return out.sort((x, y) => (y.tw.a + y.tw.d) - (x.tw.a + x.tw.d) || (y.all.d - x.all.d) || x.name.localeCompare(y.name))
 }
 
-// ─── Sync from OneDrive ──────────────────────────────────────────────────────
-// The person clicking is signed in and has the spreadsheets in their synced
-// OneDrive folder, so no robot credentials are needed: read the files from
-// disk (File System Access API where available, file chooser elsewhere),
-// upload them, trigger the cloud rebuild, reload when the snapshot lands.
-type DirHandle = { name: string; values: () => AsyncIterable<{ kind: string; name: string; getFile: () => Promise<File> }>; queryPermission?: (o: { mode: string }) => Promise<string>; requestPermission?: (o: { mode: string }) => Promise<string> }
-const HANDLE_DB = "mm-sync"
-function idb(): Promise<IDBDatabase> {
-  return new Promise((res, rej) => {
-    const r = indexedDB.open(HANDLE_DB, 1)
-    r.onupgradeneeded = () => r.result.createObjectStore("kv")
-    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error)
-  })
-}
-async function loadDirHandle(): Promise<DirHandle | null> {
-  try { const db = await idb(); return await new Promise((res) => { const t = db.transaction("kv").objectStore("kv").get("dir"); t.onsuccess = () => res(t.result || null); t.onerror = () => res(null) }) } catch { return null }
-}
-async function saveDirHandle(h: DirHandle) {
-  try { const db = await idb(); await new Promise((res) => { const t = db.transaction("kv", "readwrite").objectStore("kv").put(h, "dir"); t.onsuccess = () => res(null); t.onerror = () => res(null) }) } catch { /* ignore */ }
-}
-function classify(files: File[]): { tracker: File | null; matrices: File[] } {
-  const xlsx = files.filter((f) => /\.xlsx$/i.test(f.name) && !f.name.startsWith("~$"))
-  const matrices = xlsx.filter((f) => f.name.toLowerCase().includes("content-matrix"))
-  const rest = xlsx.filter((f) => !matrices.includes(f))
-  const tracker = rest.find((f) => f.name.toLowerCase().includes("tracker")) || rest[0] || null
-  return { tracker, matrices }
-}
-
-/** Upload the chosen files, trigger the cloud rebuild once, reload when the snapshot lands. */
-async function runSyncFiles(files: File[], onStatus: (s: string | null) => void, onUploaded?: () => void) {
-  const { tracker, matrices } = classify(files)
-  if (!tracker && matrices.length === 0) { toast.error("No .xlsx files found (need the tracker and content-matrix-*.xlsx files)"); return }
-  const started = Date.now()
-  try {
-    onStatus("uploading spreadsheets...")
-    if (tracker) await migrationApi.uploadSource("tracker", tracker, { nosync: true })
-    for (const m of matrices) await migrationApi.uploadSource("matrix", m, { nosync: true })
-    const r = await migrationApi.syncNow()
-    onUploaded?.()
-    if (!r.triggered) { onStatus(null); toast.info(`Uploaded ${files.length} file(s). ${r.note}`); return }
-    onStatus("rebuilding the dashboard in the cloud, about a minute...")
-    for (let i = 0; i < 40; i++) {              // poll up to ~4 min for the new snapshot
-      await new Promise((res) => setTimeout(res, 6000))
-      const latest = await migrationApi.getLatest().catch(() => null)
-      const at = latest?.snapshot?.created_at ? new Date(latest.snapshot.created_at).getTime() : 0
-      if (at > started) { toast.success("Dashboard updated from your spreadsheets"); window.location.href = "/migration"; return }
-    }
-    onStatus(null); toast.warning("Still rebuilding. Refresh the dashboard in a minute.")
-  } catch (e) {
-    onStatus(null); toast.error(e instanceof Error ? e.message : "Sync failed")
-  }
-}
-
-/** Folder-handle path (Chrome/Edge): first time asks for the folder, then one click. */
-async function syncFromOneDrive({ onStatus, onFolder, onUploaded, preloaded, onHandle }: { onStatus: (s: string | null) => void; onFolder?: (name: string) => void; onUploaded?: () => void; preloaded?: DirHandle | null; onHandle?: (h: DirHandle) => void }) {
-  try {
-    // Start the permission work immediately: everything here runs before the
-    // first await so the click's user activation is still valid.
-    let h = preloaded ?? null
-    const granting = h?.requestPermission ? h.requestPermission({ mode: "read" }) : null
-    const picking = h ? null : (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
-    if (granting && (await granting) !== "granted") h = null
-    if (picking) h = await picking
-    if (!h) {
-      h = await (window as unknown as { showDirectoryPicker: (o: unknown) => Promise<DirHandle> }).showDirectoryPicker({ id: "mm-sources", mode: "read" })
-    }
-    if (h !== preloaded) { await saveDirHandle(h); onFolder?.(h.name); onHandle?.(h) }
-    const files: File[] = []
-    for await (const entry of h.values()) if (entry.kind === "file") files.push(await entry.getFile())
-    await runSyncFiles(files, onStatus, onUploaded)
-  } catch (e) {
-    if ((e as { name?: string })?.name === "AbortError") { onStatus(null); toast.info("Sync cancelled. Choose the Migration Matrix folder to let the dashboard read your spreadsheets."); return }
-    onStatus(null)
-    toast.error(e instanceof Error ? e.message : "Could not read the folder")
-  }
-}
-
 function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData["source_files"] }) {
   const [data, setData] = useState<{ sources: Array<{ kind: string; name: string; size: number; updated_at: string | null }>; sync: string } | null>(null)
-  const [busy, setBusy] = useState<string | null>(null)
-  const [status, setStatus] = useState<string | null>(null)
-  const [folderName, setFolderName] = useState<string | null>(null)
-  const canPickFolder = typeof window !== "undefined" && "showDirectoryPicker" in window
   const load = () => migrationApi.listSources().then(setData).catch((e) => toast.error(e.message))
-  useEffect(() => { load(); loadDirHandle().then((h) => h && setFolderName(h.name)) }, [])
-  const runSync = async (files: File[]) => { setBusy("sync"); await runSyncFiles(files, setStatus, load); setBusy(null) }
-  const syncFromFolder = async () => { setBusy("sync"); await syncFromOneDrive({ onStatus: setStatus, onFolder: setFolderName, onUploaded: load }); setBusy(null) }
+  useEffect(() => { load() }, [])
   const linkFor = (name: string) => {
     if (!links) return undefined
     if (links.tracker?.name === name) return officeUrl(links.tracker.web_url)
     return officeUrl(links.matrices?.find((m) => m.name === name)?.web_url)
-  }
-
-  const onPick = async (kind: "tracker" | "matrix", input: HTMLInputElement) => {
-    const file = input.files?.[0]; if (!file) return
-    setBusy(kind)
-    try { const r = await migrationApi.uploadSource(kind, file); toast.success(`${r.name} uploaded. ${r.note}`); load() }
-    catch (e) { toast.error(e instanceof Error ? e.message : "Upload failed") }
-    finally { setBusy(null); input.value = "" }
   }
   const fmtSize = (n: number) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`
   return (
@@ -736,33 +664,14 @@ function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData
       </button>
       <Card>
         <div className="flex items-start justify-between gap-3">
-          <Label>Sync from OneDrive</Label>
+          <Label>Where the numbers come from</Label>
           <OpenLink href={links?.folder_url}><FolderOpen size={13} /> Open the OneDrive folder</OpenLink>
         </div>
-        <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-4">
-          Edit the spreadsheets in the shared OneDrive folder like always. When you want the dashboard to catch up, press Sync: it reads the files from your synced folder, uploads them, and rebuilds the dashboard{data?.sync?.startsWith("on upload") ? " in about two minutes" : " on the next scheduled run"}.
-          {canPickFolder ? (folderName ? ` Folder: ${folderName}.` : " The first time, it asks you to pick the Migration Matrix folder.") : " Your browser will ask you to choose the files."}
+        <p className="text-[13px] text-slate-600 dark:text-slate-300">
+          Edit the spreadsheets in the shared OneDrive folder like always. The dashboard reads them
+          from SharePoint by itself through the working day, so there is nothing to upload and no
+          button to press. Changes show up here on the next run, normally within a few minutes.
         </p>
-        <div className="flex flex-wrap items-center gap-2">
-          {canPickFolder ? (
-            <button onClick={syncFromFolder} disabled={!!busy}
-              className="inline-flex items-center gap-2 text-[13.5px] font-semibold text-white rounded-xl px-5 h-11 disabled:opacity-60" style={{ background: GRADIENT }}>
-              <RefreshCw size={16} className={busy === "sync" ? "animate-spin" : ""} /> {busy === "sync" ? "Syncing" : folderName ? "Sync now" : "Choose folder and sync"}
-            </button>
-          ) : (
-            <label className={`inline-flex items-center gap-2 text-[13.5px] font-semibold text-white rounded-xl px-5 h-11 cursor-pointer ${busy ? "opacity-60 pointer-events-none" : ""}`} style={{ background: GRADIENT }}>
-              <RefreshCw size={16} className={busy === "sync" ? "animate-spin" : ""} /> {busy === "sync" ? "Syncing" : "Choose the spreadsheets and sync"}
-              <input type="file" accept=".xlsx" multiple className="hidden" data-testid="sync-files" onChange={(e) => { const fs = Array.from(e.currentTarget.files || []); e.currentTarget.value = ""; runSync(fs) }} />
-            </label>
-          )}
-          {canPickFolder && (
-            <label className={`inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3.5 h-9 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
-              or choose files
-              <input type="file" accept=".xlsx" multiple className="hidden" data-testid="sync-files" onChange={(e) => { const fs = Array.from(e.currentTarget.files || []); e.currentTarget.value = ""; runSync(fs) }} />
-            </label>
-          )}
-          {status && <span className="text-[12.5px] text-slate-500">{status}</span>}
-        </div>
       </Card>
       <Card>
         <Label>Spreadsheets the dashboard reads</Label>
@@ -780,16 +689,6 @@ function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData
             {data.sources.length === 0 && <p className="text-[13px] text-slate-400">No spreadsheets synced yet.</p>}
           </div>
         )}
-        <div className="flex flex-wrap gap-2 mt-4">
-          <label className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-8 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
-            {busy === "tracker" ? "uploading..." : "replace only the tracker"}
-            <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("tracker", e.currentTarget)} />
-          </label>
-          <label className={`inline-flex items-center gap-1.5 text-[12px] font-medium text-slate-500 border border-black/[0.06] dark:border-white/[0.08] rounded-xl px-3 h-8 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${busy ? "opacity-60 pointer-events-none" : ""}`}>
-            {busy === "matrix" ? "uploading..." : "add or update one matrix"}
-            <input type="file" accept=".xlsx" className="hidden" onChange={(e) => onPick("matrix", e.currentTarget)} />
-          </label>
-        </div>
       </Card>
     </div>
   )
@@ -832,16 +731,17 @@ function ReportsView({ back }: { back: () => void }) {
 
 // ─── projects table (overview) ───────────────────────────────────────────────
 
-type SortKey = "name" | "group" | "total" | "assigned" | "done" | "left" | "week" | "hours" | "deadline"
+type SortKey = "name" | "group" | "total" | "assigned" | "done" | "left" | "week" | "hours" | "start" | "deadline"
 const COLS: Array<{ key: SortKey; label: string; num?: boolean; title: string }> = [
   { key: "name", label: "Project", title: "Sort by name" },
   { key: "group", label: "Status", title: "active, planned or archived, then the tracker's own status" },
   { key: "total", label: "Total", num: true, title: "Total pages on the tracker" },
   { key: "assigned", label: "Assigned", num: true, title: "Pages assigned to people so far" },
   { key: "done", label: "Done", num: true, title: "Pages built: client matrix where one exists, else the tracker" },
-  { key: "left", label: "Left", num: true, title: "Total minus done" },
-  { key: "week", label: "This week", num: true, title: "Pages assigned in the current tracker week" },
-  { key: "hours", label: "Hours left", num: true, title: "Left pages at the project's minutes per page, plus QA" },
+  { key: "left", label: "Remaining", num: true, title: "Pages still to build: total minus done" },
+  { key: "week", label: "Assigned this week", num: true, title: "Pages assigned to people in the current tracker week. Pages completed this week are on the Weekly tab." },
+  { key: "hours", label: "Hours remaining", num: true, title: "Remaining pages at the project's minutes per page, plus QA" },
+  { key: "start", label: "Start", title: "Estimated start date from the tracker. A project with a start date ahead of today is booked, not late." },
   { key: "deadline", label: "Due", title: "Client deadline" },
 ]
 const TEXT_SORT: SortKey[] = ["name", "group", "deadline"]
@@ -866,6 +766,7 @@ function ProjectsTable({ rows, weekOf, open }: { rows: Row[]; weekOf: Map<string
       case "left": return leftOf(c)
       case "week": return weekOf.get(c.name)?.assigned ?? 0
       case "hours": return c.hours_to_finish ?? -1
+      case "start": return c.start_date || "9999-12-31"
       case "deadline": return c.deadline || "9999-12-31"
     }
   }
@@ -938,6 +839,7 @@ function ProjectsTable({ rows, weekOf, open }: { rows: Row[]; weekOf: Map<string
                   <td className={`${NUM} ${leftOf(c) > 0 && g !== "archived" ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOf(c))}</td>
                   <td className={NUM}>{tw?.assigned ? n(tw.assigned) : <span className="text-slate-300 dark:text-slate-600">0</span>}</td>
                   <td className={NUM}>{c.hours_to_finish != null ? n(c.hours_to_finish) : <span title="no minutes-per-page on the tracker" className="text-amber-600 dark:text-amber-400 text-[11.5px]">no rate</span>}</td>
+                  <td className="px-3 py-2.5 whitespace-nowrap text-slate-500">{c.start_date ? fmtDate(c.start_date) : <span className="text-slate-300 dark:text-slate-600">none</span>}</td>
                   <td className={`px-3 py-2.5 whitespace-nowrap ${overdue ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-500"}`}>{c.deadline ? fmtDate(c.deadline) : <span className="text-slate-300 dark:text-slate-600">none</span>}</td>
                 </tr>
               )
@@ -955,6 +857,7 @@ function ProjectsTable({ rows, weekOf, open }: { rows: Row[]; weekOf: Map<string
               <td className={NUM}>{n(tot.week)}</td>
               <td className={NUM}>{n(tot.hours)}{tot.norate > 0 && <span className="block text-[10.5px] font-normal text-amber-600 dark:text-amber-400">+{tot.norate} without a rate</span>}</td>
               <td />
+              <td />
             </tr>
           </tfoot>
         </table>
@@ -971,7 +874,7 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
   if (!weekly || weekly.weeks.length === 0) return (
     <Card className="text-center py-10 border-dashed">
       <p className="text-slate-700 dark:text-slate-200 font-medium">No weekly data yet</p>
-      <p className="text-[13px] text-slate-400 mt-1">Press Sync to rebuild the dashboard; the weekly view arrives with the next snapshot.</p>
+      <p className="text-[13px] text-slate-400 mt-1">The weekly view arrives with the next snapshot.</p>
     </Card>
   )
   const last = weekly.weeks.length - 1
@@ -1110,7 +1013,7 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
         {(["done", "left", "week", "hours"] as const).map((s) => (
           <button key={s} onClick={() => setSort(s)}
             className={`h-9 px-3 text-[12.5px] font-medium rounded-xl border ${sort === s ? "border-[#C41230] text-[#C41230] dark:text-rose-300" : "border-black/[0.06] dark:border-white/[0.08] text-slate-500"}`}>
-            by {s === "week" ? "this week" : s}
+            by {s === "week" ? "assigned this week" : s === "left" ? "remaining" : s}
           </button>
         ))}
       </div>
@@ -1120,7 +1023,7 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
             <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
               <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
               <th className="px-3 py-3 font-medium text-right">Assigned</th><th className="px-3 py-3 font-medium text-right">Done</th>
-              <th className="px-3 py-3 font-medium text-right">Left</th>
+              <th className="px-3 py-3 font-medium text-right">Remaining</th>
               <th className="px-3 py-3 font-medium text-right" title="pages assigned and done in the current tracker week">This week</th>
               <th className="px-3 py-3 font-medium text-right" title="pages assigned and done the week before">Last week</th>
               <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th>
@@ -1178,9 +1081,9 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
         <Card>
           <Label>Pages · all weeks on the tracker</Label>
           <div className="grid grid-cols-3 gap-4 text-center">
-            {([[n(t.assigned), "assigned"], [n(t.done), "done"], [n(left), "left"]] as Array<[string, string]>).map(([v, k]) => (
+            {([[n(t.assigned), "assigned"], [n(t.done), "done"], [n(left), "remaining"]] as Array<[string, string]>).map(([v, k]) => (
               <div key={k}>
-                <p className={`text-2xl font-bold tabular-nums ${k === "left" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
+                <p className={`text-2xl font-bold tabular-nums ${k === "remaining" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">{k}</p>
               </div>
             ))}
@@ -1233,7 +1136,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
       <Card>
         <Label>Projects</Label>
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Done</th><th className="py-2 font-medium text-right">Left</th><th className="py-2 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th></tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Done</th><th className="py-2 font-medium text-right">Remaining</th><th className="py-2 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th></tr></thead>
           <tbody>
             {t.projects.map(([pr, h, x, d]) => (
               <tr key={pr} className="border-t border-black/[0.04] dark:border-white/[0.05]">
