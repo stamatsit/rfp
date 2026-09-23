@@ -20,18 +20,30 @@ import {
   MonitorSmartphone,
   Eye,
   RotateCcw,
+  History,
+  ExternalLink,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { addCsrfHeader } from "@/lib/csrfToken"
+import {
+  MAX_PAGES_PER_RUN,
+  planRun,
+  indexHistory,
+  isCaptured,
+  filterUncaptured,
+  normalizeUrlKey,
+  type CaptureHistoryEntry,
+  type HistoryIndex,
+  type ViewportChoice,
+} from "@/lib/screenshotCaptureRules"
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const CAPTURE_CONFIRM_THRESHOLD = 200
+// The hard cap on pages per run is MAX_PAGES_PER_RUN in @/lib/screenshotCaptureRules.
 const EST_SECONDS_PER_CAPTURE = 7
 const CAPTURE_CONCURRENCY_FOR_ESTIMATE = 2
-const EST_COST_PER_CAPTURE_USD = 0.005
 const CAPTURE_CONCURRENCY = 2
 const CAPTURE_STAGGER_MS = 800
 const MAX_RETRIES = 4
@@ -62,6 +74,9 @@ interface CaptureRow {
   status: CaptureRowStatus
   error?: string
   thumbBlob?: Blob
+  /** Whether the server saved this capture to the screenshot library. */
+  stored?: boolean
+  captureId?: string
 }
 
 interface TreeNode {
@@ -343,11 +358,6 @@ function formatTimeEstimate(n: number, vpMult: number): string {
   return `~${minutes} min`
 }
 
-function formatCost(n: number, vpMult: number): string {
-  const cost = n * vpMult * EST_COST_PER_CAPTURE_USD
-  return `$${cost.toFixed(2)}`
-}
-
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts
   const mins = Math.floor(diff / 60000)
@@ -366,6 +376,48 @@ function vpLabel(vp: "desktop" | "mobile" | "both"): string {
 
 function vpMultiplier(vp: "desktop" | "mobile" | "both"): number {
   return vp === "both" ? 2 : 1
+}
+
+function latestCaptureAt(rec: Partial<Record<"desktop" | "mobile", CaptureHistoryEntry>>): number {
+  return Math.max(
+    rec.desktop ? Date.parse(rec.desktop.capturedAt) : 0,
+    rec.mobile ? Date.parse(rec.mobile.capturedAt) : 0,
+  )
+}
+
+// One capture through the API. Throws an Error carrying status/retryable so the
+// pools can decide whether to back off. Reads the library headers the server
+// sets so each row can say whether the screenshot was saved.
+async function captureViaApi(
+  url: string,
+  viewport: "desktop" | "mobile",
+  signal?: AbortSignal,
+): Promise<{ blob: Blob; stored: boolean; captureId?: string }> {
+  const headers = await addCsrfHeader({ "Content-Type": "application/json" })
+  const resp = await fetch("/api/screenshot", {
+    method: "POST",
+    credentials: "include",
+    headers,
+    body: JSON.stringify({ url, viewport }),
+    signal,
+  })
+  if (!resp.ok) {
+    let msg = `Capture failed (${resp.status})`
+    let retryable = false
+    try {
+      const j = (await resp.json()) as { error?: string; retryable?: boolean }
+      if (j?.error) msg = j.error
+      if (j?.retryable) retryable = true
+    } catch { /* skip */ }
+    const err = new Error(msg) as Error & { status?: number; retryable?: boolean }
+    err.status = resp.status
+    err.retryable = retryable
+    throw err
+  }
+  const blob = await resp.blob()
+  const stored = resp.headers.get("X-Capture-Stored") === "true"
+  const captureId = resp.headers.get("X-Capture-Id") ?? undefined
+  return { blob, stored, captureId }
 }
 
 // ─── TriStateCheckbox ───────────────────────────────────────────────────────
@@ -433,6 +485,8 @@ function TreeRow({
   testResult,
   onTest,
   onCancelTest,
+  history,
+  viewportChoice,
 }: {
   node: TreeNode
   selected: Set<string>
@@ -446,11 +500,18 @@ function TreeRow({
   testResult: { url: string; blob: Blob; objectUrl: string } | null
   onTest: (url: string) => void
   onCancelTest: () => void
+  history: HistoryIndex | null
+  viewportChoice: ViewportChoice
 }) {
   const isFolder = node.children.size > 0
   const isExpanded = expanded.has(node.fullPath)
   const checkState = getCheckState(node.descendantUrls, selected)
   const isLeaf = !isFolder && node.urls.length > 0
+  const capturedCount = history
+    ? node.descendantUrls.reduce((n, u) => (isCaptured(history, u, viewportChoice) ? n + 1 : n), 0)
+    : 0
+  const leafRecord = isLeaf && history ? history.get(normalizeUrlKey(node.urls[0]!)) : undefined
+  const leafCapturedAt = leafRecord ? latestCaptureAt(leafRecord) : 0
 
   const sortedChildren = useMemo(
     () =>
@@ -517,7 +578,19 @@ function TreeRow({
         </span>
         {isFolder && (
           <span className="text-[10px] text-slate-500 dark:text-slate-400 ml-1">
-            ({node.descendantUrls.length})
+            ({node.descendantUrls.length}{capturedCount > 0 ? `, ${capturedCount} captured` : ""})
+          </span>
+        )}
+        {leafRecord && leafCapturedAt > 0 && (
+          <span
+            className="ml-1 flex-shrink-0 px-1.5 py-0.5 rounded text-[9px] font-medium bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400"
+            title={[leafRecord.desktop, leafRecord.mobile]
+              .filter((e): e is CaptureHistoryEntry => !!e)
+              .map((e) => `${e.viewport} ${timeAgo(Date.parse(e.capturedAt))}${e.capturedByName ? ` by ${e.capturedByName}` : ""}`)
+              .join(" · ")}
+          >
+            captured {timeAgo(leafCapturedAt)}
+            {leafRecord.desktop && leafRecord.mobile ? " D+M" : leafRecord.mobile ? " M" : " D"}
           </span>
         )}
         {isLeaf && node.urls.length === 1 && (
@@ -571,6 +644,8 @@ function TreeRow({
             testResult={testResult}
             onTest={onTest}
             onCancelTest={onCancelTest}
+            history={history}
+            viewportChoice={viewportChoice}
           />
         ))}
     </div>
@@ -601,7 +676,6 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedSearch, setDebouncedSearch] = useState("")
   const [hiddenSubdomainCount, setHiddenSubdomainCount] = useState(0)
-  const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [resumeSession, setResumeSession] = useState<CaptureSession | null>(null)
   const [testingUrl, setTestingUrl] = useState<string | null>(null)
   const [testResult, setTestResult] = useState<{
@@ -612,6 +686,18 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
 
   // Manual paste state (inside <details> disclosure)
   const [captureUrlsText, setCaptureUrlsText] = useState("")
+
+  // Screenshot library: what the team already captured on this domain
+  const [history, setHistory] = useState<{
+    domain: string
+    index: HistoryIndex
+    entries: CaptureHistoryEntry[]
+    totalCaptures: number
+    lastCapturedAt: string | null
+  } | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [includeCaptured, setIncludeCaptured] = useState(false)
+  const [showLibrary, setShowLibrary] = useState(false)
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
@@ -679,6 +765,30 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
   const totalCaptures = selectedCount * vpMult
   const failedRows = captureRows.filter((r) => r.status === "error")
   const doneRows = captureRows.filter((r) => r.status === "done")
+  const unsavedDoneCount = doneRows.filter((r) => r.stored === false).length
+
+  // Run cap and library-aware counts
+  const runPlan = useMemo(() => planRun([...selected], captureViewport), [selected, captureViewport])
+  const selectedAlreadyCaptured = useMemo(
+    () => (history ? [...selected].filter((u) => isCaptured(history.index, u, captureViewport)).length : 0),
+    [selected, history, captureViewport],
+  )
+  const capturedOnDomain = useMemo(
+    () => (history ? filteredUrls.filter((u) => isCaptured(history.index, u, captureViewport)).length : 0),
+    [filteredUrls, history, captureViewport],
+  )
+  const manualPlan = useMemo(
+    () =>
+      planRun(
+        captureUrlsText
+          .split(/\r?\n/)
+          .map((l) => l.trim())
+          .filter(Boolean)
+          .map((l) => (/^https?:\/\//i.test(l) ? l : `https://${l}`)),
+        captureViewport,
+      ),
+    [captureUrlsText, captureViewport],
+  )
 
   // ─── Lifecycle ──────────────────────────────────────────────────────
 
@@ -769,6 +879,57 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     }
   }, [modalState, filteredUrls, selected, captureViewport, captureRows, inputHostname])
+
+  // ─── Screenshot library ─────────────────────────────────────────────
+
+  const loadHistory = useCallback(async (domain: string) => {
+    if (!domain) return
+    setHistoryLoading(true)
+    try {
+      const resp = await fetch(`/api/screenshot/history?domain=${encodeURIComponent(domain)}`, {
+        credentials: "include",
+      })
+      if (!resp.ok) throw new Error(`History failed (${resp.status})`)
+      const data = (await resp.json()) as {
+        domain: string
+        captures: CaptureHistoryEntry[]
+        totalCaptures: number
+        lastCapturedAt: string | null
+      }
+      setHistory({
+        domain,
+        index: indexHistory(data.captures),
+        entries: [...data.captures].sort((a, b) => Date.parse(b.capturedAt) - Date.parse(a.capturedAt)),
+        totalCaptures: data.totalCaptures,
+        lastCapturedAt: data.lastCapturedAt,
+      })
+    } catch {
+      // Keep whatever we had for this domain; otherwise mark it loaded-empty
+      // so the tree still works and the effect below does not loop.
+      setHistory((prev) =>
+        prev && prev.domain === domain
+          ? prev
+          : { domain, index: new Map(), entries: [], totalCaptures: 0, lastCapturedAt: null },
+      )
+    } finally {
+      setHistoryLoading(false)
+    }
+  }, [])
+
+  // Load when a domain's tree opens.
+  useEffect(() => {
+    if (modalState !== "tree" && modalState !== "capturing") return
+    if (!inputHostname) return
+    if (history?.domain === inputHostname) return
+    loadHistory(inputHostname)
+  }, [modalState, inputHostname, history?.domain, loadHistory])
+
+  // Refresh when a batch finishes so "Capture more" sees what just landed.
+  const wasRunningRef = useRef(false)
+  useEffect(() => {
+    if (wasRunningRef.current && !captureRunning && inputHostname) loadHistory(inputHostname)
+    wasRunningRef.current = captureRunning
+  }, [captureRunning, inputHostname, loadHistory])
 
   // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -920,18 +1081,32 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
 
   // ─── Selection ──────────────────────────────────────────────────────
 
+  // Filling a folder or group skips pages already in the library for the chosen
+  // viewport unless "include already captured" is on. A single page (an
+  // explicit click) is never skipped, and a set that is entirely captured
+  // fills in full, since clicking it can only mean "I want these anyway".
+  const eligibleForFill = useCallback(
+    (urls: string[]) => {
+      if (urls.length <= 1 || includeCaptured || !history) return urls
+      const eligible = filterUncaptured(urls, history.index, captureViewport)
+      return eligible.length > 0 ? eligible : urls
+    },
+    [includeCaptured, history, captureViewport],
+  )
+
   const toggleUrls = useCallback((urls: string[]) => {
+    const fill = eligibleForFill(urls)
     setSelected((prev) => {
       const next = new Set(prev)
-      const allSelected = urls.every((u) => next.has(u))
+      const allSelected = fill.every((u) => next.has(u))
       if (allSelected) {
         for (const u of urls) next.delete(u)
       } else {
-        for (const u of urls) next.add(u)
+        for (const u of fill) next.add(u)
       }
       return next
     })
-  }, [])
+  }, [eligibleForFill])
 
   const toggleExpanded = useCallback((path: string) => {
     setExpanded((prev) => {
@@ -946,26 +1121,28 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
   // An indeterminate group fills (the user's intuition is "make it whole"),
   // not clears — clearing is reserved for a fully-checked group.
   const toggleSmartGroup = useCallback((group: SmartGroup) => {
+    const fill = eligibleForFill(group.urls)
     setSelected((prev) => {
       const next = new Set(prev)
-      const allSelected = group.urls.every((u) => next.has(u))
+      const allSelected = fill.every((u) => next.has(u))
       if (allSelected) {
         for (const u of group.urls) next.delete(u)
       } else {
-        for (const u of group.urls) next.add(u)
+        for (const u of fill) next.add(u)
       }
       return next
     })
-  }, [])
+  }, [eligibleForFill])
 
   const selectAllVisible = useCallback(() => {
     if (!matchingUrls) return
+    const fill = eligibleForFill([...matchingUrls])
     setSelected((prev) => {
       const next = new Set(prev)
-      for (const u of matchingUrls) next.add(u)
+      for (const u of fill) next.add(u)
       return next
     })
-  }, [matchingUrls])
+  }, [matchingUrls, eligibleForFill])
 
   // clearSelection is available through "Start over" which resets all state
 
@@ -1009,10 +1186,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
 
   // ─── Capture ───────────────────────────────────────────────────────
 
-  const executeCapture = useCallback(() => {
-    setShowConfirmDialog(false)
-
-    const urls = [...selected]
+  const executeCapture = useCallback((urls: string[]) => {
     if (urls.length === 0) return
 
     const viewports: ("desktop" | "mobile")[] =
@@ -1052,28 +1226,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           return
         }
         try {
-          const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-          const resp = await fetch("/api/screenshot", {
-            method: "POST",
-            credentials: "include",
-            headers,
-            body: JSON.stringify({ url: row.url, viewport: row.viewport }),
-            signal,
-          })
-          if (!resp.ok) {
-            let msg = `Capture failed (${resp.status})`
-            let retryable = false
-            try {
-              const j = (await resp.json()) as { error?: string; retryable?: boolean }
-              if (j?.error) msg = j.error
-              if (j?.retryable) retryable = true
-            } catch { /* skip */ }
-            const err = new Error(msg) as Error & { status?: number; retryable?: boolean }
-            err.status = resp.status
-            err.retryable = retryable
-            throw err
-          }
-          const blob = await resp.blob()
+          const { blob, stored, captureId } = await captureViaApi(row.url, row.viewport, signal)
           const thumbBlob = blob
 
           const host = (() => {
@@ -1083,7 +1236,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           const suffix = row.viewport === "mobile" ? "-mobile" : ""
           const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
           addFiles([file])
-          updateRow(row.id, { status: "done", thumbBlob })
+          updateRow(row.id, { status: "done", thumbBlob, stored, captureId })
           return
         } catch (err: unknown) {
           if (err instanceof DOMException && err.name === "AbortError") {
@@ -1128,15 +1281,14 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
     }
 
     runPool()
-  }, [selected, captureViewport, addFiles])
+  }, [captureViewport, addFiles])
 
+  // Hard cap: a selection over MAX_PAGES_PER_RUN never starts. The footer
+  // shows the count and the button is disabled, so this is a last guard.
   const startCapture = useCallback(() => {
-    if (totalCaptures > CAPTURE_CONFIRM_THRESHOLD) {
-      setShowConfirmDialog(true)
-      return
-    }
-    executeCapture()
-  }, [totalCaptures, executeCapture])
+    if (!runPlan.ok) return
+    executeCapture(runPlan.pages)
+  }, [runPlan, executeCapture])
 
   const stopCapture = useCallback(() => {
     if (abortControllerRef.current) {
@@ -1178,28 +1330,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           return
         }
         try {
-          const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-          const resp = await fetch("/api/screenshot", {
-            method: "POST",
-            credentials: "include",
-            headers,
-            body: JSON.stringify({ url: row.url, viewport: row.viewport }),
-            signal,
-          })
-          if (!resp.ok) {
-            let msg = `Capture failed (${resp.status})`
-            let retryable = false
-            try {
-              const j = (await resp.json()) as { error?: string; retryable?: boolean }
-              if (j?.error) msg = j.error
-              if (j?.retryable) retryable = true
-            } catch { /* skip */ }
-            const err = new Error(msg) as Error & { status?: number; retryable?: boolean }
-            err.status = resp.status
-            err.retryable = retryable
-            throw err
-          }
-          const blob = await resp.blob()
+          const { blob, stored, captureId } = await captureViaApi(row.url, row.viewport, signal)
           const host = (() => {
             try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
           })()
@@ -1207,7 +1338,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           const suffix = row.viewport === "mobile" ? "-mobile" : ""
           const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
           addFiles([file])
-          updateRow(row.id, { status: "done", thumbBlob: blob })
+          updateRow(row.id, { status: "done", thumbBlob: blob, stored, captureId })
           return
         } catch (err: unknown) {
           if (err instanceof DOMException && err.name === "AbortError") {
@@ -1277,28 +1408,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
             return
           }
           try {
-            const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-            const resp = await fetch("/api/screenshot", {
-              method: "POST",
-              credentials: "include",
-              headers,
-              body: JSON.stringify({ url: row.url, viewport: row.viewport }),
-              signal: controller.signal,
-            })
-            if (!resp.ok) {
-              let msg = `Capture failed (${resp.status})`
-              let retryable = false
-              try {
-                const j = (await resp.json()) as { error?: string; retryable?: boolean }
-                if (j?.error) msg = j.error
-                if (j?.retryable) retryable = true
-              } catch { /* skip */ }
-              const err = new Error(msg) as Error & { status?: number; retryable?: boolean }
-              err.status = resp.status
-              err.retryable = retryable
-              throw err
-            }
-            const blob = await resp.blob()
+            const { blob, stored, captureId } = await captureViaApi(row.url, row.viewport, controller.signal)
             const host = (() => {
               try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
             })()
@@ -1306,7 +1416,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
             const suffix = row.viewport === "mobile" ? "-mobile" : ""
             const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
             addFiles([file])
-            updateRow(rowId, { status: "done", thumbBlob: blob })
+            updateRow(rowId, { status: "done", thumbBlob: blob, stored, captureId })
             return
           } catch (err: unknown) {
             if (err instanceof DOMException && err.name === "AbortError") {
@@ -1338,19 +1448,9 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
   // ─── Manual paste batch (existing behavior) ───────────────────────
 
   const captureBatchManual = useCallback(async () => {
-    const lines = captureUrlsText
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean)
-    const seen = new Set<string>()
-    const normalized: string[] = []
-    for (const l of lines) {
-      const u = /^https?:\/\//i.test(l) ? l : `https://${l}`
-      if (seen.has(u)) continue
-      seen.add(u)
-      normalized.push(u)
-    }
-    if (normalized.length === 0) return
+    // Same hard cap as the tree path; the button is disabled when over it.
+    if (!manualPlan.ok) return
+    const normalized = manualPlan.pages
 
     const viewports: ("desktop" | "mobile")[] =
       captureViewport === "both" ? ["desktop", "mobile"] : [captureViewport]
@@ -1388,28 +1488,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           return
         }
         try {
-          const headers = await addCsrfHeader({ "Content-Type": "application/json" })
-          const resp = await fetch("/api/screenshot", {
-            method: "POST",
-            credentials: "include",
-            headers,
-            body: JSON.stringify({ url: row.url, viewport: row.viewport }),
-            signal,
-          })
-          if (!resp.ok) {
-            let msg = `Capture failed (${resp.status})`
-            let retryable = false
-            try {
-              const j = (await resp.json()) as { error?: string; retryable?: boolean }
-              if (j?.error) msg = j.error
-              if (j?.retryable) retryable = true
-            } catch { /* skip */ }
-            const err = new Error(msg) as Error & { status?: number; retryable?: boolean }
-            err.status = resp.status
-            err.retryable = retryable
-            throw err
-          }
-          const blob = await resp.blob()
+          const { blob, stored, captureId } = await captureViaApi(row.url, row.viewport, signal)
           const host = (() => {
             try { return new URL(row.url).hostname.replace(/^www\./, "") } catch { return "page" }
           })()
@@ -1417,7 +1496,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           const suffix = row.viewport === "mobile" ? "-mobile" : ""
           const file = new File([blob], `${host}${suffix}-${ts}.png`, { type: "image/png" })
           addFiles([file])
-          updateRow(row.id, { status: "done", thumbBlob: blob })
+          updateRow(row.id, { status: "done", thumbBlob: blob, stored, captureId })
           return
         } catch (err: unknown) {
           if (err instanceof DOMException && err.name === "AbortError") {
@@ -1458,7 +1537,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
     }
     await Promise.all(workers)
     setCaptureRunning(false)
-  }, [captureUrlsText, captureViewport, addFiles])
+  }, [manualPlan, captureViewport, addFiles])
 
   // ─── Close / navigation handlers ──────────────────────────────────
 
@@ -1659,10 +1738,24 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                     />
                   </div>
 
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between gap-3">
+                    <p
+                      className={`text-[11px] min-w-0 ${
+                        !manualPlan.ok && manualPlan.reason === "over-cap"
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-slate-500 dark:text-slate-400"
+                      }`}
+                    >
+                      {manualPlan.pages.length > 0 && (
+                        <>
+                          {manualPlan.pages.length} pages · limit {MAX_PAGES_PER_RUN} per run
+                          {manualPlan.ok ? ` · ${manualPlan.captures} captures` : ", remove some to continue"}
+                        </>
+                      )}
+                    </p>
                     <Button
                       onClick={captureBatchManual}
-                      disabled={!captureUrlsText.trim()}
+                      disabled={!manualPlan.ok}
                       className="h-9 px-4 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
                     >
                       <ImageDown size={13} className="mr-1.5" />
@@ -1741,6 +1834,74 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Hid {hiddenSubdomainCount} pages on subdomains
                 </p>
+              )}
+
+              {/* Library progress: what the team already captured on this domain */}
+              {filteredUrls.length > 0 && (
+                <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 px-3 py-2 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 flex items-center gap-1.5 min-w-0">
+                      <History size={12} className="text-slate-500 flex-shrink-0" />
+                      {historyLoading && !history ? (
+                        <span>Checking the library…</span>
+                      ) : history ? (
+                        <span className="truncate">
+                          {capturedOnDomain} of {filteredUrls.length} pages already captured for {vpLabel(captureViewport)}
+                          {history.lastCapturedAt && ` · last ${timeAgo(Date.parse(history.lastCapturedAt))}`}
+                          {history.entries[0]?.capturedByName && ` by ${history.entries[0].capturedByName}`}
+                        </span>
+                      ) : (
+                        <span>Library unavailable</span>
+                      )}
+                    </p>
+                    {history && history.entries.length > 0 && (
+                      <button
+                        type="button"
+                        className="text-[11px] text-blue-500 hover:text-blue-600 flex-shrink-0"
+                        onClick={() => setShowLibrary((v) => !v)}
+                      >
+                        {showLibrary ? "Hide library" : `Library (${history.totalCaptures})`}
+                      </button>
+                    )}
+                  </div>
+                  <label className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={includeCaptured}
+                      onChange={(e) => setIncludeCaptured(e.target.checked)}
+                      className="h-3 w-3"
+                    />
+                    Include already captured pages when selecting folders and groups
+                  </label>
+                  {showLibrary && history && (
+                    <div className="max-h-48 overflow-y-auto space-y-1 pt-1">
+                      {history.entries.slice(0, 200).map((e) => (
+                        <div key={e.id} className="flex items-center gap-2 text-[11px]">
+                          <span className="text-[9px] uppercase tracking-wider font-semibold flex-shrink-0 px-1 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400">
+                            {e.viewport === "mobile" ? "M" : "D"}
+                          </span>
+                          <span className="font-mono text-slate-600 dark:text-slate-300 truncate flex-1 min-w-0">{e.url}</span>
+                          <span className="text-slate-500 flex-shrink-0">
+                            {timeAgo(Date.parse(e.capturedAt))}
+                            {e.capturedByName ? ` · ${e.capturedByName}` : ""}
+                          </span>
+                          <a
+                            href={`/api/screenshot/captures/${e.id}/image`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-blue-500 hover:text-blue-600 flex-shrink-0"
+                            title="Open the stored screenshot"
+                          >
+                            <ExternalLink size={11} />
+                          </a>
+                        </div>
+                      ))}
+                      {history.entries.length > 200 && (
+                        <p className="text-[10px] text-slate-500">and {history.entries.length - 200} more</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Empty tree */}
@@ -1885,6 +2046,8 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                             testResult={testResult}
                             onTest={runTestCapture}
                             onCancelTest={cancelTestResult}
+                            history={history?.index ?? null}
+                            viewportChoice={captureViewport}
                           />
                         ))}
                       {/* Root-level URLs (pages at /) */}
@@ -1985,6 +2148,14 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                             Retry
                           </button>
                         )}
+                        {row.status === "done" && row.stored === false && (
+                          <span
+                            className="text-[10px] text-amber-600 dark:text-amber-400 flex-shrink-0"
+                            title="The image is in the toolkit, but saving it to the library failed, so it will not show as captured next time"
+                          >
+                            not saved to library
+                          </span>
+                        )}
                         <span
                           className={`text-[10px] uppercase tracking-wider font-medium flex-shrink-0
                             ${row.status === "done"
@@ -2033,14 +2204,28 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                   ))}
                 </div>
                 {selectedCount > 0 && (
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                    {selectedCount} pages selected · {formatTimeEstimate(selectedCount, vpMult)} · {vpLabel(captureViewport)}
+                  <p
+                    className={`text-[11px] truncate ${
+                      !runPlan.ok ? "text-amber-600 dark:text-amber-400" : "text-slate-500 dark:text-slate-400"
+                    }`}
+                  >
+                    {runPlan.ok ? (
+                      <>
+                        {runPlan.pages.length} pages · {totalCaptures} captures · {formatTimeEstimate(selectedCount, vpMult)} · {vpLabel(captureViewport)}
+                        {selectedAlreadyCaptured > 0 && ` · ${selectedAlreadyCaptured} captured before`}
+                      </>
+                    ) : (
+                      <>
+                        {runPlan.pages.length} pages selected · limit is {MAX_PAGES_PER_RUN} per run, deselect{" "}
+                        {runPlan.pages.length - MAX_PAGES_PER_RUN}
+                      </>
+                    )}
                   </p>
                 )}
               </div>
               <Button
                 onClick={startCapture}
-                disabled={selectedCount === 0}
+                disabled={!runPlan.ok}
                 className="h-9 px-4 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white shadow-sm shadow-blue-500/20"
               >
                 <ImageDown size={13} className="mr-1.5" />
@@ -2068,6 +2253,7 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
                     <>
                       {doneRows.length} of {captureRows.length} done
                       {failedRows.length > 0 && ` · ${failedRows.length} failed`}
+                      {unsavedDoneCount > 0 && ` · ${unsavedDoneCount} not saved to library`}
                     </>
                   )}
                 </p>
@@ -2135,42 +2321,12 @@ export function SitemapCaptureModal({ open, onClose, addFiles }: SitemapCaptureM
           {/* ─── Discover / Discovering footer ────────────────── */}
           {(modalState === "discover" || modalState === "discovering") && (
             <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Images stream into the toolkit as they finish
+              Images stream into the toolkit as they finish and are saved to the team library · {MAX_PAGES_PER_RUN} pages per run
             </p>
           )}
         </div>
       </div>
 
-      {/* ─── Confirm dialog for large captures ───────────────── */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xl p-5 max-w-sm">
-            <h3 className="text-[15px] font-semibold text-slate-900 dark:text-white mb-2">
-              Large capture batch
-            </h3>
-            <p className="text-[13px] text-slate-600 dark:text-slate-300 mb-4">
-              You&apos;re about to capture {totalCaptures} pages — about{" "}
-              {formatTimeEstimate(selectedCount, vpMult)} and ~{formatCost(selectedCount, vpMult)}.
-              Continue?
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button
-                variant="outline"
-                className="h-9 text-[13px]"
-                onClick={() => setShowConfirmDialog(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="h-9 text-[13px] bg-gradient-to-br from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white"
-                onClick={executeCapture}
-              >
-                Continue
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

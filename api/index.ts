@@ -315,6 +315,90 @@ function isPublicUrl(urlString: string): boolean {
   return true
 }
 
+// --- Screenshot library (Image Toolkit "Capture from URL") ---
+// Inline copy of packages/server/src/lib/screenshotLibrary.ts, by convention:
+// this bundle never imports from packages/server. Keep the two in step.
+// Bytes go to the PRIVATE "screenshots" bucket; screenshot_captures is metadata.
+const SCREENSHOT_BUCKET = "screenshots"
+
+function screenshotUrlKey(input: string): string {
+  let u: URL
+  try { u = new URL(input.trim()) } catch { return "" }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return ""
+  const host = u.hostname.toLowerCase().replace(/^www\./, "")
+  const port = u.port ? `:${u.port}` : ""
+  let p = u.pathname
+  if (p.length > 1) p = p.replace(/\/+$/, "")
+  if (p === "/") p = ""
+  return `${u.protocol}//${host}${port}${p}${u.search}`
+}
+
+function screenshotDomainOf(input: string): string {
+  try { return new URL(input.trim()).hostname.toLowerCase().replace(/^www\./, "") } catch { return "" }
+}
+
+function screenshotStorageKey(url: string, viewport: "desktop" | "mobile", now: Date, bytes: Buffer): string {
+  const domain = screenshotDomainOf(url) || "unknown"
+  let slug = "index"
+  try {
+    slug = new URL(url).pathname.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60).replace(/-+$/g, "") || "index"
+  } catch { /* keep index */ }
+  const iso = now.toISOString()
+  const ym = iso.slice(0, 7)
+  const ts = iso.replace(/[-:]/g, "").slice(0, 15)
+  const hash = crypto.createHash("sha1").update(bytes).digest("hex").slice(0, 8)
+  return `${domain}/${ym}/${slug}-${viewport}-${ts}-${hash}.png`
+}
+
+function screenshotPngDimensions(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 24) return null
+  if (!buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return null
+  if (buf.toString("ascii", 12, 16) !== "IHDR") return null
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
+}
+
+// Best-effort: never blocks the PNG going back to the user. The POST handler
+// reports the outcome via X-Capture-Stored so the UI can flag a miss.
+async function recordScreenshotCapture(opts: {
+  url: string
+  viewport: "desktop" | "mobile"
+  buf: Buffer
+  provider: "screenshotone" | "microlink"
+  userId: string | null
+  userName: string | null
+}): Promise<{ id: string } | null> {
+  if (!queryClient || !supabase) {
+    console.warn("[Screenshot] Library not recorded: database or storage unavailable")
+    return null
+  }
+  const now = new Date()
+  const storageKey = screenshotStorageKey(opts.url, opts.viewport, now, opts.buf)
+  const { error: uploadError } = await supabase.storage
+    .from(SCREENSHOT_BUCKET)
+    .upload(storageKey, opts.buf, { contentType: "image/png", upsert: false })
+  if (uploadError) {
+    console.error("[Screenshot] Library upload failed:", uploadError.message)
+    return null
+  }
+  const dims = screenshotPngDimensions(opts.buf)
+  try {
+    const rows = await queryClient`
+      INSERT INTO screenshot_captures
+        (url, url_key, domain, viewport, bucket, storage_key, file_size, width, height, provider, captured_by, captured_by_name, captured_at)
+      VALUES
+        (${opts.url}, ${screenshotUrlKey(opts.url)}, ${screenshotDomainOf(opts.url)}, ${opts.viewport}, ${SCREENSHOT_BUCKET},
+         ${storageKey}, ${opts.buf.length}, ${dims?.width ?? null}, ${dims?.height ?? null}, ${opts.provider},
+         ${opts.userId}, ${opts.userName}, ${now})
+      RETURNING id`
+    const id = rows[0]?.id
+    return id ? { id: String(id) } : null
+  } catch (err: any) {
+    console.error("[Screenshot] Library insert failed:", err?.message || err)
+    await supabase.storage.from(SCREENSHOT_BUCKET).remove([storageKey]).catch(() => {})
+    return null
+  }
+}
+
 // --- Multipart form parsing for file uploads ---
 async function parseMultipartForm(req: VercelRequest): Promise<{ buffer: Buffer; mimetype: string; filename: string }> {
   return new Promise((resolve, reject) => {
@@ -9885,6 +9969,70 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
       }
     }
 
+    // ─── Screenshot library: most recent capture per page for a domain ──
+    // Shared team-wide so the picker can show what was already done.
+    if (path === "/screenshot/history" && method === "GET") {
+      const rawDomain = String((req.query?.domain as string | undefined) ?? "").trim()
+      const domain = screenshotDomainOf(/^https?:\/\//i.test(rawDomain) ? rawDomain : `https://${rawDomain}`)
+      if (!domain) return res.status(400).json({ error: "Missing or invalid 'domain'" })
+      if (!queryClient) return res.status(503).json({ error: "Database unavailable" })
+      try {
+        const latest = await queryClient`
+          SELECT DISTINCT ON (url_key, viewport)
+            id, url, viewport, captured_at, captured_by_name, file_size
+          FROM screenshot_captures
+          WHERE domain = ${domain}
+          ORDER BY url_key, viewport, captured_at DESC
+          LIMIT 5000`
+        const totals = await queryClient`
+          SELECT count(*)::int AS total, max(captured_at) AS last_at
+          FROM screenshot_captures WHERE domain = ${domain}`
+        const t = totals[0] ?? {}
+        return res.json({
+          domain,
+          captures: latest.map((r: any) => ({
+            id: String(r.id),
+            url: String(r.url),
+            viewport: String(r.viewport),
+            capturedAt: new Date(r.captured_at).toISOString(),
+            capturedByName: r.captured_by_name ?? null,
+            fileSize: Number(r.file_size),
+          })),
+          totalCaptures: Number(t.total ?? 0),
+          lastCapturedAt: t.last_at ? new Date(t.last_at).toISOString() : null,
+        })
+      } catch (err: any) {
+        console.error("[Screenshot] History failed:", err?.message || err)
+        return res.status(500).json({ error: "Failed to load capture history" })
+      }
+    }
+
+    // ─── Screenshot library: stream a stored PNG from the private bucket ─
+    if (path.startsWith("/screenshot/captures/") && method === "GET") {
+      const captureImageMatch = path.match(/^\/screenshot\/captures\/([0-9a-f-]{36})\/image$/i)
+      if (!captureImageMatch) return res.status(404).json({ error: "Not found", path })
+      if (!queryClient || !supabase) return res.status(503).json({ error: "Storage unavailable" })
+      try {
+        const rows = await queryClient`
+          SELECT bucket, storage_key, domain, viewport, captured_at
+          FROM screenshot_captures WHERE id = ${captureImageMatch[1]!} LIMIT 1`
+        const row = rows[0]
+        if (!row) return res.status(404).json({ error: "Capture not found" })
+        const { data, error } = await supabase.storage.from(String(row.bucket)).download(String(row.storage_key))
+        if (error || !data) return res.status(502).json({ error: "Failed to read stored screenshot" })
+        const buf = Buffer.from(await data.arrayBuffer())
+        const day = new Date(row.captured_at).toISOString().slice(0, 10)
+        res.setHeader("Content-Type", "image/png")
+        res.setHeader("Content-Length", buf.length.toString())
+        res.setHeader("Cache-Control", "private, max-age=3600")
+        res.setHeader("Content-Disposition", `inline; filename="${row.domain}-${row.viewport}-${day}.png"`)
+        return res.status(200).send(buf)
+      } catch (err: any) {
+        console.error("[Screenshot] Image fetch failed:", err?.message || err)
+        return res.status(500).json({ error: "Failed to load screenshot" })
+      }
+    }
+
     // ─── Screenshot route — full-page PNG capture ────────────────────
     // Provider: ScreenshotOne if SCREENSHOTONE_ACCESS_KEY is set,
     // otherwise Microlink free tier as fallback.
@@ -10086,6 +10234,20 @@ Output ONLY valid JSON. No markdown, no code fences, no extra text.`
           }
           buf = Buffer.from(await imgResp.arrayBuffer())
         }
+
+        // Screenshot library: upload + record, best-effort. The UI reads
+        // X-Capture-Stored to flag a capture that did not make it in.
+        const record = await recordScreenshotCapture({
+          url: normalized,
+          viewport: isMobile ? "mobile" : "desktop",
+          buf,
+          provider: screenshotOneKey ? "screenshotone" : "microlink",
+          userId: session?.userId ?? null,
+          userName: session?.userName ?? null,
+        })
+        res.setHeader("X-Capture-Stored", record ? "true" : "false")
+        if (record) res.setHeader("X-Capture-Id", record.id)
+        res.setHeader("Access-Control-Expose-Headers", "X-Capture-Stored, X-Capture-Id")
 
         res.setHeader("Content-Type", "image/png")
         res.setHeader("Content-Length", buf.length.toString())

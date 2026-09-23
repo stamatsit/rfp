@@ -697,3 +697,29 @@ export const mmReports = pgTable("mm_reports", {
 })
 export type MmReport = typeof mmReports.$inferSelect
 export type NewMmReport = typeof mmReports.$inferInsert
+
+// Screenshot library (Image Toolkit "Capture from URL"). Bytes live in the
+// private Storage bucket "screenshots"; this is metadata only.
+// Migration 008. See docs/in-progress/screenshot-library.md.
+export const screenshotCaptures = pgTable("screenshot_captures", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  url: text("url").notNull(),
+  urlKey: text("url_key").notNull(),
+  domain: text("domain").notNull(),
+  viewport: text("viewport", { enum: ["desktop", "mobile"] }).notNull(),
+  bucket: text("bucket").notNull().default("screenshots"),
+  storageKey: text("storage_key").notNull().unique(),
+  fileSize: integer("file_size").notNull(),
+  width: integer("width"),
+  height: integer("height"),
+  provider: text("provider").notNull(),
+  capturedBy: uuid("captured_by").references(() => users.id, { onDelete: "set null" }),
+  capturedByName: text("captured_by_name"),
+  capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  domainAtIdx: index("screenshot_captures_domain_at_idx").on(t.domain, t.capturedAt),
+  keyVpAtIdx: index("screenshot_captures_key_vp_at_idx").on(t.urlKey, t.viewport, t.capturedAt),
+}))
+
+export type ScreenshotCapture = typeof screenshotCaptures.$inferSelect
+export type NewScreenshotCapture = typeof screenshotCaptures.$inferInsert

@@ -8,6 +8,16 @@
  *    other bot-detecting embeds may show a "couldn't verify" placeholder).
  */
 import { Router, type Request, type Response } from "express"
+import { sql } from "drizzle-orm"
+import { db, supabaseAdmin, screenshotCaptures } from "../db/index.js"
+import { getCurrentUserId, getCurrentUserName } from "../middleware/getCurrentUser.js"
+import {
+  SCREENSHOT_BUCKET,
+  normalizeUrlKey,
+  domainOf,
+  buildStorageKey,
+  readPngDimensions,
+} from "../lib/screenshotLibrary.js"
 
 const router = Router()
 
@@ -271,6 +281,142 @@ async function captureWithMicrolink(url: string, viewport: Viewport): Promise<Bu
 }
 
 // ---------------------------------------------------------------------------
+// Screenshot library — every capture is uploaded to the private "screenshots"
+// bucket and recorded in screenshot_captures. Best-effort: a storage or DB
+// failure never blocks the PNG going back to the user, but the response says
+// so via X-Capture-Stored so the UI can flag it.
+// ---------------------------------------------------------------------------
+type Provider = "screenshotone" | "microlink"
+
+async function recordCapture(opts: {
+  url: string
+  viewport: Viewport
+  buf: Buffer
+  provider: Provider
+  userId: string | null
+  userName: string
+}): Promise<{ id: string } | null> {
+  if (!db || !supabaseAdmin) {
+    console.warn("[Screenshot] Library not recorded: database or storage unavailable")
+    return null
+  }
+  const now = new Date()
+  const storageKey = buildStorageKey(opts.url, opts.viewport, now, opts.buf)
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from(SCREENSHOT_BUCKET)
+    .upload(storageKey, opts.buf, { contentType: "image/png", upsert: false })
+  if (uploadError) {
+    console.error("[Screenshot] Library upload failed:", uploadError.message)
+    return null
+  }
+  const dims = readPngDimensions(opts.buf)
+  try {
+    const [row] = await db
+      .insert(screenshotCaptures)
+      .values({
+        url: opts.url,
+        urlKey: normalizeUrlKey(opts.url),
+        domain: domainOf(opts.url),
+        viewport: opts.viewport,
+        bucket: SCREENSHOT_BUCKET,
+        storageKey,
+        fileSize: opts.buf.length,
+        width: dims?.width ?? null,
+        height: dims?.height ?? null,
+        provider: opts.provider,
+        capturedBy: opts.userId,
+        capturedByName: opts.userName,
+        capturedAt: now,
+      })
+      .returning({ id: screenshotCaptures.id })
+    return row ? { id: row.id } : null
+  } catch (err: any) {
+    console.error("[Screenshot] Library insert failed:", err?.message || err)
+    await supabaseAdmin.storage.from(SCREENSHOT_BUCKET).remove([storageKey]).catch(() => {})
+    return null
+  }
+}
+
+// ---------------------------------------------------------------------------
+// GET /history?domain=<host> — most recent capture per page and viewport for a
+// domain, so the picker can show what was already done. Shared team-wide.
+// ---------------------------------------------------------------------------
+router.get("/history", async (req: Request, res: Response) => {
+  const raw = (typeof req.query.domain === "string" ? req.query.domain : "").trim()
+  const domain = domainOf(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`)
+  if (!domain) return res.status(400).json({ error: "Missing or invalid 'domain'" })
+  if (!db) return res.status(503).json({ error: "Database unavailable" })
+
+  try {
+    const latest = await db.execute(sql`
+      SELECT DISTINCT ON (url_key, viewport)
+        id, url, viewport, captured_at, captured_by_name, file_size
+      FROM screenshot_captures
+      WHERE domain = ${domain}
+      ORDER BY url_key, viewport, captured_at DESC
+      LIMIT 5000
+    `)
+    const totals = await db.execute(sql`
+      SELECT count(*)::int AS total, max(captured_at) AS last_at
+      FROM screenshot_captures
+      WHERE domain = ${domain}
+    `)
+    const rows = Array.from(latest as Iterable<Record<string, unknown>>)
+    const t = Array.from(totals as Iterable<Record<string, unknown>>)[0] ?? {}
+    return res.json({
+      domain,
+      captures: rows.map((r) => ({
+        id: String(r.id),
+        url: String(r.url),
+        viewport: String(r.viewport),
+        capturedAt: new Date(r.captured_at as string | Date).toISOString(),
+        capturedByName: (r.captured_by_name as string | null) ?? null,
+        fileSize: Number(r.file_size),
+      })),
+      totalCaptures: Number(t.total ?? 0),
+      lastCapturedAt: t.last_at ? new Date(t.last_at as string | Date).toISOString() : null,
+    })
+  } catch (err: any) {
+    console.error("[Screenshot] History failed:", err?.message || err)
+    return res.status(500).json({ error: "Failed to load capture history" })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// GET /captures/:id/image — streams a stored PNG from the private bucket.
+// ---------------------------------------------------------------------------
+router.get("/captures/:id/image", async (req: Request, res: Response) => {
+  const id = req.params.id ?? ""
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return res.status(400).json({ error: "Invalid capture id" })
+  if (!db || !supabaseAdmin) return res.status(503).json({ error: "Storage unavailable" })
+
+  try {
+    const rows = await db.execute(sql`
+      SELECT bucket, storage_key, domain, viewport, captured_at
+      FROM screenshot_captures WHERE id = ${id} LIMIT 1
+    `)
+    const row = Array.from(rows as Iterable<Record<string, unknown>>)[0]
+    if (!row) return res.status(404).json({ error: "Capture not found" })
+
+    const { data, error } = await supabaseAdmin.storage
+      .from(String(row.bucket))
+      .download(String(row.storage_key))
+    if (error || !data) return res.status(502).json({ error: "Failed to read stored screenshot" })
+
+    const buf = Buffer.from(await data.arrayBuffer())
+    const day = new Date(row.captured_at as string | Date).toISOString().slice(0, 10)
+    res.setHeader("Content-Type", "image/png")
+    res.setHeader("Content-Length", buf.length.toString())
+    res.setHeader("Cache-Control", "private, max-age=3600")
+    res.setHeader("Content-Disposition", `inline; filename="${row.domain}-${row.viewport}-${day}.png"`)
+    return res.status(200).send(buf)
+  } catch (err: any) {
+    console.error("[Screenshot] Image fetch failed:", err?.message || err)
+    return res.status(500).json({ error: "Failed to load screenshot" })
+  }
+})
+
+// ---------------------------------------------------------------------------
 // POST / — body: { url } → streams image/png
 // ---------------------------------------------------------------------------
 router.post("/", async (req: Request, res: Response) => {
@@ -290,6 +436,18 @@ router.post("/", async (req: Request, res: Response) => {
       ? await captureWithScreenshotOne(url, screenshotOneKey, viewport)
       : await captureWithMicrolink(url, viewport)
     console.log(`[Screenshot] Success: ${buf.length} bytes`)
+
+    const record = await recordCapture({
+      url,
+      viewport,
+      buf,
+      provider: screenshotOneKey ? "screenshotone" : "microlink",
+      userId: getCurrentUserId(req),
+      userName: getCurrentUserName(req),
+    })
+    res.setHeader("X-Capture-Stored", record ? "true" : "false")
+    if (record) res.setHeader("X-Capture-Id", record.id)
+    res.setHeader("Access-Control-Expose-Headers", "X-Capture-Stored, X-Capture-Id")
 
     res.setHeader("Content-Type", "image/png")
     res.setHeader("Content-Length", buf.length.toString())
