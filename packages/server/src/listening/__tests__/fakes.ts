@@ -17,7 +17,17 @@ export interface FakeLlmOpts {
   /** Return a quote that is NOT in the source text, to prove verification drops it. */
   fabricateQuotes?: boolean
   delayMs?: number
+  /** Plan the topic as this named institution. */
+  namedEntity?: string
+  /** The idea check finds only one supporting post for ideas with these headlines. */
+  rejectIdeas?: string[]
 }
+
+/**
+ * Item text markers the fake labeler reads: OFFTOPIC (not relevant), MENTION
+ * (relevant, passing mention), and in the link: OfficialAccount (the named
+ * institution's own account), newsdesk (a news outlet).
+ */
 
 export class FakeLlm implements LlmClient {
   calls: string[] = []
@@ -44,8 +54,8 @@ export class FakeLlm implements LlmClient {
       case "listening_plan":
         return {
           interpretation: "How people judge online nursing degrees.",
-          isNamedEntity: false,
-          entityName: null,
+          isNamedEntity: !!this.opts.namedEntity,
+          entityName: this.opts.namedEntity ?? null,
           disambiguation: "Not unrelated online degrees.",
           searches: [
             { q: "is an online nursing degree worth it", why: "value" },
@@ -56,14 +66,17 @@ export class FakeLlm implements LlmClient {
       case "listening_plan_extend":
         return { searches: [{ q: "online nursing program regrets", why: "regrets" }] } as T
       case "listening_labels": {
-        const items = [...args.user.matchAll(/\[(a\d+)\][^\n]*\n(?:Title: ([^\n]*)\n)?([^\n]*)/g)].map((m) => {
+        const items = [...args.user.matchAll(/\[(a\d+)\]([^\n]*)\n(?:Title: ([^\n]*)\n)?([^\n]*)/g)].map((m) => {
           const alias = m[1]!
-          const text = `${m[2] ?? ""} ${m[3] ?? ""}`
+          const header = m[2] ?? ""
+          const text = `${m[3] ?? ""} ${m[4] ?? ""}`
           const q = text.match(/[^.!?]{12,}\?/)?.[0]?.trim() ?? ""
-          const firstSentence = (m[3] ?? "").split(/(?<=[.!?])\s/)[0] ?? ""
+          const firstSentence = (m[4] ?? "").split(/(?<=[.!?])\s/)[0] ?? ""
           return {
             id: alias,
             relevant: !/OFFTOPIC/.test(text),
+            about: !/MENTION/.test(text),
+            speaker: /OfficialAccount/.test(header) ? "self" : /newsdesk/i.test(header) ? "media" : "person",
             sentiment: /hate|bad|scam/i.test(text) ? "negative" : /love|great/i.test(text) ? "positive" : "neutral",
             subtopic: /clinical/i.test(text) ? "clinical placement" : /cost|price/i.test(text) ? "cost and aid" : "program quality",
             audience: "student",
@@ -87,6 +100,7 @@ export class FakeLlm implements LlmClient {
         const qs = [...args.user.matchAll(/\[(q\d+)\]/g)].map((m) => m[1]!)
         return {
           summary: "People weigh flexibility against clinical quality — and worry about cost. About 40% are negative.",
+          ownVoiceNote: /own accounts/.test(args.user) ? "Its own posts celebrate events — people ask who finds placements." : "",
           subtopics: subs.map((id) => ({ id, summary: `Notes for ${id}.` })),
           questionOrder: qs.slice().reverse(),
           ideas: [
@@ -95,6 +109,14 @@ export class FakeLlm implements LlmClient {
             { headline: "The real cost", angle: "a", audience: "parent", format: "article", subtopicId: subs[1] ?? "s2", whyNow: "w", outline: ["a", "b", "c"], evidence: ev.slice(1, 4) },
           ],
         } as T
+      }
+      case "listening_idea_check": {
+        const ideas = [...args.user.matchAll(/^\[(i\d+)\] ([^\n]*)((?:\n {2}[^\n]*)*)/gm)].map((m) => {
+          const ev = [...(m[3] ?? "").matchAll(/\[(e\d+_\d+)\]/g)].map((x) => x[1]!)
+          const reject = this.opts.rejectIdeas?.includes(m[2]!.trim())
+          return { id: m[1]!, supporting: reject ? ev.slice(0, 1) : ev }
+        })
+        return { ideas } as T
       }
       default:
         throw new Error(`FakeLlm: unexpected ${args.name}`)
@@ -117,7 +139,13 @@ export function fakeItem(over: Partial<RawItem> & { url: string }): RawItem {
   }
 }
 
-/** Search provider that returns `perPage` distinct items per (query, group, page). */
+/**
+ * Search provider that returns `perPage` distinct items per (query, group, page).
+ * Result i of each page: 0 and 1 are people's posts about the topic, 2 is off
+ * topic, 3 is a passing mention. On the social group, result 0 comes from the
+ * institution's own account and result 1 from a news outlet. URLs carry
+ * "i<index>s" so tests can tell which result a URL was.
+ */
 export class FakeSearch implements SearchProvider {
   readonly name: string = "fake"
   calls: SearchRequest[] = []
@@ -126,24 +154,35 @@ export class FakeSearch implements SearchProvider {
     this.calls.push(req)
     if (this.opts.quota) throw new Error("Google search daily allowance is used up (resets at midnight Pacific)")
     if (this.opts.fail) throw new Error("Google search error 500")
-    const n = this.opts.perPage ?? 3
+    const n = this.opts.perPage ?? 4
     const site = req.sites[0] ?? "reddit.com"
     const slug = req.q.toLowerCase().replace(/[^a-z0-9]/g, "")
-    const items: RawItem[] = Array.from({ length: n }, (_, i) =>
-      fakeItem({
-        url: `https://www.${site}/r/nursing/comments/${slug.slice(0, 6)}${req.start}${i}x${site.length}/t/`,
-        platform: site.includes("reddit") ? "reddit" : "forums",
+    const social = site === "facebook.com"
+    const items: RawItem[] = Array.from({ length: n }, (_, i) => {
+      const id = `${slug.slice(0, 6)}${req.start}i${i}s${site.length}`
+      const account = social && i === 0 ? "OfficialAccount" : social && i === 1 ? "newsdesk" : "nursing"
+      return fakeItem({
+        url: `https://www.${site}/r/${account}/comments/${id}/t/`,
+        platform: site.includes("reddit") ? "reddit" : social ? "facebook" : "forums",
         text:
           i === 0
             ? "The clinical placement was a nightmare and I hate how they handled it. Who finds placements for online students?"
             : i === 1
               ? "Cost matters most to me. What did you pay per credit hour for the program?"
-              : "OFFTOPIC visa paperwork thread about something else entirely.",
+              : i === 2
+                ? "OFFTOPIC visa paperwork thread about something else entirely."
+                : "MENTION I studied nursing online years ago, anyway here is my sourdough recipe. Will be bored?",
         lane: laneId,
-      }),
-    )
+      })
+    })
     return { items, returned: n, nextStart: req.start < 91 ? req.start + 10 : null, fromCache: false }
   }
+}
+
+/** Which FakeSearch result a URL was (0 to 3), or null. */
+export function resultIndex(url: string): number | null {
+  const m = url.match(/i(\d)s\d+/)
+  return m ? Number(m[1]) : null
 }
 
 export function fakeYoutube(opts: { fail?: boolean } = {}): YoutubeSource {
@@ -181,9 +220,10 @@ export function fakeNews(): NewsSource {
   } as unknown as NewsSource
 }
 
-export function fakeReader(): PageReader {
+export function fakeReader(calls: string[] = []): PageReader {
   return {
     async read(url: string): Promise<ReadResult> {
+      calls.push(url)
       if (url.includes("collegeconfidential")) throw new Error("access refused (403)")
       return {
         body: "Full thread body. The clinical placement process took months. Who finds placements for online students?",

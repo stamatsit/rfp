@@ -37,15 +37,33 @@ export function canonicalUrl(raw: string): string {
     keep.append(k, v)
   }
   let path = u.pathname
+  let qs = keep.toString()
   if (host.endsWith("reddit.com")) {
     const m = path.match(/^\/r\/([^/]+)\/comments\/([a-z0-9]+)(?:\/[^/]*)?(?:\/([a-z0-9]+))?/i)
     if (m) {
       path = `/r/${m[1]!.toLowerCase()}/comments/${m[2]!.toLowerCase()}/` + (m[3] ? `_/${m[3].toLowerCase()}/` : "")
+      // Google lists machine translations of one thread as ?tl=ko, ?tl=sv ...; none identify content.
+      qs = ""
     }
   }
   path = path.replace(/\/+$/, "") || "/"
-  const qs = keep.toString()
   return `https://${host}${path}${qs ? `?${qs}` : ""}${replyHash}`
+}
+
+/**
+ * Pages that list other pages rather than say anything: site search results
+ * (Yelp "best casinos near Cedar Rapids") and job boards. Never conversation.
+ */
+export function isListingPage(raw: string): boolean {
+  try {
+    const u = new URL(raw)
+    const host = u.hostname.toLowerCase().replace(/^(www|m)\./, "")
+    if (/(^|\/)search(\/|$)/i.test(u.pathname)) return true
+    if (host.endsWith("linkedin.com") && /^\/jobs(\/|$)/i.test(u.pathname)) return true
+    return false
+  } catch {
+    return false
+  }
 }
 
 export function hostOf(raw: string): string {

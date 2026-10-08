@@ -3,11 +3,16 @@
  * ideas from labeled evidence. The model sees computed figures and real
  * excerpts under aliases; every idea must cite at least two of them, and
  * code drops any idea whose evidence does not check out.
+ *
+ * Pass 3 (verifyIdeas) rereads each idea next to its cited posts and keeps
+ * only the posts that genuinely support it. Citing two relevant posts is not
+ * enough on its own: an idea about campus life once cited a theme
+ * park thread and a band reunion.
  */
 import { z } from "zod"
 import { LIMITS } from "./config.js"
 import type { LlmClient } from "./llm.js"
-import { engagementOf, ideaCap, stripModelNumbers } from "./metrics.js"
+import { engagementOf, ideaCap, isPublicConversation, stripModelNumbers } from "./metrics.js"
 import type { Audience, ContentIdea, Item, Plan, QuestionEntry, SentimentBreakdown } from "./types.js"
 import { clip } from "./util/text.js"
 
@@ -16,6 +21,9 @@ const AUDIENCES = ["student", "parent", "patient", "professional", "general"] as
 
 const SynthSchema = z.object({
   summary: z.string().describe("2 or 3 plain sentences: what the conversation is about and how it feels. No numbers or percentages."),
+  ownVoiceNote: z
+    .string()
+    .describe("1 or 2 sentences: what the institution's own posts emphasize compared with what people raise. Empty string when no own posts are given. No numbers."),
   subtopics: z.array(z.object({ id: z.string(), summary: z.string().describe("1 or 2 sentences on what people say about this subtopic. No numbers.") })),
   questionOrder: z.array(z.string()).describe("Question ids, most worth answering first"),
   ideas: z.array(
@@ -44,6 +52,7 @@ export interface SubtopicInput {
 
 export interface SynthResult {
   summary: string
+  ownVoiceNote: string
   subtopicSummaries: Map<string, string>
   questionOrder: string[]
   ideas: ContentIdea[]
@@ -63,6 +72,8 @@ export async function synthesize(
     questions: QuestionEntry[]
     overall: SentimentBreakdown
     relevantCount: number
+    /** The named institution's own posts, for ownVoiceNote only; never evidence. */
+    ownVoice?: { name: string; items: Item[] } | null
   },
   signal?: AbortSignal,
 ): Promise<SynthResult> {
@@ -104,23 +115,33 @@ ${lines.join("\n")}`
   const oTot = o.positive + o.neutral + o.negative + o.mixed
   const maxIdeas = ideaCap(input.relevantCount)
 
+  const own = input.ownVoice?.items.length ? input.ownVoice : null
+  const ownBlock = own
+    ? `\n\nPosts from ${own.name}'s own accounts (context for ownVoiceNote only; not evidence, never cite them):\n${own.items
+        .slice(0, 10)
+        .map((it, i) => `  [o${i + 1}] (${it.platform}) ${clip(it.title ? `${it.title}: ${it.text}` : it.text, 220)}`)
+        .join("\n")}`
+    : ""
+
   const out = await llm.structured({
     name: "listening_synthesis",
     schema: SynthSchema,
     system: `You are a senior content strategist at a higher education and healthcare marketing agency. You turn real online conversation into content ideas a writer can act on.
 Ground everything in the evidence given. Do not invent facts, statistics, institutions or quotes. Do not state numbers or percentages; the page shows measured figures separately.
+Every idea must be about the topic itself and answer something people actually raised about it. Never build an idea from a post or question about something else.
 Write plainly. No hype words. Never use em dashes or en dashes.`,
     user: `Topic: ${input.query}
-${input.plan?.interpretation ? `About: ${input.plan.interpretation}\n` : ""}Relevant posts analysed: ${input.relevantCount}. Overall conversation: ${pct(o.positive, oTot)}% positive, ${pct(o.negative, oTot)}% negative.
+${input.plan?.interpretation ? `About: ${input.plan.interpretation}\n` : ""}Posts by people about the topic: ${input.relevantCount}. Overall: ${pct(o.positive, oTot)}% positive, ${pct(o.negative, oTot)}% negative.
 
 Subtopics with evidence:
 ${subBlocks.join("\n\n")}
 
 Questions people ask:
-${qLines.join("\n") || "(none found)"}
+${qLines.join("\n") || "(none found)"}${ownBlock}
 
 Return:
 - summary of the conversation,
+- ownVoiceNote${own ? "" : " (empty string: no own posts given)"},
 - a summary for every subtopic id above,
 - questionOrder: the question ids most worth answering, best first (up to ${LIMITS.maxQuestions}),
 - up to ${maxIdeas} content ideas, each tied to one subtopic and citing 2 to 6 evidence ids that genuinely support it. Fewer strong ideas beat many thin ones: skip any idea the evidence does not clearly support. Prefer ideas that answer a real question or correct a real misconception. Spread ideas across subtopics.`,
@@ -134,7 +155,7 @@ Return:
   for (const idea of out.ideas) {
     const ids = [...new Set(idea.evidence.map((e) => e.trim()))]
       .map((a) => evidence.get(a))
-      .filter((it): it is Item => !!it && !!it.labels?.relevant)
+      .filter((it): it is Item => !!it && isPublicConversation(it))
       .map((it) => it.id)
     if (ids.length < LIMITS.minIdeaEvidence) {
       dropped++
@@ -161,5 +182,69 @@ Return:
     .map((a) => qAlias.get(a.trim())?.itemId)
     .filter((x): x is string => !!x)
 
-  return { summary: clip(stripModelNumbers(out.summary), 700), subtopicSummaries, questionOrder, ideas, dropped }
+  return {
+    summary: clip(stripModelNumbers(out.summary), 700),
+    ownVoiceNote: own ? clip(stripModelNumbers(out.ownVoiceNote), 400) : "",
+    subtopicSummaries,
+    questionOrder,
+    ideas,
+    dropped,
+  }
+}
+
+const VerifySchema = z.object({
+  ideas: z.array(
+    z.object({
+      id: z.string(),
+      supporting: z.array(z.string()).describe("Evidence ids (e#) listed under this idea that genuinely support it"),
+    }),
+  ),
+})
+
+/**
+ * Keep only the evidence that genuinely supports each idea, and only ideas
+ * left with at least minIdeaEvidence posts. Throws if the model fails; the
+ * caller decides what to keep then.
+ */
+export async function verifyIdeas(
+  llm: LlmClient,
+  query: string,
+  ideas: ContentIdea[],
+  items: Map<string, Item>,
+  signal?: AbortSignal,
+): Promise<{ ideas: ContentIdea[]; dropped: number }> {
+  if (!ideas.length) return { ideas, dropped: 0 }
+  const aliasToId = new Map<string, string>()
+  const blocks = ideas.map((idea, i) => {
+    const lines = idea.evidenceItemIds.map((id, j) => {
+      const a = `e${i + 1}_${j + 1}`
+      aliasToId.set(a, id)
+      const it = items.get(id)
+      const body = it ? clip(it.title && it.kind !== "comment" ? `${it.title}: ${it.text}` : it.text, 360) : "(missing)"
+      return `  [${a}] ${body}`
+    })
+    return `[i${i + 1}] ${idea.headline}\n  Angle: ${idea.angle}\n${lines.join("\n")}`
+  })
+  const out = await llm.structured({
+    name: "listening_idea_check",
+    schema: VerifySchema,
+    system: `You check content ideas against the posts cited for them, for a content team researching "${query}".
+A post supports an idea only when it is about ${query} and raises the question, need, worry or experience the idea answers.
+A post that mentions the topic in passing, is about something else, or only shares a word with the idea does not support it. Be strict.`,
+    user: `${blocks.join("\n\n")}\n\nFor every idea id, list the evidence ids that genuinely support it (possibly none).`,
+    maxTokens: 1500,
+    signal,
+  })
+  const supported = new Map<string, Set<string>>()
+  for (const row of out.ideas) {
+    const ids = row.supporting.map((a) => aliasToId.get(a.trim())).filter((x): x is string => !!x)
+    supported.set(row.id.trim(), new Set(ids))
+  }
+  const kept: ContentIdea[] = []
+  ideas.forEach((idea, i) => {
+    const ok = supported.get(`i${i + 1}`) ?? new Set<string>()
+    const evidenceItemIds = idea.evidenceItemIds.filter((id) => ok.has(id))
+    if (evidenceItemIds.length >= LIMITS.minIdeaEvidence) kept.push({ ...idea, id: `idea${kept.length + 1}`, evidenceItemIds })
+  })
+  return { ideas: kept, dropped: ideas.length - kept.length }
 }

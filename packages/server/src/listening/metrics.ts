@@ -3,19 +3,44 @@
  * The model never supplies a count or a percentage.
  */
 import { LIMITS } from "./config.js"
-import type { Item, MonthStat, Platform, PlatformStat, QuestionEntry, QuoteEntry, SentimentBreakdown } from "./types.js"
-import { normForMatch, queryTokens } from "./util/text.js"
+import type { Item, MonthStat, Platform, PlatformStat, QuestionEntry, QuoteEntry, SampleExclusions, SentimentBreakdown } from "./types.js"
+import { isRealQuestion, normForMatch, queryTokens } from "./util/text.js"
 
 export function isConversation(it: Item): boolean {
   return it.platform !== "news"
 }
 
 /**
- * People's own words: posts, comments and reviews. Excludes news articles and
- * video titles/descriptions, which are written by publishers and creators.
+ * The sample every figure is computed over: posts, comments, reviews and
+ * videos by people, mainly about the topic. Leaves out passing mentions, the
+ * named institution's own accounts, other organizations, news, and anything
+ * whose labels predate speaker and focus (relabeled on the next scan).
+ */
+export function isPublicConversation(it: Item): boolean {
+  const l = it.labels
+  return !!l && l.relevant && l.about === true && l.speaker === "person" && isConversation(it) && it.kind !== "article"
+}
+
+/**
+ * People's own words, for quotes and questions: public conversation without
+ * video titles and descriptions, which are written to be clicked.
  */
 export function isVoice(it: Item): boolean {
-  return isConversation(it) && it.kind !== "video" && it.kind !== "article"
+  return isPublicConversation(it) && it.kind !== "video"
+}
+
+/** Relevant items kept out of the figures, by reason. News articles have their own section and are not counted here. */
+export function sampleExclusions(items: Item[]): SampleExclusions {
+  const out: SampleExclusions = { mentions: 0, self: 0, organizations: 0, media: 0 }
+  for (const it of items) {
+    const l = it.labels
+    if (!l?.relevant || !l.speaker || it.platform === "news" || isPublicConversation(it)) continue
+    if (l.speaker === "self") out.self++
+    else if (l.speaker === "media") out.media++
+    else if (l.speaker === "organization") out.organizations++
+    else out.mentions++
+  }
+  return out
 }
 
 /** Fewer, stronger ideas when the sample is small. */
@@ -78,7 +103,7 @@ function jaccard(a: string[], b: string[]): number {
 
 export function collectQuestions(items: Item[], subtopicOf: Map<string, string | null>, latestRunId: string): QuestionEntry[] {
   const cands = items
-    .filter((it) => it.labels?.relevant && it.labels.question && isVoice(it))
+    .filter((it) => it.labels?.question && isRealQuestion(it.labels.question) && isVoice(it))
     .map((it) => ({ it, toks: queryTokens(it.labels!.question!) }))
     .sort((a, b) => engagementOf(b.it) - engagementOf(a.it))
   const kept: typeof cands = []
@@ -101,7 +126,7 @@ export function collectQuestions(items: Item[], subtopicOf: Map<string, string |
 /** Up to maxQuotes verified quotes: the strongest per subtopic first, then mixed sentiment. */
 export function collectQuotes(items: Item[], subtopicOf: Map<string, string | null>, latestRunId: string): QuoteEntry[] {
   const withQuote = items
-    .filter((it) => it.labels?.relevant && it.labels.quote && isVoice(it))
+    .filter((it) => it.labels?.quote && isVoice(it))
     .sort((a, b) => engagementOf(b) - engagementOf(a))
   const picked: Item[] = []
   const seenSub = new Set<string | null>()

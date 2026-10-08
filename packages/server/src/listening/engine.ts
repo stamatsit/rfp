@@ -1,5 +1,10 @@
 /**
- * Runs a scan end to end: plan, search, read, label, group, write, save.
+ * Runs a scan end to end: plan, search, label, read, label replies, group,
+ * write, check ideas, save.
+ *
+ * Labeling comes before reading so only threads that are really about the
+ * topic get opened in full; their replies are labeled in a second, shorter
+ * pass. Labels written under an older label version are redone here too.
  *
  * startRun() creates the topic/run rows (and refuses a second concurrent run
  * on the same topic); executeRun() does the work and always settles the run
@@ -9,14 +14,14 @@
  */
 import { DEADLINES_MS, LIMITS } from "./config.js"
 import { clusterSubtopics, fallbackClusters, type Cluster } from "./cluster.js"
-import { harvest, type HarvestDeps } from "./harvest.js"
+import { deepRead, harvest, pickThreads, type HarvestDeps } from "./harvest.js"
 import { labelItems } from "./label.js"
 import type { LlmClient } from "./llm.js"
-import { collectQuestions, isConversation, sentimentOf } from "./metrics.js"
-import { extendPlan, fallbackPlan, makePlan } from "./plan.js"
-import { buildReport, groupSubtopics, subtopicInputs } from "./report.js"
+import { collectQuestions, isPublicConversation, sentimentOf } from "./metrics.js"
+import { entityOf, extendPlan, fallbackPlan, makePlan } from "./plan.js"
+import { buildReport, groupSubtopics, ownPosts, subtopicInputs } from "./report.js"
 import { within, type Store } from "./store.js"
-import { synthesize, type SynthResult } from "./synthesize.js"
+import { synthesize, verifyIdeas, type SynthResult } from "./synthesize.js"
 import { RunCancelled, type Coverage, type Plan, type RunEvent, type RunTrigger, type TimeWindow, type TopicRow } from "./types.js"
 import { describeError } from "./util/http.js"
 
@@ -88,6 +93,19 @@ function emptyCoverage(): Coverage {
   return { lanes: [], degraded: false, notes: [], searchCalls: 0, youtubeUnits: 0 }
 }
 
+/** Aborts with the parent, or on its own after `ms`; for a step that may be skipped but must not overrun the run. */
+function budgetSignal(parent: AbortSignal, ms: number): AbortSignal {
+  const c = new AbortController()
+  const t = setTimeout(() => c.abort(new Error("ran out of time")), Math.max(1, ms))
+  const onAbort = () => {
+    clearTimeout(t)
+    c.abort(parent.reason)
+  }
+  if (parent.aborted) onAbort()
+  else parent.addEventListener("abort", onAbort, { once: true })
+  return c.signal
+}
+
 export async function executeRun(
   deps: EngineDeps,
   args: { topic: TopicRow; runId: string; trigger: RunTrigger },
@@ -142,7 +160,26 @@ export async function executeRun(
     if (trigger !== "rebuild") await store.updateTopic(topic.id, { plan })
     check()
 
-    // ── Search and read ────────────────────────────────────────────────────
+    // ── Label: new items, items a read refreshed, and labels from an older version ──
+    const unlabeled = { deferred: 0, missing: 0, silent: false }
+    const label = async (stopAt: number, showProgress: boolean) => {
+      const toLabel = await store.unlabeledItems(topic.id, LIMITS.maxNewItemsPerRun)
+      if (!toLabel.length) return
+      if (showProgress) emit({ type: "stage", stage: "label", detail: `${toLabel.length}` })
+      const outcome = await labelItems(llm, toLabel, { query: topic.query, plan }, {
+        signal,
+        stopAt,
+        onProgress: showProgress ? (n) => emit({ type: "counts", labeled: n }) : undefined,
+      })
+      await store.saveLabels(outcome.labels)
+      unlabeled.deferred += outcome.deferred
+      unlabeled.missing += outcome.missing
+      if (outcome.labels.size === 0) unlabeled.silent = true
+    }
+
+    // ── Search ─────────────────────────────────────────────────────────────
+    let laneNotes: string[] = []
+    let fullyRead = 0
     if (trigger !== "rebuild") {
       emit({ type: "stage", stage: "search" })
       const existing = await store.existingCanonicalUrls(topic.id)
@@ -155,54 +192,58 @@ export async function executeRun(
         existing,
         signal,
         onLane: (lane) => emit({ type: "lane", lane }),
-        onRead: (done, total) => {
-          if (done === 0) emit({ type: "stage", stage: "read", detail: `${total}` })
-        },
       })
       plan = h.plan
       coverage.lanes = h.lanes
       coverage.searchCalls = h.searchCalls
       coverage.serperCalls = h.serperCalls
       coverage.youtubeUnits = h.youtubeUnits
-      coverage.notes.push(...groupLaneNotes(h.lanes, h.notes))
-      coverage.degraded = h.lanes.some((l) => l.status === "failed") || h.notes.some((n) => /could not be opened|used up/.test(n))
+      laneNotes = h.notes
       check()
       const inserted = await store.insertItems(topic.id, runId, h.items)
       newItems = inserted.length
       await store.updateTopic(topic.id, { plan })
-      emit({ type: "counts", collected: existing.size + newItems, newItems, fullyRead: h.fullyRead })
+      emit({ type: "counts", collected: existing.size + newItems, newItems })
       const allFailed = h.lanes.length > 0 && h.lanes.every((l) => l.status !== "ok")
       if (allFailed && existing.size === 0) {
-        throw new Error(coverage.notes[0] ?? "No source answered. Check the search keys and try again.")
+        throw new Error(groupLaneNotes(h.lanes, h.notes)[0] ?? "No source answered. Check the search keys and try again.")
       }
+      check()
+
+      // ── Label, then read in full only threads that are about the topic ──
+      await label(started + DEADLINES_MS.labelSearchHits, true)
+      check()
+      if (deps.reader) {
+        const threads = pickThreads(await store.allItems(topic.id), topic.query, runId)
+        emit({ type: "stage", stage: "read", detail: `${threads.length}` })
+        if (threads.length) {
+          const read = await deepRead(deps.reader, threads, await store.existingCanonicalUrls(topic.id), signal)
+          check()
+          await store.updateThreads(read.updates)
+          const replies = await store.insertItems(topic.id, runId, read.comments)
+          newItems += replies.length
+          fullyRead = read.fullyRead
+          laneNotes.push(...read.notes)
+          emit({ type: "counts", newItems, fullyRead })
+          await label(started + DEADLINES_MS.labelReplies, false)
+        }
+      }
+      coverage.notes.push(...groupLaneNotes(coverage.lanes, laneNotes))
+      coverage.degraded = coverage.lanes.some((l) => l.status === "failed") || laneNotes.some((n) => /could not be opened|used up/.test(n))
     } else {
       coverage.lanes = topic.report?.coverage.lanes ?? []
       coverage.notes.push("Rebuilt from items already collected; no new search was run")
+      await label(started + DEADLINES_MS.labelSearchHits, true)
     }
+    if (unlabeled.deferred) warnings.push(`${unlabeled.deferred} items will be analysed on the next scan (time limit)`)
+    if (unlabeled.missing) warnings.push(`${unlabeled.missing} items could not be analysed`)
+    if (unlabeled.silent) warnings.push("The analysis model did not answer for part of this scan; those sources are listed without labels")
     check()
 
-    // ── Label (new and any previously unlabeled items) ─────────────────────
-    const toLabel = await store.unlabeledItems(topic.id, LIMITS.maxNewItemsPerRun)
-    if (toLabel.length) {
-      emit({ type: "stage", stage: "label", detail: `${toLabel.length}` })
-      const outcome = await labelItems(llm, toLabel, { query: topic.query, plan }, {
-        signal,
-        stopAt: started + 175_000,
-        onProgress: (n) => emit({ type: "counts", labeled: n }),
-      })
-      await store.saveLabels(outcome.labels)
-      if (outcome.deferred) warnings.push(`${outcome.deferred} items will be analysed on the next scan (time limit)`)
-      if (outcome.missing) warnings.push(`${outcome.missing} items could not be analysed`)
-      if (outcome.labels.size === 0 && toLabel.length > 0) {
-        warnings.push("The analysis model did not answer; showing collected sources without labels")
-      }
-    }
-    check()
-
-    // ── Group and write ────────────────────────────────────────────────────
+    // ── Group and write, over people's posts about the topic ───────────────
     const items = await store.allItems(topic.id)
-    const relevant = items.filter((it) => it.labels?.relevant)
-    const conv = relevant.filter(isConversation)
+    const conv = items.filter(isPublicConversation)
+    const entity = entityOf(plan)
     let clusters: Cluster[] = []
     if (conv.length) {
       emit({ type: "stage", stage: "cluster" })
@@ -218,7 +259,9 @@ export async function executeRun(
     const grouping = groupSubtopics(conv, clusters, runId)
 
     let synth: SynthResult | null = null
-    if (conv.length >= 3) {
+    if (conv.length >= 3 && Date.now() > started + DEADLINES_MS.startWriting) {
+      warnings.push("Idea writing was skipped to stay inside the time limit; use Refresh analysis to write it")
+    } else if (conv.length >= 3) {
       emit({ type: "stage", stage: "write" })
       try {
         synth = await synthesize(
@@ -227,15 +270,32 @@ export async function executeRun(
             query: topic.query,
             plan,
             subtopics: subtopicInputs(grouping, conv),
-            questions: collectQuestions(relevant, grouping.subtopicOf, runId),
+            questions: collectQuestions(conv, grouping.subtopicOf, runId),
             overall: sentimentOf(conv),
             relevantCount: conv.length,
+            ownVoice: entity ? { name: entity, items: ownPosts(items) } : null,
           },
           signal,
         )
       } catch (err) {
         check()
-        warnings.push(`Idea writing was unavailable (${describeError(err)}); use Rebuild to try again`)
+        warnings.push(`Idea writing was unavailable (${describeError(err)}); use Refresh analysis to try again`)
+      }
+      // Each idea is reread next to its cited posts; posts that do not support it are dropped, then ideas left with fewer than two.
+      if (synth?.ideas.length) {
+        const left = started + DEADLINES_MS.run - 10_000 - Date.now()
+        if (Date.now() > started + DEADLINES_MS.startIdeaCheck) {
+          warnings.push("Ideas were not double-checked against their sources this time (time limit)")
+        } else {
+          try {
+            const checked = await verifyIdeas(llm, topic.query, synth.ideas, new Map(items.map((it) => [it.id, it])), budgetSignal(signal, Math.min(DEADLINES_MS.llm, left)))
+            synth = { ...synth, ideas: checked.ideas, dropped: synth.dropped + checked.dropped }
+            if (!checked.ideas.length) warnings.push("No content idea had at least two posts that clearly support it; rescan to collect more conversation")
+          } catch (err) {
+            check()
+            warnings.push(`Ideas were not double-checked against their sources this time (${describeError(err)})`)
+          }
+        }
       }
     }
     check()

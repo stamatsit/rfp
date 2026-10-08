@@ -5,9 +5,11 @@
 import { LIMITS } from "./config.js"
 import type { Cluster } from "./cluster.js"
 import { assignClusters } from "./cluster.js"
-import { collectQuestions, collectQuotes, engagementOf, isConversation, monthStats, platformStats, sentimentOf } from "./metrics.js"
+import { collectQuestions, collectQuotes, engagementOf, isPublicConversation, monthStats, platformStats, sampleExclusions, sentimentOf } from "./metrics.js"
+import { entityOf } from "./plan.js"
 import type { SubtopicInput, SynthResult } from "./synthesize.js"
-import type { Coverage, ContentIdea, Item, NewsEntry, Plan, QuestionEntry, Report, Subtopic } from "./types.js"
+import type { Coverage, ContentIdea, Item, NewsEntry, OwnPost, Plan, QuestionEntry, Report, Subtopic } from "./types.js"
+import { hostOf } from "./util/url.js"
 
 export function noDashes(s: string): string {
   return s.replace(/\s*—\s*/g, ", ").replace(/\s–\s/g, ", ").replace(/–/g, "-")
@@ -63,6 +65,18 @@ export function subtopicInputs(g: Grouping, conv: Item[]): SubtopicInput[] {
   }))
 }
 
+/** The named institution's own posts, newest first. */
+export function ownPosts(items: Item[]): Item[] {
+  return items
+    .filter((it) => it.labels?.relevant && it.labels.speaker === "self" && it.platform !== "news")
+    .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? "") || engagementOf(b) - engagementOf(a))
+}
+
+function excerptOf(text: string, max = 280): string {
+  const t = text.replace(/\s+/g, " ").trim()
+  return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, "") + "..." : t
+}
+
 export function buildReport(args: {
   topicId: string
   runId: string
@@ -79,21 +93,51 @@ export function buildReport(args: {
 }): Report {
   const { items, grouping, synth } = args
   const relevant = items.filter((it) => it.labels?.relevant)
-  const conv = relevant.filter(isConversation)
+  // Every figure below is computed over people's posts about the topic.
+  const conv = items.filter(isPublicConversation)
   const latest = args.runId
 
-  let questions: QuestionEntry[] = collectQuestions(relevant, grouping.subtopicOf, latest)
+  let questions: QuestionEntry[] = collectQuestions(conv, grouping.subtopicOf, latest)
   if (synth?.questionOrder.length) {
     const rank = new Map(synth.questionOrder.map((id, i) => [id, i]))
     questions = [...questions].sort((a, b) => (rank.get(a.itemId) ?? 999) - (rank.get(b.itemId) ?? 999) || b.engagement - a.engagement)
   }
   questions = questions.slice(0, LIMITS.maxQuestions)
 
+  // Coverage: news articles, plus news outlets posting on social and forums.
   const news: NewsEntry[] = relevant
-    .filter((it) => it.platform === "news")
+    .filter((it) => it.platform === "news" || it.labels?.speaker === "media")
     .sort((a, b) => (b.publishedAt ?? "").localeCompare(a.publishedAt ?? ""))
     .slice(0, 8)
-    .map((it) => ({ itemId: it.id, title: it.title, url: it.url, source: it.author ?? null, publishedAt: it.publishedAt ?? null, isNew: it.firstSeenRunId === latest }))
+    .map((it) => ({
+      itemId: it.id,
+      title: it.title || excerptOf(it.text, 140),
+      url: it.url,
+      source: it.author ?? (it.platform === "news" ? null : hostOf(it.url) || null),
+      publishedAt: it.publishedAt ?? null,
+      isNew: it.firstSeenRunId === latest,
+    }))
+
+  const entity = entityOf(args.plan)
+  const own = entity ? ownPosts(items) : []
+  const ownVoice: Report["ownVoice"] = own.length
+    ? {
+        name: entity!,
+        note: noDashes(synth?.ownVoiceNote ?? ""),
+        count: own.length,
+        posts: own.slice(0, LIMITS.maxOwnPosts).map(
+          (it): OwnPost => ({
+            itemId: it.id,
+            url: it.url,
+            platform: it.platform,
+            title: it.title,
+            excerpt: excerptOf(it.text),
+            publishedAt: it.publishedAt ?? null,
+            isNew: it.firstSeenRunId === latest,
+          }),
+        ),
+      }
+    : null
 
   const subtopics: Subtopic[] = grouping.subtopics.map((s) => ({
     id: s.id,
@@ -118,13 +162,13 @@ export function buildReport(args: {
   const summary = synth?.summary
     ? noDashes(synth.summary)
     : conv.length
-      ? `Collected ${conv.length} relevant posts and comments. The written analysis is unavailable for this scan; the figures, questions and sources below are complete.`
-      : "No relevant conversation was found for this topic yet."
+      ? `Collected ${conv.length} posts and comments by people about this topic. The written analysis is unavailable for this scan; the figures, questions and sources below are complete.`
+      : "No conversation by people about this topic was found yet."
 
   const analysisSource: Report["analysisSource"] = synth ? "llm" : relevant.length ? "partial" : "none"
 
   return {
-    version: 1,
+    version: 2,
     topicId: args.topicId,
     runId: args.runId,
     generatedAt: (args.now ?? new Date()).toISOString(),
@@ -137,7 +181,9 @@ export function buildReport(args: {
       newThisRun: args.newThisRun,
       fullyRead,
       runs: args.runs,
+      excluded: sampleExclusions(items),
     },
+    ownVoice,
     sentiment: sentimentOf(conv),
     subtopics,
     questions,
@@ -167,6 +213,11 @@ export interface ItemView {
   engagement: number
   depth: Item["depth"]
   relevant: boolean | null
+  /** Mainly about the topic; null until labeled under the current label version. */
+  about: boolean | null
+  speaker: string | null
+  /** Counted in the report's figures (people, mainly about the topic). */
+  counted: boolean
   sentiment: string | null
   audience: string | null
   subtopicId: string | null
@@ -188,6 +239,9 @@ export function itemViews(items: Item[], report: Report | null): ItemView[] {
     engagement: engagementOf(it),
     depth: it.depth,
     relevant: it.labels ? it.labels.relevant : null,
+    about: it.labels?.about ?? null,
+    speaker: it.labels?.speaker ?? null,
+    counted: isPublicConversation(it),
     sentiment: it.labels?.sentiment ?? null,
     audience: it.labels?.audience ?? null,
     subtopicId: subOf.get(it.id) ?? null,

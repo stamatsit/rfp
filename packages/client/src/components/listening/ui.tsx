@@ -53,6 +53,46 @@ export function pct(n: number, d: number): number {
   return d ? Math.round((100 * n) / d) : 0
 }
 
+// ─── the sample ─────────────────────────────────────────────────────────────
+
+/** Reports before version 2 counted every relevant post, including passing mentions and institutions' own posts. */
+export function isLegacyReport(r: Report): boolean {
+  return r.version !== 2
+}
+
+/** "12 posts by people" (version 2) or "35 relevant posts" (older reports). */
+export function sampleLabel(r: Report, n = r.totals.relevant): string {
+  return isLegacyReport(r) ? plural(n, "relevant post") : `${plural(n, "post")} by people`
+}
+
+/** What was found but kept out of the figures, in plain words, or null. */
+export function exclusionParts(r: Report): string[] {
+  const x = r.totals.excluded
+  if (!x) return []
+  const own = r.ownVoice?.name ? `${r.ownVoice.name}'s own accounts` : "the institution's own accounts"
+  const others = x.organizations + x.media
+  return [
+    x.self ? `${plural(x.self, "post")} from ${own}` : "",
+    x.mentions ? plural(x.mentions, "passing mention") : "",
+    others ? `${plural(others, "post")} from news outlets and other organizations` : "",
+  ].filter(Boolean)
+}
+
+export function joinList(parts: string[]): string {
+  if (parts.length <= 1) return parts[0] ?? ""
+  return `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`
+}
+
+/** Short tag for a source the figures leave out, or null when it is counted (or unknown). */
+export function notCountedReason(it: ItemView, ownName: string | null): string | null {
+  if (it.counted !== false || it.relevant === false || !it.speaker) return null
+  if (it.speaker === "self") return ownName ? `${ownName}'s own account` : "institution's own account"
+  if (it.speaker === "media") return "news outlet"
+  if (it.speaker === "organization") return "organization"
+  if (it.about === false) return "passing mention"
+  return null
+}
+
 // ─── sentiment ──────────────────────────────────────────────────────────────
 
 export const SENTIMENT_COLOR: Record<Sentiment, string> = {
@@ -244,7 +284,9 @@ export function reportMarkdown(r: Report, items: Map<string, ItemView>): string 
   const v = verdict(r.sentiment)
   lines.push(`# ${r.query}`, "")
   lines.push(`${r.summary}`, "")
-  lines.push(`Sample: ${plural(r.totals.relevant, "relevant post")} and comments, ${v.label.toLowerCase()} (${fmtDate(r.generatedAt)}).`, "")
+  lines.push(`Sample: ${sampleLabel(r)}, ${v.label.toLowerCase()} (${fmtDate(r.generatedAt)}).`)
+  const left = exclusionParts(r)
+  lines.push(left.length ? `Not counted: ${joinList(left)}.` : "", "")
   if (r.ideas.length) {
     lines.push("## Content ideas", "")
     r.ideas.forEach((idea, i) => {
@@ -265,5 +307,11 @@ export function reportMarkdown(r: Report, items: Map<string, ItemView>): string 
     for (const s of r.subtopics) lines.push(`- **${s.name}** (${s.share}%): ${s.summary}`)
     lines.push("")
   }
-  return lines.join("\n")
+  if (r.ownVoice) {
+    lines.push(`## What ${r.ownVoice.name} says about itself`, "")
+    if (r.ownVoice.note) lines.push(r.ownVoice.note, "")
+    for (const p of r.ownVoice.posts) lines.push(`- ${p.title || p.excerpt} (${PLATFORM[p.platform].label}: ${p.url})`)
+    lines.push("")
+  }
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n")
 }

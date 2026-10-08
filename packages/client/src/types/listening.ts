@@ -49,6 +49,7 @@ export interface PlannedSearch {
 export interface Plan {
   interpretation: string
   isNamedEntity: boolean
+  entityName?: string | null
   disambiguation: string
   searches: PlannedSearch[]
   broaderSuggestions: string[]
@@ -107,15 +108,44 @@ export interface NewsEntry {
   isNew: boolean
 }
 
+export type Speaker = "person" | "self" | "organization" | "media"
+
+export interface SampleExclusions {
+  mentions: number
+  self: number
+  organizations: number
+  media: number
+}
+
+export interface OwnPost {
+  itemId: string
+  url: string
+  platform: Platform
+  title: string
+  excerpt: string
+  publishedAt: string | null
+  isNew: boolean
+}
+
 export interface Report {
-  version: 1
+  /** 1: counted every relevant post. 2: counts only people's posts mainly about the topic. */
+  version: 1 | 2
   topicId: string
   runId: string
   generatedAt: string
   query: string
   interpretation: string
   summary: string
-  totals: { collected: number; relevant: number; newThisRun: number; fullyRead: number; runs: number }
+  totals: {
+    collected: number
+    /** Version 2: posts by people mainly about the topic. Version 1: every relevant post. */
+    relevant: number
+    newThisRun: number
+    fullyRead: number
+    runs: number
+    excluded?: SampleExclusions
+  }
+  ownVoice?: { name: string; note: string; count: number; posts: OwnPost[] } | null
   sentiment: SentimentBreakdown
   subtopics: Subtopic[]
   questions: QuestionEntry[]
@@ -176,6 +206,10 @@ export interface ItemView {
   engagement: number
   depth: "snippet" | "full"
   relevant: boolean | null
+  /** Absent from servers before report version 2. */
+  about?: boolean | null
+  speaker?: Speaker | null
+  counted?: boolean
   sentiment: Sentiment | null
   audience: Audience | null
   subtopicId: string | null

@@ -1,7 +1,7 @@
 import { useState } from "react"
-import { AlertTriangle, ChevronDown, Search } from "lucide-react"
+import { AlertTriangle, ChevronDown, RotateCcw, Search } from "lucide-react"
 import type { Report } from "@/types/listening"
-import { Card, PLATFORM, SentimentBar, SentimentDot, fmtMonth, pct, plural, verdict } from "../ui"
+import { Card, PLATFORM, SentimentBar, SentimentDot, exclusionParts, fmtMonth, isLegacyReport, joinList, pct, sampleLabel, verdict } from "../ui"
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
@@ -34,17 +34,58 @@ function MonthBars({ months }: { months: Report["months"] }) {
   )
 }
 
-export function Overview({ report, onSuggestion }: { report: Report; onSuggestion: (q: string) => void }) {
+export function Overview({
+  report,
+  onSuggestion,
+  onShowNotCounted,
+  onRefresh,
+  busy,
+  canWiden,
+}: {
+  report: Report
+  onSuggestion: (q: string) => void
+  onShowNotCounted: () => void
+  onRefresh: () => void
+  busy: boolean
+  /** The topic's time range is shorter than "any time". */
+  canWiden: boolean
+}) {
   const [showCoverage, setShowCoverage] = useState(false)
   const v = verdict(report.sentiment)
   const conv = report.totals.relevant
   const topPlatforms = report.platforms.slice(0, 5)
   const sources = report.platforms.length
   const failed = report.coverage.lanes.filter((l) => l.status === "failed")
+  const legacy = isLegacyReport(report)
+  const notCounted = exclusionParts(report)
+  const x = report.totals.excluded
+  const mostlyOwn = !!report.ownVoice && !!x && x.self + x.mentions > conv
 
   return (
     <section aria-labelledby="overview-title" className="space-y-4">
       <h2 id="overview-title" className="sr-only">Overview</h2>
+
+      {legacy && (
+        <Card className="p-5 border-sky-200/80 dark:border-sky-500/20 bg-sky-50/60 dark:bg-sky-500/[0.06]">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <div className="flex-1">
+              <p className="text-[14.5px] font-semibold text-slate-900 dark:text-white">This report was made before the accuracy update</p>
+              <p className="text-[13.5px] text-slate-600 dark:text-slate-300 mt-1">
+                It counted every relevant post as public conversation, including passing mentions and posts from organizations&apos; own accounts. Refresh to recount it from what was already collected. No new searches are used.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={busy}
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-[14px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
+            >
+              <RotateCcw size={15} />
+              Refresh analysis
+            </button>
+          </div>
+        </Card>
+      )}
 
       {report.thin && (
         <Card className="p-5 border-amber-200/80 dark:border-amber-500/20 bg-amber-50/60 dark:bg-amber-500/[0.06]">
@@ -52,10 +93,13 @@ export function Overview({ report, onSuggestion }: { report: Report; onSuggestio
             <Search size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="text-[14.5px] font-semibold text-slate-900 dark:text-white">
-                {conv === 0 ? "No real conversation found yet" : `Only ${plural(conv, "relevant post")} so far`}
+                {conv === 0 ? "No posts by people about this yet" : `Only ${sampleLabel(report, conv)} so far`}
               </p>
               <p className="text-[13.5px] text-slate-600 dark:text-slate-300 mt-1">
-                Specific names and narrow topics often have little public discussion. Rescan to dig deeper, or try a broader topic:
+                {mostlyOwn
+                  ? `Most of what turned up was posted by ${report.ownVoice!.name} itself or mentions it only in passing. `
+                  : "Specific names and narrow topics often have little public discussion. "}
+                {canWiden ? "Rescan to dig deeper, search again over a longer time range, or try a broader topic:" : "Rescan to dig deeper, or try a broader topic:"}
               </p>
               {report.broaderSuggestions.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-3">
@@ -97,10 +141,22 @@ export function Overview({ report, onSuggestion }: { report: Report; onSuggestio
               <SentimentBar s={report.sentiment} height={12} showLegend />
             </div>
             <div className="grid grid-cols-3 gap-4">
-              <Stat value={conv.toLocaleString()} label="relevant posts" />
+              <Stat value={conv.toLocaleString()} label={legacy ? "relevant posts" : conv === 1 ? "post by people" : "posts by people"} />
               <Stat value={String(sources)} label={sources === 1 ? "platform" : "platforms"} />
               <Stat value={report.totals.fullyRead.toLocaleString()} label="read in full" />
             </div>
+            {notCounted.length > 0 && (
+              <p className="text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400">
+                Not counted: {joinList(notCounted)}.{" "}
+                <button
+                  type="button"
+                  onClick={onShowNotCounted}
+                  className="font-medium text-sky-700 dark:text-sky-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded"
+                >
+                  See them
+                </button>
+              </p>
+            )}
           </div>
         </div>
 

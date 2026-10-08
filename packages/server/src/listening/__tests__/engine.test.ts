@@ -4,7 +4,7 @@ import { executeRun, groupLaneNotes, startRun } from "../engine.js"
 import { cancelRun, prepareRun } from "../service.js"
 import { ActiveRunError, MemoryStore, within } from "../store.js"
 import type { RunEvent } from "../types.js"
-import { FakeLlm, FakeSearch, fakeDeps, fakeYoutube } from "./fakes.js"
+import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
 
 async function initial(store: MemoryStore, deps = fakeDeps(store), query = "online nursing degree") {
   const events: RunEvent[] = []
@@ -32,8 +32,11 @@ describe("engine: first scan", () => {
     // Model numbers and dashes were stripped from the summary.
     expect(r.summary).not.toMatch(/%/)
     expect(r.summary).not.toMatch(/—/)
-    // News is context, not conversation.
-    expect(r.news.length).toBe(1)
+    // News is context, not conversation: the news article plus news outlets posting on social.
+    expect(r.news.filter((n) => n.url.includes("news.google.com"))).toHaveLength(1)
+    expect(r.news.filter((n) => /newsdesk/.test(n.url)).length).toBeGreaterThan(0)
+    const counted = new Set(r.subtopics.flatMap((s) => s.itemIds))
+    expect(r.news.filter((n) => counted.has(n.itemId))).toEqual([])
     expect(r.sentiment.positive + r.sentiment.neutral + r.sentiment.negative + r.sentiment.mixed).toBe(r.totals.relevant)
     // Deep read turned replies into items; a refused read is reported.
     expect(items.some((i) => i.lane === "read:reddit")).toBe(true)
@@ -79,8 +82,12 @@ describe("engine: rescan adds data", () => {
     expect(t.report!.totals.newThisRun).toBe(after.length - before.length)
     expect(t.report!.totals.runs).toBe(2)
     expect(checkReport(t.report!, after)).toEqual([])
-    // Previously labeled items kept their labels.
-    for (const b of before) expect(after.find((a) => a.id === b.id)!.labels).toEqual(b.labels)
+    // Previously labeled items kept their labels, unless this scan read them in full (relabeled on the full text).
+    for (const b of before) {
+      const a = after.find((x) => x.id === b.id)!
+      if (a.text === b.text) expect(a.labels).toEqual(b.labels)
+      else expect(a.labels?.v).toBe(2)
+    }
   })
 
   it("rebuild rewrites the analysis without searching", async () => {
@@ -91,6 +98,98 @@ describe("engine: rescan adds data", () => {
     const { topic, runId } = await startRun(store, { trigger: "rebuild", createdBy: "e", topicId })
     expect(await executeRun(fakeDeps(store, { search }), { topic, runId, trigger: "rebuild" }, () => {})).toBe("complete")
     expect(search.calls.length).toBe(calls)
+  })
+})
+
+describe("engine: who is talking, and about what", () => {
+  it("reads in full only threads labeled as mainly about the topic", async () => {
+    const store = new MemoryStore()
+    const reads: string[] = []
+    const { topicId } = await initial(store, fakeDeps(store, { reader: fakeReader(reads) }))
+    expect(reads.length).toBeGreaterThan(0)
+    // Results 2 (off topic) and 3 (passing mention) are never opened.
+    expect(reads.map(resultIndex).filter((i) => i === 2 || i === 3)).toEqual([])
+    // A thread read in full is relabeled on its full text in the same scan.
+    const items = await store.allItems(topicId)
+    for (const it of items.filter((i) => i.depth === "full" && i.kind === "post")) expect(it.labels?.v).toBe(2)
+  })
+
+  it("collects passing mentions but never counts or quotes them", async () => {
+    const store = new MemoryStore()
+    const { topicId } = await initial(store)
+    const items = await store.allItems(topicId)
+    const r = (await store.getTopic(topicId))!.report!
+    const mentions = new Set(items.filter((i) => i.labels?.relevant && i.labels.about === false).map((i) => i.id))
+    expect(mentions.size).toBeGreaterThan(0)
+    expect(r.totals.excluded.mentions).toBeGreaterThan(0)
+    const used = [...r.quotes.map((q) => q.itemId), ...r.questions.map((q) => q.itemId), ...r.subtopics.flatMap((s) => s.itemIds), ...r.ideas.flatMap((i) => i.evidenceItemIds)]
+    expect(used.filter((id) => mentions.has(id))).toEqual([])
+    // "Will be bored?" is too short to stand as a question even before the mention filter.
+    expect(items.every((i) => i.labels?.question !== "Will be bored?")).toBe(true)
+    expect(checkReport(r, items)).toEqual([])
+  })
+
+  it("keeps a named institution's own posts out of the figures and shows them apart", async () => {
+    const store = new MemoryStore()
+    const deps = fakeDeps(store, { llm: new FakeLlm({ namedEntity: "Coe College" }) })
+    const { topicId } = await initial(store, deps, "Coe College")
+    const items = await store.allItems(topicId)
+    const r = (await store.getTopic(topicId))!.report!
+    const own = new Set(items.filter((i) => i.labels?.speaker === "self").map((i) => i.id))
+    expect(own.size).toBeGreaterThan(0)
+    expect(r.ownVoice?.name).toBe("Coe College")
+    expect(r.ownVoice!.count).toBe(own.size)
+    expect(r.ownVoice!.posts.every((p) => own.has(p.itemId))).toBe(true)
+    expect(r.ownVoice!.note).toBe("Its own posts celebrate events, people ask who finds placements.")
+    expect(r.totals.excluded.self).toBe(own.size)
+    const used = [...r.quotes.map((q) => q.itemId), ...r.questions.map((q) => q.itemId), ...r.subtopics.flatMap((s) => s.itemIds), ...r.ideas.flatMap((i) => i.evidenceItemIds)]
+    expect(used.filter((id) => own.has(id))).toEqual([])
+    // News outlets posting on social go to the news list, not the figures.
+    expect(r.totals.excluded.media).toBeGreaterThan(0)
+    expect(r.news.some((n) => /newsdesk/.test(n.url))).toBe(true)
+    expect(checkReport(r, items)).toEqual([])
+  })
+
+  it("has no own-posts section for a topic that is not an institution", async () => {
+    const store = new MemoryStore()
+    const { topicId } = await initial(store)
+    const r = (await store.getTopic(topicId))!.report!
+    expect(r.ownVoice).toBeNull()
+    expect(r.totals.excluded.self).toBe(0)
+  })
+
+  it("drops an idea when its posts do not actually support it", async () => {
+    const store = new MemoryStore()
+    const { topicId } = await initial(store, fakeDeps(store, { llm: new FakeLlm({ rejectIdeas: ["The real cost"] }) }))
+    const r = (await store.getTopic(topicId))!.report!
+    expect(r.ideas.map((i) => i.headline)).toEqual(["Who finds your clinical placement"])
+    expect(r.ideas[0]!.id).toBe("idea1")
+  })
+
+  it("keeps ideas, with a warning, when the idea check itself fails", async () => {
+    const store = new MemoryStore()
+    const { topicId } = await initial(store, fakeDeps(store, { llm: new FakeLlm({ failOn: new Set(["listening_idea_check"]) }) }))
+    const r = (await store.getTopic(topicId))!.report!
+    expect(r.ideas).toHaveLength(2)
+    expect(r.warnings.join(" ")).toMatch(/not double-checked/)
+  })
+
+  it("relabels items labeled before speaker and focus existed", async () => {
+    const store = new MemoryStore()
+    const { topicId } = await initial(store)
+    // Simulate a topic scanned before this change: version-1 labels.
+    for (const it of store.items.values()) {
+      if (!it.labels) continue
+      const { v: _v, about: _a, speaker: _s, ...old } = it.labels
+      it.labels = old
+    }
+    const { topic, runId } = await startRun(store, { trigger: "rebuild", createdBy: "e", topicId })
+    expect(await executeRun(fakeDeps(store), { topic, runId, trigger: "rebuild" }, () => {})).toBe("complete")
+    const items = await store.allItems(topicId)
+    expect(items.every((i) => i.labels?.v === 2)).toBe(true)
+    const r = (await store.getTopic(topicId))!.report!
+    expect(r.totals.relevant).toBeGreaterThan(0)
+    expect(checkReport(r, items)).toEqual([])
   })
 })
 

@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from "react"
 import { ArrowUpRight, Search, X } from "lucide-react"
 import type { ItemView, Platform, Report, Sentiment } from "@/types/listening"
-import { Card, ExternalLink, NewBadge, PLATFORM, PlatformBadge, SENTIMENT_LABEL, SectionHeading, SentimentDot, fmtDate, plural } from "../ui"
+import { Card, ExternalLink, NewBadge, PLATFORM, PlatformBadge, SENTIMENT_LABEL, SectionHeading, SentimentDot, fmtDate, isLegacyReport, notCountedReason, plural } from "../ui"
 
 const PAGE = 25
 
+/** Which relevant sources to list: all, only those counted in the figures, only those left out, or the institution's own. */
+export type SourceView = "all" | "counted" | "notCounted" | "own"
+
 export interface SourceFilter {
   subtopicId: string | null
+  /** Set from elsewhere on the page ("See them"); `seq` changes on every request so repeating one still applies. */
+  view: SourceView | null
+  seq: number
 }
 
 function Select<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: Array<[T, string]>; label: string }) {
@@ -36,6 +42,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
   const [subtopic, setSubtopic] = useState<string>("all")
   const [onlyNew, setOnlyNew] = useState(false)
   const [showOffTopic, setShowOffTopic] = useState(false)
+  const [view, setView] = useState<SourceView>("all")
   const [shown, setShown] = useState(PAGE)
 
   useEffect(() => {
@@ -45,30 +52,61 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
     }
   }, [filter.subtopicId])
 
+  useEffect(() => {
+    if (filter.view) {
+      setView(filter.view)
+      setSubtopic("all")
+      setShown(PAGE)
+    }
+  }, [filter.view, filter.seq])
+
+  const ownName = report.ownVoice?.name ?? null
+  const legacy = isLegacyReport(report)
   const platforms = useMemo(() => [...new Set(items.map((i) => i.platform))].sort(), [items])
   const offTopicCount = useMemo(() => items.filter((i) => i.relevant === false).length, [items])
   const newCount = useMemo(() => items.filter((i) => i.isNew && i.relevant !== false).length, [items])
+  const notCountedCount = useMemo(() => items.filter((i) => i.relevant !== false && i.counted === false).length, [items])
+  const ownCount = useMemo(() => items.filter((i) => i.relevant !== false && i.speaker === "self").length, [items])
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return items
       .filter((i) => (showOffTopic ? true : i.relevant !== false))
+      .filter((i) => view === "all" || (view === "counted" ? i.counted !== false : view === "own" ? i.speaker === "self" : i.relevant !== false && i.counted === false))
       .filter((i) => platform === "all" || i.platform === platform)
       .filter((i) => sentiment === "all" || i.sentiment === sentiment)
       .filter((i) => subtopic === "all" || i.subtopicId === subtopic)
       .filter((i) => !onlyNew || i.isNew)
       .filter((i) => !needle || `${i.title} ${i.excerpt} ${i.author ?? ""}`.toLowerCase().includes(needle))
-      .sort((a, b) => Number(b.relevant !== false) - Number(a.relevant !== false) || b.engagement - a.engagement)
-  }, [items, q, platform, sentiment, subtopic, onlyNew, showOffTopic])
+      .sort(
+        (a, b) =>
+          Number(b.relevant !== false) - Number(a.relevant !== false) || Number(b.counted !== false) - Number(a.counted !== false) || b.engagement - a.engagement,
+      )
+  }, [items, q, platform, sentiment, subtopic, onlyNew, showOffTopic, view])
 
-  useEffect(() => setShown(PAGE), [q, platform, sentiment, subtopic, onlyNew, showOffTopic])
+  useEffect(() => setShown(PAGE), [q, platform, sentiment, subtopic, onlyNew, showOffTopic, view])
 
-  const anyFilter = q || platform !== "all" || sentiment !== "all" || subtopic !== "all" || onlyNew || showOffTopic
+  const anyFilter = q || platform !== "all" || sentiment !== "all" || subtopic !== "all" || onlyNew || showOffTopic || view !== "all"
   const subName = new Map(report.subtopics.map((s) => [s.id, s.name]))
+  const viewOptions: Array<[SourceView, string]> = [
+    ["all", "Everything relevant"],
+    ["counted", "Counted in the report"],
+    ["notCounted", `Not counted · ${notCountedCount}`],
+    ...(ownCount ? [["own", `${ownName ?? "Institution"}'s own · ${ownCount}`] as [SourceView, string]] : []),
+  ]
 
   return (
     <section>
-      <SectionHeading id="sources" title="All sources" count={items.filter((i) => i.relevant !== false).length} hint="Every relevant post and comment we found. Each one opens where it was posted." />
+      <SectionHeading
+        id="sources"
+        title="All sources"
+        count={items.filter((i) => i.relevant !== false).length}
+        hint={
+          legacy || notCountedCount === 0
+            ? "Every relevant post and comment we found. Each one opens where it was posted."
+            : "Every relevant post we found. Tags mark the ones kept out of the figures, and why. Each one opens where it was posted."
+        }
+      />
       <Card>
         <div className="p-3 sm:p-4 flex flex-wrap items-center gap-2 border-b border-black/[0.05] dark:border-white/[0.06]">
           <label className="relative flex-1 min-w-[200px]">
@@ -81,6 +119,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
               className="w-full h-9 rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 pl-9 pr-3 text-[13px] text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
             />
           </label>
+          {!legacy && notCountedCount > 0 && <Select label="Which sources" value={view} onChange={setView} options={viewOptions} />}
           <Select label="Platform" value={platform} onChange={setPlatform} options={[["all", "All platforms"], ...platforms.map((p) => [p, PLATFORM[p].label] as [Platform, string])]} />
           <Select
             label="Feeling"
@@ -118,6 +157,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
                   setSubtopic("all")
                   setOnlyNew(false)
                   setShowOffTopic(false)
+                  setView("all")
                   onClearFilter()
                 }}
                 className="ml-1.5 font-medium text-sky-700 dark:text-sky-400 hover:underline"
@@ -128,7 +168,9 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
           </div>
         ) : (
           <ul className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
-            {filtered.slice(0, shown).map((it) => (
+            {filtered.slice(0, shown).map((it) => {
+              const left = notCountedReason(it, ownName)
+              return (
               <li key={it.id}>
                 <ExternalLink href={it.url} className={`group flex gap-4 px-4 sm:px-5 py-3.5 hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors ${it.relevant === false ? "opacity-60" : ""}`}>
                   <div className="min-w-0 flex-1">
@@ -146,13 +188,19 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
                       {it.subtopicId && subName.get(it.subtopicId) && <span className="truncate max-w-[220px]">{subName.get(it.subtopicId)}</span>}
                       {it.publishedAt && <span>{fmtDate(it.publishedAt)}</span>}
                       {it.relevant === false && <span className="text-slate-400">judged off-topic</span>}
+                      {left && (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-px text-[11.5px] text-slate-500 dark:text-slate-400" title="Not counted in the figures">
+                          {left}
+                        </span>
+                      )}
                       {it.isNew && report.totals.runs > 1 && <NewBadge />}
                     </p>
                   </div>
                   <ArrowUpRight size={16} className="shrink-0 text-slate-300 group-hover:text-sky-500 transition-colors mt-0.5" />
                 </ExternalLink>
               </li>
-            ))}
+              )
+            })}
           </ul>
         )}
 

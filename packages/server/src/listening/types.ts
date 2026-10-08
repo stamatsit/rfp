@@ -56,9 +56,24 @@ export interface Engagement {
   views?: number
 }
 
+/**
+ * Who wrote an item. Only "person" counts as public conversation; "self" is
+ * the named institution's own accounts (its offices, athletics, alumni
+ * association), which say what it says about itself, not what people think.
+ */
+export type Speaker = "person" | "self" | "organization" | "media"
+
+/** Bump when the label schema changes; items with an older version are relabeled. */
+export const LABEL_VERSION = 2
+
 /** Labels from the first analysis pass, stored per item. */
 export interface ItemLabels {
+  /** Absent on labels written before version 2. */
+  v?: number
   relevant: boolean
+  /** The topic is the main subject, not a passing mention (a bio line, a list, a landmark). */
+  about?: boolean
+  speaker?: Speaker
   sentiment: Sentiment
   /** Free-text subtopic from pass 1; clustered later. */
   subtopic: string
@@ -112,6 +127,8 @@ export interface PlannedSearch {
 export interface Plan {
   interpretation: string
   isNamedEntity: boolean
+  /** The institution's name when isNamedEntity, e.g. "Coe College". Absent on older plans. */
+  entityName?: string | null
   /** What to treat as off-topic, e.g. "not the Japanese COE visa document". */
   disambiguation: string
   searches: PlannedSearch[]
@@ -193,8 +210,32 @@ export interface NewsEntry {
   isNew: boolean
 }
 
+/** A post from the named institution's own accounts. */
+export interface OwnPost {
+  itemId: string
+  url: string
+  platform: Platform
+  title: string
+  excerpt: string
+  publishedAt: string | null
+  isNew: boolean
+}
+
+/** Relevant items kept out of the public-conversation figures, by reason. */
+export interface SampleExclusions {
+  /** Mention the topic in passing: a bio line, a list, a landmark. */
+  mentions: number
+  /** The named institution's own accounts. */
+  self: number
+  /** Other organizations and brands. */
+  organizations: number
+  /** News outlets and publishers posting on social or forums. */
+  media: number
+}
+
 export interface Report {
-  version: 1
+  /** 2 adds speaker and focus labels, `excluded` and `ownVoice`. */
+  version: 2
   topicId: string
   runId: string
   generatedAt: string
@@ -203,11 +244,15 @@ export interface Report {
   summary: string
   totals: {
     collected: number
+    /** Posts and comments by people that are mainly about the topic. Every figure is computed over these. */
     relevant: number
     newThisRun: number
     fullyRead: number
     runs: number
+    excluded: SampleExclusions
   }
+  /** Named institutions only: what its own accounts post, kept apart from public opinion. */
+  ownVoice: { name: string; note: string; count: number; posts: OwnPost[] } | null
   sentiment: SentimentBreakdown
   subtopics: Subtopic[]
   questions: QuestionEntry[]

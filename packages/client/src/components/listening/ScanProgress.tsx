@@ -6,14 +6,15 @@ import { Card, fmtDuration, plural } from "./ui"
 
 type StepId = "plan" | "search" | "read" | "label" | "write"
 const STAGE_TO_STEP: Record<Stage, StepId> = { plan: "plan", search: "search", read: "read", label: "label", cluster: "write", write: "write", save: "write" }
-const ORDER: StepId[] = ["plan", "search", "read", "label", "write"]
+// Labeling comes before reading: only threads that are really about the topic are opened in full.
+const ORDER: StepId[] = ["plan", "search", "label", "read", "write"]
 
 const COPY: Record<StepId, { title: string; rescanTitle?: string }> = {
   plan: { title: "Working out how people search for this", rescanTitle: "Adding a fresh way to search" },
   search: { title: "Searching Reddit, forums, social, reviews, YouTube and news", rescanTitle: "Looking for new posts and digging deeper" },
-  read: { title: "Opening the most discussed threads in full" },
-  label: { title: "Reading every post for feelings, questions and subtopics" },
-  write: { title: "Grouping subtopics and writing content ideas" },
+  label: { title: "Reading every post: is it about this, who wrote it, how they feel" },
+  read: { title: "Opening the threads that are about it, in full" },
+  write: { title: "Grouping subtopics, writing ideas, checking each against its sources" },
 }
 
 function useNow(active: boolean) {
@@ -126,7 +127,7 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
       )
     }
     if (id === "read" && state.toRead !== null) {
-      return <p className="text-[12.5px] text-slate-500 mt-1">{state.toRead ? `${plural(state.toRead, "thread")} with the most discussion` : "Nothing new to open"}</p>
+      return <p className="text-[12.5px] text-slate-500 mt-1">{state.toRead ? `${plural(state.toRead, "thread")} about the topic, with their replies` : "No new threads about it to open"}</p>
     }
     if (id === "label" && state.toLabel) {
       const p = Math.min(100, Math.round((100 * state.labeled) / state.toLabel))

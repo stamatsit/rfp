@@ -11,10 +11,10 @@ import { ScanProgress } from "./ScanProgress"
 import { Overview } from "./report/Overview"
 import { Ideas } from "./report/Ideas"
 import { Questions } from "./report/Questions"
-import { News, Subtopics, Voices } from "./report/Subtopics"
-import { Sources } from "./report/Sources"
+import { News, OwnVoice, Subtopics, Voices } from "./report/Subtopics"
+import { Sources, type SourceView } from "./report/Sources"
 import { Method } from "./report/Method"
-import { ACCENT, Card, CopyButton, plural, reportMarkdown, timeAgo } from "./ui"
+import { ACCENT, Card, CopyButton, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
 
 type Scan = ReturnType<typeof useScan>
 
@@ -23,12 +23,13 @@ const WINDOW_LABEL = { "3m": "past 3 months", "1y": "past year", any: "any time"
 /** Runs whose completion was already handled. Module-level because pages remount on navigation. */
 const settledRuns = new Set<string>()
 
-function SectionNav({ ideas, questions, hasSubtopics }: { ideas: number; questions: number; hasSubtopics: boolean }) {
+function SectionNav({ ideas, questions, hasSubtopics, ownName }: { ideas: number; questions: number; hasSubtopics: boolean; ownName: string | null }) {
   const sections = [
     { id: "top", label: "Overview" },
     { id: "ideas", label: "Ideas", n: ideas },
     { id: "questions", label: "Questions", n: questions },
     ...(hasSubtopics ? [{ id: "subtopics", label: "Subtopics" }] : []),
+    ...(ownName ? [{ id: "own-voice", label: `${ownName}'s own posts` }] : []),
     { id: "sources", label: "Sources" },
   ]
   const [active, setActive] = useState("top")
@@ -44,7 +45,7 @@ function SectionNav({ ideas, questions, hasSubtopics }: { ideas: number; questio
     els.forEach((e) => obs.observe(e))
     return () => obs.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ideas, questions, hasSubtopics])
+  }, [ideas, questions, hasSubtopics, ownName])
   return (
     <nav aria-label="Report sections" className="sticky top-14 z-[150] -mx-4 sm:-mx-6 px-4 sm:px-6 py-2.5 bg-white/85 dark:bg-slate-950/85 backdrop-blur-md border-b border-black/[0.05] dark:border-white/[0.06]">
       <ul className="flex gap-1 overflow-x-auto [scrollbar-width:none]">
@@ -128,6 +129,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [subtopicFilter, setSubtopicFilter] = useState<string | null>(null)
+  const [sourceView, setSourceView] = useState<{ view: SourceView | null; seq: number }>({ view: null, seq: 0 })
   const [openSubtopic, setOpenSubtopic] = useState<string | null>(null)
   useDocumentTitle(detail?.topic.query ? `${detail.topic.query} · Topic Ideation` : "Topic Ideation")
 
@@ -208,6 +210,11 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
     setSubtopicFilter(id)
     requestAnimationFrame(() => document.getElementById("sources")?.scrollIntoView({ behavior: "smooth", block: "start" }))
   }
+  const showSources = (view: SourceView) => {
+    setSubtopicFilter(null)
+    setSourceView((s) => ({ view, seq: s.seq + 1 }))
+    requestAnimationFrame(() => document.getElementById("sources")?.scrollIntoView({ behavior: "smooth", block: "start" }))
+  }
   const jumpToSubtopic = (id: string) => {
     setOpenSubtopic(id)
     requestAnimationFrame(() => document.getElementById(`subtopic-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" }))
@@ -250,7 +257,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
   const lastFailed = detail!.runs[0]?.status === "failed" ? detail!.runs[0] : null
   const meta = report
     ? [
-        plural(report.totals.relevant, "relevant post"),
+        sampleLabel(report),
         `${WINDOW_LABEL[topic.timeWindow]}`,
         runsDone > 1 ? `${runsDone} scans` : null,
         topic.lastRunAt ? `updated ${timeAgo(topic.lastRunAt)}` : null,
@@ -325,15 +332,36 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
               The last scan added <b>{plural(report.totals.newThisRun, "new item")}</b>. Look for the <span className="font-semibold">New</span> tag, or filter sources to just the new ones.
             </div>
           )}
-          <SectionNav ideas={report.ideas.length} questions={report.questions.length} hasSubtopics={report.subtopics.length > 0} />
+          <SectionNav
+            ideas={report.ideas.length}
+            questions={report.questions.length}
+            hasSubtopics={report.subtopics.length > 0}
+            ownName={report.ownVoice?.posts.length ? report.ownVoice.name : null}
+          />
           <div className="space-y-12 mt-6">
-            <Overview report={report} onSuggestion={onNewSearch} />
+            <Overview
+              report={report}
+              onSuggestion={onNewSearch}
+              onShowNotCounted={() => showSources("notCounted")}
+              onRefresh={rebuild}
+              busy={scanning}
+              canWiden={topic.timeWindow !== "any"}
+            />
             <Ideas report={report} items={items} onSubtopic={jumpToSubtopic} />
             <Questions report={report} />
             <Subtopics report={report} items={items} openId={openSubtopic} onShowAll={showAllInSubtopic} />
             <Voices report={report} />
+            <OwnVoice report={report} onShowAll={() => showSources("own")} />
             <News report={report} />
-            <Sources report={report} items={detail!.items} filter={{ subtopicId: subtopicFilter }} onClearFilter={() => setSubtopicFilter(null)} />
+            <Sources
+              report={report}
+              items={detail!.items}
+              filter={{ subtopicId: subtopicFilter, view: sourceView.view, seq: sourceView.seq }}
+              onClearFilter={() => {
+                setSubtopicFilter(null)
+                setSourceView((s) => ({ view: null, seq: s.seq }))
+              }}
+            />
             <Method report={report} plan={topic.plan} runs={detail!.runs} />
           </div>
         </>

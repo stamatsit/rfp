@@ -115,6 +115,8 @@ export const LIMITS = {
   maxSubtopics: 8,
   maxQuestions: 12,
   maxQuotes: 10,
+  /** Named institution's own posts shown in their own section. */
+  maxOwnPosts: 8,
 } as const
 
 export const DEADLINES_MS = {
@@ -126,6 +128,11 @@ export const DEADLINES_MS = {
   llm: 75_000,
   /** Whole run; the Vercel function allows 300s. */
   run: 270_000,
+  /** Run-relative cut-offs that keep the later steps inside `run`. */
+  labelSearchHits: 110_000,
+  labelReplies: 150_000,
+  startWriting: 185_000,
+  startIdeaCheck: 235_000,
 } as const
 
 /** Rough daily Google PSE budget (100 free calls per project per day). */

@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest"
-import { canonicalUrl, platformOf, redditThreadId, youtubeVideoId } from "../util/url.js"
-import { clip, isVerbatim, originalSpan, questionSentences } from "../util/text.js"
+import { canonicalUrl, isListingPage, platformOf, redditThreadId, youtubeVideoId } from "../util/url.js"
+import { clip, isRealQuestion, isVerbatim, originalSpan, questionSentences } from "../util/text.js"
 import { explainPseError, siteScopedQuery, snippetDate } from "../sources/pse.js"
 import { parseNewsRss } from "../sources/news.js"
 import { extractPage, isReadable } from "../sources/reader.js"
 import { verifyQuestion, verifyQuote } from "../label.js"
-import { buildSearchJobs, MAX_SEARCH_CALLS_PER_RUN } from "../harvest.js"
-import { collectQuestions, ideaCap, monthStats, sentimentOf, stripModelNumbers } from "../metrics.js"
-import { assemblePlan, fallbackPlan } from "../plan.js"
+import { buildSearchJobs, MAX_SEARCH_CALLS_PER_RUN, pickThreads } from "../harvest.js"
+import { collectQuestions, collectQuotes, ideaCap, isPublicConversation, monthStats, sampleExclusions, sentimentOf, stripModelNumbers } from "../metrics.js"
+import { assemblePlan, entityOf, fallbackPlan } from "../plan.js"
 import { noDashes } from "../report.js"
 import { cleanQuery, pacificMidnight } from "../service.js"
 import { HttpError } from "../util/http.js"
@@ -35,6 +35,21 @@ describe("canonicalUrl", () => {
   it("keeps forum reply anchors but drops other hashes", () => {
     expect(canonicalUrl("https://allnurses.com/t/1#reply-3")).toBe("https://allnurses.com/t/1#reply-3")
     expect(canonicalUrl("https://allnurses.com/t/1#top")).toBe("https://allnurses.com/t/1")
+  })
+  it("collapses machine-translated copies of one Reddit thread (?tl=ko, ?tl=sv ...)", () => {
+    const base = "https://www.reddit.com/r/malegrooming/comments/1wwbmjf/18m_freshman_in_college_thoughts/"
+    const urls = ["", "?tl=ko", "?tl=sv", "?tl=no", "?tl=fil"].map((q) => canonicalUrl(base + q))
+    expect(new Set(urls).size).toBe(1)
+    expect(urls[0]).toBe("https://reddit.com/r/malegrooming/comments/1wwbmjf")
+  })
+  it("recognises search-result and job-board pages", () => {
+    expect(isListingPage("https://www.yelp.com/search?cflt=casinos&find_loc=Cedar+Rapids%2C+IA")).toBe(true)
+    expect(isListingPage("https://m.yelp.com/search?find_desc=Best+Happy+Hour")).toBe(true)
+    expect(isListingPage("https://www.linkedin.com/jobs/view/staff-accountant-at-coe-college-1")).toBe(true)
+    expect(isListingPage("https://www.reddit.com/r/Iowa/search?q=coe")).toBe(true)
+    expect(isListingPage("https://www.yelp.com/biz/some-cafe-cedar-rapids")).toBe(false)
+    expect(isListingPage("https://www.reddit.com/r/Iowa/comments/1v5w63v/x/")).toBe(false)
+    expect(isListingPage("https://example.edu/research/search-methods")).toBe(false)
   })
   it("maps hosts to platforms and extracts ids", () => {
     expect(platformOf("https://talk.collegeconfidential.com/t/x/1")).toBe("forums")
@@ -80,6 +95,14 @@ describe("label verification", () => {
     expect(verifyQuestion("Has anyone completed this program?", src)).toBe("Has anyone done this program?")
     expect(verifyQuestion("What is the tuition?", src)).toBeNull()
     expect(verifyQuestion("", src)).toBeNull()
+  })
+  it("keeps only real questions: a question mark and enough words to stand alone", () => {
+    expect(isRealQuestion("Will be bored?")).toBe(false)
+    expect(isRealQuestion("Will I love any other Buffalo player as much as J17.")).toBe(false)
+    expect(isRealQuestion("Is Coe College worth the price?")).toBe(true)
+    expect(isRealQuestion('Did anyone get the "full ride?"')).toBe(true)
+    const theme = "Fat guy going to Lost Island for the first time. Will be bored?"
+    expect(verifyQuestion("Will be bored?", theme)).toBeNull()
   })
 })
 
@@ -162,7 +185,7 @@ describe("metrics", () => {
   const mk = (id: string, sentiment: "positive" | "negative" | "neutral" | "mixed", question: string | null, score = 0, publishedAt: string | null = "2026-09-10T00:00:00Z"): Item => ({
     id, topicId: "t", firstSeenRunId: "r1", url: `https://reddit.com/${id}`, platform: "reddit", kind: "post", title: "", text: "",
     publishedAt, engagement: { score }, lane: "x", depth: "snippet", createdAt: "",
-    labels: { relevant: true, sentiment, subtopic: "x", audience: "student", question, quote: null },
+    labels: { v: 2, relevant: true, about: true, speaker: "person", sentiment, subtopic: "x", audience: "student", question, quote: null },
   })
   it("computes sentiment counts and score in code", () => {
     const s = sentimentOf([mk("a", "positive", null), mk("b", "negative", null), mk("c", "negative", null), mk("d", "neutral", null)])
@@ -189,6 +212,35 @@ describe("metrics", () => {
     const comment = { ...mk("c", "neutral", "Did your school find your preceptor?"), platform: "youtube" as const, kind: "comment" as const }
     expect(collectQuestions([news, video, comment], new Map(), "r1").map((q) => q.itemId)).toEqual(["c"])
   })
+  it("counts only people's posts mainly about the topic; tallies the rest by reason", () => {
+    const person = mk("p", "positive", "Is the nursing program worth the cost?")
+    const mention = { ...mk("m", "neutral", "Is anyone else going to the game tonight?"), labels: { ...mk("m", "neutral", null).labels!, about: false } }
+    const own = { ...mk("s", "positive", "Ready for homecoming weekend on campus?"), labels: { ...mk("s", "positive", null).labels!, speaker: "self" as const, quote: "Proud of our new rankings!" } }
+    const outlet = { ...mk("o", "neutral", null), platform: "facebook" as const, labels: { ...mk("o", "neutral", null).labels!, speaker: "media" as const } }
+    const brand = { ...mk("b", "neutral", null), labels: { ...mk("b", "neutral", null).labels!, speaker: "organization" as const } }
+    const v1 = { ...mk("old", "positive", "Is the nursing program worth the cost?"), labels: { relevant: true, sentiment: "positive" as const, subtopic: "x", audience: "student" as const, question: null, quote: null } }
+    const offTopic = { ...mk("x", "negative", null), labels: { ...mk("x", "negative", null).labels!, relevant: false } }
+    const all = [person, mention, own, outlet, brand, v1, offTopic]
+    expect(all.filter(isPublicConversation).map((i) => i.id)).toEqual(["p"])
+    expect(sampleExclusions(all)).toEqual({ mentions: 1, self: 1, organizations: 1, media: 1 })
+    expect(collectQuestions(all, new Map(), "r1").map((q) => q.itemId)).toEqual(["p"])
+    expect(collectQuotes(all, new Map(), "r1")).toEqual([])
+  })
+  it("opens in full only threads about the topic, this scan's first", () => {
+    const t = (id: string, run: string, over: Partial<Item["labels"] & object> = {}, depth: Item["depth"] = "snippet") => ({
+      ...mk(id, "neutral", null, 5),
+      url: `https://www.reddit.com/r/x/comments/${id}/t/`,
+      firstSeenRunId: run,
+      depth,
+      labels: { ...mk(id, "neutral", null).labels!, ...over },
+    })
+    const picked = pickThreads(
+      [t("old1", "r1"), t("new1", "r2"), t("mention", "r2", { about: false }), t("off", "r2", { relevant: false }), t("done", "r2", {}, "full")],
+      "nursing",
+      "r2",
+    )
+    expect(picked.map((i) => i.id)).toEqual(["new1", "old1"])
+  })
   it("scales the number of ideas to the sample", () => {
     expect([ideaCap(8), ideaCap(20), ideaCap(30), ideaCap(200)]).toEqual([2, 3, 5, 8])
   })
@@ -213,6 +265,21 @@ describe("plan assembly", () => {
   it("falls back to the topic as written", () => {
     expect(fallbackPlan("Houston Methodist").searches[0]!.q).toBe('"Houston Methodist"')
     expect(fallbackPlan("college enrollment trends").searches[0]!.q).toBe("college enrollment trends")
+  })
+  it("knows the institution's name, including on plans saved before it was stored", () => {
+    const p = assemblePlan("coe college", {
+      interpretation: "",
+      isNamedEntity: true,
+      entityName: '"Coe College"',
+      disambiguation: "",
+      searches: [],
+      broaderSuggestions: [],
+    })
+    expect(entityOf(p)).toBe("Coe College")
+    const older: Plan = { interpretation: "", isNamedEntity: true, disambiguation: "", searches: [{ q: '"Coe College"', why: "" }], broaderSuggestions: [] }
+    expect(entityOf(older)).toBe("Coe College")
+    expect(entityOf(fallbackPlan("college enrollment trends"))).toBeNull()
+    expect(entityOf(null)).toBeNull()
   })
 })
 

@@ -54,6 +54,7 @@ export function assemblePlan(query: string, out: z.infer<typeof PlanSchema>): Pl
   return {
     interpretation: out.interpretation.trim(),
     isNamedEntity: out.isNamedEntity,
+    entityName: out.isNamedEntity && out.entityName ? out.entityName.replace(/"/g, "").trim() : null,
     disambiguation: out.disambiguation.trim(),
     searches,
     broaderSuggestions: out.broaderSuggestions.map((s) => s.trim()).filter(Boolean).slice(0, 3),
@@ -67,10 +68,19 @@ export function fallbackPlan(query: string): Plan {
   return {
     interpretation: "",
     isNamedEntity: looksLikeName,
+    entityName: looksLikeName ? query.trim() : null,
     disambiguation: "",
     searches: [{ q: looksLikeName ? `"${query.trim()}"` : query.trim(), why: "Your topic as written" }],
     broaderSuggestions: [],
   }
+}
+
+/** The named institution, or null. Plans saved before entityName existed fall back to the quoted main search. */
+export function entityOf(plan: Plan | null): string | null {
+  if (!plan?.isNamedEntity) return null
+  if (plan.entityName) return plan.entityName
+  const q = plan.searches[0]?.q ?? ""
+  return /^".+"$/.test(q) ? q.slice(1, -1) : null
 }
 
 const ExtendSchema = z.object({

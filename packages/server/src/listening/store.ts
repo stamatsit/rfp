@@ -6,18 +6,20 @@
 import crypto from "node:crypto"
 import type postgres from "postgres"
 import type { ResponseCache } from "./cache.js"
-import type {
-  Coverage,
-  Item,
-  ItemLabels,
-  Plan,
-  RawItem,
-  Report,
-  RunStatus,
-  RunSummary,
-  RunTrigger,
-  TimeWindow,
-  TopicRow,
+import type { ThreadUpdate } from "./harvest.js"
+import {
+  LABEL_VERSION,
+  type Coverage,
+  type Item,
+  type ItemLabels,
+  type Plan,
+  type RawItem,
+  type Report,
+  type RunStatus,
+  type RunSummary,
+  type RunTrigger,
+  type TimeWindow,
+  type TopicRow,
 } from "./types.js"
 
 export class ActiveRunError extends Error {
@@ -59,8 +61,11 @@ export interface Store {
   listRuns(topicId: string): Promise<RunSummary[]>
   existingCanonicalUrls(topicId: string): Promise<Set<string>>
   insertItems(topicId: string, runId: string, items: Array<RawItem & { canonicalUrl: string }>): Promise<Item[]>
+  /** Items with no labels, then items labeled under an older label version; newest first within each. */
   unlabeledItems(topicId: string, limit: number): Promise<Item[]>
   saveLabels(labels: Map<string, ItemLabels>): Promise<void>
+  /** Marks threads read in full. A new body clears the item's labels so it is relabeled on the full text. */
+  updateThreads(updates: ThreadUpdate[]): Promise<void>
   allItems(topicId: string): Promise<Item[]>
   searchCallsSince(since: Date): Promise<number>
   /** Marks runs stuck in "running" (crashed function, killed deploy) as failed. */
@@ -269,9 +274,23 @@ export class PgStore implements Store {
 
   async unlabeledItems(topicId: string, limit: number): Promise<Item[]> {
     const rows = await this.sql`
-      SELECT * FROM listening_items WHERE topic_id = ${topicId}::uuid AND labels IS NULL
-      ORDER BY created_at LIMIT ${limit}`
+      SELECT * FROM listening_items
+      WHERE topic_id = ${topicId}::uuid AND (labels IS NULL OR (labels->>'v') IS DISTINCT FROM ${String(LABEL_VERSION)})
+      ORDER BY (labels IS NULL) DESC, created_at DESC LIMIT ${limit}`
     return rows.map(itemFromRow)
+  }
+
+  async updateThreads(updates: ThreadUpdate[]): Promise<void> {
+    for (const u of updates) {
+      await this.sql`
+        UPDATE listening_items SET
+          depth = 'full',
+          body = COALESCE(${u.text}, body),
+          labels = CASE WHEN ${u.text}::text IS NULL THEN labels ELSE NULL END,
+          published_at = COALESCE(published_at, ${u.publishedAt ? new Date(u.publishedAt) : null}),
+          engagement = COALESCE(${u.engagement ? this.sql.json(u.engagement as never) : null}, engagement)
+        WHERE id = ${u.id}::uuid`
+    }
   }
 
   async saveLabels(labels: Map<string, ItemLabels>): Promise<void> {
@@ -454,7 +473,23 @@ export class MemoryStore implements Store {
     return out
   }
   async unlabeledItems(topicId: string, limit: number) {
-    return [...this.items.values()].filter((i) => i.topicId === topicId && !i.labels).slice(0, limit).map((i) => structuredClone(i))
+    const mine = [...this.items.values()].filter((i) => i.topicId === topicId).reverse()
+    const none = mine.filter((i) => !i.labels)
+    const stale = mine.filter((i) => i.labels && i.labels.v !== LABEL_VERSION)
+    return [...none, ...stale].slice(0, limit).map((i) => structuredClone(i))
+  }
+  async updateThreads(updates: ThreadUpdate[]) {
+    for (const u of updates) {
+      const it = this.items.get(u.id)
+      if (!it) continue
+      it.depth = "full"
+      if (u.text !== null) {
+        it.text = u.text
+        it.labels = null
+      }
+      if (!it.publishedAt && u.publishedAt) it.publishedAt = u.publishedAt
+      if (u.engagement) it.engagement = u.engagement
+    }
   }
   async saveLabels(labels: Map<string, ItemLabels>) {
     for (const [id, l] of labels) {

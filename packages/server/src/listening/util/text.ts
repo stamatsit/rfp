@@ -111,6 +111,15 @@ export function questionSentences(text: string): string[] {
   return out
 }
 
+/**
+ * A question worth showing: ends in a question mark and carries enough words
+ * to stand on its own ("Will be bored?" does not).
+ */
+export function isRealQuestion(q: string): boolean {
+  const t = q.trim()
+  return /\?["'”’)\]]*$/.test(t) && wordCount(t) >= 4
+}
+
 /** Significant query tokens for a cheap relevance pre-check. */
 const STOP = new Set([
   "the", "a", "an", "of", "and", "or", "for", "to", "in", "on", "at", "is", "it", "my", "your", "how", "what",

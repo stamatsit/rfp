@@ -1,6 +1,8 @@
 /**
- * Harvest: run every lane for a plan, dedupe against what the topic already
- * holds, then read the most promising new threads in full.
+ * Harvest: run every lane for a plan and dedupe against what the topic already
+ * holds. Threads are read in full later (deepRead), once labels say which ones
+ * are really about the topic: reading by engagement alone opened eight
+ * off-topic threads for one institution ("COE" car permits, visa forms).
  *
  * First run: every phrasing x every site group at page 1, plus a second
  * Reddit page for the main phrasing. Rescan: page 1 again for the main
@@ -12,10 +14,10 @@ import type { NewsSource } from "./sources/news.js"
 import type { SearchPage, SearchProvider } from "./sources/pse.js"
 import { isReadable, type PageReader } from "./sources/reader.js"
 import type { YoutubeSource } from "./sources/youtube.js"
-import type { LaneResult, Plan, RawItem, RunTrigger, TimeWindow } from "./types.js"
+import type { Engagement, Item, LaneResult, Plan, RawItem, RunTrigger, TimeWindow } from "./types.js"
 import { describeError, mapLimit } from "./util/http.js"
 import { normForMatch, queryTokens } from "./util/text.js"
-import { canonicalUrl, platformOf, youtubeVideoId } from "./util/url.js"
+import { canonicalUrl, isListingPage, platformOf, youtubeVideoId } from "./util/url.js"
 
 export const MAX_SEARCH_CALLS_PER_RUN = 24
 
@@ -35,7 +37,6 @@ export interface HarvestInput {
   existing: Set<string>
   signal?: AbortSignal
   onLane?: (lane: LaneResult) => void
-  onRead?: (done: number, total: number) => void
 }
 
 export interface HarvestOutput {
@@ -45,7 +46,6 @@ export interface HarvestOutput {
   searchCalls: number
   serperCalls: number
   youtubeUnits: number
-  fullyRead: number
   notes: string[]
 }
 
@@ -233,6 +233,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
   // ── Dedupe against the batch and the topic ───────────────────────────────
   const fresh = new Map<string, RawItem & { canonicalUrl: string }>()
   for (const it of raw) {
+    if (isListingPage(it.url)) continue
     const c = canonicalUrl(it.url)
     if (input.existing.has(c)) continue
     const prev = fresh.get(c)
@@ -241,57 +242,6 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
       if (!prev.publishedAt && it.publishedAt) prev.publishedAt = it.publishedAt
       if (!prev.engagement && it.engagement) prev.engagement = it.engagement
       if (it.text.length > prev.text.length && prev.depth === "snippet") prev.text = it.text
-    }
-  }
-
-  // ── Deep read ────────────────────────────────────────────────────────────
-  let fullyRead = 0
-  if (deps.reader) {
-    const toks = queryTokens(input.query)
-    const candidates = [...fresh.values()]
-      .filter((it) => it.depth === "snippet" && (it.kind === "post" || it.kind === "article" || it.kind === "review") && isReadable(it.url))
-      .sort((a, b) => itemScore(b, toks) - itemScore(a, toks))
-      .slice(0, LIMITS.deepReads)
-    const outcome = new Map<string, { ok: number; failed: number; via: Set<string>; reasons: Set<string> }>()
-    let done = 0
-    input.onRead?.(0, candidates.length)
-    await mapLimit(candidates, 4, async (it) => {
-      const key = it.platform === "reddit" ? "Reddit threads" : it.platform === "forums" ? "Forum threads" : "Pages"
-      const o = outcome.get(key) ?? { ok: 0, failed: 0, via: new Set(), reasons: new Set() }
-      outcome.set(key, o)
-      try {
-        const r = await deps.reader!.read(it.url, input.signal)
-        if (r.body && r.body.length > it.text.length) {
-          it.text = r.body
-          it.depth = "full"
-        }
-        if (!it.publishedAt && r.publishedAt) it.publishedAt = r.publishedAt
-        if (r.engagement && (!it.engagement || Object.keys(it.engagement).length === 0)) it.engagement = r.engagement
-        for (const c of r.comments) {
-          const cu = canonicalUrl(c.url)
-          if (input.existing.has(cu) || fresh.has(cu)) continue
-          fresh.set(cu, { ...c, platform: c.platform === "other" ? platformOf(it.url) : c.platform, canonicalUrl: cu })
-        }
-        o.ok++
-        o.via.add(r.via)
-        fullyRead++
-      } catch (err) {
-        if (input.signal?.aborted) throw err
-        o.failed++
-        o.reasons.add(describeError(err))
-      } finally {
-        done++
-        input.onRead?.(done, candidates.length)
-      }
-    })
-    for (const [what, o] of outcome) {
-      if (o.failed === 0) continue
-      const reason = [...o.reasons][0] ?? "refused"
-      notes.push(
-        o.ok === 0
-          ? `${what} could not be opened in full (${reason}); search snippets were used instead`
-          : `${what}: ${o.ok} of ${o.ok + o.failed} read in full`,
-      )
     }
   }
 
@@ -307,5 +257,95 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
 
   const order = ["reddit", "forums", "social", "reviews", "youtube", "news"]
   lanes.sort((a, b) => order.indexOf(a.lane) - order.indexOf(b.lane))
-  return { items, plan, lanes, searchCalls, serperCalls, youtubeUnits, fullyRead, notes }
+  return { items, plan, lanes, searchCalls, serperCalls, youtubeUnits, notes }
+}
+
+/**
+ * Threads worth opening in full: labeled as mainly about the topic, still a
+ * search snippet, on a site we can read. This scan's finds go first, then
+ * earlier ones that never got a turn, strongest first.
+ */
+export function pickThreads(items: Item[], query: string, runId: string, limit: number = LIMITS.deepReads): Item[] {
+  const toks = queryTokens(query)
+  return items
+    .filter(
+      (it) =>
+        it.depth === "snippet" &&
+        (it.kind === "post" || it.kind === "review") &&
+        it.labels?.relevant === true &&
+        it.labels.about === true &&
+        isReadable(it.url),
+    )
+    .sort((a, b) => Number(b.firstSeenRunId === runId) - Number(a.firstSeenRunId === runId) || itemScore(b, toks) - itemScore(a, toks))
+    .slice(0, limit)
+}
+
+export interface ThreadUpdate {
+  id: string
+  /** The full body, or null when the page held nothing longer than the snippet. */
+  text: string | null
+  publishedAt: string | null
+  engagement: Engagement | null
+}
+
+export interface ReadOutcome {
+  updates: ThreadUpdate[]
+  comments: Array<RawItem & { canonicalUrl: string }>
+  fullyRead: number
+  notes: string[]
+}
+
+/** Open each thread, keep its full body and its replies (as new items). */
+export async function deepRead(
+  reader: PageReader,
+  threads: Item[],
+  known: Set<string>,
+  signal?: AbortSignal,
+  onRead?: (done: number, total: number) => void,
+): Promise<ReadOutcome> {
+  const updates: ThreadUpdate[] = []
+  const comments = new Map<string, RawItem & { canonicalUrl: string }>()
+  const notes: string[] = []
+  const outcome = new Map<string, { ok: number; failed: number; reasons: Set<string> }>()
+  let fullyRead = 0
+  let done = 0
+  onRead?.(0, threads.length)
+  await mapLimit(threads, 4, async (it) => {
+    const key = it.platform === "reddit" ? "Reddit threads" : it.platform === "forums" ? "Forum threads" : "Pages"
+    const o = outcome.get(key) ?? { ok: 0, failed: 0, reasons: new Set() }
+    outcome.set(key, o)
+    try {
+      const r = await reader.read(it.url, signal)
+      updates.push({
+        id: it.id,
+        text: r.body && r.body.length > it.text.length ? r.body : null,
+        publishedAt: !it.publishedAt && r.publishedAt ? r.publishedAt : null,
+        engagement: r.engagement && (!it.engagement || Object.keys(it.engagement).length === 0) ? r.engagement : null,
+      })
+      for (const c of r.comments) {
+        const cu = canonicalUrl(c.url)
+        if (known.has(cu) || comments.has(cu)) continue
+        comments.set(cu, { ...c, platform: c.platform === "other" ? platformOf(it.url) : c.platform, canonicalUrl: cu })
+      }
+      o.ok++
+      fullyRead++
+    } catch (err) {
+      if (signal?.aborted) throw err
+      o.failed++
+      o.reasons.add(describeError(err))
+    } finally {
+      done++
+      onRead?.(done, threads.length)
+    }
+  })
+  for (const [what, o] of outcome) {
+    if (o.failed === 0) continue
+    const reason = [...o.reasons][0] ?? "refused"
+    notes.push(
+      o.ok === 0
+        ? `${what} could not be opened in full (${reason}); search snippets were used instead`
+        : `${what}: ${o.ok} of ${o.ok + o.failed} read in full`,
+    )
+  }
+  return { updates, comments: [...comments.values()], fullyRead, notes }
 }

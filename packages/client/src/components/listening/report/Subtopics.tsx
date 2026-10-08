@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
-import { ArrowUpRight, ChevronDown, Newspaper } from "lucide-react"
+import { ArrowUpRight, ChevronDown, Megaphone, Newspaper } from "lucide-react"
 import type { ItemView, Report } from "@/types/listening"
-import { Card, ExternalLink, NewBadge, PlatformBadge, SENTIMENT_COLOR, SectionHeading, SentimentBar, SentimentDot, fmtDate, verdict } from "../ui"
+import { Card, ExternalLink, NewBadge, PlatformBadge, SENTIMENT_COLOR, SectionHeading, SentimentBar, SentimentDot, fmtDate, plural, verdict } from "../ui"
 
 export function Subtopics({ report, items, openId, onShowAll }: { report: Report; items: Map<string, ItemView>; openId: string | null; onShowAll: (subtopicId: string) => void }) {
   const [open, setOpen] = useState<string | null>(openId)
@@ -110,6 +110,58 @@ export function Voices({ report }: { report: Report }) {
           </ExternalLink>
         ))}
       </div>
+    </section>
+  )
+}
+
+/** A named institution's own posts: what it says about itself, kept apart from what people say. */
+export function OwnVoice({ report, onShowAll }: { report: Report; onShowAll: () => void }) {
+  const own = report.ownVoice
+  if (!own || !own.posts.length) return null
+  return (
+    <section>
+      <SectionHeading
+        id="own-voice"
+        title={`What ${own.name} says about itself`}
+        count={own.count}
+        hint={`Posts from ${own.name}'s own accounts. Shown for comparison and never counted as public opinion.`}
+      />
+      <Card>
+        {own.note && (
+          <div className="flex gap-3 px-5 py-4 border-b border-black/[0.05] dark:border-white/[0.06]">
+            <Megaphone size={16} className="text-slate-400 mt-0.5 shrink-0" />
+            <p className="text-[14px] leading-relaxed text-slate-700 dark:text-slate-200 text-pretty">{own.note}</p>
+          </div>
+        )}
+        <ul className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+          {own.posts.map((p) => (
+            <li key={p.itemId}>
+              <ExternalLink href={p.url} className="group flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50/80 dark:hover:bg-white/[0.02] transition-colors">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] text-slate-800 dark:text-slate-100 leading-snug line-clamp-2 group-hover:text-sky-700 dark:group-hover:text-sky-400">{p.title || p.excerpt}</p>
+                  <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-[12px] text-slate-500">
+                    <PlatformBadge platform={p.platform} />
+                    {p.publishedAt && <span>{fmtDate(p.publishedAt)}</span>}
+                    {p.isNew && report.totals.runs > 1 && <NewBadge />}
+                  </p>
+                </div>
+                <ArrowUpRight size={15} className="shrink-0 text-slate-300 group-hover:text-sky-500 transition-colors mt-0.5" />
+              </ExternalLink>
+            </li>
+          ))}
+        </ul>
+        {own.count > own.posts.length && (
+          <div className="px-5 py-3 border-t border-black/[0.05] dark:border-white/[0.06]">
+            <button
+              type="button"
+              onClick={onShowAll}
+              className="text-[13px] font-medium text-sky-700 dark:text-sky-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded"
+            >
+              See all {plural(own.count, "post")} in sources
+            </button>
+          </div>
+        )}
+      </Card>
     </section>
   )
 }

@@ -19,14 +19,45 @@ Search any topic or institution ("online nursing degree", "college enrollment tr
 A topic is a saved search. **Rescan** adds new posts and digs one page deeper; only new items
 are read and labeled; the report is rebuilt over everything collected and marks what is new.
 
+## Who counts (report version 2)
+
+Every item gets two labels besides relevance: `about` (the topic is the main subject, not a
+passing mention such as a bio line, a list of colleges or a landmark) and `speaker` (`person`,
+`self` = the named institution's own accounts, `organization`, `media`). Only
+`isPublicConversation` items (relevant, about, person, not a news article) feed sentiment,
+subtopics, platforms, months, questions, quotes, idea evidence and the thin flag. The rest are
+listed in Sources with a tag and counted in `totals.excluded`; a named institution's own posts
+get their own section (`ownVoice`) with a one-line comparison; news outlets posting on social go
+to "In the news".
+
+Why: the first live scan of a small private college (Oct 2026) reported 35 relevant posts and +54
+sentiment, but 6 of 9 quotes were the college's own Facebook posts, 2 of 6 questions came from
+threads about other things, all 8 threads read in full were off topic ("COE" car permits, visa
+forms), and one idea rested on a theme park thread. Rescanned under these rules: 4 posts by people,
+flagged thin, no unsupported ideas. A general topic (FAFSA changes) kept a full report: 73 posts by
+people, 6 ideas, 6 of 8 threads read in full on topic.
+
+Other rules from that audit:
+- Threads are read in full only after labeling, and only if labeled `about`; a read thread is
+  relabeled on its full text.
+- Each idea is rechecked against its cited posts (`verifyIdeas`); posts that do not support it are
+  dropped, then ideas left with fewer than two.
+- A question must end in "?" and have at least four words.
+- Reddit `?tl=` translation links collapse to one thread; search-result pages (Yelp search,
+  LinkedIn jobs) are never collected.
+- Labels carry `v: 2`; older labels are relabeled on the next scan or Refresh analysis (no
+  searches used). Version 1 reports show a banner offering that refresh.
+
 ## Honesty guarantees (enforced in code, see `listening/checks.ts`)
 
 - Every count and percentage is computed from stored labels; model prose with numbers is dropped.
-- A quote or question is shown only if it appears verbatim in fetched text.
-- An idea is shown only if at least two relevant posts support it; the number of ideas scales
-  with the sample (2 for under 12 posts, up to 8).
+- A quote or question is shown only if it appears verbatim in fetched text, comes from a person's
+  post mainly about the topic, and (questions) is a real question.
+- An idea is shown only if at least two people's posts about the topic support it, confirmed by a
+  second check; the number of ideas scales with the sample (2 for under 12 posts, up to 8).
 - Questions and quotes come only from posts, comments and reviews (not news headlines or video
   titles).
+- The institution's own posts, other organizations and news outlets never enter the figures.
 - Failed or skipped sources are named in the report (grouped by reason); a thin sample says so.
 - No em or en dashes in model text.
 
@@ -36,12 +67,12 @@ Engine `packages/server/src/listening/` (framework-free):
 
 | Stage | File | Notes |
 |---|---|---|
-| Plan | `plan.ts` | Rewrites the topic into the audience's phrasings; quotes named entities; records what is off-topic |
+| Plan | `plan.ts` | Rewrites the topic into the audience's phrasings; quotes named entities and stores `entityName`; records what is off-topic |
 | Search | `harvest.ts`, `sources/pse.ts`, `sources/serper.ts` | Site groups: Reddit, forums, social, reviews; plus YouTube comments and Google News |
-| Read | `sources/reader.ts` | Most-discussed threads in full; Reddit via the Arctic Shift archive when `LISTENING_REDDIT_ARCHIVE=true` |
-| Label | `label.ts` | Per item: relevance, sentiment, subtopic, audience, verbatim question and quote |
+| Label | `label.ts` | Per item: relevance, about vs passing mention, speaker, sentiment toward the topic, subtopic, audience, verbatim question and quote |
+| Read | `harvest.ts` (`pickThreads`, `deepRead`), `sources/reader.ts` | Threads labeled `about`, in full with replies, then a second short labeling pass; Reddit via the Arctic Shift archive when `LISTENING_REDDIT_ARCHIVE=true` |
 | Group | `cluster.ts` | Up to 8 subtopics, stable names across rescans |
-| Write | `synthesize.ts` | Summary, subtopic notes, ranked questions, ideas with evidence |
+| Write | `synthesize.ts` | Summary, own-voice note, subtopic notes, ranked questions, ideas with evidence, then `verifyIdeas` |
 | Assemble | `report.ts`, `metrics.ts` | All figures computed here |
 | Store | `store.ts` | Postgres (`prepare: false`, required behind the Supabase transaction pooler), memory store for tests |
 
@@ -80,9 +111,10 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 55 tests (engine scenarios with fakes:
-  rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 10 tests on fixtures.
+- `cd packages/server && npx vitest run src/listening`: 68 tests (engine scenarios with fakes:
+  rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
+  passing mentions, an institution's own posts, unsupported ideas, relabeling old labels).
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 14 tests on fixtures.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory
   store; `npx tsx src/listening/probe.ts` checks every source.
@@ -91,3 +123,5 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 - crawl4ai as an optional fallback reader: decision pending; see [crawl4ai-option.md](crawl4ai-option.md).
 - Scheduled rescans and alerts: not built.
+- Widening an existing topic's time range in place (today: start a new search with a longer range).
+- "People also ask" from Serper responses as their own section, once Serper is funded.

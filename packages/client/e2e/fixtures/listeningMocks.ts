@@ -26,6 +26,9 @@ export function item(n: number, over: Record<string, unknown> = {}) {
     engagement: 40 - n,
     depth: n % 2 ? "full" : "snippet",
     relevant: true,
+    about: true,
+    speaker: "person",
+    counted: true,
     sentiment: n % 3 === 0 ? "negative" : n % 3 === 1 ? "positive" : "neutral",
     audience: "student",
     subtopicId: n <= 6 ? "s1" : "s2",
@@ -34,23 +37,81 @@ export function item(n: number, over: Record<string, unknown> = {}) {
   }
 }
 
-export function buildDetail(opts: { runs?: number; newItems?: number; degraded?: boolean; withReport?: boolean } = {}) {
+const OWN_NAME = "Coe College"
+
+export function buildDetail(
+  opts: {
+    runs?: number
+    newItems?: number
+    degraded?: boolean
+    withReport?: boolean
+    /** 1 = a report saved before speaker and focus labels existed. */
+    version?: 1 | 2
+    /** A named institution with posts from its own accounts. */
+    institution?: boolean
+    noIdeas?: boolean
+    thin?: boolean
+  } = {},
+) {
+  const legacy = opts.version === 1
+  const query = opts.institution ? OWN_NAME : "online nursing degree"
   const items = [
     ...Array.from({ length: 10 }, (_, i) => item(i + 1)),
     item(11, { platform: "youtube", kind: "comment", url: "https://youtube.com/watch?v=vid1&lc=c1", title: "", excerpt: "Great video, my school found my preceptor for me." }),
-    item(12, { relevant: false, sentiment: null, subtopicId: null, url: "https://www.reddit.com/r/japan/comments/off1/coe_visa/", title: "COE visa delay", excerpt: "Off topic thread about a visa." }),
+    item(12, { relevant: false, about: false, counted: false, sentiment: null, subtopicId: null, url: "https://www.reddit.com/r/japan/comments/off1/coe_visa/", title: "COE visa delay", excerpt: "Off topic thread about a visa." }),
+    ...(legacy
+      ? []
+      : [
+          item(13, { about: false, counted: false, subtopicId: null, platform: "quora", url: "https://www.quora.com/Where-would-you-rather-live", title: "Where would you rather live?", excerpt: "Long answer about cities that mentions the campus once." }),
+          item(14, { speaker: "media", counted: false, subtopicId: null, platform: "facebook", url: "https://www.facebook.com/newsdesk/posts/nursing-board", title: "State board reviews online programs", excerpt: "A TV station's post about a board review." }),
+        ]),
+    ...(opts.institution
+      ? Array.from({ length: 4 }, (_, i) =>
+          item(30 + i, {
+            speaker: "self",
+            counted: false,
+            subtopicId: null,
+            platform: "facebook",
+            url: `https://www.facebook.com/CoeCollege/posts/own-${i}`,
+            title: ["Homecoming registration is open", "Proud of our new rankings", "Welcome to orientation week", "Our new aviation program"][i],
+            excerpt: "A post from the college's own page.",
+            publishedAt: `2026-09-2${i}T00:00:00.000Z`,
+          }),
+        )
+      : []),
     ...(opts.newItems ? Array.from({ length: opts.newItems }, (_, i) => item(20 + i, { isNew: true, subtopicId: "s2" })) : []),
-  ]
+  ].map((it) => (legacy ? { ...it, about: undefined, speaker: undefined, counted: undefined } : it))
   const relevant = items.filter((i) => i.relevant)
+  const counted = legacy ? relevant : items.filter((i) => i.counted)
+  const own = items.filter((i) => i.speaker === "self")
   const report = {
-    version: 1,
+    version: legacy ? 1 : 2,
     topicId: TOPIC_ID,
     runId: opts.runs && opts.runs > 1 ? RUN_2 : RUN_1,
     generatedAt: "2026-10-07T20:00:00.000Z",
-    query: "online nursing degree",
+    query,
     interpretation: "How people judge online nursing degrees.",
     summary: "People weigh flexibility against clinical quality and worry about who arranges placements.",
-    totals: { collected: items.length, relevant: relevant.length, newThisRun: opts.newItems ?? relevant.length, fullyRead: 5, runs: opts.runs ?? 1 },
+    totals: {
+      collected: items.length,
+      relevant: counted.length,
+      newThisRun: opts.newItems ?? relevant.length,
+      fullyRead: 5,
+      runs: opts.runs ?? 1,
+      ...(legacy ? {} : { excluded: { mentions: 1, self: own.length, organizations: 0, media: 1 } }),
+    },
+    ...(legacy
+      ? {}
+      : {
+          ownVoice: own.length
+            ? {
+                name: OWN_NAME,
+                note: "Its own posts celebrate rankings and events, while people ask about cost and campus life.",
+                count: own.length,
+                posts: own.slice(0, 3).map((p) => ({ itemId: p.id, url: p.url, platform: p.platform, title: p.title, excerpt: p.excerpt, publishedAt: p.publishedAt, isNew: false })),
+              }
+            : null,
+        }),
     sentiment: sent(4, 4, 3),
     subtopics: [
       { id: "s1", name: "Clinical placement", summary: "Students ask who finds clinical sites.", itemIds: relevant.filter((i) => i.subtopicId === "s1").map((i) => i.id), share: 55, count: relevant.filter((i) => i.subtopicId === "s1").length, sentiment: sent(2, 2, 2), newCount: 0 },
@@ -61,17 +122,19 @@ export function buildDetail(opts: { runs?: number; newItems?: number; degraded?:
       { text: "Did your school find your preceptor?", itemId: "item-11", url: "https://youtube.com/watch?v=vid1&lc=c1", platform: "youtube", audience: "student", subtopicId: "s1", engagement: 29, isNew: false },
     ],
     quotes: [{ text: "I am worried about it.", itemId: "item-3", url: "https://www.reddit.com/r/nursing/comments/t3/thread_3/", platform: "reddit", sentiment: "negative", subtopicId: "s1", isNew: false }],
-    ideas: [
-      { id: "idea1", headline: "Who finds your clinical placement in an online program", angle: "Answer the question students keep asking.", audience: "student", format: "guide", subtopicId: "s1", whyNow: "It is the most repeated worry.", outline: ["Who arranges placements", "What to ask before enrolling", "Red flags"], evidenceItemIds: ["item-1", "item-3", "item-11"] },
-      { id: "idea2", headline: "The real cost per credit, explained", angle: "Show the full price.", audience: "parent", format: "article", subtopicId: "s2", whyNow: "Price confusion is common.", outline: ["Tuition", "Fees"], evidenceItemIds: ["item-7", "item-8"] },
-    ],
+    ideas: opts.noIdeas
+      ? []
+      : [
+          { id: "idea1", headline: "Who finds your clinical placement in an online program", angle: "Answer the question students keep asking.", audience: "student", format: "guide", subtopicId: "s1", whyNow: "It is the most repeated worry.", outline: ["Who arranges placements", "What to ask before enrolling", "Red flags"], evidenceItemIds: ["item-1", "item-3", "item-11"] },
+          { id: "idea2", headline: "The real cost per credit, explained", angle: "Show the full price.", audience: "parent", format: "article", subtopicId: "s2", whyNow: "Price confusion is common.", outline: ["Tuition", "Fees"], evidenceItemIds: ["item-7", "item-8"] },
+        ],
     news: [{ itemId: "item-1", title: "State board reviews online nursing programs", url: "https://news.google.com/rss/articles/x", source: "The Times", publishedAt: "2026-10-01T00:00:00.000Z", isNew: false }],
     platforms: [
       { platform: "reddit", count: 10 + (opts.newItems ?? 0), sentiment: sent(3, 4, 3) },
       { platform: "youtube", count: 1, sentiment: sent(1, 0, 0) },
     ],
     months: Array.from({ length: 12 }, (_, i) => ({ month: `2026-${String(i + 1).padStart(2, "0")}`.replace("2026-11", "2025-11").replace("2026-12", "2025-12"), count: i % 3 })),
-    thin: false,
+    thin: !!opts.thin,
     broaderSuggestions: ["nursing school", "online degrees"],
     coverage: {
       lanes: [
@@ -94,12 +157,19 @@ export function buildDetail(opts: { runs?: number; newItems?: number; degraded?:
     topic: {
       id: TOPIC_ID,
       createdBy: "eric.yerke@stamats.com",
-      query: "online nursing degree",
+      query,
       timeWindow: "1y",
-      plan: { interpretation: "x", isNamedEntity: false, disambiguation: "Not visas.", searches: [{ q: "online nursing degree", why: "Your topic as written" }, { q: "online nursing clinicals", why: "clinicals" }], broaderSuggestions: [] },
+      plan: {
+        interpretation: "x",
+        isNamedEntity: !!opts.institution,
+        entityName: opts.institution ? OWN_NAME : null,
+        disambiguation: "Not visas.",
+        searches: [{ q: opts.institution ? `"${OWN_NAME}"` : "online nursing degree", why: "Your topic as written" }, { q: "online nursing clinicals", why: "clinicals" }],
+        broaderSuggestions: [],
+      },
       report: opts.withReport === false ? null : report,
       itemCount: items.length,
-      relevantCount: relevant.length,
+      relevantCount: counted.length,
       sentimentScore: 9,
       headline: report.summary,
       lastRunAt: "2026-10-07T20:02:00.000Z",
@@ -115,7 +185,7 @@ export function buildDetail(opts: { runs?: number; newItems?: number; degraded?:
 
 export const sse = (events: unknown[]) => events.map((e) => `event: ${(e as { type: string }).type}\ndata: ${JSON.stringify(e)}\n\n`).join("")
 
-export const RUN_EVENTS = (trigger: "initial" | "rescan", runId: string) => [
+export const RUN_EVENTS = (trigger: "initial" | "rescan" | "rebuild", runId: string) => [
   { type: "started", topicId: TOPIC_ID, runId, trigger },
   { type: "stage", stage: "plan" },
   { type: "plan", plan: { interpretation: "", isNamedEntity: false, disambiguation: "", searches: [{ q: "online nursing degree", why: "" }], broaderSuggestions: [] } },

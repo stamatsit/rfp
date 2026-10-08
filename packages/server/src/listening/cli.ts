@@ -59,7 +59,10 @@ async function main() {
     const u = deps.llm.usage()
     console.log(`  status ${status} in ${((Date.now() - t0) / 1000).toFixed(1)}s, model calls ${u.calls}, cost $${u.costUsd.toFixed(4)}`)
     if (!r) return topic.id
-    console.log(`  items ${r.totals.collected} (new ${r.totals.newThisRun}, read in full ${r.totals.fullyRead}), relevant ${r.totals.relevant}, sentiment score ${r.sentiment.score}`)
+    const x = r.totals.excluded
+    console.log(`  items ${r.totals.collected} (new ${r.totals.newThisRun}, read in full ${r.totals.fullyRead}), people about it ${r.totals.relevant}, sentiment score ${r.sentiment.score}`)
+    console.log(`  not counted: ${x.mentions} passing mentions, ${x.self} own accounts, ${x.organizations} organizations, ${x.media} media`)
+    if (r.ownVoice) console.log(`  own voice (${r.ownVoice.name}, ${r.ownVoice.count}): ${r.ownVoice.note}`)
     console.log(`  search calls ${r.coverage.searchCalls}, YouTube units ${r.coverage.youtubeUnits}, analysis ${r.analysisSource}${r.thin ? ", THIN" : ""}`)
     if (r.coverage.notes.length) console.log(`  notes: ${r.coverage.notes.join(" | ")}`)
     if (r.warnings.length) console.log(`  warnings: ${r.warnings.join(" | ")}`)

@@ -99,6 +99,32 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-4-report-full.png`, fullPage: true })
     })
 
+    test(`${vp.name} ${t} institution`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await setup(page, { detail: buildDetail({ institution: true, thin: true }) })
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("People weigh flexibility").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-5-institution-top.png` })
+      await page.locator("#own-voice").scrollIntoViewIfNeeded()
+      await settle(page)
+      await page.locator("#own-voice").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-6-own-voice.png` })
+      await page.getByRole("button", { name: "See them" }).click()
+      await settle(page)
+      await page.locator("#sources").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-7-not-counted.png` })
+    })
+
+    test(`${vp.name} ${t} legacy`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await setup(page, { detail: buildDetail({ version: 1 }) })
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("This report was made before the accuracy update").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-8-legacy.png` })
+    })
+
     test(`${vp.name} ${t} progress`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await theme(page, t)

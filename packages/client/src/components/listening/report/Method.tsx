@@ -53,8 +53,11 @@ export function Method({ report, plan, runs }: { report: Report; plan: Plan | nu
               </ul>
               <p className="mt-4 text-slate-500 leading-relaxed">
                 Posts are found through Google search limited to Reddit, forums, social and review sites, plus YouTube and Google News.
-                The most discussed threads are opened in full. An AI model labels each post; quotes and questions are kept only if they appear word
-                for word in the post. Facebook, Instagram, LinkedIn and TikTok are seen only through what Google shows publicly.
+                An AI model reads each post and notes whether it is mainly about the topic and who wrote it. Only posts by people that are
+                mainly about the topic count toward the feelings, subtopics, questions, quotes and ideas. Passing mentions, the
+                institution&apos;s own accounts, other organizations and news outlets are listed but not counted. Threads about the topic are
+                opened in full with their replies. Quotes and questions are kept only if they appear word for word, and every idea is checked
+                a second time against the posts it cites. Facebook, Instagram, LinkedIn and TikTok are seen only through what Google shows publicly.
               </p>
             </div>
             <div>

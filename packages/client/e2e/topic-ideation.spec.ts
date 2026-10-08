@@ -65,15 +65,69 @@ test.describe("Topic Ideation", () => {
     await page.locator("[id='subtopic-s2']").getByRole("button", { name: /Cost and aid/ }).click()
     await page.getByRole("button", { name: /See all 5 posts in this subtopic/ }).click()
     await expect(page.getByText(/Showing 5 of 5 sources/)).toBeVisible()
-    // Clearing the subtopic chip shows everything relevant (11), not the off-topic one.
+    // Clearing the subtopic chip shows everything relevant (11 counted + 2 not counted), not the off-topic one.
     await page.locator("#sources").locator("..").getByRole("button", { name: /Cost and aid/ }).last().click()
-    await expect(page.getByText(/Showing 11 of 11 sources/)).toBeVisible()
+    await expect(page.getByText(/Showing 13 of 13 sources/)).toBeVisible()
     await page.getByPlaceholder("Search within sources").fill("preceptor")
     await expect(page.getByText(/Showing 1 of 1 source/)).toBeVisible()
     await page.getByPlaceholder("Search within sources").fill("")
     await page.getByLabel(/Show 1 off-topic/).check()
     await expect(page.getByText("judged off-topic")).toBeVisible()
     expect(errorsOf(page)).toEqual([])
+  })
+
+  test("who is counted: the overview says what was left out, and See them lists it with reasons", async ({ page }) => {
+    await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText(/^11 posts by people · /)).toBeVisible()
+    await expect(page.getByText(/Not counted: 1 passing mention and 1 post from news outlets and other organizations\./)).toBeVisible()
+    await page.getByRole("button", { name: "See them" }).click()
+    await expect(page.locator("#sources")).toBeInViewport()
+    await expect(page.getByLabel("Which sources")).toHaveValue("notCounted")
+    await expect(page.getByText(/Showing 2 of 2 sources/)).toBeVisible()
+    await expect(page.locator("#sources").locator("..").getByText("passing mention", { exact: true })).toBeVisible()
+    await expect(page.locator("#sources").locator("..").getByText("news outlet", { exact: true })).toBeVisible()
+    await page.getByLabel("Which sources").selectOption("counted")
+    await expect(page.getByText(/Showing 11 of 11 sources/)).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("institution: its own posts sit in their own section and never in the figures", async ({ page }) => {
+    await setup(page, { detail: buildDetail({ institution: true }) })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText(/Not counted: 4 posts from Coe College's own accounts/)).toBeVisible()
+    const nav = page.getByRole("navigation", { name: "Report sections" })
+    await nav.getByRole("link", { name: "Coe College's own posts" }).click()
+    await expect(page.getByRole("heading", { name: /What Coe College says about itself/ })).toBeInViewport()
+    await expect(page.getByText("Its own posts celebrate rankings and events")).toBeVisible()
+    const post = page.locator("#own-voice").locator("..").locator('a[href="https://www.facebook.com/CoeCollege/posts/own-0"]')
+    await expect(post).toHaveAttribute("target", "_blank")
+    // Three shown, all four one click away in sources.
+    await page.getByRole("button", { name: "See all 4 posts in sources" }).click()
+    await expect(page.getByLabel("Which sources")).toHaveValue("own")
+    await expect(page.getByText(/Showing 4 of 4 sources/)).toBeVisible()
+    await expect(page.locator("#sources").locator("..").getByText("Coe College's own account").first()).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("older report: explains the change and recounts without new searches", async ({ page }) => {
+    const m = await setup(page, { detail: buildDetail({ version: 1 }), scanBody: sse(RUN_EVENTS("rebuild", RUN_2)) })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText("This report was made before the accuracy update")).toBeVisible()
+    await expect(page.getByText(/^11 relevant posts · /)).toBeVisible()
+    await expect(page.getByText(/Not counted:/)).toHaveCount(0)
+    m.detail = buildDetail()
+    await page.getByRole("button", { name: "Refresh analysis" }).click()
+    expect(m.posts.map((p) => p.url)).toContain(`/topics/${TOPIC_ID}/rebuild`)
+    await expect(page.getByText("This report was made before the accuracy update")).toHaveCount(0)
+    await expect(page.getByText(/^11 posts by people · /)).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("no supported idea: says why instead of blaming the scan", async ({ page }) => {
+    await setup(page, { detail: buildDetail({ noIdeas: true }) })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText(/No idea had at least two posts that clearly back it up/)).toBeVisible()
   })
 
   test("rescan: compact progress while the old report stays readable, then a clear result", async ({ page }) => {
@@ -142,9 +196,10 @@ test.describe("Topic Ideation", () => {
 
   test("phone width: report has no sideways scrolling", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
-    await setup(page)
+    await setup(page, { detail: buildDetail({ institution: true }) })
     await page.goto(`/listening/${TOPIC_ID}`)
     await expect(page.getByText("People weigh flexibility")).toBeVisible()
+    await expect(page.getByRole("heading", { name: /What Coe College says about itself/ })).toBeAttached()
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
     expect(overflow).toBeLessThanOrEqual(0)
   })

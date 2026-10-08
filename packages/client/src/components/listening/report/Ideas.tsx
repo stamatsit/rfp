@@ -120,14 +120,18 @@ export function Ideas({ report, items, onSubtopic }: { report: Report; items: Ma
         id="ideas"
         title="Content ideas"
         count={report.ideas.length}
-        hint="Each idea comes from real posts. Open one to see the outline and the sources behind it."
+        hint="Each idea is backed by at least two real posts, checked a second time against them. Open one to see the outline and the sources."
         action={report.ideas.length ? <CopyButton text={() => report.ideas.map((i, n) => `${n + 1}. ${i.headline}\n   ${i.angle}`).join("\n\n")} label="Copy all" /> : undefined}
       />
       {report.ideas.length === 0 ? (
         <Card className="p-8 text-center">
           <Lightbulb size={22} className="mx-auto text-slate-300" />
-          <p className="text-[14px] text-slate-600 dark:text-slate-300 mt-3">
-            {report.totals.relevant < 3 ? "Not enough conversation yet to suggest ideas. Rescan or try a broader topic." : "Ideas were not written for this scan. Use Refresh analysis in the menu to try again."}
+          <p className="text-[14px] text-slate-600 dark:text-slate-300 mt-3 max-w-md mx-auto text-pretty">
+            {report.totals.relevant < 3
+              ? "Not enough conversation yet to suggest ideas. Rescan or try a broader topic."
+              : report.analysisSource === "llm"
+                ? "No idea had at least two posts that clearly back it up, so none are shown. Rescan to collect more conversation, or try a broader topic."
+                : "Ideas were not written for this scan. Use Refresh analysis in the menu to try again."}
           </p>
         </Card>
       ) : (
