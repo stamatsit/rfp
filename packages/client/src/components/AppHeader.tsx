@@ -21,6 +21,7 @@ interface AppHeaderProps {
 const pageConfig: Record<string, { title: string }> = {
   "/": { title: "Home" },
   "/migration": { title: "Migration Matrix" },
+  "/listening": { title: "Topic Ideation" },
   "/search": { title: "Search Library" },
   "/ai": { title: "AI Tools" },
   "/import": { title: "Import Data" },

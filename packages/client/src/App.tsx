@@ -40,6 +40,7 @@ const AccessibilitySnapshot = lazy(() => import("./pages/AccessibilitySnapshot")
 const Webinars = lazy(() => import("./pages/Webinars").then(m => ({ default: m.Webinars })))
 const ContentMatrix = lazy(() => import("./pages/ContentMatrix").then(m => ({ default: m.ContentMatrix })))
 const MigrationMatrix = lazy(() => import("./pages/MigrationMatrix").then(m => ({ default: m.MigrationMatrix })))
+const TopicIdeation = lazy(() => import("./pages/TopicIdeation").then(m => ({ default: m.TopicIdeation })))
 const PortalAdmin = lazy(() => import("./pages/PortalAdmin").then(m => ({ default: m.PortalAdmin })))
 const PortalArea = lazy(() => import("./pages/portal/PortalShell").then(m => ({ default: m.PortalArea })))
 const PortalShell = lazy(() => import("./pages/portal/PortalShell").then(m => ({ default: m.PortalShell })))
@@ -155,6 +156,8 @@ function AppRoutes() {
             <Route path="/webinars" element={<ProtectedRoute><Webinars /></ProtectedRoute>} />
             <Route path="/content-matrix" element={<ProtectedRoute><ContentMatrix /></ProtectedRoute>} />
             <Route path="/migration" element={<ProtectedRoute><MigrationMatrix /></ProtectedRoute>} />
+            {/* One route for list and topic so a scan started on the list keeps its live stream after navigating. */}
+            <Route path="/listening/:topicId?" element={<ProtectedRoute><TopicIdeation /></ProtectedRoute>} />
             <Route path="/portal-admin" element={<ProtectedRoute><PortalAdmin /></ProtectedRoute>} />
             <Route path="/portal" element={<PortalArea />}>
               <Route path="login" element={<PortalLogin />} />

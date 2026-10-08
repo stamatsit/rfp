@@ -59,3 +59,6 @@ packages/client/src/**/*.d.ts.map
 
 # Never commit DB backups (contain password hashes) — public repo
 backups/
+
+# Topic Ideation: local response cache (search/API results, may include third-party text)
+packages/server/.cache/

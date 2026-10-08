@@ -5,6 +5,7 @@ import { useTheme } from "@/contexts/ThemeContext"
 import { usePanelResize, ResizeHandles } from "@/hooks/usePanelResize"
 import {
   Activity,
+  Radar,
   FileSpreadsheet,
   Image,
   Search,
@@ -229,6 +230,16 @@ const defaultTiles: TileConfig[] = [
     gradient: "linear-gradient(135deg, #C41230 0%, #96173F 50%, #6D1D45 100%)",
     shadowColor: "rgba(196, 18, 48, 0.15)",
     enabled: true,  // Visible by default to the MIGRATION_MATRIX_ALLOW list (lib/featureAccess.ts); hidden from everyone else
+  },
+  {
+    id: "topic-ideation",
+    to: "/listening",
+    icon: <Radar size={22} strokeWidth={2} />,
+    title: "Topic Ideation",
+    description: "See what people are saying about any topic, with sentiment, questions and sourced content ideas",
+    gradient: "linear-gradient(135deg, #0D9488 0%, #0284C7 55%, #4F46E5 100%)",
+    shadowColor: "rgba(2, 132, 199, 0.15)",
+    enabled: true,  // Visible by default, but gated to eric.yerke@stamats.com (see HomePage ERIC_ONLY_TILES)
   },
 ]
 
@@ -614,7 +625,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix", "topic-ideation"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()

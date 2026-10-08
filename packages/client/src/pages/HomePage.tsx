@@ -305,7 +305,7 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix", "topic-ideation"])
 
 export function HomePage() {
   useDocumentTitle("Home")

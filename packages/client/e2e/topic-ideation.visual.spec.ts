@@ -1,0 +1,115 @@
+/**
+ * Topic Ideation visual pass: captures every state at desktop and phone width
+ * in light and dark, for design review. Skipped unless SHOTS is set.
+ *
+ *   cd packages/client && SHOTS=/path/to/dir npx playwright test e2e/topic-ideation.visual.spec.ts
+ */
+import { test, type Page } from "@playwright/test"
+import { RUN_1, TOPIC_ID, buildDetail, setup } from "./fixtures/listeningMocks"
+
+const DIR = process.env["SHOTS"]
+test.skip(!DIR, "set SHOTS=<dir> to capture screenshots")
+
+const VIEWPORTS = [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "phone", width: 390, height: 844 },
+]
+const THEMES = ["light", "dark"] as const
+
+async function theme(page: Page, t: (typeof THEMES)[number]) {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: t })
+  await page.addInitScript((v) => {
+    localStorage.setItem("theme", v)
+    const k = "stamats-app-settings"
+    let cur: Record<string, unknown> = {}
+    try {
+      cur = JSON.parse(localStorage.getItem(k) || "{}")
+    } catch {
+      cur = {}
+    }
+    localStorage.setItem(k, JSON.stringify({ ...cur, theme: v }))
+  }, t)
+}
+
+/** Let the page-transition fade finish so captures show final colours. */
+const settle = (page: Page) => page.waitForTimeout(600)
+
+/** Keeps a scan stream open mid-way so the live steps can be captured. */
+async function holdScanOpen(page: Page) {
+  await page.addInitScript(
+    ({ topicId, runId }) => {
+      const real = window.fetch.bind(window)
+      window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url
+        if (init?.method === "POST" && /\/api\/listening\/topics$/.test(url)) {
+          const events = [
+            { type: "started", topicId, runId, trigger: "initial" },
+            { type: "stage", stage: "plan" },
+            { type: "plan", plan: { interpretation: "", isNamedEntity: false, disambiguation: "", broaderSuggestions: [], searches: [
+              { q: "online nursing degree", why: "" }, { q: "is an online nursing degree worth it", why: "" }, { q: "online nursing school clinicals", why: "" }, { q: "online RN to BSN programs", why: "" } ] } },
+            { type: "stage", stage: "search" },
+            { type: "lane", lane: { lane: "reddit", label: "Reddit", status: "ok", count: 40, ms: 500 } },
+            { type: "lane", lane: { lane: "forums", label: "Forums", status: "ok", count: 30, ms: 500 } },
+            { type: "lane", lane: { lane: "social", label: "Social", status: "ok", count: 30, ms: 500 } },
+            { type: "lane", lane: { lane: "reviews", label: "Reviews", status: "ok", count: 30, ms: 500 } },
+            { type: "lane", lane: { lane: "youtube", label: "YouTube", status: "failed", count: 0, ms: 900, note: "daily quota used up" } },
+            { type: "lane", lane: { lane: "news", label: "News", status: "ok", count: 15, ms: 700 } },
+            { type: "stage", stage: "read", detail: "8" },
+            { type: "stage", stage: "label", detail: "260" },
+            { type: "counts", labeled: 150 },
+          ]
+          const body = new ReadableStream({
+            start(c) {
+              const enc = new TextEncoder()
+              for (const e of events) c.enqueue(enc.encode(`event: ${e.type}\ndata: ${JSON.stringify(e)}\n\n`))
+              // never close: the scan is "in progress"
+            },
+          })
+          return new Response(body, { status: 200, headers: { "Content-Type": "text/event-stream" } })
+        }
+        return real(input, init)
+      }
+    },
+    { topicId: TOPIC_ID, runId: RUN_1 },
+  )
+}
+
+for (const vp of VIEWPORTS) {
+  for (const t of THEMES) {
+    test(`${vp.name} ${t}`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      const topics = [
+        buildDetail().topic,
+        { ...buildDetail().topic, id: "t2", query: "college enrollment trends", headline: "Students and faculty debate whether falling enrollment is about cost, value, or demographics.", sentimentScore: -32, relevantCount: 188, lastRunAt: "2026-10-06T15:00:00.000Z" },
+        { ...buildDetail().topic, id: "t3", query: "Coe College", headline: null, lastRunStatus: "running", relevantCount: 0, sentimentScore: null },
+      ]
+      await setup(page, { topics })
+      await page.goto("/listening")
+      await page.getByRole("heading", { name: "Topic Ideation" }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-1-home.png`, fullPage: true })
+
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("People weigh flexibility").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-3-report-top.png` })
+      await page.getByRole("button", { name: /Outline and 3 sources/ }).click()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-4-report-full.png`, fullPage: true })
+    })
+
+    test(`${vp.name} ${t} progress`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await holdScanOpen(page)
+      await setup(page, { detail: buildDetail({ withReport: false }) })
+      await page.goto("/listening")
+      await page.getByPlaceholder("A topic, or a school or hospital by name").fill("online nursing degree")
+      await page.getByRole("button", { name: "Scan" }).click()
+      await page.getByText("150 of 260 posts").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-2-progress.png`, fullPage: true })
+    })
+  }
+}

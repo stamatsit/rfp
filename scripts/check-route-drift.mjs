@@ -28,6 +28,11 @@ let bundle = fs.readFileSync(bundlePath, "utf8")
 // api/portal.ts is a separate function; count its routes as present in production.
 const portalBundlePath = path.join(root, "api/portal.ts")
 if (fs.existsSync(portalBundlePath)) bundle += "\n" + fs.readFileSync(portalBundlePath, "utf8")
+// Every other standalone function in api/ (e.g. api/listening.ts) also serves production routes.
+for (const f of fs.readdirSync(path.join(root, "api"))) {
+  if (!f.endsWith(".ts") || f === "index.ts" || f === "portal.ts") continue
+  bundle += "\n" + fs.readFileSync(path.join(root, "api", f), "utf8")
+}
 const indexTs = fs.readFileSync(path.join(routesDir, "index.ts"), "utf8")
 
 // import <ident> from "./<file>.js"  +  router.use("/<mount>", <ident>)

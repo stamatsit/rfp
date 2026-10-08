@@ -8,6 +8,13 @@ Living index of features currently being designed, built, or recently shipped (b
 
 ## Active
 
+### Topic Ideation (social listening for content ideas)
+Search any topic or institution, see sentiment, subtopics, verbatim questions and quotes, and
+ranked content ideas, a link on everything; rescan to add data. Shipped behind an allowlist
+(Eric only by default).
+
+- **Detail doc:** [in-progress/social-listening.md](in-progress/social-listening.md)
+
 ### Migration Matrix
 Live dashboard for the content-migration team: project ring-tiles, per-project
 drill-down, team and person pages, grounded AI chat with inline charts. Data

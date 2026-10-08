@@ -812,3 +812,9 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Topic Ideation: indeterminate progress bar while following a scan from another tab */
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}

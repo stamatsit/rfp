@@ -13,6 +13,10 @@
     }
   ],
   "functions": {
+    "api/listening.ts": {
+      "maxDuration": 300,
+      "memory": 1024
+    },
     "api/**/*.ts": {
       "maxDuration": 60,
       "memory": 1024
@@ -53,6 +57,10 @@
     {
       "source": "/api/portal/:path*",
       "destination": "/api/portal"
+    },
+    {
+      "source": "/api/listening/:path*",
+      "destination": "/api/listening"
     },
     {
       "source": "/api/:path*",
