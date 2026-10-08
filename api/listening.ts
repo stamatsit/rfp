@@ -7,7 +7,7 @@
  * gets maxDuration 300 (vercel.json and the config export below).
  *
  * Route map (drift-script probes read this comment):
- * /listening/access /listening/topics /listening/runs
+ * /listening/access /listening/topics /listening/runs /listening/ideas
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import crypto from "crypto"
@@ -187,8 +187,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (method === "POST" && (mm = path.match(/^\/topics\/([^/]+)\/(rescan|rebuild)$/))) {
       return await stream({ trigger: mm[2] as "rescan" | "rebuild", topicId: mm[1]! })
     }
+    if (method === "POST" && (mm = path.match(/^\/topics\/([^/]+)\/share$/))) {
+      return send(await m.svc.shareTopic(ctx, mm[1]!, (req.body as { shared?: unknown } | undefined)?.shared))
+    }
     if (method === "GET" && (mm = path.match(/^\/runs\/([^/]+)$/))) return send(await m.svc.runStatus(ctx, mm[1]!))
     if (method === "POST" && (mm = path.match(/^\/runs\/([^/]+)\/cancel$/))) return send(await m.svc.cancelRun(ctx, mm[1]!))
+    if (path === "/ideas") {
+      if (method === "GET") return res.json(await m.svc.listIdeas(ctx))
+      if (method === "POST") return send(await m.svc.saveIdea(ctx, (req.body ?? {}) as { topicId?: unknown; ideaId?: unknown }))
+    }
+    if ((mm = path.match(/^\/ideas\/([^/]+)$/))) {
+      if (method === "PATCH") return send(await m.svc.setIdeaStatus(ctx, mm[1]!, (req.body as { status?: unknown } | undefined)?.status))
+      if (method === "DELETE") return send(await m.svc.removeIdea(ctx, mm[1]!))
+    }
     return res.status(404).json({ error: "Not found" })
   } catch (err) {
     console.error("[listening]", err)

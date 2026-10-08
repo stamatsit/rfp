@@ -203,6 +203,87 @@ test.describe("Topic Ideation", () => {
     expect(errorsOf(page)).toEqual([])
   })
 
+  test("share: the owner shares a topic with the team and can make it private again", async ({ page }) => {
+    const m = await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: "Share", exact: true }).click()
+    const dialog = page.getByRole("dialog", { name: "Share with your team" })
+    await expect(dialog.getByText(/Only you can rescan, refresh or delete it/)).toBeVisible()
+    const toggle = dialog.getByRole("switch", { name: "Share with your team" })
+    await expect(toggle).toHaveAttribute("aria-checked", "false")
+    await toggle.click()
+    await expect(page.getByText("Shared with your team").first()).toBeVisible()
+    await expect(toggle).toHaveAttribute("aria-checked", "true")
+    await expect(page.getByRole("button", { name: "Shared", exact: true })).toBeVisible()
+    await toggle.click()
+    await expect(page.getByText("This topic is private again")).toBeVisible()
+    expect(m.posts.filter((p) => p.url.endsWith("/share")).map((p) => p.body)).toEqual([{ shared: true }, { shared: false }])
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("shared with you: listed apart, read only, export still works", async ({ page }) => {
+    const theirs = buildDetail({ viewer: true })
+    await setup(page, { shared: [theirs.topic], detail: theirs })
+    await page.goto("/listening")
+    const section = page.getByRole("region", { name: /Shared with you/ })
+    await expect(section.getByText("Shared by Mariah Tang")).toBeVisible()
+    await section.getByRole("link", { name: /online nursing degree/ }).click()
+    await expect(page.getByText("Shared by Mariah Tang · read only")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Export" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Rescan for more/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "More actions" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /^Share/ })).toHaveCount(0)
+    // Ideas can still be saved to your own board.
+    await expect(page.getByRole("button", { name: "Save", exact: true }).first()).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("idea board: save from a topic, track status, filter, remove", async ({ page }) => {
+    const m = await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    const save = page.getByRole("button", { name: "Save", exact: true }).first()
+    await save.click()
+    await expect(page.getByText("Saved to your idea board")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true")
+    expect(m.posts.find((p) => p.url === "/ideas")?.body).toEqual({ topicId: TOPIC_ID, ideaId: "idea1" })
+
+    await page.locator("#ideas").locator("..").getByRole("link", { name: "Idea board" }).click()
+    await expect(page).toHaveURL(/\/listening\/ideas$/)
+    await expect(page.getByRole("heading", { level: 1, name: "Idea board" })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "Who finds your clinical placement in an online program" })).toBeVisible()
+    await expect(page.getByRole("link", { name: "online nursing degree" })).toHaveAttribute("href", `/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: /Outline and 3 sources/ }).click()
+    await expect(page.locator('a[href="https://www.reddit.com/r/nursing/comments/t1/thread_1/"]')).toHaveAttribute("target", "_blank")
+
+    await page.getByLabel(/Status of Who finds your clinical placement/).selectOption("pitched")
+    await expect.poll(() => m.patches.map((p) => p.body)).toEqual([{ status: "pitched" }])
+    await page.getByRole("group", { name: "Filter by status" }).getByRole("button", { name: /Pitched/ }).click()
+    await expect(page.getByRole("heading", { name: "Who finds your clinical placement in an online program" })).toBeVisible()
+
+    // Remove asks once more before it deletes.
+    await page.getByRole("button", { name: "Remove" }).click()
+    expect(m.deletes).toEqual([])
+    await page.getByRole("button", { name: "Click to remove" }).click()
+    await expect(page.getByText("No saved ideas yet")).toBeVisible()
+    expect(m.deletes).toEqual(["/ideas/saved-1"])
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("idea board: the topic page knows what is already saved", async ({ page }) => {
+    const m = await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: "Save", exact: true }).first().click()
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toBeVisible()
+    // Unsave from the topic page.
+    await page.getByRole("button", { name: "Saved", exact: true }).click()
+    await expect(page.getByText("Removed from your idea board")).toBeVisible()
+    expect(m.ideas).toEqual([])
+    await page.goto("/listening")
+    await expect(page.getByRole("link", { name: /Idea board/ })).toContainText("0")
+  })
+
   test("no supported idea: says why instead of blaming the scan", async ({ page }) => {
     await setup(page, { detail: buildDetail({ noIdeas: true }) })
     await page.goto(`/listening/${TOPIC_ID}`)

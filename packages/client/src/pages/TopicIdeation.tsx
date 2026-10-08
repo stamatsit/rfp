@@ -1,12 +1,16 @@
 /**
  * Topic Ideation: social listening for content ideas.
- * /listening            search + saved topics
+ * /listening            search, your topics, topics shared with you
+ * /listening/ideas      your idea board
  * /listening/:topicId   one topic's report (and its live scans)
+ * One route with an optional param, because the app remounts pages on every
+ * path change and a running scan must keep its live stream.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { Lock } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
+import { IdeaBoard } from "@/components/listening/IdeaBoard"
 import { ListeningHome } from "@/components/listening/ListeningHome"
 import { TopicView } from "@/components/listening/TopicView"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
@@ -18,11 +22,15 @@ import type { AccessInfo, TimeWindow, TopicRow } from "@/types/listening"
 let navigatedForRun: string | null = null
 
 export function TopicIdeation() {
-  const { topicId } = useParams<{ topicId?: string }>()
+  const { topicId: param } = useParams<{ topicId?: string }>()
+  const board = param === "ideas"
+  const topicId = board ? undefined : param
   const navigate = useNavigate()
   const [access, setAccess] = useState<AccessInfo | null>(null)
   const [denied, setDenied] = useState(false)
   const [topics, setTopics] = useState<TopicRow[] | null>(null)
+  const [shared, setShared] = useState<TopicRow[]>([])
+  const [ideaCount, setIdeaCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [prefill, setPrefill] = useState("")
   const scan = useScan()
@@ -30,9 +38,11 @@ export function TopicIdeation() {
 
   const refresh = useCallback(async () => {
     try {
-      const [a, t] = await Promise.all([listeningApi.access(), listeningApi.topics()])
+      const [a, t, ideas] = await Promise.all([listeningApi.access(), listeningApi.topics(), listeningApi.ideas().catch(() => null)])
       setAccess(a)
       setTopics(t.topics)
+      setShared(t.shared ?? [])
+      setIdeaCount(ideas ? ideas.ideas.length : null)
     } catch (err) {
       const status = (err as { status?: number }).status
       if (status === 401) navigate("/login", { replace: true })
@@ -44,7 +54,7 @@ export function TopicIdeation() {
 
   useEffect(() => {
     void refresh()
-  }, [refresh, topicId])
+  }, [refresh, param])
 
   // A new scan moves to its topic page as soon as the server confirms it, once
   // per scan, whatever stage it has reached by then (a cached scan can finish
@@ -66,7 +76,11 @@ export function TopicIdeation() {
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900">
       <AppHeader
         title="Topic Ideation"
-        breadcrumbs={topicId ? [{ label: "Library", href: "/" }, { label: "Topic Ideation", href: "/listening" }, { label: "Topic" }] : [{ label: "Library", href: "/" }, { label: "Topic Ideation" }]}
+        breadcrumbs={
+          topicId || board
+            ? [{ label: "Library", href: "/" }, { label: "Topic Ideation", href: "/listening" }, { label: board ? "Idea board" : "Topic" }]
+            : [{ label: "Library", href: "/" }, { label: "Topic Ideation" }]
+        }
       />
       <main className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 pb-24">
         {denied ? (
@@ -77,6 +91,8 @@ export function TopicIdeation() {
               Back to the library
             </Link>
           </div>
+        ) : board ? (
+          <IdeaBoard />
         ) : topicId ? (
           <TopicView
             key={topicId}
@@ -91,6 +107,8 @@ export function TopicIdeation() {
           <ListeningHome
             access={access}
             topics={topics}
+            shared={shared}
+            ideaCount={ideaCount}
             loading={loading}
             starting={startingNew}
             startError={startError}

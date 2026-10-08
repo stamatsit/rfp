@@ -1,7 +1,7 @@
 # Topic Ideation (social listening for content ideas)
 
 **Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: Eric only).
-Migration 009 is applied to rfp-prod. Internal planning notes (people, meeting notes, account
+Migrations 009 and 010 are applied to rfp-prod. Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
 ## What it is
@@ -48,13 +48,30 @@ Other rules from that audit:
 - Labels carry `v: 2`; older labels are relabeled on the next scan or Refresh analysis (no
   searches used). Version 1 reports show a banner offering that refresh.
 
-## Ownership
+## Ownership and sharing
 
 Topics belong to the person who created them (`listening_topics.created_by`, the session email,
 compared case-insensitively). `service.ts` scopes every call: the list shows only your topics, and
 opening, rescanning, refreshing, cancelling or deleting someone else's topic answers 404, so its
 existence never leaks. The Google daily allowance stays shared (one project-wide quota) and the
 search cache is shared (search results, no user data).
+
+The owner can share a topic (Share button, `POST /topics/:id/share`, migration 010 columns
+`shared`, `shared_at`). A shared topic shows under "Shared with you" for everyone with access, who
+can open it, export it and save its ideas (`role: "viewer"` in the detail response). Rescan,
+refresh, delete, cancel and sharing stay with the owner; unsharing ends access at once. Saved
+copies a teammate already made stay on their board.
+
+## Idea board
+
+`/listening/ideas`. Save on any idea card stores a frozen copy in `listening_saved_ideas`
+(migration 010): headline, angle, audience, format, why now, outline, subtopic name and its
+sources (link, platform, the verbatim quote or an excerpt, date). A rescan that rewrites a topic's
+ideas never changes a saved copy, and deleting the topic keeps it (`topic_id` set null, the topic
+name kept). One save per idea per person (`UNIQUE (created_by, fingerprint)`, fingerprint = topic
+id plus normalized headline). Status: new, pitched, in progress, published, dropped. Each person's
+board is their own. API: `GET/POST /ideas`, `PATCH/DELETE /ideas/:id`; the topic detail response
+carries `savedIdeas` (report idea id to saved id) so Save shows as Saved.
 
 ## Export
 
@@ -129,12 +146,13 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 69 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 71 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
-  user never seeing or touching another's topics).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 16 tests on fixtures,
-  including downloading the PDF and Word exports and checking their text and links.
+  user never seeing or touching another's topics, sharing read only, the idea board).
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 20 tests on fixtures,
+  including downloading the PDF and Word exports and checking their text and links, sharing, a
+  teammate's read-only view, and saving to and working the idea board.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory

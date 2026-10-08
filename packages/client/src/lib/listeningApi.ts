@@ -6,7 +6,7 @@
  */
 import { fetchWithCredentials, handleResponse } from "./api"
 import { addCsrfHeader } from "./csrfToken"
-import type { AccessInfo, RunEvent, RunSummary, TimeWindow, TopicDetail, TopicRow } from "@/types/listening"
+import type { AccessInfo, IdeaStatus, RunEvent, RunSummary, SavedIdea, TimeWindow, TopicDetail, TopicRow } from "@/types/listening"
 
 const BASE = "/api/listening"
 
@@ -26,7 +26,7 @@ async function get<T>(path: string): Promise<T> {
   return handleResponse<T>(res)
 }
 
-async function send<T>(method: "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
+async function send<T>(method: "POST" | "PATCH" | "DELETE", path: string, body?: unknown): Promise<T> {
   const headers = await addCsrfHeader(body ? { "Content-Type": "application/json" } : {})
   const res = await fetchWithCredentials(`${BASE}${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined })
   if (!res.ok) {
@@ -38,11 +38,16 @@ async function send<T>(method: "POST" | "DELETE", path: string, body?: unknown):
 
 export const listeningApi = {
   access: () => get<AccessInfo>("/access"),
-  topics: () => get<{ topics: TopicRow[] }>("/topics"),
+  topics: () => get<{ topics: TopicRow[]; shared?: TopicRow[] }>("/topics"),
   topic: (id: string) => get<TopicDetail>(`/topics/${id}`),
   run: (id: string) => get<{ run: RunSummary }>(`/runs/${id}`),
   cancel: (runId: string) => send<{ ok: true }>("POST", `/runs/${runId}/cancel`),
   remove: (id: string) => send<{ ok: true }>("DELETE", `/topics/${id}`),
+  share: (id: string, shared: boolean) => send<{ shared: boolean }>("POST", `/topics/${id}/share`, { shared }),
+  ideas: () => get<{ ideas: SavedIdea[] }>("/ideas"),
+  saveIdea: (topicId: string, ideaId: string) => send<{ idea: SavedIdea }>("POST", "/ideas", { topicId, ideaId }),
+  setIdeaStatus: (id: string, status: IdeaStatus) => send<{ status: IdeaStatus }>("PATCH", `/ideas/${id}`, { status }),
+  removeIdea: (id: string) => send<{ ok: true }>("DELETE", `/ideas/${id}`),
 }
 
 export type ScanRequest =

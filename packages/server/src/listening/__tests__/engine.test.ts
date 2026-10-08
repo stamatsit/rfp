@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest"
 import { checkReport } from "../checks.js"
 import { executeRun, groupLaneNotes, startRun } from "../engine.js"
-import { cancelRun, listTopics, ownsTopic, prepareRun, removeTopic, runStatus, topicDetail } from "../service.js"
+import {
+  cancelRun,
+  listIdeas,
+  listTopics,
+  ownsTopic,
+  prepareRun,
+  removeIdea,
+  removeTopic,
+  runStatus,
+  saveIdea,
+  setIdeaStatus,
+  shareTopic,
+  topicDetail,
+} from "../service.js"
 import { ActiveRunError, MemoryStore, within } from "../store.js"
 import type { RunEvent } from "../types.js"
 import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
@@ -334,6 +347,92 @@ describe("service: topics belong to the person who made them", () => {
     expect((await listTopics(eric)).topics.map((t) => t.query)).toEqual(["online nursing degree"])
     expect(await removeTopic(eric, topic.id)).toMatchObject({ ok: true })
     expect(ownsTopic({ createdBy: "a@b.com" }, "")).toBe(false)
+  })
+})
+
+describe("service: sharing and the idea board", () => {
+  const setupScanned = async () => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store) })
+    const eric = as("eric.yerke@stamats.com")
+    const joe = as("joe.volk@stamats.com")
+    const { topicId } = await initial(store, fakeDeps(store), "online nursing degree")
+    // initial() creates as eric.yerke@stamats.com.
+    return { store, eric, joe, topicId }
+  }
+
+  it("a shared topic is readable by teammates and never changeable by them", async () => {
+    const { store, eric, joe, topicId } = await setupScanned()
+    expect(await shareTopic(joe, topicId, true)).toMatchObject({ ok: false, status: 404 })
+    expect(await shareTopic(eric, topicId, "yes")).toMatchObject({ ok: false, status: 400 })
+    expect(await topicDetail(joe, topicId)).toMatchObject({ ok: false, status: 404 })
+
+    expect(await shareTopic(eric, topicId, true)).toEqual({ ok: true, body: { shared: true } })
+    const lists = await listTopics(joe)
+    expect(lists.topics).toEqual([])
+    expect(lists.shared.map((t) => t.id)).toEqual([topicId])
+    expect((await listTopics(eric)).shared).toEqual([])
+    expect(await topicDetail(joe, topicId)).toMatchObject({ ok: true, body: { role: "viewer" } })
+    expect(await topicDetail(eric, topicId)).toMatchObject({ ok: true, body: { role: "owner" } })
+
+    // Read only: no rescan, refresh, delete or unshare by a teammate.
+    expect(await prepareRun(joe, { trigger: "rescan", topicId })).toMatchObject({ ok: false, status: 404 })
+    expect(await prepareRun(joe, { trigger: "rebuild", topicId })).toMatchObject({ ok: false, status: 404 })
+    expect(await removeTopic(joe, topicId)).toMatchObject({ ok: false, status: 404 })
+    expect(await shareTopic(joe, topicId, false)).toMatchObject({ ok: false, status: 404 })
+
+    // A teammate can save an idea from it; unsharing ends their access but not their copy.
+    const saved = await saveIdea(joe, { topicId, ideaId: "idea1" })
+    expect(saved.ok).toBe(true)
+    expect(await shareTopic(eric, topicId, false)).toEqual({ ok: true, body: { shared: false } })
+    expect(await topicDetail(joe, topicId)).toMatchObject({ ok: false, status: 404 })
+    expect((await listTopics(joe)).shared).toEqual([])
+    expect((await listIdeas(joe)).ideas).toHaveLength(1)
+    expect((await store.getTopic(topicId))!.shared).toBe(false)
+  })
+
+  it("saves a frozen copy of an idea with its sources, once, and tracks its status", async () => {
+    const { store, eric, joe, topicId } = await setupScanned()
+    const report = (await store.getTopic(topicId))!.report!
+    const idea = report.ideas[0]!
+    const first = await saveIdea(eric, { topicId, ideaId: idea.id })
+    if (!first.ok) throw new Error(first.error)
+    const s = first.body.idea
+    expect(s.idea.headline).toBe(idea.headline)
+    expect(s.idea.outline).toEqual(idea.outline)
+    expect(s.status).toBe("new")
+    expect(s.topicQuery).toBe("online nursing degree")
+    const items = await store.allItems(topicId)
+    expect(s.sources.map((x) => x.url)).toEqual(idea.evidenceItemIds.map((id) => items.find((i) => i.id === id)!.url))
+    expect(s.sources.every((x) => x.text.length > 0)).toBe(true)
+
+    // Saving twice keeps one card; the topic page knows it is saved.
+    const again = await saveIdea(eric, { topicId, ideaId: idea.id })
+    expect(again.ok && again.body.idea.id).toBe(s.id)
+    expect((await listIdeas(eric)).ideas).toHaveLength(1)
+    const detail = await topicDetail(eric, topicId)
+    expect(detail.ok && (detail.body as { savedIdeas: Record<string, string> }).savedIdeas).toEqual({ [idea.id]: s.id })
+
+    // Status: only real statuses, only by its owner.
+    expect(await setIdeaStatus(eric, s.id, "pitched")).toEqual({ ok: true, body: { status: "pitched" } })
+    expect(await setIdeaStatus(eric, s.id, "shipped")).toMatchObject({ ok: false, status: 400 })
+    expect(await setIdeaStatus(joe, s.id, "published")).toMatchObject({ ok: false, status: 404 })
+    expect(await removeIdea(joe, s.id)).toMatchObject({ ok: false, status: 404 })
+    expect((await listIdeas(joe)).ideas).toEqual([])
+
+    // A rescan that rewrites the ideas does not touch the saved copy; neither does deleting the topic.
+    await store.updateTopic(topicId, { report: { ...report, ideas: [] } })
+    expect(await saveIdea(eric, { topicId, ideaId: idea.id })).toMatchObject({ ok: false, status: 404, code: "idea_gone" })
+    expect(await removeTopic(eric, topicId)).toMatchObject({ ok: true })
+    const [kept] = (await listIdeas(eric)).ideas
+    expect(kept).toMatchObject({ id: s.id, status: "pitched", topicId: null, topicQuery: "online nursing degree" })
+    expect(kept!.idea.headline).toBe(idea.headline)
+
+    expect(await removeIdea(eric, s.id)).toEqual({ ok: true, body: { ok: true } })
+    expect((await listIdeas(eric)).ideas).toEqual([])
+    expect(await saveIdea(eric, { topicId: 7, ideaId: "idea1" })).toMatchObject({ ok: false, status: 400 })
   })
 })
 

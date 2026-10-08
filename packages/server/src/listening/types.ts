@@ -301,6 +301,45 @@ export interface TopicRow {
   headline: string | null
   lastRunAt: string | null
   lastRunStatus: RunStatus | null
+  /** Readable (and exportable) by everyone with Topic Ideation access; only the creator can change it. */
+  shared: boolean
+  sharedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type IdeaStatus = "new" | "pitched" | "in_progress" | "published" | "dropped"
+
+export interface SavedIdeaSource {
+  url: string
+  platform: Platform
+  /** The verbatim quote when the report had one for this post, else an excerpt. */
+  text: string
+  publishedAt: string | null
+}
+
+/**
+ * A content idea saved to someone's board: a frozen copy, so a rescan that
+ * rewrites the topic's ideas never changes or removes it.
+ */
+export interface SavedIdea {
+  id: string
+  createdBy: string
+  /** Null once the topic is deleted; topicQuery keeps the name. */
+  topicId: string | null
+  topicQuery: string
+  fingerprint: string
+  idea: {
+    headline: string
+    angle: string
+    audience: Audience
+    format: string
+    whyNow: string
+    outline: string[]
+    subtopic: string | null
+  }
+  sources: SavedIdeaSource[]
+  status: IdeaStatus
   createdAt: string
   updatedAt: string
 }

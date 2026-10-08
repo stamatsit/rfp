@@ -1,7 +1,38 @@
 import { useState } from "react"
-import { ArrowUpRight, ChevronDown, Lightbulb } from "lucide-react"
+import { Link } from "react-router-dom"
+import { ArrowUpRight, Bookmark, BookmarkCheck, ChevronDown, Lightbulb, Loader2 } from "lucide-react"
 import type { ContentIdea, ItemView, Report } from "@/types/listening"
 import { AUDIENCE_LABEL, Card, CopyButton, ExternalLink, PlatformBadge, SectionHeading, SentimentDot, Tag } from "../ui"
+
+export interface IdeaSaving {
+  /** Report idea id -> saved copy id. */
+  saved: Record<string, string>
+  busy: string | null
+  onSave: (ideaId: string) => void
+  onUnsave: (ideaId: string) => void
+}
+
+function SaveButton({ ideaId, s }: { ideaId: string; s: IdeaSaving }) {
+  const saved = !!s.saved[ideaId]
+  const busy = s.busy === ideaId
+  return (
+    <button
+      type="button"
+      onClick={() => (saved ? s.onUnsave(ideaId) : s.onSave(ideaId))}
+      disabled={busy}
+      aria-pressed={saved}
+      title={saved ? "Saved to your idea board. Click to remove it." : "Save to your idea board"}
+      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-60 ${
+        saved
+          ? "bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
+          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
+      }`}
+    >
+      {busy ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+      {saved ? "Saved" : "Save"}
+    </button>
+  )
+}
 
 function ideaText(idea: ContentIdea, items: Map<string, ItemView>): string {
   const sources = idea.evidenceItemIds.map((id) => items.get(id)?.url).filter(Boolean)
@@ -48,13 +79,14 @@ function Evidence({ ids, items, quotes }: { ids: string[]; items: Map<string, It
   )
 }
 
-function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic }: {
+function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving }: {
   idea: ContentIdea
   index: number
   items: Map<string, ItemView>
   quotes: Map<string, string>
   subtopicName: string | null
   onSubtopic: () => void
+  saving: IdeaSaving
 }) {
   const [open, setOpen] = useState(false)
   return (
@@ -65,7 +97,10 @@ function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic }: {
           <Tag tone="teal">{idea.format}</Tag>
           <Tag>For {AUDIENCE_LABEL[idea.audience].toLowerCase()}</Tag>
         </div>
-        <CopyButton text={() => ideaText(idea, items)} label="" done="" ariaLabel="Copy this idea" className="!px-1.5 -mr-1.5 -mt-1" />
+        <div className="flex items-center gap-0.5 -mr-1.5 -mt-1">
+          <SaveButton ideaId={idea.id} s={saving} />
+          <CopyButton text={() => ideaText(idea, items)} label="" done="" ariaLabel="Copy this idea" className="!px-1.5" />
+        </div>
       </div>
       <h3 className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-slate-900 dark:text-white mt-3 text-balance">{idea.headline}</h3>
       <p className="text-[14px] leading-relaxed text-slate-600 dark:text-slate-300 mt-2">{idea.angle}</p>
@@ -111,17 +146,32 @@ function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic }: {
   )
 }
 
-export function Ideas({ report, items, onSubtopic }: { report: Report; items: Map<string, ItemView>; onSubtopic: (id: string) => void }) {
+export function Ideas({ report, items, onSubtopic, saving }: { report: Report; items: Map<string, ItemView>; onSubtopic: (id: string) => void; saving: IdeaSaving }) {
   const quotes = new Map(report.quotes.map((q) => [q.itemId, q.text]))
   const subName = new Map(report.subtopics.map((s) => [s.id, s.name]))
+  const savedHere = report.ideas.filter((i) => saving.saved[i.id]).length
   return (
     <section>
       <SectionHeading
         id="ideas"
         title="Content ideas"
         count={report.ideas.length}
-        hint="Each idea is backed by at least two real posts, checked a second time against them. Open one to see the outline and the sources."
-        action={report.ideas.length ? <CopyButton text={() => report.ideas.map((i, n) => `${n + 1}. ${i.headline}\n   ${i.angle}`).join("\n\n")} label="Copy all" /> : undefined}
+        hint="Each idea is backed by at least two real posts, checked a second time against them. Save the ones worth pursuing to your idea board."
+        action={
+          report.ideas.length ? (
+            <div className="flex items-center gap-1 shrink-0">
+              {savedHere > 0 && (
+                <Link
+                  to="/listening/ideas"
+                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                >
+                  <BookmarkCheck size={14} /> Idea board
+                </Link>
+              )}
+              <CopyButton text={() => report.ideas.map((i, n) => `${n + 1}. ${i.headline}\n   ${i.angle}`).join("\n\n")} label="Copy all" />
+            </div>
+          ) : undefined
+        }
       />
       {report.ideas.length === 0 ? (
         <Card className="p-8 text-center">
@@ -145,6 +195,7 @@ export function Ideas({ report, items, onSubtopic }: { report: Report; items: Ma
               quotes={quotes}
               subtopicName={idea.subtopicId ? subName.get(idea.subtopicId) ?? null : null}
               onSubtopic={() => idea.subtopicId && onSubtopic(idea.subtopicId)}
+              saving={saving}
             />
           ))}
         </div>

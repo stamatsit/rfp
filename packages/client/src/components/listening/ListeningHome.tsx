@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, Loader2, Radar, Search } from "lucide-react"
+import { ArrowRight, BookmarkCheck, Loader2, Radar, Search, Users } from "lucide-react"
 import type { AccessInfo, TimeWindow, TopicRow } from "@/types/listening"
-import { ACCENT, Card, SentimentPill, fmtClock, plural, timeAgo } from "./ui"
+import { ACCENT, Card, SentimentPill, fmtClock, personName, plural, timeAgo } from "./ui"
 
 const EXAMPLES = ["online nursing degrees", "college enrollment trends", "FAFSA changes", "Coe College"]
 
@@ -12,7 +12,7 @@ const WINDOWS: Array<[TimeWindow, string]> = [
   ["any", "Any time"],
 ]
 
-function TopicCard({ t, now }: { t: TopicRow; now: number }) {
+function TopicCard({ t, now, sharedBy }: { t: TopicRow; now: number; sharedBy?: string }) {
   const running = t.lastRunStatus === "running"
   const failed = !running && (t.lastRunStatus === "failed" || t.lastRunStatus === "cancelled") && !t.headline
   return (
@@ -21,6 +21,11 @@ function TopicCard({ t, now }: { t: TopicRow; now: number }) {
       className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded-2xl"
     >
       <Card className="h-full p-5 flex flex-col group-hover:border-black/[0.12] dark:group-hover:border-white/[0.16] group-hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)] transition-all">
+        {(sharedBy || t.shared) && (
+          <span className="self-start inline-flex items-center gap-1 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2 py-0.5 text-[11.5px] font-medium text-sky-700 dark:text-sky-300 mb-2">
+            <Users size={12} /> {sharedBy ? `Shared by ${sharedBy}` : "Shared with your team"}
+          </span>
+        )}
         <h3 className="text-[15.5px] font-semibold leading-snug text-slate-900 dark:text-white line-clamp-2">{t.query}</h3>
         <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-3">
           {t.headline ?? (running ? "First scan in progress..." : failed ? "The last scan did not finish. Open to try again." : "No results yet.")}
@@ -48,6 +53,8 @@ function TopicCard({ t, now }: { t: TopicRow; now: number }) {
 export function ListeningHome({
   access,
   topics,
+  shared = [],
+  ideaCount = null,
   loading,
   starting,
   startError,
@@ -57,6 +64,10 @@ export function ListeningHome({
 }: {
   access: AccessInfo | null
   topics: TopicRow[] | null
+  /** Topics teammates shared: read and export only. */
+  shared?: TopicRow[]
+  /** Ideas on your board, or null if unknown. */
+  ideaCount?: number | null
   loading: boolean
   starting: boolean
   startError: string | null
@@ -184,10 +195,18 @@ export function ListeningHome({
       </section>
 
       <section aria-labelledby="your-topics">
-        <div className="flex items-baseline justify-between mb-4">
+        <div className="flex items-center justify-between gap-3 mb-4">
           <h2 id="your-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500">
             Your topics {topics && topics.length > 0 && <span className="text-slate-400 tabular-nums">{topics.length}</span>}
           </h2>
+          <Link
+            to="/listening/ideas"
+            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200 border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+          >
+            <BookmarkCheck size={15} className="text-sky-600 dark:text-sky-400" />
+            Idea board
+            {ideaCount !== null && <span className="tabular-nums text-slate-400">{ideaCount}</span>}
+          </Link>
         </div>
         {loading && !topics ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
@@ -210,6 +229,22 @@ export function ListeningHome({
           </div>
         )}
       </section>
+
+      {shared.length > 0 && (
+        <section aria-labelledby="shared-topics" className="mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-x-3 gap-y-1 mb-4">
+            <h2 id="shared-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
+              Shared with you <span className="text-slate-400 tabular-nums">{shared.length}</span>
+            </h2>
+            <p className="text-[12.5px] text-slate-400">Read, export and save ideas. Only the owner can rescan.</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {shared.map((t) => (
+              <TopicCard key={t.id} t={t} now={now} sharedBy={personName(t.createdBy)} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

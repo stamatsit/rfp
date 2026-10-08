@@ -174,6 +174,32 @@ export interface TopicRow {
   headline: string | null
   lastRunAt: string | null
   lastRunStatus: RunStatus | null
+  /** Readable by the whole team; only the creator can change it. Absent before sharing existed. */
+  shared?: boolean
+  sharedAt?: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type IdeaStatus = "new" | "pitched" | "in_progress" | "published" | "dropped"
+
+export interface SavedIdeaSource {
+  url: string
+  platform: Platform
+  text: string
+  publishedAt: string | null
+}
+
+/** A frozen copy of a content idea on someone's board. */
+export interface SavedIdea {
+  id: string
+  createdBy: string
+  topicId: string | null
+  topicQuery: string
+  fingerprint: string
+  idea: { headline: string; angle: string; audience: Audience; format: string; whyNow: string; outline: string[]; subtopic: string | null }
+  sources: SavedIdeaSource[]
+  status: IdeaStatus
   createdAt: string
   updatedAt: string
 }
@@ -218,9 +244,13 @@ export interface ItemView {
 
 export interface TopicDetail {
   topic: TopicRow
+  /** "viewer" when someone else shared this topic with you: read and export only. */
+  role?: "owner" | "viewer"
   items: ItemView[]
   runs: RunSummary[]
   activeRun: RunSummary | null
+  /** Report idea id -> your saved copy's id, for ideas already on your board. */
+  savedIdeas?: Record<string, string>
 }
 
 export interface Budget {

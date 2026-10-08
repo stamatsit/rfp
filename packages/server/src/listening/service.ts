@@ -9,7 +9,7 @@ import { abortLocalRun, executeRun, startRun, TopicNotFound, type EngineDeps } f
 import { MAX_SEARCH_CALLS_PER_RUN } from "./harvest.js"
 import { itemViews } from "./report.js"
 import { ActiveRunError, type Store } from "./store.js"
-import type { RunEvent, RunTrigger, TimeWindow, TopicRow } from "./types.js"
+import type { IdeaStatus, RunEvent, RunTrigger, SavedIdea, SavedIdeaSource, TimeWindow, TopicRow } from "./types.js"
 
 export interface ServiceCtx {
   store: Store
@@ -49,8 +49,9 @@ export async function access(ctx: ServiceCtx) {
 /**
  * Topics belong to the person who created them: each user lists, opens,
  * rescans, cancels and deletes only their own. Someone else's topic answers
- * "not found", so its existence never leaks. The Google allowance stays
- * shared: it is one project-wide quota.
+ * "not found", so its existence never leaks, unless its creator shared it:
+ * then everyone with access can open and export it (read only). The Google
+ * allowance stays shared: it is one project-wide quota.
  */
 export function ownsTopic(topic: Pick<TopicRow, "createdBy">, userEmail: string): boolean {
   const who = userEmail.trim().toLowerCase()
@@ -63,6 +64,13 @@ async function ownTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
   return topic && ownsTopic(topic, ctx.userEmail) ? topic : null
 }
 
+/** Your own topic, or one someone shared. */
+async function readableTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
+  if (!UUID.test(id)) return null
+  const topic = await ctx.store.getTopic(id)
+  return topic && (ownsTopic(topic, ctx.userEmail) || topic.shared) ? topic : null
+}
+
 async function ownRun(ctx: ServiceCtx, runId: string) {
   if (!UUID.test(runId)) return null
   const run = await ctx.store.getRun(runId)
@@ -70,22 +78,102 @@ async function ownRun(ctx: ServiceCtx, runId: string) {
   return (await ownTopic(ctx, run.topicId)) ? run : null
 }
 
-export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[] }> {
+export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[]; shared: TopicRow[] }> {
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  return { topics: await ctx.store.listTopics(ctx.userEmail) }
+  const [topics, shared] = await Promise.all([ctx.store.listTopics(ctx.userEmail), ctx.store.listSharedTopics(ctx.userEmail)])
+  return { topics, shared }
 }
 
 export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<unknown>> {
   if (!UUID.test(id)) return { ok: false, status: 404, error: "Topic not found" }
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  const topic = await ownTopic(ctx, id)
+  const topic = await readableTopic(ctx, id)
   if (!topic) return { ok: false, status: 404, error: "Topic not found" }
-  const [items, runs, activeRun] = await Promise.all([
+  const [items, runs, activeRun, saved, board] = await Promise.all([
     ctx.store.allItems(id),
     ctx.store.listRuns(id),
     ctx.store.getActiveRun(id),
+    ctx.store.savedFingerprints(ctx.userEmail, id),
+    ctx.store.listSavedIdeas(ctx.userEmail),
   ])
-  return { ok: true, body: { topic, items: itemViews(items, topic.report), runs, activeRun } }
+  // Which of the report's ideas this person already saved: report idea id -> saved idea id.
+  const savedIdeas: Record<string, string> = {}
+  for (const idea of topic.report?.ideas ?? []) {
+    const fp = ideaFingerprint(id, idea.headline)
+    if (!saved.has(fp)) continue
+    const row = board.find((b) => b.fingerprint === fp)
+    if (row) savedIdeas[idea.id] = row.id
+  }
+  const role = ownsTopic(topic, ctx.userEmail) ? "owner" : "viewer"
+  return { ok: true, body: { topic, role, items: itemViews(items, topic.report), runs, activeRun, savedIdeas } }
+}
+
+/** Owner only: make a topic readable by everyone with access, or private again. */
+export async function shareTopic(ctx: ServiceCtx, id: string, shared: unknown): Promise<Result<{ shared: boolean }>> {
+  if (typeof shared !== "boolean") return { ok: false, status: 400, error: "Say whether to share: true or false", code: "bad_share" }
+  if (!(await ownTopic(ctx, id))) return { ok: false, status: 404, error: "Topic not found" }
+  await ctx.store.setShared(id, shared)
+  return { ok: true, body: { shared } }
+}
+
+// ─── Idea board ─────────────────────────────────────────────────────────────
+
+const STATUSES: IdeaStatus[] = ["new", "pitched", "in_progress", "published", "dropped"]
+
+/** One save per idea per person: the topic plus the headline, ignoring case and punctuation. */
+export function ideaFingerprint(topicId: string, headline: string): string {
+  return `${topicId}:${headline.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}`
+}
+
+export async function listIdeas(ctx: ServiceCtx): Promise<{ ideas: SavedIdea[] }> {
+  return { ideas: await ctx.store.listSavedIdeas(ctx.userEmail) }
+}
+
+/** Save a frozen copy of one of a topic's current ideas, with its sources, to this person's board. */
+export async function saveIdea(ctx: ServiceCtx, body: { topicId?: unknown; ideaId?: unknown }): Promise<Result<{ idea: SavedIdea }>> {
+  if (typeof body.topicId !== "string" || typeof body.ideaId !== "string") return { ok: false, status: 400, error: "Choose an idea to save", code: "bad_idea" }
+  const topic = await readableTopic(ctx, body.topicId)
+  if (!topic) return { ok: false, status: 404, error: "Topic not found" }
+  const idea = topic.report?.ideas.find((i) => i.id === body.ideaId)
+  if (!idea) return { ok: false, status: 404, error: "That idea is no longer in this report. Reload the page.", code: "idea_gone" }
+  const items = new Map((await ctx.store.allItems(topic.id)).map((it) => [it.id, it]))
+  const quotes = new Map((topic.report?.quotes ?? []).map((q) => [q.itemId, q.text]))
+  const sources: SavedIdeaSource[] = idea.evidenceItemIds.flatMap((id) => {
+    const it = items.get(id)
+    if (!it) return []
+    const excerpt = it.labels?.quote ?? quotes.get(id) ?? (it.kind === "comment" || !it.title ? it.text : `${it.title}: ${it.text}`)
+    const text = excerpt.replace(/\s+/g, " ").trim()
+    return [{ url: it.url, platform: it.platform, text: text.length > 300 ? text.slice(0, 300).replace(/\s+\S*$/, "") + "..." : text, publishedAt: it.publishedAt ?? null }]
+  })
+  const subtopic = idea.subtopicId ? topic.report?.subtopics.find((s) => s.id === idea.subtopicId)?.name ?? null : null
+  const saved = await ctx.store.saveIdea({
+    createdBy: ctx.userEmail,
+    topicId: topic.id,
+    topicQuery: topic.query,
+    fingerprint: ideaFingerprint(topic.id, idea.headline),
+    idea: { headline: idea.headline, angle: idea.angle, audience: idea.audience, format: idea.format, whyNow: idea.whyNow, outline: idea.outline, subtopic },
+    sources,
+  })
+  return { ok: true, body: { idea: saved } }
+}
+
+async function ownIdea(ctx: ServiceCtx, id: string): Promise<SavedIdea | null> {
+  if (!UUID.test(id)) return null
+  const idea = await ctx.store.getSavedIdea(id)
+  return idea && ownsTopic(idea, ctx.userEmail) ? idea : null
+}
+
+export async function setIdeaStatus(ctx: ServiceCtx, id: string, status: unknown): Promise<Result<{ status: IdeaStatus }>> {
+  if (!STATUSES.includes(status as IdeaStatus)) return { ok: false, status: 400, error: "Unknown status", code: "bad_status" }
+  if (!(await ownIdea(ctx, id))) return { ok: false, status: 404, error: "Idea not found" }
+  await ctx.store.setIdeaStatus(id, status as IdeaStatus)
+  return { ok: true, body: { status: status as IdeaStatus } }
+}
+
+export async function removeIdea(ctx: ServiceCtx, id: string): Promise<Result<{ ok: true }>> {
+  if (!(await ownIdea(ctx, id))) return { ok: false, status: 404, error: "Idea not found" }
+  await ctx.store.deleteSavedIdea(id)
+  return { ok: true, body: { ok: true } }
 }
 
 export async function removeTopic(ctx: ServiceCtx, id: string): Promise<Result<{ ok: true }>> {

@@ -5,7 +5,7 @@
 import { useState, type ReactNode } from "react"
 import { Check, Copy } from "lucide-react"
 import { toast } from "@/hooks/useToast"
-import type { Audience, ItemView, Platform, Report, Sentiment, SentimentBreakdown } from "@/types/listening"
+import type { Audience, IdeaStatus, ItemView, Platform, Report, Sentiment, SentimentBreakdown } from "@/types/listening"
 
 export const ACCENT = "linear-gradient(135deg, #0D9488 0%, #0284C7 55%, #4F46E5 100%)"
 
@@ -52,6 +52,27 @@ export function plural(n: number, one: string, many = `${one}s`): string {
 export function pct(n: number, d: number): number {
   return d ? Math.round((100 * n) / d) : 0
 }
+
+/** "eric.yerke@stamats.com" -> "Eric Yerke". */
+export function personName(email: string): string {
+  const local = email.split("@")[0] ?? email
+  return local
+    .split(/[._-]+/)
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ")
+}
+
+// ─── idea board ─────────────────────────────────────────────────────────────
+
+export const IDEA_STATUS: Record<IdeaStatus, { label: string; dot: string }> = {
+  new: { label: "New", dot: "#94A3B8" },
+  pitched: { label: "Pitched", dot: "#0EA5E9" },
+  in_progress: { label: "In progress", dot: "#F59E0B" },
+  published: { label: "Published", dot: "#10B981" },
+  dropped: { label: "Dropped", dot: "#CBD5E1" },
+}
+export const IDEA_STATUS_ORDER: IdeaStatus[] = ["new", "pitched", "in_progress", "published", "dropped"]
 
 // ─── the sample ─────────────────────────────────────────────────────────────
 
@@ -229,7 +250,7 @@ export function Card({ children, className = "", id }: { children: ReactNode; cl
 
 export function SectionHeading({ id, title, hint, action, count }: { id: string; title: string; hint?: string; action?: ReactNode; count?: number }) {
   return (
-    <div className="flex items-end justify-between gap-4 mb-4 scroll-mt-32" id={id}>
+    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-x-4 gap-y-2 mb-4 scroll-mt-32" id={id}>
       <div>
         <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
           {title}

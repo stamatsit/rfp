@@ -51,6 +51,9 @@ export function buildDetail(
     institution?: boolean
     noIdeas?: boolean
     thin?: boolean
+    /** Someone else shared this topic with the signed-in user. */
+    viewer?: boolean
+    shared?: boolean
   } = {},
 ) {
   const legacy = opts.version === 1
@@ -156,7 +159,9 @@ export function buildDetail(
   return {
     topic: {
       id: TOPIC_ID,
-      createdBy: "eric.yerke@stamats.com",
+      createdBy: opts.viewer ? "mariah.tang@stamats.com" : "eric.yerke@stamats.com",
+      shared: !!(opts.shared || opts.viewer),
+      sharedAt: opts.shared || opts.viewer ? "2026-10-07T21:00:00.000Z" : null,
       query,
       timeWindow: "1y",
       plan: {
@@ -177,9 +182,11 @@ export function buildDetail(
       createdAt: "2026-10-07T20:00:00.000Z",
       updatedAt: "2026-10-07T20:02:00.000Z",
     },
+    role: (opts.viewer ? "viewer" : "owner") as "viewer" | "owner",
     items,
     runs,
     activeRun: null,
+    savedIdeas: {} as Record<string, string>,
   }
 }
 
@@ -199,23 +206,31 @@ export const RUN_EVENTS = (trigger: "initial" | "rescan" | "rebuild", runId: str
 
 export interface Mock {
   topics: unknown[]
+  /** Topics teammates shared with the signed-in user. */
+  shared: unknown[]
   detail: ReturnType<typeof buildDetail>
   scanStatus: number
   scanBody: string
   posts: Array<{ url: string; body: unknown }>
+  patches: Array<{ url: string; body: unknown }>
   deletes: string[]
   runStatus: string
+  /** The idea board, as the server holds it. */
+  ideas: Array<Record<string, unknown> & { id: string; status: string }>
 }
 
 export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbidden?: boolean } = {}): Promise<Mock> {
   const m: Mock = {
     topics: [],
+    shared: [],
     detail: buildDetail(),
     scanStatus: 200,
     scanBody: sse(RUN_EVENTS("initial", RUN_1)),
     posts: [],
+    patches: [],
     deletes: [],
     runStatus: "complete",
+    ideas: [],
     ...over,
   }
   const consoleErrors: string[] = []
@@ -236,9 +251,58 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     if (opts.forbidden) return r.fulfill({ status: 403, json: { error: "Access denied" } })
     if (method === "GET" && path === "/access")
       return r.fulfill({ json: { allowed: true, sources: { search: true, youtube: true, model: true, redditArchive: true }, budget: { used: 32, limit: 100, resetsAt: "2026-10-08T07:00:00.000Z", scansLeft: 3 } } })
-    if (method === "GET" && path === "/topics") return r.fulfill({ json: { topics: m.topics } })
-    if (method === "GET" && path === `/topics/${TOPIC_ID}`) return r.fulfill({ json: m.detail })
+    if (method === "GET" && path === "/topics") return r.fulfill({ json: { topics: m.topics, shared: m.shared } })
+    if (method === "GET" && path === `/topics/${TOPIC_ID}`) {
+      // Mark ideas already on the board, as the server does.
+      const savedIdeas: Record<string, string> = {}
+      for (const s of m.ideas) if (s["topicId"] === TOPIC_ID && typeof s["reportIdeaId"] === "string") savedIdeas[s["reportIdeaId"] as string] = s.id
+      return r.fulfill({ json: { ...m.detail, savedIdeas } })
+    }
     if (method === "GET" && path.startsWith("/runs/")) return r.fulfill({ json: { run: { ...m.detail.runs[0], status: m.runStatus } } })
+    if (method === "GET" && path === "/ideas") return r.fulfill({ json: { ideas: m.ideas } })
+    if (method === "POST" && path === `/topics/${TOPIC_ID}/share`) {
+      const body = req.postDataJSON() as { shared: boolean }
+      m.posts.push({ url: path, body })
+      m.detail = { ...m.detail, topic: { ...m.detail.topic, shared: body.shared } }
+      return r.fulfill({ json: { shared: body.shared } })
+    }
+    if (method === "POST" && path === "/ideas") {
+      const body = req.postDataJSON() as { topicId: string; ideaId: string }
+      m.posts.push({ url: path, body })
+      const idea = m.detail.topic.report?.ideas.find((i) => i.id === body.ideaId)
+      if (!idea) return r.fulfill({ status: 404, json: { error: "That idea is no longer in this report. Reload the page.", code: "idea_gone" } })
+      const saved = {
+        id: `saved-${m.ideas.length + 1}`,
+        reportIdeaId: idea.id,
+        createdBy: "eric.yerke@stamats.com",
+        topicId: body.topicId,
+        topicQuery: m.detail.topic.query,
+        fingerprint: `${body.topicId}:${idea.headline.toLowerCase()}`,
+        idea: { headline: idea.headline, angle: idea.angle, audience: idea.audience, format: idea.format, whyNow: idea.whyNow, outline: idea.outline, subtopic: "Clinical placement" },
+        sources: idea.evidenceItemIds.map((id) => {
+          const it = m.detail.items.find((x) => x.id === id)!
+          return { url: it.url, platform: it.platform, text: it.excerpt, publishedAt: it.publishedAt }
+        }),
+        status: "new",
+        createdAt: "2026-10-08T15:00:00.000Z",
+        updatedAt: "2026-10-08T15:00:00.000Z",
+      }
+      m.ideas.unshift(saved)
+      return r.fulfill({ json: { idea: saved } })
+    }
+    if (method === "PATCH" && path.startsWith("/ideas/")) {
+      const body = req.postDataJSON() as { status: string }
+      m.patches.push({ url: path, body })
+      const s = m.ideas.find((i) => `/ideas/${i.id}` === path)
+      if (!s) return r.fulfill({ status: 404, json: { error: "Idea not found" } })
+      s.status = body.status
+      return r.fulfill({ json: { status: body.status } })
+    }
+    if (method === "DELETE" && path.startsWith("/ideas/")) {
+      m.deletes.push(path)
+      m.ideas = m.ideas.filter((i) => `/ideas/${i.id}` !== path)
+      return r.fulfill({ json: { ok: true } })
+    }
     if (method === "POST") {
       m.posts.push({ url: path, body: req.postDataJSON?.() ?? null })
       if (path.endsWith("/cancel")) return r.fulfill({ json: { ok: true } })

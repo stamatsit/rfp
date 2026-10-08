@@ -45,7 +45,8 @@ export function Overview({
   report: Report
   onSuggestion: (q: string) => void
   onShowNotCounted: () => void
-  onRefresh: () => void
+  /** Absent for someone viewing a shared topic: only its owner can refresh it. */
+  onRefresh?: () => void
   busy: boolean
   /** The topic's time range is shorter than "any time". */
   canWiden: boolean
@@ -71,18 +72,21 @@ export function Overview({
             <div className="flex-1">
               <p className="text-[14.5px] font-semibold text-slate-900 dark:text-white">This report was made before the accuracy update</p>
               <p className="text-[13.5px] text-slate-600 dark:text-slate-300 mt-1">
-                It counted every relevant post as public conversation, including passing mentions and posts from organizations&apos; own accounts. Refresh to recount it from what was already collected. No new searches are used.
+                It counted every relevant post as public conversation, including passing mentions and posts from organizations&apos; own accounts.{" "}
+                {onRefresh ? "Refresh to recount it from what was already collected. No new searches are used." : "Its owner can refresh it to recount."}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onRefresh}
-              disabled={busy}
-              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-[14px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
-            >
-              <RotateCcw size={15} />
-              Refresh analysis
-            </button>
+            {onRefresh && (
+              <button
+                type="button"
+                onClick={onRefresh}
+                disabled={busy}
+                className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl px-4 h-10 text-[14px] font-semibold text-white bg-sky-600 hover:bg-sky-700 disabled:opacity-60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
+              >
+                <RotateCcw size={15} />
+                Refresh analysis
+              </button>
+            )}
           </div>
         </Card>
       )}

@@ -125,6 +125,47 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-8-legacy.png` })
     })
 
+    test(`${vp.name} ${t} sharing and board`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      const mine = buildDetail({ institution: true })
+      const theirs = buildDetail({ viewer: true })
+      const m = await setup(page, { topics: [{ ...mine.topic, shared: true }], shared: [{ ...theirs.topic, id: "t9", query: "FAFSA changes", headline: "Parents and students are frustrated by lower aid estimates and confusing corrections." }], detail: mine })
+      await page.goto("/listening")
+      await page.getByRole("heading", { name: /Shared with you/ }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-9-home-shared.png`, fullPage: true })
+
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("People weigh flexibility").waitFor()
+      await page.getByRole("button", { name: "Share", exact: true }).click()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-10-share.png` })
+      await page.keyboard.press("Escape")
+
+      // Save two ideas, then show the board with mixed statuses.
+      for (const n of [0, 1]) {
+        await page.getByRole("button", { name: "Save", exact: true }).first().click()
+        await page.getByRole("button", { name: "Saved", exact: true }).nth(n).waitFor()
+      }
+      m.ideas[0]!.status = "pitched"
+      m.ideas.push({ ...m.ideas[1]!, id: "saved-x", status: "published", topicId: null, topicQuery: "Spring enrollment push" })
+      await page.locator("#ideas").scrollIntoViewIfNeeded()
+      await settle(page)
+      await page.locator("#ideas").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-11-ideas-saved.png` })
+      await page.goto("/listening/ideas")
+      await page.getByRole("heading", { level: 1, name: "Idea board" }).waitFor()
+      await page.getByRole("button", { name: /Outline and 3 sources/ }).first().click()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-12-board.png`, fullPage: true })
+
+      m.detail = theirs
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("read only").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-13-viewer.png` })
+    })
+
     test(`${vp.name} ${t} progress`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await theme(page, t)

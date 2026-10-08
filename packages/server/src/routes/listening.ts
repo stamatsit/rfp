@@ -60,8 +60,13 @@ router.get("/access", wrap(async (req, res) => res.json(await svc.access(ctx(req
 router.get("/topics", wrap(async (req, res) => res.json(await svc.listTopics(ctx(req)))))
 router.get("/topics/:id", wrap(async (req, res) => send(res, await svc.topicDetail(ctx(req), req.params["id"]!))))
 router.delete("/topics/:id", wrap(async (req, res) => send(res, await svc.removeTopic(ctx(req), req.params["id"]!))))
+router.post("/topics/:id/share", wrap(async (req, res) => send(res, await svc.shareTopic(ctx(req), req.params["id"]!, req.body?.shared))))
 router.get("/runs/:id", wrap(async (req, res) => send(res, await svc.runStatus(ctx(req), req.params["id"]!))))
 router.post("/runs/:id/cancel", wrap(async (req, res) => send(res, await svc.cancelRun(ctx(req), req.params["id"]!))))
+router.get("/ideas", wrap(async (req, res) => res.json(await svc.listIdeas(ctx(req)))))
+router.post("/ideas", wrap(async (req, res) => send(res, await svc.saveIdea(ctx(req), req.body ?? {}))))
+router.patch("/ideas/:id", wrap(async (req, res) => send(res, await svc.setIdeaStatus(ctx(req), req.params["id"]!, req.body?.status))))
+router.delete("/ideas/:id", wrap(async (req, res) => send(res, await svc.removeIdea(ctx(req), req.params["id"]!))))
 
 async function stream(req: Request, res: Response, request: svc.RunRequest) {
   const c = ctx(req)

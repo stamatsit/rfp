@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { AlertCircle, ChevronDown, ChevronLeft, Copy, Download, FileText, FileType2, Loader2, MoreHorizontal, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
+import { AlertCircle, ChevronDown, ChevronLeft, Copy, Download, FileText, FileType2, Loader2, Lock, MoreHorizontal, RefreshCw, RotateCcw, Trash2, Users } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/useToast"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
@@ -9,13 +9,13 @@ import { ListeningApiError, listeningApi } from "@/lib/listeningApi"
 import type { ItemView, TopicDetail } from "@/types/listening"
 import { ScanProgress } from "./ScanProgress"
 import { Overview } from "./report/Overview"
-import { Ideas } from "./report/Ideas"
+import { Ideas, type IdeaSaving } from "./report/Ideas"
 import { Questions } from "./report/Questions"
 import { News, OwnVoice, Subtopics, Voices } from "./report/Subtopics"
 import { Sources, type SourceView } from "./report/Sources"
 import { Method } from "./report/Method"
 import { exportDocx, exportPdf, type ExportInput } from "./exportReport"
-import { ACCENT, Card, WINDOW_LABEL, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
+import { ACCENT, Card, WINDOW_LABEL, personName, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
 
 type Scan = ReturnType<typeof useScan>
 
@@ -69,6 +69,71 @@ function SectionNav({ ideas, questions, hasSubtopics, ownName }: { ideas: number
         ))}
       </ul>
     </nav>
+  )
+}
+
+/** Owner only: share the topic with everyone who has Topic Ideation (read and export), or make it private again. */
+function ShareControl({ shared, onChange }: { shared: boolean; onChange: (next: boolean) => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false)
+    document.addEventListener("mousedown", close)
+    document.addEventListener("keydown", esc)
+    return () => {
+      document.removeEventListener("mousedown", close)
+      document.removeEventListener("keydown", esc)
+    }
+  }, [open])
+  const toggle = async () => {
+    setBusy(true)
+    await onChange(!shared)
+    setBusy(false)
+  }
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={`h-10 inline-flex items-center gap-2 rounded-xl px-3.5 border text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
+          shared
+            ? "border-sky-200 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-100 dark:hover:bg-sky-500/20"
+            : "border-black/[0.08] dark:border-white/[0.1] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+        }`}
+      >
+        {shared ? <Users size={15} /> : <Lock size={15} />}
+        {shared ? "Shared" : "Share"}
+      </button>
+      {open && (
+        <div role="dialog" aria-label="Share with your team" className="absolute left-0 sm:left-auto sm:right-0 top-12 z-[160] w-[min(22rem,calc(100vw-2rem))] rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 shadow-xl p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[14px] font-semibold text-slate-900 dark:text-white">Share with your team</p>
+              <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                Everyone with Topic Ideation can open this topic, export it and save its ideas. Only you can rescan, refresh or delete it.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={shared}
+              aria-label="Share with your team"
+              disabled={busy}
+              onClick={() => void toggle()}
+              className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500 disabled:opacity-60 ${shared ? "bg-sky-600" : "bg-slate-300 dark:bg-slate-600"}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${shared ? "translate-x-5" : ""}`} />
+            </button>
+          </div>
+          <p className="text-[12px] text-slate-400 mt-3">{shared ? "Shared. Turn it off to make it private again." : "Private. Only you can see it."}</p>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -237,13 +302,62 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
     void load()
   }, [load])
 
-  // Follow a scan already running for this topic (page reload, second tab).
+  // Follow a scan already running for this topic (page reload, second tab). Owners only: a shared topic's scans are its owner's.
   useEffect(() => {
     const ar = detail?.activeRun
+    if (detail?.role === "viewer") return
     if (ar && scan.state.runId !== ar.id && scan.state.phase !== "running" && scan.state.phase !== "starting") {
       scan.attach(topicId, ar.id, ar.startedAt, ar.trigger)
     }
-  }, [detail?.activeRun, scan, topicId])
+  }, [detail?.activeRun, detail?.role, scan, topicId])
+
+  // Ideas on your board, by report idea id.
+  const [saved, setSaved] = useState<Record<string, string>>({})
+  const [savingId, setSavingId] = useState<string | null>(null)
+  useEffect(() => setSaved(detail?.savedIdeas ?? {}), [detail?.savedIdeas])
+  const saving: IdeaSaving = {
+    saved,
+    busy: savingId,
+    onSave: async (ideaId) => {
+      setSavingId(ideaId)
+      try {
+        const r = await listeningApi.saveIdea(topicId, ideaId)
+        setSaved((s) => ({ ...s, [ideaId]: r.idea.id }))
+        toast.success("Saved to your idea board")
+      } catch (err) {
+        toast.error((err as ListeningApiError).message ?? "Could not save the idea")
+      } finally {
+        setSavingId(null)
+      }
+    },
+    onUnsave: async (ideaId) => {
+      const id = saved[ideaId]
+      if (!id) return
+      setSavingId(ideaId)
+      try {
+        await listeningApi.removeIdea(id)
+        setSaved((s) => {
+          const next = { ...s }
+          delete next[ideaId]
+          return next
+        })
+        toast.info("Removed from your idea board")
+      } catch (err) {
+        toast.error((err as ListeningApiError).message ?? "Could not remove the idea")
+      } finally {
+        setSavingId(null)
+      }
+    },
+  }
+  const setShared = async (next: boolean) => {
+    try {
+      await listeningApi.share(topicId, next)
+      setDetail((d) => (d ? { ...d, topic: { ...d.topic, shared: next } } : d))
+      toast.success(next ? "Shared with your team" : "This topic is private again")
+    } catch (err) {
+      toast.error((err as ListeningApiError).message ?? "Could not change sharing")
+    }
+  }
 
   // When this topic's scan settles, reload and say what changed.
   useEffect(() => {
@@ -337,6 +451,8 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
 
   const runsDone = detail!.runs.filter((r) => r.status === "complete").length
   const lastFailed = detail!.runs[0]?.status === "failed" ? detail!.runs[0] : null
+  // Someone else's shared topic: read, export and save ideas; no scans, refresh, sharing or delete.
+  const viewer = detail!.role === "viewer"
   const meta = report
     ? [
         sampleLabel(report),
@@ -354,30 +470,46 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
 
       <header id="top" className="scroll-mt-32 flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-3 mb-5">
         <div className="min-w-0">
+          {viewer && (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2.5 py-1 text-[12px] font-medium text-sky-700 dark:text-sky-300 mb-2">
+              <Users size={13} /> Shared by {personName(topic.createdBy)} · read only
+            </p>
+          )}
           <h1 className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white break-words">{topic.query}</h1>
           <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1.5">{meta.join(" · ")}</p>
         </div>
         {report && (
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {!viewer && <ShareControl shared={!!topic.shared} onChange={setShared} />}
             <ExportMenu input={() => ({ report, topic, items, runs: detail!.runs })} />
-            <button
-              type="button"
-              onClick={rescan}
-              disabled={scanning}
-              title="Finds new posts and digs deeper. Uses about 20 of today's searches."
-              className="h-10 inline-flex items-center gap-2 rounded-xl px-4 text-[14px] font-semibold text-white shadow-sm disabled:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
-              style={{ background: ACCENT }}
-            >
-              <RefreshCw size={15} className={scanning ? "animate-spin motion-reduce:animate-none" : ""} />
-              {scanning ? "Scanning..." : "Rescan for more"}
-            </button>
-            <Menu onRebuild={rebuild} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
+            {!viewer && (
+              <>
+                <button
+                  type="button"
+                  onClick={rescan}
+                  disabled={scanning}
+                  title="Finds new posts and digs deeper. Uses about 20 of today's searches."
+                  className="h-10 inline-flex items-center gap-2 rounded-xl px-4 text-[14px] font-semibold text-white shadow-sm disabled:opacity-60 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-sky-500"
+                  style={{ background: ACCENT }}
+                >
+                  <RefreshCw size={15} className={scanning ? "animate-spin motion-reduce:animate-none" : ""} />
+                  {scanning ? "Scanning..." : "Rescan for more"}
+                </button>
+                <Menu onRebuild={rebuild} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
+              </>
+            )}
           </div>
         )}
       </header>
 
+      {!report && viewer && (
+        <Card className="p-7 max-w-2xl">
+          <p className="text-[15px] text-slate-700 dark:text-slate-200">This shared topic has no results yet. {personName(topic.createdBy)} can run its scan.</p>
+        </Card>
+      )}
+
       {/* No report yet: the first scan is running, failed, or was cancelled. */}
-      {!report && (
+      {!report && !viewer && (
         <div className="max-w-2xl">
           {scanning || (scan.state.topicId === topicId && scan.state.phase === "done") ? (
             <ScanProgress state={scan.state} query={topic.query} onCancel={scan.cancel} />
@@ -425,11 +557,11 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
               report={report}
               onSuggestion={onNewSearch}
               onShowNotCounted={() => showSources("notCounted")}
-              onRefresh={rebuild}
+              onRefresh={viewer ? undefined : rebuild}
               busy={scanning}
               canWiden={topic.timeWindow !== "any"}
             />
-            <Ideas report={report} items={items} onSubtopic={jumpToSubtopic} />
+            <Ideas report={report} items={items} onSubtopic={jumpToSubtopic} saving={saving} />
             <Questions report={report} />
             <Subtopics report={report} items={items} openId={openSubtopic} onShowAll={showAllInSubtopic} />
             <Voices report={report} />

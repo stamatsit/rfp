@@ -10,8 +10,10 @@ import type { ThreadUpdate } from "./harvest.js"
 import {
   LABEL_VERSION,
   type Coverage,
+  type IdeaStatus,
   type Item,
   type ItemLabels,
+  type SavedIdea,
   type Plan,
   type RawItem,
   type Report,
@@ -51,6 +53,18 @@ export interface Store {
   getTopic(id: string): Promise<TopicRow | null>
   /** Topics created by this user (case-insensitive email), newest activity first. */
   listTopics(createdBy: string): Promise<TopicRow[]>
+  /** Topics other people have shared, newest activity first. */
+  listSharedTopics(excludeCreatedBy: string): Promise<TopicRow[]>
+  /** Share or unshare; does not count as activity (updated_at stays). */
+  setShared(id: string, shared: boolean): Promise<void>
+  listSavedIdeas(createdBy: string): Promise<SavedIdea[]>
+  getSavedIdea(id: string): Promise<SavedIdea | null>
+  /** Inserts, or returns the existing save when this person already saved the same idea. */
+  saveIdea(input: Omit<SavedIdea, "id" | "status" | "createdAt" | "updatedAt">): Promise<SavedIdea>
+  setIdeaStatus(id: string, status: IdeaStatus): Promise<void>
+  deleteSavedIdea(id: string): Promise<void>
+  /** Fingerprints this person saved from one topic, to mark ideas as saved. */
+  savedFingerprints(createdBy: string, topicId: string): Promise<Set<string>>
   updateTopic(id: string, patch: TopicPatch): Promise<void>
   deleteTopic(id: string): Promise<void>
   createRun(topicId: string, createdBy: string, trigger: RunTrigger): Promise<string>
@@ -96,6 +110,23 @@ function topicFromRow(r: Record<string, any>, withReport = true): TopicRow {
     headline: r.headline ?? null,
     lastRunAt: iso(r.last_run_at),
     lastRunStatus: r.last_run_status ?? null,
+    shared: r.shared === true,
+    sharedAt: iso(r.shared_at),
+    createdAt: iso(r.created_at)!,
+    updatedAt: iso(r.updated_at)!,
+  }
+}
+
+function savedIdeaFromRow(r: Record<string, any>): SavedIdea {
+  return {
+    id: r.id,
+    createdBy: r.created_by,
+    topicId: r.topic_id ?? null,
+    topicQuery: r.topic_query,
+    fingerprint: r.fingerprint,
+    idea: r.idea,
+    sources: r.sources ?? [],
+    status: r.status,
     createdAt: iso(r.created_at)!,
     updatedAt: iso(r.updated_at)!,
   }
@@ -159,10 +190,63 @@ export class PgStore implements Store {
   async listTopics(createdBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
       FROM listening_topics WHERE lower(created_by) = ${createdBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
+  }
+
+  async listSharedTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
+    const rows = await this.sql`
+      SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
+             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
+      FROM listening_topics WHERE shared AND lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
+      ORDER BY updated_at DESC LIMIT 200`
+    return rows.map((r) => topicFromRow(r, false))
+  }
+
+  async setShared(id: string, shared: boolean): Promise<void> {
+    await this.sql`UPDATE listening_topics SET shared = ${shared}, shared_at = ${shared ? new Date() : null} WHERE id = ${id}::uuid`
+  }
+
+  async listSavedIdeas(createdBy: string): Promise<SavedIdea[]> {
+    const rows = await this.sql`
+      SELECT * FROM listening_saved_ideas WHERE lower(created_by) = ${createdBy.trim().toLowerCase()}
+      ORDER BY created_at DESC LIMIT 500`
+    return rows.map(savedIdeaFromRow)
+  }
+
+  async getSavedIdea(id: string): Promise<SavedIdea | null> {
+    const [r] = await this.sql`SELECT * FROM listening_saved_ideas WHERE id = ${id}::uuid`
+    return r ? savedIdeaFromRow(r) : null
+  }
+
+  async saveIdea(input: Omit<SavedIdea, "id" | "status" | "createdAt" | "updatedAt">): Promise<SavedIdea> {
+    const [r] = await this.sql`
+      INSERT INTO listening_saved_ideas (created_by, topic_id, topic_query, fingerprint, idea, sources)
+      VALUES (${input.createdBy}, ${input.topicId}, ${input.topicQuery}, ${input.fingerprint},
+              ${this.sql.json(input.idea as never)}, ${this.sql.json(input.sources as never)})
+      ON CONFLICT (created_by, fingerprint) DO NOTHING
+      RETURNING *`
+    if (r) return savedIdeaFromRow(r)
+    const [existing] = await this.sql`
+      SELECT * FROM listening_saved_ideas WHERE created_by = ${input.createdBy} AND fingerprint = ${input.fingerprint}`
+    return savedIdeaFromRow(existing!)
+  }
+
+  async setIdeaStatus(id: string, status: IdeaStatus): Promise<void> {
+    await this.sql`UPDATE listening_saved_ideas SET status = ${status}, updated_at = now() WHERE id = ${id}::uuid`
+  }
+
+  async deleteSavedIdea(id: string): Promise<void> {
+    await this.sql`DELETE FROM listening_saved_ideas WHERE id = ${id}::uuid`
+  }
+
+  async savedFingerprints(createdBy: string, topicId: string): Promise<Set<string>> {
+    const rows = await this.sql`
+      SELECT fingerprint FROM listening_saved_ideas
+      WHERE lower(created_by) = ${createdBy.trim().toLowerCase()} AND topic_id = ${topicId}::uuid`
+    return new Set(rows.map((r) => r["fingerprint"] as string))
   }
 
   async updateTopic(id: string, p: TopicPatch): Promise<void> {
@@ -389,11 +473,57 @@ export class MemoryStore implements Store {
       headline: null,
       lastRunAt: null,
       lastRunStatus: null,
+      shared: false,
+      sharedAt: null,
       createdAt: now,
       updatedAt: now,
     }
     this.topics.set(t.id, t)
     return structuredClone(t)
+  }
+  async listSharedTopics(excludeCreatedBy: string) {
+    const who = excludeCreatedBy.trim().toLowerCase()
+    return [...this.topics.values()]
+      .filter((t) => t.shared && t.createdBy.trim().toLowerCase() !== who)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((t) => ({ ...structuredClone(t), report: null }))
+  }
+  async setShared(id: string, shared: boolean) {
+    const t = this.topics.get(id)
+    if (!t) return
+    t.shared = shared
+    t.sharedAt = shared ? new Date().toISOString() : null
+  }
+  ideas = new Map<string, SavedIdea>()
+  async listSavedIdeas(createdBy: string) {
+    const who = createdBy.trim().toLowerCase()
+    return [...this.ideas.values()]
+      .filter((i) => i.createdBy.trim().toLowerCase() === who)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .map((i) => structuredClone(i))
+  }
+  async getSavedIdea(id: string) {
+    const i = this.ideas.get(id)
+    return i ? structuredClone(i) : null
+  }
+  async saveIdea(input: Omit<SavedIdea, "id" | "status" | "createdAt" | "updatedAt">) {
+    const existing = [...this.ideas.values()].find((i) => i.createdBy === input.createdBy && i.fingerprint === input.fingerprint)
+    if (existing) return structuredClone(existing)
+    const now = new Date().toISOString()
+    const row: SavedIdea = { ...structuredClone(input), id: crypto.randomUUID(), status: "new", createdAt: now, updatedAt: now }
+    this.ideas.set(row.id, row)
+    return structuredClone(row)
+  }
+  async setIdeaStatus(id: string, status: IdeaStatus) {
+    const i = this.ideas.get(id)
+    if (i) Object.assign(i, { status, updatedAt: new Date().toISOString() })
+  }
+  async deleteSavedIdea(id: string) {
+    this.ideas.delete(id)
+  }
+  async savedFingerprints(createdBy: string, topicId: string) {
+    const who = createdBy.trim().toLowerCase()
+    return new Set([...this.ideas.values()].filter((i) => i.createdBy.trim().toLowerCase() === who && i.topicId === topicId).map((i) => i.fingerprint))
   }
   async getTopic(id: string) {
     const t = this.topics.get(id)
@@ -415,6 +545,8 @@ export class MemoryStore implements Store {
     this.topics.delete(id)
     for (const [k, r] of this.runs) if (r.topicId === id) this.runs.delete(k)
     for (const [k, it] of this.items) if (it.topicId === id) this.items.delete(k)
+    // Saved ideas outlive their topic (ON DELETE SET NULL).
+    for (const i of this.ideas.values()) if (i.topicId === id) i.topicId = null
   }
   async createRun(topicId: string, createdBy: string, trigger: RunTrigger) {
     await this.failStaleRuns(STALE_RUN_MS)
