@@ -49,7 +49,8 @@ export interface RunFinish {
 export interface Store {
   createTopic(input: { createdBy: string; query: string; timeWindow: TimeWindow }): Promise<TopicRow>
   getTopic(id: string): Promise<TopicRow | null>
-  listTopics(): Promise<TopicRow[]>
+  /** Topics created by this user (case-insensitive email), newest activity first. */
+  listTopics(createdBy: string): Promise<TopicRow[]>
   updateTopic(id: string, patch: TopicPatch): Promise<void>
   deleteTopic(id: string): Promise<void>
   createRun(topicId: string, createdBy: string, trigger: RunTrigger): Promise<string>
@@ -155,11 +156,12 @@ export class PgStore implements Store {
     return r ? topicFromRow(r) : null
   }
 
-  async listTopics(): Promise<TopicRow[]> {
+  async listTopics(createdBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
              last_run_at, last_run_status, created_at, updated_at
-      FROM listening_topics ORDER BY updated_at DESC LIMIT 200`
+      FROM listening_topics WHERE lower(created_by) = ${createdBy.trim().toLowerCase()}
+      ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
   }
 
@@ -397,8 +399,12 @@ export class MemoryStore implements Store {
     const t = this.topics.get(id)
     return t ? structuredClone(t) : null
   }
-  async listTopics() {
-    return [...this.topics.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map((t) => ({ ...structuredClone(t), report: null }))
+  async listTopics(createdBy: string) {
+    const who = createdBy.trim().toLowerCase()
+    return [...this.topics.values()]
+      .filter((t) => t.createdBy.trim().toLowerCase() === who)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((t) => ({ ...structuredClone(t), report: null }))
   }
   async updateTopic(id: string, p: TopicPatch) {
     const t = this.topics.get(id)

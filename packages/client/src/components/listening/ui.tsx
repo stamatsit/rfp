@@ -55,6 +55,17 @@ export function pct(n: number, d: number): number {
 
 // ─── the sample ─────────────────────────────────────────────────────────────
 
+export const WINDOW_LABEL = { "3m": "past 3 months", "1y": "past year", any: "any time" } as const
+
+/** How a report is made, in plain words. Shown under "How this was made" and in exports. */
+export const METHOD_TEXT =
+  "Posts are found through Google search limited to Reddit, forums, social and review sites, plus YouTube and Google News. " +
+  "An AI model reads each post and notes whether it is mainly about the topic and who wrote it. Only posts by people that are " +
+  "mainly about the topic count toward the feelings, subtopics, questions, quotes and ideas. Passing mentions, the " +
+  "institution's own accounts, other organizations and news outlets are listed but not counted. Threads about the topic are " +
+  "opened in full with their replies. Quotes and questions are kept only if they appear word for word, and every idea is checked " +
+  "a second time against the posts it cites. Facebook, Instagram, LinkedIn and TikTok are seen only through what Google shows publicly."
+
 /** Reports before version 2 counted every relevant post, including passing mentions and institutions' own posts. */
 export function isLegacyReport(r: Report): boolean {
   return r.version !== 2

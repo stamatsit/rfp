@@ -5,8 +5,34 @@
  *
  *   cd packages/client && npx playwright test e2e/topic-ideation.spec.ts
  */
+import fs from "node:fs"
+import zlib from "node:zlib"
 import { expect, test } from "@playwright/test"
+import JSZip from "jszip"
 import { RUN_1, RUN_2, RUN_EVENTS, TOPIC_ID, buildDetail, errorsOf, setup, sse } from "./fixtures/listeningMocks"
+
+/** Text drawn in a jsPDF file: inflate each content stream and join its (string) Tj operands. */
+function pdfText(buf: Buffer): string {
+  const raw = buf.toString("latin1")
+  const out: string[] = []
+  const re = /stream\r?\n/g
+  let m: RegExpExecArray | null
+  while ((m = re.exec(raw))) {
+    const start = m.index + m[0].length
+    const end = raw.indexOf("endstream", start)
+    if (end < 0) break
+    const chunk = buf.subarray(start, end)
+    let s: string
+    try {
+      s = zlib.inflateSync(chunk).toString("latin1")
+    } catch {
+      s = chunk.toString("latin1")
+    }
+    for (const t of s.matchAll(/\(((?:\\.|[^\\)])*)\)\s*Tj/g)) out.push(t[1]!.replace(/\\([()\\])/g, "$1"))
+    re.lastIndex = end + "endstream".length
+  }
+  return out.join("\n")
+}
 
 
 test.describe("Topic Ideation", () => {
@@ -52,8 +78,10 @@ test.describe("Topic Ideation", () => {
     const ev = page.locator('a[href="https://www.reddit.com/r/nursing/comments/t1/thread_1/"]').first()
     await expect(ev).toHaveAttribute("target", "_blank")
     await expect(ev).toHaveAttribute("rel", /noopener/)
-    // Copy report puts real content on the clipboard.
-    await page.getByRole("button", { name: "Copy report" }).click()
+    // Export > Copy as text puts real content on the clipboard.
+    await page.getByRole("button", { name: "Export" }).click()
+    await page.getByRole("menuitem", { name: /Copy as text/ }).click()
+    await expect(page.getByText("Report copied")).toBeVisible()
     const clip = await page.evaluate(() => navigator.clipboard.readText())
     expect(clip).toContain("# online nursing degree")
     expect(clip).toContain("Who finds your clinical placement in an online program")
@@ -121,6 +149,57 @@ test.describe("Topic Ideation", () => {
     expect(m.posts.map((p) => p.url)).toContain(`/topics/${TOPIC_ID}/rebuild`)
     await expect(page.getByText("This report was made before the accuracy update")).toHaveCount(0)
     await expect(page.getByText(/^11 posts by people · /)).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("export PDF: a real-text file with every section and every source linked", async ({ page }) => {
+    await setup(page, { detail: buildDetail({ institution: true }) })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: "Export" }).click()
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("menuitem", { name: /PDF/ }).click()])
+    expect(dl.suggestedFilename()).toBe("Topic Ideation - Coe College - 2026-10-07.pdf")
+    if (process.env["KEEP_EXPORTS"]) fs.copyFileSync((await dl.path())!, `${process.env["KEEP_EXPORTS"]}/${dl.suggestedFilename()}`)
+    const buf = fs.readFileSync((await dl.path())!)
+    expect(buf.subarray(0, 5).toString()).toBe("%PDF-")
+    const text = pdfText(buf)
+    for (const s of [
+      "Coe College",
+      "What people are saying",
+      "People weigh flexibility against clinical quality",
+      "1. Who finds your clinical placement in an online program",
+      "Questions people ask (2)",
+      "Who finds the clinical placement when you study online?",
+      "What Coe College says about itself",
+      "In the news",
+      "How this was made",
+      "Not counted: 4 posts from Coe College's own accounts",
+      "Page 1 of",
+    ]) expect(text, s).toContain(s)
+    // Every idea source, question and own post is a clickable link.
+    const raw = buf.toString("latin1")
+    for (const url of ["https://www.reddit.com/r/nursing/comments/t1/thread_1/", "https://youtube.com/watch?v=vid1&lc=c1", "https://www.facebook.com/CoeCollege/posts/own-0", "https://news.google.com/rss/articles/x"]) {
+      expect(raw, url).toContain(`/URI (${url})`)
+    }
+    await expect(page.getByText("PDF downloaded")).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("export Word: an editable file with the report and working links", async ({ page }) => {
+    await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: "Export" }).click()
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("menuitem", { name: /Word document/ }).click()])
+    expect(dl.suggestedFilename()).toBe("Topic Ideation - online nursing degree - 2026-10-07.docx")
+    if (process.env["KEEP_EXPORTS"]) fs.copyFileSync((await dl.path())!, `${process.env["KEEP_EXPORTS"]}/${dl.suggestedFilename()}`)
+    const zip = await JSZip.loadAsync(fs.readFileSync((await dl.path())!))
+    const body = await zip.file("word/document.xml")!.async("string")
+    const rels = await zip.file("word/_rels/document.xml.rels")!.async("string")
+    for (const s of ["online nursing degree", "What people are saying", "Who finds your clinical placement in an online program", "Who arranges placements", "Questions people ask (2)", "In their words", "How this was made"]) {
+      expect(body, s).toContain(s)
+    }
+    expect(rels).toContain('Target="https://www.reddit.com/r/nursing/comments/t1/thread_1/"')
+    expect(rels).toContain('TargetMode="External"')
+    await expect(page.getByText("Word document downloaded")).toBeVisible()
     expect(errorsOf(page)).toEqual([])
   })
 

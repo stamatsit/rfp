@@ -48,6 +48,24 @@ Other rules from that audit:
 - Labels carry `v: 2`; older labels are relabeled on the next scan or Refresh analysis (no
   searches used). Version 1 reports show a banner offering that refresh.
 
+## Ownership
+
+Topics belong to the person who created them (`listening_topics.created_by`, the session email,
+compared case-insensitively). `service.ts` scopes every call: the list shows only your topics, and
+opening, rescanning, refreshing, cancelling or deleting someone else's topic answers 404, so its
+existence never leaks. The Google daily allowance stays shared (one project-wide quota) and the
+search cache is shared (search results, no user data).
+
+## Export
+
+Topic page, Export menu (`components/listening/exportReport.ts`): **PDF** (real text drawn with
+jsPDF: selectable, searchable, every source a clickable link, page numbers), **Word** (`docx`,
+editable, external hyperlinks, page numbers) and **Copy as text**. One builder (`exportBlocks`)
+feeds both files in the page's reading order: summary and feeling, ideas with outlines and sources,
+questions, subtopics, quotes, the institution's own posts, news, and how it was made. The PDF uses
+the built-in Helvetica, so emoji and scripts it cannot draw are dropped from the PDF only
+(`pdfSafe`); the Word file keeps them. File name: `Topic Ideation - <topic> - <report date>`.
+
 ## Honesty guarantees (enforced in code, see `listening/checks.ts`)
 
 - Every count and percentage is computed from stored labels; model prose with numbers is dropped.
@@ -111,10 +129,13 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 68 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 69 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
-  passing mentions, an institution's own posts, unsupported ideas, relabeling old labels).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 14 tests on fixtures.
+  passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
+  user never seeing or touching another's topics).
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 16 tests on fixtures,
+  including downloading the PDF and Word exports and checking their text and links.
+  `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory
   store; `npx tsx src/listening/probe.ts` checks every source.

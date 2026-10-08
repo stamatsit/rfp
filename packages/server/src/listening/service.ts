@@ -46,15 +46,39 @@ export async function access(ctx: ServiceCtx) {
   return { allowed: true, sources: configuredSources(), budget: await budget(ctx.store) }
 }
 
+/**
+ * Topics belong to the person who created them: each user lists, opens,
+ * rescans, cancels and deletes only their own. Someone else's topic answers
+ * "not found", so its existence never leaks. The Google allowance stays
+ * shared: it is one project-wide quota.
+ */
+export function ownsTopic(topic: Pick<TopicRow, "createdBy">, userEmail: string): boolean {
+  const who = userEmail.trim().toLowerCase()
+  return who.length > 0 && topic.createdBy.trim().toLowerCase() === who
+}
+
+async function ownTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
+  if (!UUID.test(id)) return null
+  const topic = await ctx.store.getTopic(id)
+  return topic && ownsTopic(topic, ctx.userEmail) ? topic : null
+}
+
+async function ownRun(ctx: ServiceCtx, runId: string) {
+  if (!UUID.test(runId)) return null
+  const run = await ctx.store.getRun(runId)
+  if (!run) return null
+  return (await ownTopic(ctx, run.topicId)) ? run : null
+}
+
 export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[] }> {
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  return { topics: await ctx.store.listTopics() }
+  return { topics: await ctx.store.listTopics(ctx.userEmail) }
 }
 
 export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<unknown>> {
   if (!UUID.test(id)) return { ok: false, status: 404, error: "Topic not found" }
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  const topic = await ctx.store.getTopic(id)
+  const topic = await ownTopic(ctx, id)
   if (!topic) return { ok: false, status: 404, error: "Topic not found" }
   const [items, runs, activeRun] = await Promise.all([
     ctx.store.allItems(id),
@@ -65,7 +89,7 @@ export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<u
 }
 
 export async function removeTopic(ctx: ServiceCtx, id: string): Promise<Result<{ ok: true }>> {
-  if (!UUID.test(id)) return { ok: false, status: 404, error: "Topic not found" }
+  if (!(await ownTopic(ctx, id))) return { ok: false, status: 404, error: "Topic not found" }
   const active = await ctx.store.getActiveRun(id)
   if (active) return { ok: false, status: 409, error: "Cancel the running scan before deleting this topic", code: "active_run" }
   await ctx.store.deleteTopic(id)
@@ -73,17 +97,14 @@ export async function removeTopic(ctx: ServiceCtx, id: string): Promise<Result<{
 }
 
 export async function cancelRun(ctx: ServiceCtx, runId: string): Promise<Result<{ ok: true }>> {
-  if (!UUID.test(runId)) return { ok: false, status: 404, error: "Scan not found" }
-  const run = await ctx.store.getRun(runId)
-  if (!run) return { ok: false, status: 404, error: "Scan not found" }
+  if (!(await ownRun(ctx, runId))) return { ok: false, status: 404, error: "Scan not found" }
   await ctx.store.requestCancel(runId)
   abortLocalRun(runId)
   return { ok: true, body: { ok: true } }
 }
 
 export async function runStatus(ctx: ServiceCtx, runId: string): Promise<Result<unknown>> {
-  if (!UUID.test(runId)) return { ok: false, status: 404, error: "Scan not found" }
-  const run = await ctx.store.getRun(runId)
+  const run = await ownRun(ctx, runId)
   return run ? { ok: true, body: { run } } : { ok: false, status: 404, error: "Scan not found" }
 }
 
@@ -131,7 +152,7 @@ export async function prepareRun(ctx: ServiceCtx, req: RunRequest): Promise<Resu
       const r = await startRun(ctx.store, { trigger: "initial", createdBy: ctx.userEmail, query, timeWindow: tw })
       return { ok: true, body: { ...r, trigger: "initial" } }
     }
-    if (!UUID.test(req.topicId)) return { ok: false, status: 404, error: "Topic not found" }
+    if (!(await ownTopic(ctx, req.topicId))) return { ok: false, status: 404, error: "Topic not found" }
     const r = await startRun(ctx.store, { trigger: req.trigger, createdBy: ctx.userEmail, topicId: req.topicId })
     return { ok: true, body: { ...r, trigger: req.trigger } }
   } catch (err) {

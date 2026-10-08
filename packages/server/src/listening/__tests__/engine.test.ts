@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { checkReport } from "../checks.js"
 import { executeRun, groupLaneNotes, startRun } from "../engine.js"
-import { cancelRun, prepareRun } from "../service.js"
+import { cancelRun, listTopics, ownsTopic, prepareRun, removeTopic, runStatus, topicDetail } from "../service.js"
 import { ActiveRunError, MemoryStore, within } from "../store.js"
 import type { RunEvent } from "../types.js"
 import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
@@ -296,6 +296,44 @@ describe("engine: failure paths", () => {
     expect(r.coverage.degraded).toBe(true)
     expect(r.coverage.lanes.find((l) => l.lane === "youtube")!.status).toBe("failed")
     expect(r.coverage.notes).toContain("YouTube: daily quota used up")
+  })
+})
+
+describe("service: topics belong to the person who made them", () => {
+  it("lists, opens, rescans, cancels and deletes only your own topics", async () => {
+    const store = new MemoryStore()
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store) })
+    const eric = as("eric.yerke@stamats.com")
+    const joe = as("joe.volk@stamats.com")
+    const { topic, runId } = await startRun(store, { trigger: "initial", createdBy: "eric.yerke@stamats.com", query: "online nursing degree", timeWindow: "1y" })
+
+    // Joe sees nothing of Eric's, and every action answers "not found".
+    expect((await listTopics(joe)).topics).toEqual([])
+    expect(await topicDetail(joe, topic.id)).toMatchObject({ ok: false, status: 404 })
+    expect(await runStatus(joe, runId)).toMatchObject({ ok: false, status: 404 })
+    expect(await cancelRun(joe, runId)).toMatchObject({ ok: false, status: 404 })
+    expect(await store.isCancelRequested(runId)).toBe(false)
+    await store.finishRun(runId, { status: "complete" })
+    expect(await prepareRun(joe, { trigger: "rescan", topicId: topic.id })).toMatchObject({ ok: false, status: 404 })
+    expect(await prepareRun(joe, { trigger: "rebuild", topicId: topic.id })).toMatchObject({ ok: false, status: 404 })
+    expect(await removeTopic(joe, topic.id)).toMatchObject({ ok: false, status: 404 })
+    expect(await store.getTopic(topic.id)).not.toBeNull()
+
+    // Eric, in any letter case, still has it.
+    const ericUpper = as("Eric.Yerke@Stamats.com")
+    expect((await listTopics(ericUpper)).topics.map((t) => t.id)).toEqual([topic.id])
+    expect(await topicDetail(eric, topic.id)).toMatchObject({ ok: true })
+    expect(await runStatus(eric, runId)).toMatchObject({ ok: true })
+
+    // Joe's own scans stay his.
+    const joes = await prepareRun(joe, { trigger: "initial", query: "FAFSA changes", timeWindow: "1y" })
+    expect(joes.ok).toBe(true)
+    expect((await listTopics(joe)).topics.map((t) => t.query)).toEqual(["FAFSA changes"])
+    expect((await listTopics(eric)).topics.map((t) => t.query)).toEqual(["online nursing degree"])
+    expect(await removeTopic(eric, topic.id)).toMatchObject({ ok: true })
+    expect(ownsTopic({ createdBy: "a@b.com" }, "")).toBe(false)
   })
 })
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { AlertCircle, ChevronLeft, MoreHorizontal, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
+import { AlertCircle, ChevronDown, ChevronLeft, Copy, Download, FileText, FileType2, Loader2, MoreHorizontal, RefreshCw, RotateCcw, Trash2 } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/useToast"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
@@ -14,11 +14,10 @@ import { Questions } from "./report/Questions"
 import { News, OwnVoice, Subtopics, Voices } from "./report/Subtopics"
 import { Sources, type SourceView } from "./report/Sources"
 import { Method } from "./report/Method"
-import { ACCENT, Card, CopyButton, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
+import { exportDocx, exportPdf, type ExportInput } from "./exportReport"
+import { ACCENT, Card, WINDOW_LABEL, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
 
 type Scan = ReturnType<typeof useScan>
-
-const WINDOW_LABEL = { "3m": "past 3 months", "1y": "past year", any: "any time" } as const
 
 /** Runs whose completion was already handled. Module-level because pages remount on navigation. */
 const settledRuns = new Set<string>()
@@ -70,6 +69,89 @@ function SectionNav({ ideas, questions, hasSubtopics, ownName }: { ideas: number
         ))}
       </ul>
     </nav>
+  )
+}
+
+/** Export: a PDF to share, a Word file to edit, or plain text to paste. */
+function ExportMenu({ input }: { input: () => ExportInput }) {
+  const [open, setOpen] = useState(false)
+  const [busy, setBusy] = useState<"pdf" | "docx" | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setOpen(false)
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false)
+    document.addEventListener("mousedown", close)
+    document.addEventListener("keydown", esc)
+    return () => {
+      document.removeEventListener("mousedown", close)
+      document.removeEventListener("keydown", esc)
+    }
+  }, [open])
+  const download = async (kind: "pdf" | "docx") => {
+    setOpen(false)
+    setBusy(kind)
+    try {
+      await (kind === "pdf" ? exportPdf(input()) : exportDocx(input()))
+      toast.success(kind === "pdf" ? "PDF downloaded" : "Word document downloaded")
+    } catch (err) {
+      console.error("Report export failed:", err)
+      toast.error(`Could not create the ${kind === "pdf" ? "PDF" : "Word document"}. Try again, or copy the report as text.`)
+    } finally {
+      setBusy(null)
+    }
+  }
+  const copy = async () => {
+    setOpen(false)
+    const i = input()
+    try {
+      await navigator.clipboard.writeText(reportMarkdown(i.report, i.items))
+      toast.success("Report copied")
+    } catch {
+      toast.error("Could not copy. Your browser blocked clipboard access.")
+    }
+  }
+  const item = "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={!!busy}
+        onClick={() => setOpen((o) => !o)}
+        className="h-10 inline-flex items-center gap-2 rounded-xl px-3.5 border border-black/[0.08] dark:border-white/[0.1] text-[13.5px] font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+      >
+        {busy ? <Loader2 size={15} className="animate-spin motion-reduce:animate-none" /> : <Download size={15} />}
+        {busy ? "Preparing..." : "Export"}
+        {!busy && <ChevronDown size={14} className="text-slate-400 -mr-0.5" />}
+      </button>
+      {open && (
+        <div role="menu" aria-label="Export report" className="absolute right-0 top-12 z-[160] w-72 rounded-xl border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 shadow-xl p-1.5">
+          <button role="menuitem" type="button" className={item} onClick={() => void download("pdf")}>
+            <FileText size={16} className="mt-0.5 text-rose-500" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">PDF</span>
+              <span className="block text-[12px] text-slate-500">A finished report to share. Every source is a link.</span>
+            </span>
+          </button>
+          <button role="menuitem" type="button" className={item} onClick={() => void download("docx")}>
+            <FileType2 size={16} className="mt-0.5 text-sky-600" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">Word document</span>
+              <span className="block text-[12px] text-slate-500">Editable, to shape into a brief or hand to a writer.</span>
+            </span>
+          </button>
+          <button role="menuitem" type="button" className={item} onClick={() => void copy()}>
+            <Copy size={16} className="mt-0.5 text-slate-500" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">Copy as text</span>
+              <span className="block text-[12px] text-slate-500">Paste into an email, a chat or Basecamp.</span>
+            </span>
+          </button>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -277,7 +359,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
         </div>
         {report && (
           <div className="flex items-center gap-2 shrink-0">
-            <CopyButton text={() => reportMarkdown(report, items)} label="Copy report" className="h-10 !px-3.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1]" />
+            <ExportMenu input={() => ({ report, topic, items, runs: detail!.runs })} />
             <button
               type="button"
               onClick={rescan}
