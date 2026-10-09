@@ -130,7 +130,7 @@ function ShareControl({ shared, onChange }: { shared: boolean; onChange: (next: 
               <span className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${shared ? "translate-x-5" : ""}`} />
             </button>
           </div>
-          <p className="text-[12px] text-slate-400 mt-3">{shared ? "Shared. Turn it off to make it private again." : "Private. Only you can see it."}</p>
+          <p className="text-[12px] text-slate-400 mt-3">{shared ? "Shared. Turn it off to make it private again." : "Private. Only you and Topic Ideation admins can see it."}</p>
         </div>
       )}
     </div>
@@ -470,11 +470,16 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
 
       <header id="top" className="scroll-mt-32 flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-3 mb-5">
         <div className="min-w-0">
-          {viewer && (
-            <p className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2.5 py-1 text-[12px] font-medium text-sky-700 dark:text-sky-300 mb-2">
-              <Users size={13} /> Shared by {personName(topic.createdBy)} · read only
-            </p>
-          )}
+          {viewer &&
+            (topic.shared ? (
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2.5 py-1 text-[12px] font-medium text-sky-700 dark:text-sky-300 mb-2">
+                <Users size={13} /> Shared by {personName(topic.createdBy)} · read only
+              </p>
+            ) : (
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[12px] font-medium text-slate-600 dark:text-slate-300 mb-2">
+                <Lock size={13} /> {personName(topic.createdBy)}&apos;s private topic · admin view, read only
+              </p>
+            ))}
           <h1 className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white break-words">{topic.query}</h1>
           <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1.5">{meta.join(" · ")}</p>
         </div>

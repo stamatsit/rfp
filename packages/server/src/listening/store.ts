@@ -55,6 +55,8 @@ export interface Store {
   listTopics(createdBy: string): Promise<TopicRow[]>
   /** Topics other people have shared, newest activity first. */
   listSharedTopics(excludeCreatedBy: string): Promise<TopicRow[]>
+  /** Every topic other people created, shared or not (admins only), newest activity first. */
+  listOthersTopics(excludeCreatedBy: string): Promise<TopicRow[]>
   /** Share or unshare; does not count as activity (updated_at stays). */
   setShared(id: string, shared: boolean): Promise<void>
   listSavedIdeas(createdBy: string): Promise<SavedIdea[]>
@@ -136,6 +138,7 @@ function runFromRow(r: Record<string, any>): RunSummary {
   return {
     id: r.id,
     topicId: r.topic_id,
+    createdBy: r.created_by ?? "",
     status: r.status,
     trigger: r.trigger,
     startedAt: iso(r.started_at)!,
@@ -202,6 +205,15 @@ export class PgStore implements Store {
              last_run_at, last_run_status, shared, shared_at, created_at, updated_at
       FROM listening_topics WHERE shared AND lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
+    return rows.map((r) => topicFromRow(r, false))
+  }
+
+  async listOthersTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
+    const rows = await this.sql`
+      SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
+             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
+      FROM listening_topics WHERE lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
+      ORDER BY updated_at DESC LIMIT 500`
     return rows.map((r) => topicFromRow(r, false))
   }
 
@@ -485,6 +497,13 @@ export class MemoryStore implements Store {
     const who = excludeCreatedBy.trim().toLowerCase()
     return [...this.topics.values()]
       .filter((t) => t.shared && t.createdBy.trim().toLowerCase() !== who)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .map((t) => ({ ...structuredClone(t), report: null }))
+  }
+  async listOthersTopics(excludeCreatedBy: string) {
+    const who = excludeCreatedBy.trim().toLowerCase()
+    return [...this.topics.values()]
+      .filter((t) => t.createdBy.trim().toLowerCase() !== who)
       .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
       .map((t) => ({ ...structuredClone(t), report: null }))
   }

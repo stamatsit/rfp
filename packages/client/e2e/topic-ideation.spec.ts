@@ -239,6 +239,39 @@ test.describe("Topic Ideation", () => {
     expect(errorsOf(page)).toEqual([])
   })
 
+  test("admin: sees everyone's topics, private ones too, and who ran each scan", async ({ page }) => {
+    const joes = buildDetail({ viewer: true, owner: "joe.volk@stamats.com", shared: false })
+    const mariahs = buildDetail({ viewer: true })
+    await setup(page, {
+      admin: true,
+      team: [joes.topic, { ...mariahs.topic, id: "t-mariah", query: "college enrollment trends" }],
+      shared: [mariahs.topic],
+      detail: joes,
+    })
+    await page.goto("/listening")
+    const section = page.getByRole("region", { name: /Everyone's topics/ })
+    await expect(section.getByText("Joe Volk · private")).toBeVisible()
+    await expect(section.getByText("Mariah Tang · shared")).toBeVisible()
+    // The admin list already includes shared topics; no second list.
+    await expect(page.getByRole("heading", { name: /Shared with you/ })).toHaveCount(0)
+    await section.getByRole("link", { name: /online nursing degree/ }).click()
+    await expect(page.getByText("Joe Volk's private topic · admin view, read only")).toBeVisible()
+    await expect(page.getByRole("button", { name: /Rescan for more/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "More actions" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Export" })).toBeVisible()
+    await page.getByRole("button", { name: /How this was made/ }).click()
+    await expect(page.getByText("by Joe Volk")).toBeVisible()
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("not an admin: no everyone's-topics list", async ({ page }) => {
+    const mariahs = buildDetail({ viewer: true })
+    await setup(page, { shared: [mariahs.topic] })
+    await page.goto("/listening")
+    await expect(page.getByRole("heading", { name: /Shared with you/ })).toBeVisible()
+    await expect(page.getByRole("heading", { name: /Everyone's topics/ })).toHaveCount(0)
+  })
+
   test("idea board: save from a topic, track status, filter, remove", async ({ page }) => {
     const m = await setup(page)
     await page.goto(`/listening/${TOPIC_ID}`)

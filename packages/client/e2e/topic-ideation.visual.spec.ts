@@ -166,6 +166,28 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-13-viewer.png` })
     })
 
+    test(`${vp.name} ${t} admin`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      const joes = buildDetail({ viewer: true, owner: "joe.volk@stamats.com", shared: false })
+      const mariahs = buildDetail({ viewer: true })
+      await setup(page, {
+        admin: true,
+        topics: [buildDetail({ institution: true }).topic],
+        team: [{ ...joes.topic, query: "FAFSA changes", headline: "Parents and students are frustrated by lower aid estimates and confusing corrections." }, { ...mariahs.topic, id: "t-m", query: "college enrollment trends" }],
+        detail: joes,
+      })
+      await page.goto("/listening")
+      await page.getByRole("heading", { name: /Everyone's topics/ }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-14-admin-home.png`, fullPage: true })
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("admin view, read only").waitFor()
+      await page.getByRole("button", { name: /How this was made/ }).click()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-15-admin-topic.png` })
+    })
+
     test(`${vp.name} ${t} progress`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await theme(page, t)

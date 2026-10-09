@@ -207,6 +207,8 @@ export interface SavedIdea {
 export interface RunSummary {
   id: string
   topicId: string
+  /** Who started the scan (session email). Absent from older servers. */
+  createdBy?: string
   status: RunStatus
   trigger: RunTrigger
   startedAt: string
@@ -262,6 +264,8 @@ export interface Budget {
 
 export interface AccessInfo {
   allowed: boolean
+  /** Can open and export every topic anyone has scanned (read only). */
+  admin?: boolean
   sources: { search: boolean; google?: boolean; serper?: boolean; youtube: boolean; model: boolean; redditArchive: boolean }
   budget: Budget
 }

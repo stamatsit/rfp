@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { Check, ChevronDown, X } from "lucide-react"
 import type { Plan, Report, RunSummary } from "@/types/listening"
-import { Card, METHOD_TEXT, fmtDate, fmtClock, plural, verdictFromScore, SentimentDot } from "../ui"
+import { Card, METHOD_TEXT, fmtDate, fmtClock, personName, plural, verdictFromScore, SentimentDot } from "../ui"
 
 const TRIGGER: Record<RunSummary["trigger"], string> = { initial: "First scan", rescan: "Rescan", rebuild: "Refreshed analysis" }
 
@@ -63,6 +63,7 @@ export function Method({ report, plan, runs }: { report: Report; plan: Plan | nu
                       <span>
                         <span className="text-slate-800 dark:text-slate-100 font-medium">{TRIGGER[r.trigger]}</span>
                         <span className="text-slate-400"> · {fmtDate(r.startedAt)} {fmtClock(r.startedAt)}</span>
+                        {r.createdBy && <span className="block text-[12px] text-slate-500">by {personName(r.createdBy)}</span>}
                       </span>
                       <span className="text-right tabular-nums">
                         {r.status === "complete" ? (

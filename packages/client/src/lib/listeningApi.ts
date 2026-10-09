@@ -38,7 +38,8 @@ async function send<T>(method: "POST" | "PATCH" | "DELETE", path: string, body?:
 
 export const listeningApi = {
   access: () => get<AccessInfo>("/access"),
-  topics: () => get<{ topics: TopicRow[]; shared?: TopicRow[] }>("/topics"),
+  // `team` (admins only): every topic other people created, shared or private.
+  topics: () => get<{ topics: TopicRow[]; shared?: TopicRow[]; team?: TopicRow[] }>("/topics"),
   topic: (id: string) => get<TopicDetail>(`/topics/${id}`),
   run: (id: string) => get<{ run: RunSummary }>(`/runs/${id}`),
   cancel: (runId: string) => send<{ ok: true }>("POST", `/runs/${runId}/cancel`),

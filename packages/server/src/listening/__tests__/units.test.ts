@@ -8,7 +8,7 @@ import { verifyQuestion, verifyQuote } from "../label.js"
 import { buildSearchJobs, MAX_SEARCH_CALLS_PER_RUN, pickThreads } from "../harvest.js"
 import { collectQuestions, collectQuotes, ideaCap, isPublicConversation, monthStats, sampleExclusions, sentimentOf, stripModelNumbers } from "../metrics.js"
 import { assemblePlan, entityOf, fallbackPlan } from "../plan.js"
-import { listeningAllowed } from "../access.js"
+import { isListeningAdmin, listeningAllowed } from "../access.js"
 import { noDashes } from "../report.js"
 import { cleanQuery, pacificMidnight } from "../service.js"
 import { HttpError } from "../util/http.js"
@@ -295,6 +295,16 @@ describe("access", () => {
     expect(listeningAllowed("someone@stamats.com")).toBe(true)
     if (saved === undefined) delete process.env["LISTENING_ALLOWLIST"]
     else process.env["LISTENING_ALLOWLIST"] = saved
+  })
+  it("makes Eric the only admin by default, and never someone without access", () => {
+    const saved = process.env["LISTENING_ADMINS"]
+    delete process.env["LISTENING_ADMINS"]
+    expect(isListeningAdmin("Eric.Yerke@stamats.com")).toBe(true)
+    for (const e of ["joe.volk@stamats.com", "mariah.tang@stamats.com", "", null]) expect(isListeningAdmin(e), String(e)).toBe(false)
+    process.env["LISTENING_ADMINS"] = "outsider@stamats.com"
+    expect(isListeningAdmin("outsider@stamats.com")).toBe(false)
+    if (saved === undefined) delete process.env["LISTENING_ADMINS"]
+    else process.env["LISTENING_ADMINS"] = saved
   })
 })
 

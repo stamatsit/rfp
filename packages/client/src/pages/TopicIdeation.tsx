@@ -30,6 +30,7 @@ export function TopicIdeation() {
   const [denied, setDenied] = useState(false)
   const [topics, setTopics] = useState<TopicRow[] | null>(null)
   const [shared, setShared] = useState<TopicRow[]>([])
+  const [team, setTeam] = useState<TopicRow[] | null>(null)
   const [ideaCount, setIdeaCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
   const [prefill, setPrefill] = useState("")
@@ -42,6 +43,7 @@ export function TopicIdeation() {
       setAccess(a)
       setTopics(t.topics)
       setShared(t.shared ?? [])
+      setTeam(t.team ?? null)
       setIdeaCount(ideas ? ideas.ideas.length : null)
     } catch (err) {
       const status = (err as { status?: number }).status
@@ -108,6 +110,7 @@ export function TopicIdeation() {
             access={access}
             topics={topics}
             shared={shared}
+            team={team}
             ideaCount={ideaCount}
             loading={loading}
             starting={startingNew}

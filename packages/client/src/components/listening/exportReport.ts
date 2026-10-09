@@ -20,6 +20,7 @@ import {
   isLegacyReport,
   joinList,
   pct,
+  personName,
   plural,
   sampleLabel,
   verdict,
@@ -72,7 +73,7 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
 
   out.push({ t: "eyebrow", text: "Stamats · Topic Ideation" })
   out.push({ t: "title", text: topic.query })
-  out.push({ t: "meta", text: [sampleLabel(r), WINDOW_LABEL[topic.timeWindow], plural(scans, "scan"), `report of ${longDate(r.generatedAt)}`].join(" · ") })
+  out.push({ t: "meta", text: [sampleLabel(r), WINDOW_LABEL[topic.timeWindow], plural(scans, "scan"), `by ${personName(topic.createdBy)}`, `report of ${longDate(r.generatedAt)}`].join(" · ") })
   const left = exclusionParts(r)
   if (left.length) out.push({ t: "p", text: `Not counted: ${joinList(left)}.`, tone: "muted" })
   if (isLegacyReport(r)) {
@@ -159,6 +160,12 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
   if (r.coverage.lanes.length) {
     const lanes = r.coverage.lanes.map((l) => (l.status === "ok" ? `${l.label} ${l.count} found` : `${l.label} ${l.note ?? l.status}`))
     out.push({ t: "p", text: `Sources on the latest scan: ${lanes.join("; ")}.` })
+  }
+  const done = runs.filter((x) => x.status === "complete")
+  if (done.length) {
+    const label = { initial: "First scan", rescan: "Rescan", rebuild: "Refreshed analysis" } as const
+    const history = [...done].reverse().map((x) => `${label[x.trigger]} ${fmtDate(x.startedAt)}${x.createdBy ? ` by ${personName(x.createdBy)}` : ""}`)
+    out.push({ t: "p", text: `Scan history: ${history.join("; ")}.` })
   }
   const notes = [...r.coverage.notes, ...r.warnings]
   if (notes.length) out.push({ t: "bullets", items: notes })

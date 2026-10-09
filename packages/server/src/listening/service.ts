@@ -3,6 +3,7 @@
  * (local dev) and api/listening.ts (Vercel) are thin adapters over this, so
  * the two cannot drift apart in behaviour.
  */
+import { isListeningAdmin } from "./access.js"
 import { DAILY_SEARCH_BUDGET } from "./config.js"
 import { configuredSources } from "./deps.js"
 import { abortLocalRun, executeRun, startRun, TopicNotFound, type EngineDeps } from "./engine.js"
@@ -43,14 +44,15 @@ export async function budget(store: Store): Promise<{ used: number; limit: numbe
 }
 
 export async function access(ctx: ServiceCtx) {
-  return { allowed: true, sources: configuredSources(), budget: await budget(ctx.store) }
+  return { allowed: true, admin: isListeningAdmin(ctx.userEmail), sources: configuredSources(), budget: await budget(ctx.store) }
 }
 
 /**
  * Topics belong to the person who created them: each user lists, opens,
  * rescans, cancels and deletes only their own. Someone else's topic answers
  * "not found", so its existence never leaks, unless its creator shared it:
- * then everyone with access can open and export it (read only). The Google
+ * then everyone with access can open and export it (read only). Admins
+ * (access.ts) can read every topic, shared or not, also read only. The Google
  * allowance stays shared: it is one project-wide quota.
  */
 export function ownsTopic(topic: Pick<TopicRow, "createdBy">, userEmail: string): boolean {
@@ -64,11 +66,11 @@ async function ownTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
   return topic && ownsTopic(topic, ctx.userEmail) ? topic : null
 }
 
-/** Your own topic, or one someone shared. */
+/** Your own topic, one someone shared, or (admins) anyone's. */
 async function readableTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
   if (!UUID.test(id)) return null
   const topic = await ctx.store.getTopic(id)
-  return topic && (ownsTopic(topic, ctx.userEmail) || topic.shared) ? topic : null
+  return topic && (ownsTopic(topic, ctx.userEmail) || topic.shared || isListeningAdmin(ctx.userEmail)) ? topic : null
 }
 
 async function ownRun(ctx: ServiceCtx, runId: string) {
@@ -78,10 +80,19 @@ async function ownRun(ctx: ServiceCtx, runId: string) {
   return (await ownTopic(ctx, run.topicId)) ? run : null
 }
 
-export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[]; shared: TopicRow[] }> {
+/**
+ * Your topics, topics others shared, and for admins every other topic
+ * (`team`, shared or private), so an admin sees every scan ever run.
+ */
+export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[]; shared: TopicRow[]; team?: TopicRow[] }> {
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  const [topics, shared] = await Promise.all([ctx.store.listTopics(ctx.userEmail), ctx.store.listSharedTopics(ctx.userEmail)])
-  return { topics, shared }
+  const admin = isListeningAdmin(ctx.userEmail)
+  const [topics, shared, team] = await Promise.all([
+    ctx.store.listTopics(ctx.userEmail),
+    ctx.store.listSharedTopics(ctx.userEmail),
+    admin ? ctx.store.listOthersTopics(ctx.userEmail) : Promise.resolve(undefined),
+  ])
+  return team ? { topics, shared, team } : { topics, shared }
 }
 
 export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<unknown>> {

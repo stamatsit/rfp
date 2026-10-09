@@ -271,6 +271,8 @@ export interface Report {
 export interface RunSummary {
   id: string
   topicId: string
+  /** Session email of whoever started the scan. */
+  createdBy: string
   status: RunStatus
   trigger: RunTrigger
   startedAt: string

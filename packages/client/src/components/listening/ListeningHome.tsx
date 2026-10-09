@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, BookmarkCheck, Loader2, Radar, Search, Users } from "lucide-react"
+import { ArrowRight, BookmarkCheck, Loader2, Lock, Radar, Search, Users } from "lucide-react"
 import type { AccessInfo, TimeWindow, TopicRow } from "@/types/listening"
 import { ACCENT, Card, SentimentPill, fmtClock, personName, plural, timeAgo } from "./ui"
 
@@ -12,18 +12,37 @@ const WINDOWS: Array<[TimeWindow, string]> = [
   ["any", "Any time"],
 ]
 
-function TopicCard({ t, now, sharedBy }: { t: TopicRow; now: number; sharedBy?: string }) {
+/**
+ * mine: your topic (marked when shared). shared: someone shared it with you.
+ * team: an admin's view of anyone's topic, shared or private.
+ */
+type CardKind = "mine" | "shared" | "team"
+
+function TopicCard({ t, now, kind = "mine" }: { t: TopicRow; now: number; kind?: CardKind }) {
   const running = t.lastRunStatus === "running"
   const failed = !running && (t.lastRunStatus === "failed" || t.lastRunStatus === "cancelled") && !t.headline
+  const who = personName(t.createdBy)
+  const badge =
+    kind === "team"
+      ? { text: `${who} · ${t.shared ? "shared" : "private"}`, Icon: t.shared ? Users : Lock, tone: t.shared ? "sky" : "slate" }
+      : kind === "shared"
+        ? { text: `Shared by ${who}`, Icon: Users, tone: "sky" }
+        : t.shared
+          ? { text: "Shared with your team", Icon: Users, tone: "sky" }
+          : null
   return (
     <Link
       to={`/listening/${t.id}`}
       className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded-2xl"
     >
       <Card className="h-full p-5 flex flex-col group-hover:border-black/[0.12] dark:group-hover:border-white/[0.16] group-hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)] transition-all">
-        {(sharedBy || t.shared) && (
-          <span className="self-start inline-flex items-center gap-1 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2 py-0.5 text-[11.5px] font-medium text-sky-700 dark:text-sky-300 mb-2">
-            <Users size={12} /> {sharedBy ? `Shared by ${sharedBy}` : "Shared with your team"}
+        {badge && (
+          <span
+            className={`self-start inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium mb-2 ${
+              badge.tone === "sky" ? "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
+            }`}
+          >
+            <badge.Icon size={12} /> {badge.text}
           </span>
         )}
         <h3 className="text-[15.5px] font-semibold leading-snug text-slate-900 dark:text-white line-clamp-2">{t.query}</h3>
@@ -54,6 +73,7 @@ export function ListeningHome({
   access,
   topics,
   shared = [],
+  team = null,
   ideaCount = null,
   loading,
   starting,
@@ -66,6 +86,8 @@ export function ListeningHome({
   topics: TopicRow[] | null
   /** Topics teammates shared: read and export only. */
   shared?: TopicRow[]
+  /** Admins only: every topic other people created, shared or private. Replaces `shared` when present. */
+  team?: TopicRow[] | null
   /** Ideas on your board, or null if unknown. */
   ideaCount?: number | null
   loading: boolean
@@ -230,7 +252,25 @@ export function ListeningHome({
         )}
       </section>
 
-      {shared.length > 0 && (
+      {team ? (
+        <section aria-labelledby="team-topics" className="mt-10">
+          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-x-3 gap-y-1 mb-4">
+            <h2 id="team-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
+              Everyone&apos;s topics <span className="text-slate-400 tabular-nums">{team.length}</span>
+            </h2>
+            <p className="text-[12.5px] text-slate-400">As an admin you can open every scan, private ones too. Only the person who ran it can rescan.</p>
+          </div>
+          {team.length === 0 ? (
+            <Card className="p-8 text-center text-[13.5px] text-slate-500">No one else has run a scan yet.</Card>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {team.map((t) => (
+                <TopicCard key={t.id} t={t} now={now} kind="team" />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : shared.length > 0 ? (
         <section aria-labelledby="shared-topics" className="mt-10">
           <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-x-3 gap-y-1 mb-4">
             <h2 id="shared-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
@@ -240,11 +280,11 @@ export function ListeningHome({
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {shared.map((t) => (
-              <TopicCard key={t.id} t={t} now={now} sharedBy={personName(t.createdBy)} />
+              <TopicCard key={t.id} t={t} now={now} kind="shared" />
             ))}
           </div>
         </section>
-      )}
+      ) : null}
     </div>
   )
 }

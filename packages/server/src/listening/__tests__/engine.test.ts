@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest"
 import { checkReport } from "../checks.js"
 import { executeRun, groupLaneNotes, startRun } from "../engine.js"
 import {
+  access,
   cancelRun,
   listIdeas,
   listTopics,
@@ -433,6 +434,47 @@ describe("service: sharing and the idea board", () => {
     expect(await removeIdea(eric, s.id)).toEqual({ ok: true, body: { ok: true } })
     expect((await listIdeas(eric)).ideas).toEqual([])
     expect(await saveIdea(eric, { topicId: 7, ideaId: "idea1" })).toMatchObject({ ok: false, status: 400 })
+  })
+})
+
+describe("service: an admin sees every scan, read only", () => {
+  it("lists and opens everyone's topics, private ones too, says who ran each scan, and changes nothing", async () => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store) })
+    const eric = as("eric.yerke@stamats.com")
+    const joe = as("joe.volk@stamats.com")
+    const mariah = as("mariah.tang@stamats.com")
+    // Joe runs a private scan.
+    const { topic, runId } = await startRun(store, { trigger: "initial", createdBy: "joe.volk@stamats.com", query: "FAFSA changes", timeWindow: "1y" })
+    await executeRun(fakeDeps(store), { topic, runId, trigger: "initial" }, () => {})
+
+    expect((await access(eric)).admin).toBe(true)
+    expect((await access(joe)).admin).toBe(false)
+    const list = await listTopics(eric)
+    expect(list.topics).toEqual([])
+    expect(list.shared).toEqual([])
+    expect(list.team?.map((t) => [t.query, t.createdBy, t.shared])).toEqual([["FAFSA changes", "joe.volk@stamats.com", false]])
+    // Not admins: no team list, and Mariah cannot see Joe's private topic.
+    expect((await listTopics(joe)).team).toBeUndefined()
+    expect((await listTopics(mariah)).team).toBeUndefined()
+    expect(await topicDetail(mariah, topic.id)).toMatchObject({ ok: false, status: 404 })
+
+    // Eric opens it read only and sees who ran each scan.
+    const d = await topicDetail(eric, topic.id)
+    if (!d.ok) throw new Error(d.error)
+    const body = d.body as { role: string; runs: Array<{ createdBy: string; trigger: string }> }
+    expect(body.role).toBe("viewer")
+    expect(body.runs.map((r) => [r.trigger, r.createdBy])).toEqual([["initial", "joe.volk@stamats.com"]])
+    expect(await saveIdea(eric, { topicId: topic.id, ideaId: "idea1" })).toMatchObject({ ok: true })
+
+    // ...and cannot change it.
+    expect(await prepareRun(eric, { trigger: "rescan", topicId: topic.id })).toMatchObject({ ok: false, status: 404 })
+    expect(await prepareRun(eric, { trigger: "rebuild", topicId: topic.id })).toMatchObject({ ok: false, status: 404 })
+    expect(await removeTopic(eric, topic.id)).toMatchObject({ ok: false, status: 404 })
+    expect(await shareTopic(eric, topic.id, true)).toMatchObject({ ok: false, status: 404 })
+    expect(await store.getTopic(topic.id)).toMatchObject({ shared: false })
   })
 })
 

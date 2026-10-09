@@ -54,9 +54,12 @@ export function buildDetail(
     /** Someone else shared this topic with the signed-in user. */
     viewer?: boolean
     shared?: boolean
+    /** Who created the topic and ran its scans; defaults to Eric, or Mariah for a viewer. */
+    owner?: string
   } = {},
 ) {
   const legacy = opts.version === 1
+  const owner = opts.owner ?? (opts.viewer ? "mariah.tang@stamats.com" : "eric.yerke@stamats.com")
   const query = opts.institution ? OWN_NAME : "online nursing degree"
   const items = [
     ...Array.from({ length: 10 }, (_, i) => item(i + 1)),
@@ -153,15 +156,15 @@ export function buildDetail(
     warnings: [],
   }
   const runs = [
-    ...(opts.runs && opts.runs > 1 ? [{ id: RUN_2, topicId: TOPIC_ID, status: "complete", trigger: "rescan", startedAt: "2026-10-07T21:00:00.000Z", completedAt: "2026-10-07T21:02:00.000Z", newItems: opts.newItems ?? 0, totalItems: items.length, relevantItems: relevant.length, sentimentScore: 9, searchCalls: 20, costUsd: 0.03, error: null }] : []),
-    { id: RUN_1, topicId: TOPIC_ID, status: "complete", trigger: "initial", startedAt: "2026-10-07T20:00:00.000Z", completedAt: "2026-10-07T20:02:00.000Z", newItems: 12, totalItems: 12, relevantItems: 11, sentimentScore: 9, searchCalls: 12, costUsd: 0.04, error: null },
+    ...(opts.runs && opts.runs > 1 ? [{ id: RUN_2, topicId: TOPIC_ID, createdBy: owner, status: "complete", trigger: "rescan", startedAt: "2026-10-07T21:00:00.000Z", completedAt: "2026-10-07T21:02:00.000Z", newItems: opts.newItems ?? 0, totalItems: items.length, relevantItems: relevant.length, sentimentScore: 9, searchCalls: 20, costUsd: 0.03, error: null }] : []),
+    { id: RUN_1, topicId: TOPIC_ID, createdBy: owner, status: "complete", trigger: "initial", startedAt: "2026-10-07T20:00:00.000Z", completedAt: "2026-10-07T20:02:00.000Z", newItems: 12, totalItems: 12, relevantItems: 11, sentimentScore: 9, searchCalls: 12, costUsd: 0.04, error: null },
   ]
   return {
     topic: {
       id: TOPIC_ID,
-      createdBy: opts.viewer ? "mariah.tang@stamats.com" : "eric.yerke@stamats.com",
-      shared: !!(opts.shared || opts.viewer),
-      sharedAt: opts.shared || opts.viewer ? "2026-10-07T21:00:00.000Z" : null,
+      createdBy: owner,
+      shared: opts.shared ?? !!opts.viewer,
+      sharedAt: opts.shared ?? !!opts.viewer ? "2026-10-07T21:00:00.000Z" : null,
       query,
       timeWindow: "1y",
       plan: {
@@ -208,6 +211,9 @@ export interface Mock {
   topics: unknown[]
   /** Topics teammates shared with the signed-in user. */
   shared: unknown[]
+  /** Admin only: every topic other people created. */
+  team: unknown[] | null
+  admin: boolean
   detail: ReturnType<typeof buildDetail>
   scanStatus: number
   scanBody: string
@@ -223,6 +229,8 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
   const m: Mock = {
     topics: [],
     shared: [],
+    team: null,
+    admin: false,
     detail: buildDetail(),
     scanStatus: 200,
     scanBody: sse(RUN_EVENTS("initial", RUN_1)),
@@ -252,8 +260,8 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     const method = req.method()
     if (opts.forbidden) return r.fulfill({ status: 403, json: { error: "Access denied" } })
     if (method === "GET" && path === "/access")
-      return r.fulfill({ json: { allowed: true, sources: { search: true, youtube: true, model: true, redditArchive: true }, budget: { used: 32, limit: 100, resetsAt: "2026-10-08T07:00:00.000Z", scansLeft: 3 } } })
-    if (method === "GET" && path === "/topics") return r.fulfill({ json: { topics: m.topics, shared: m.shared } })
+      return r.fulfill({ json: { allowed: true, admin: m.admin, sources: { search: true, youtube: true, model: true, redditArchive: true }, budget: { used: 32, limit: 100, resetsAt: "2026-10-08T07:00:00.000Z", scansLeft: 3 } } })
+    if (method === "GET" && path === "/topics") return r.fulfill({ json: { topics: m.topics, shared: m.shared, ...(m.team ? { team: m.team } : {}) } })
     if (method === "GET" && path === `/topics/${TOPIC_ID}`) {
       // Mark ideas already on the board, as the server does.
       const savedIdeas: Record<string, string> = {}

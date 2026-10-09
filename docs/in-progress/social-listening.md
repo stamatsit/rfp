@@ -56,6 +56,15 @@ opening, rescanning, refreshing, cancelling or deleting someone else's topic ans
 existence never leaks. The Google daily allowance stays shared (one project-wide quota) and the
 search cache is shared (search results, no user data).
 
+Admins (`listening/access.ts`, default Eric, `LISTENING_ADMINS` overrides) can open and export
+every topic anyone has scanned, private ones included, and see who ran each scan; read only, like
+a shared topic. The topic list returns them a `team` list (everyone else's topics) shown as
+"Everyone's topics" with each owner and whether it is shared. Deleted topics are hard deleted, so
+an admin does not see those.
+
+Who ran each scan: `listening_runs.created_by` is returned on every run (`RunSummary.createdBy`)
+and shown in the scan history, on admin topic cards, and in exports.
+
 The owner can share a topic (Share button, `POST /topics/:id/share`, migration 010 columns
 `shared`, `shared_at`). A shared topic shows under "Shared with you" for everyone with access, who
 can open it, export it and save its ideas (`role: "viewer"` in the detail response). Rescan,
@@ -146,11 +155,11 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 71 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 74 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 20 tests on fixtures,
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 22 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, and saving to and working the idea board.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
