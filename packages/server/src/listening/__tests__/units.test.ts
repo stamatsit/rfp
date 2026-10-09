@@ -8,6 +8,7 @@ import { verifyQuestion, verifyQuote } from "../label.js"
 import { buildSearchJobs, MAX_SEARCH_CALLS_PER_RUN, pickThreads } from "../harvest.js"
 import { collectQuestions, collectQuotes, ideaCap, isPublicConversation, monthStats, sampleExclusions, sentimentOf, stripModelNumbers } from "../metrics.js"
 import { assemblePlan, entityOf, fallbackPlan } from "../plan.js"
+import { listeningAllowed } from "../access.js"
 import { noDashes } from "../report.js"
 import { cleanQuery, pacificMidnight } from "../service.js"
 import { HttpError } from "../util/http.js"
@@ -280,6 +281,20 @@ describe("plan assembly", () => {
     expect(entityOf(older)).toBe("Coe College")
     expect(entityOf(fallbackPlan("college enrollment trends"))).toBeNull()
     expect(entityOf(null)).toBeNull()
+  })
+})
+
+describe("access", () => {
+  it("lets in Eric and Content Marketing by default, in any letter case, and no one else", () => {
+    const saved = process.env["LISTENING_ALLOWLIST"]
+    delete process.env["LISTENING_ALLOWLIST"]
+    for (const e of ["eric.yerke@stamats.com", "joe.volk@stamats.com", "Mariah.Tang@stamats.com", " joe.volk@stamats.com "]) expect(listeningAllowed(e), e).toBe(true)
+    for (const e of ["laura.hynes@stamats.com", "joe.volk@gmail.com", "", null, undefined]) expect(listeningAllowed(e), String(e)).toBe(false)
+    process.env["LISTENING_ALLOWLIST"] = "someone@stamats.com"
+    expect(listeningAllowed("joe.volk@stamats.com")).toBe(false)
+    expect(listeningAllowed("someone@stamats.com")).toBe(true)
+    if (saved === undefined) delete process.env["LISTENING_ALLOWLIST"]
+    else process.env["LISTENING_ALLOWLIST"] = saved
   })
 })
 

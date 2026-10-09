@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { useState, useEffect } from "react"
-import { ERIC_ONLY, MIGRATION_MATRIX_ALLOW, canAccess } from "@/lib/featureAccess"
+import { ERIC_ONLY, MIGRATION_MATRIX_ALLOW, TOPIC_IDEATION_ALLOW, canAccess } from "@/lib/featureAccess"
 
 interface NavItem {
   to: string
@@ -43,7 +43,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: "/scanner", icon: ScanSearch, label: "URL Scanner", settingKey: "urlScannerEnabled" },
   { to: "/pitch-deck", icon: Presentation, label: "Pitch Deck Designer", emailAllow: ERIC_ONLY },
   { to: "/migration", icon: Activity, label: "Migration Matrix", emailAllow: MIGRATION_MATRIX_ALLOW },
-  { to: "/listening", icon: Radar, label: "Topic Ideation", emailAllow: ERIC_ONLY },
+  { to: "/listening", icon: Radar, label: "Topic Ideation", emailAllow: TOPIC_IDEATION_ALLOW },
 ]
 
 export function NavRail() {

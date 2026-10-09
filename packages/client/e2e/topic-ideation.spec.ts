@@ -146,7 +146,8 @@ test.describe("Topic Ideation", () => {
     await expect(page.getByText(/Not counted:/)).toHaveCount(0)
     m.detail = buildDetail()
     await page.getByRole("button", { name: "Refresh analysis" }).click()
-    expect(m.posts.map((p) => p.url)).toContain(`/topics/${TOPIC_ID}/rebuild`)
+    // The request goes out after a CSRF token fetch, so wait for it rather than checking at once.
+    await expect.poll(() => m.posts.map((p) => p.url)).toContain(`/topics/${TOPIC_ID}/rebuild`)
     await expect(page.getByText("This report was made before the accuracy update")).toHaveCount(0)
     await expect(page.getByText(/^11 posts by people · /)).toBeVisible()
     expect(errorsOf(page)).toEqual([])

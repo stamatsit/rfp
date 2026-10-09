@@ -233,6 +233,8 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     ideas: [],
     ...over,
   }
+  // Instant scrolling (the page honours reduced motion), so "scrolled into view" checks never race a smooth scroll.
+  await page.emulateMedia({ reducedMotion: "reduce" })
   const consoleErrors: string[] = []
   page.on("console", (msg) => msg.type() === "error" && consoleErrors.push(msg.text()))
   ;(page as unknown as { consoleErrors: string[] }).consoleErrors = consoleErrors

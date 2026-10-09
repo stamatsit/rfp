@@ -52,7 +52,7 @@ import { UserAvatar } from "@/components/UserAvatar"
 import { AvatarCropDialog } from "@/components/AvatarCropDialog"
 import { accountApi } from "@/lib/api"
 import { toast } from "@/hooks/useToast"
-import { MIGRATION_MATRIX_ALLOW, canAccess } from "@/lib/featureAccess"
+import { MIGRATION_MATRIX_ALLOW, TOPIC_IDEATION_ALLOW, canAccess } from "@/lib/featureAccess"
 
 // ============================================================================
 // Settings Types & Storage
@@ -239,7 +239,7 @@ const defaultTiles: TileConfig[] = [
     description: "See what people are saying about any topic, with sentiment, questions and sourced content ideas",
     gradient: "linear-gradient(135deg, #0D9488 0%, #0284C7 55%, #4F46E5 100%)",
     shadowColor: "rgba(2, 132, 199, 0.15)",
-    enabled: true,  // Visible by default, but gated to eric.yerke@stamats.com (see HomePage ERIC_ONLY_TILES)
+    enabled: true,  // Visible by default to the TOPIC_IDEATION_ALLOW list (lib/featureAccess.ts); hidden from everyone else
   },
 ]
 
@@ -625,7 +625,7 @@ const SETTINGS_MAX_W = 1080
 const SETTINGS_MAX_H = 820
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix", "topic-ideation"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
 
 export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
   const { setTheme } = useTheme()
@@ -820,6 +820,7 @@ export function SettingsPanel({ isOpen, onClose }: SettingsPanelProps) {
     .filter(tile => {
       if (ADMIN_ONLY_TILES.has(tile.id)) return isAdmin
       if (tile.id === "migration-matrix") return canAccess(MIGRATION_MATRIX_ALLOW, user?.email)
+      if (tile.id === "topic-ideation") return canAccess(TOPIC_IDEATION_ALLOW, user?.email)
       if (ERIC_ONLY_TILES.has(tile.id)) return isEricYerke
       return true
     })

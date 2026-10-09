@@ -18,7 +18,7 @@ import { useTheme } from "@/contexts/ThemeContext"
 import { getVisibleTiles, TileConfig } from "@/components/SettingsPanel"
 import { topicsApi, answersApi, photosApi, healthApi, proposalInsightsApi } from "@/lib/api"
 import { clientSuccessData } from "@/data/clientSuccessData"
-import { ERIC_ONLY, MIGRATION_MATRIX_ALLOW, canAccess } from "@/lib/featureAccess"
+import { ERIC_ONLY, MIGRATION_MATRIX_ALLOW, TOPIC_IDEATION_ALLOW, canAccess } from "@/lib/featureAccess"
 
 function getGreeting(firstName?: string): string {
   if (firstName) return `Hello ${firstName}`
@@ -305,7 +305,7 @@ function saveCachedStats(stats: HomeStats) {
 }
 
 const ADMIN_ONLY_TILES = new Set(["import-data", "new-entry", "photo-library"])
-const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix", "topic-ideation"])
+const ERIC_ONLY_TILES = new Set(["pitch-deck-designer", "content-matrix"])
 
 export function HomePage() {
   useDocumentTitle("Home")
@@ -486,6 +486,7 @@ export function HomePage() {
                 const id = card.id || ""
                 if (ADMIN_ONLY_TILES.has(id)) return isAdmin
                 if (id === "migration-matrix") return canAccess(MIGRATION_MATRIX_ALLOW, user?.email)
+                if (id === "topic-ideation") return canAccess(TOPIC_IDEATION_ALLOW, user?.email)
                 if (ERIC_ONLY_TILES.has(id)) return canAccess(ERIC_ONLY, user?.email)
                 return true
               }).map((card) => (
