@@ -387,7 +387,7 @@ test.describe("Topic Ideation", () => {
     expect(errorsOf(page)).toEqual([])
   })
 
-  test("export sources: a spreadsheet of every post with full text, and a clean list of links", async ({ page, context }) => {
+  test("export sources: a spreadsheet of every post with its text, and a clean list of links", async ({ page, context }) => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"])
     await setup(page)
     await page.goto(`/listening/${TOPIC_ID}`)

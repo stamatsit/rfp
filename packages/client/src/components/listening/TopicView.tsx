@@ -176,7 +176,7 @@ function ExportMenu({ input }: { input: () => ExportInput }) {
       toast.error("Could not copy. Your browser blocked clipboard access.")
     }
   }
-  // Every relevant post with its full text, fetched on demand (the page only holds excerpts).
+  // Every relevant post with the text we stored (up to about 1,800 characters each), fetched on demand: the page only holds excerpts.
   const sources = async () => {
     setOpen(false)
     setBusy("csv")
@@ -245,7 +245,7 @@ function ExportMenu({ input }: { input: () => ExportInput }) {
             <FileSpreadsheet size={16} className="mt-0.5 text-emerald-600" />
             <span>
               <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">All sources (spreadsheet)</span>
-              <span className="block text-[12px] text-slate-500">Every relevant post with its link and full text, to dig further in Copilot or ChatGPT.</span>
+              <span className="block text-[12px] text-slate-500">Every relevant post with its link and the text we collected, to dig further in Copilot or ChatGPT.</span>
             </span>
           </button>
           <button role="menuitem" type="button" className={item} onClick={() => void copyLinks()}>

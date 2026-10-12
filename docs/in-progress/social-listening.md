@@ -115,7 +115,7 @@ admins; teammates see "a private topic".
 ## Sources export
 
 Export menu, "All sources (spreadsheet)": `GET /topics/:id/sources` returns every relevant post
-with its full text and labels; the browser writes a CSV (link, platform, date, counted or why not,
+with its stored text (up to about 1,800 characters a post) and labels; the browser writes a CSV (link, platform, date, counted or why not,
 feeling, subtopic, title, text) for deeper analysis in another tool. Cells that start like a
 formula are prefixed with an apostrophe, since post text comes from the open web. "Copy source
 links" copies the links of the posts counted in the report.

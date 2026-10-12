@@ -489,7 +489,7 @@ export function csvCell(value: string): string {
   return `"${v.replace(/"/g, '""')}"`
 }
 
-/** Every relevant source as a spreadsheet: link, labels and full text, counted posts first. */
+/** Every relevant source as a spreadsheet: link, labels and stored text, counted posts first. */
 export function sourcesCsv(rows: SourceRow[]): string {
   const head = ["Link", "Platform", "Type", "Date", "Author", "Counted in report", "If not counted, why", "Feeling", "Audience", "Subtopic", "Question asked", "Title", "Text"]
   const lines = [head.map(csvCell).join(",")]

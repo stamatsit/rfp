@@ -164,7 +164,7 @@ export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<u
   return { ok: true, body: { topic, role, items: itemViews(items, topic.report), runs, activeRun, savedIdeas } }
 }
 
-/** One relevant source with its full text and labels, for the sources export. */
+/** One relevant source with its stored text (clipped at LIMITS.maxItemChars) and labels, for the sources export. */
 export interface SourceRow {
   url: string
   platform: string
@@ -184,7 +184,7 @@ export interface SourceRow {
 }
 
 /**
- * Every relevant source for a topic you can read, with full text, so the list
+ * Every relevant source for a topic you can read, with its stored text, so the list
  * can be handed to another tool for deeper analysis. Off-topic items are left out.
  */
 export async function topicSources(ctx: ServiceCtx, id: string): Promise<Result<{ sources: SourceRow[] }>> {
