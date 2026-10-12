@@ -58,3 +58,26 @@ hours, and a Monday-morning weekly view. Shipped:
 Not done: Laura's tracker restructure (single sheet + status column) lands
 later; HM projects have no matrix in the app, so their weekly "done" is the
 tracker's Pages Completed until Crystal's HM sheets arrive.
+
+## Rebuilt tracker (2026-10-12): contract 1.2
+Laura rebuilt the assignment spreadsheet from scratch on 2026-09-30 (the
+9/18 file was a prototype). The pipeline now reads both layouts:
+- Rebuilt layout, detected by headers: one `Projects` sheet with a Status
+  column (active / planned / completed) and per page type sizing (AS IS,
+  OPTIMIZE, QA, PUBLISH, FIREFIGHTING: total pages, minutes per page, pages
+  per hour, hours). `_parse_project_sheet_v2` folds the build types into the
+  one-type fields the dashboard reads (pages and hours summed, blended rate,
+  QA separate) and ships the detail as `page_types` (additive, hence 1.2).
+  `Assignments` triplets are Pages Assigned / Hours / Hours Left from row 7
+  with no completed column (done comes from the client matrix only); roles
+  the Projects sheet sizes (Publish, Firefighting) count as page work. No
+  Weekly Capacity sheet, so those checks are skipped.
+- Planned projects without a page count (Coe, HM Physicians) now appear
+  with their start dates ("no page count yet").
+- New findings: `deadline-before-start` (Washtenaw was typed 2026-01-01),
+  `hours-cell-stale` (sheet hours cell disagrees with pages at rate).
+- Dropped by Laura's rebuild: Morehead, UTPB, Northwestern, CCC, Premier,
+  HMAI. The Morehead matrix in the folder links to no project now.
+Pending: Crystal's `content-matrix-washtenaw.xlsx` lives in her own OneDrive;
+the sync only reads the shared Migration Matrix folder, so WCC done stays 0
+until her working copy sits there next to the Morehead one.

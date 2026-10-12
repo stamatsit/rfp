@@ -169,8 +169,11 @@ def record_unmatched_finding(unmatched):
 def main():
     db = sqlite3.connect(os.path.join(HERE, "master.db"))
     db.row_factory = sqlite3.Row
+    # planned projects ride along before they are sized (Coe, HM Physicians):
+    # the team wants to see what is booked, not only what is counted
     projects = {r["name"]: dict(r) for r in db.execute(
-        "SELECT * FROM projects WHERE total_pages > 0")}
+        "SELECT * FROM projects WHERE COALESCE(total_pages, 0) > 0 "
+        "OR lower(COALESCE(list, '')) = 'planned'")}
     db.row_factory = None
     archived = load_archived()
     rollup = bm.project_rollup(db)
@@ -249,7 +252,7 @@ def main():
 
     def build_client(name):
         pr = projects[name]
-        total = pr["total_pages"]
+        total = pr["total_pages"] or 0
         mig = rollup.get((name, "Migration"), {})
         qa = rollup.get((name, "QA"), {})
         mx0 = matrix_by_project.get(name)
@@ -272,7 +275,9 @@ def main():
         days = (datetime.date.fromisoformat(pr["client_deadline"])
                 - bm.TODAY).days if pr["client_deadline"] else None
         status_l = (pr["status"] or "").lower()
-        if remaining <= 0:
+        if not total:
+            verdict, tone = "no page count yet", "warn"
+        elif remaining <= 0:
             verdict, tone = "fully assigned", "ok"
         elif status_l.startswith("blocked") or "waiting" in status_l:
             verdict, tone = (pr["status"] or "blocked").lower(), "warn"
@@ -372,6 +377,9 @@ def main():
             "hours_to_finish": hours_to_finish, "rate_set": bool(mig_rate),
             "priority": pr["priority"], "start_date": pr["start_date"],
             "mig_deadline": pr["mig_deadline"],
+            # 1.2 (additive): per page type sizing from the rebuilt tracker
+            "page_types": (json.loads(pr["page_types"]) if pr.get("page_types") else None),
+            "qa_pages": pr.get("qa_pages"),
         }
 
     clients = [build_client(n) for n in projects]

@@ -127,7 +127,8 @@ def facts_blob():
                  "hours_to_finish": c.get("hours_to_finish"),
                  "build_minutes_per_page": c.get("min_per_page"),
                  "client_deadline": c.get("deadline"),
-                 "done_source": c.get("done_source")}
+                 "done_source": c.get("done_source"),
+                 "page_types": c.get("page_types")}
                 for c in pdata.get("clients", [])]
             facts["team_performance"] = [
                 {"person": t["name"], "role": t.get("role"),

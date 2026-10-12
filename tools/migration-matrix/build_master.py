@@ -250,11 +250,133 @@ DATE_FIELDS = {"start_date", "mig_deadline", "client_deadline"}
 TEXT_FIELDS = {"page_type", "complexity", "priority", "status", "notes"}
 
 
+def _headers(ws, row=4):
+    """Normalised header text by column for one row (blank cells read as '')."""
+    return {c: re.sub(r"\s+", " ", to_text(ws.cell(row, c).value) or "").strip().lower()
+            for c in range(1, ws.max_column + 1)}
+
+
+# The rebuilt tracker (Laura, 2026-09-30) sizes every project per page type
+# on one Projects sheet. QA is tracked beside the build types, not added to
+# them: the QA page count is the pages that get QA'd.
+PAGE_TYPES = ("as is", "optimize", "qa", "publish", "firefighting")
+# Page types the Projects sheet declares; assignment rows with these roles
+# count as page work in the rollups (filled by _parse_project_sheet_v2).
+BUILD_ROLES = set()
+
+
+def _page_type_columns(headers):
+    """{type: {pages, minutes, rate, hours}} column map for the rebuilt
+    layout, or None when the sheet has no 'Total AS IS Pages' style header."""
+    if not any("as is" in h and "pages" in h for h in headers.values()):
+        return None
+    used, out = set(), {}
+    for t in PAGE_TYPES:
+        slot = {}
+        for key, ok in (
+            ("pages", lambda h: h.startswith("total") and "pages" in h
+                                and "hours" not in h and "minutes" not in h),
+            ("minutes", lambda h: "minutes" in h),
+            ("rate", lambda h: "/hour" in h),
+            ("hours", lambda h: "hours" in h),
+        ):
+            for c, h in headers.items():
+                if c in used or not h or t not in h:
+                    continue
+                if ok(h):
+                    slot[key] = c
+                    used.add(c)
+                    break
+        if slot:
+            out[t] = slot
+    return out
+
+
+def _list_from_status(status):
+    """The rebuilt Projects sheet says active / planned / completed in its
+    Status column; older layouts carried that on separate sheets."""
+    s = (status or "").strip().lower()
+    if s.startswith("plan"):
+        return "planned"
+    if s.startswith(("complete", "done", "finish", "archiv")):
+        return "completed"
+    return "active"
+
+
+def _parse_project_sheet_v2(ws, headers, types):
+    """Rebuilt tracker: one row per project with Status, dates and per page
+    type total pages, minutes per page, pages per hour and hours. Folded
+    into the one-type fields the rest of the pipeline reads: pages and hours
+    summed over the build types, a blended pages per hour, QA kept separate.
+    The per type detail rides along as page_types (JSON)."""
+    meta = {}
+    for field, match in PROJECT_FIELDS:
+        if field not in ("start_date", "mig_deadline", "client_deadline",
+                         "status", "notes", "priority"):
+            continue
+        for c, h in headers.items():
+            if h and c not in meta.values() and match(h):
+                meta[field] = c
+                break
+    BUILD_ROLES.update(t for t in types if t != "qa")
+    rows = []
+    for r in range(5, ws.max_row + 1):
+        name = to_text(ws.cell(r, 1).value)
+        if not name or name.startswith(("Deadline Color Key", "Formulas", "[")):
+            continue
+        row = {"row": r, "name": name}
+        for field in ("start_date", "mig_deadline", "client_deadline",
+                      "status", "notes", "priority"):
+            c = meta.get(field)
+            v = ws.cell(r, c).value if c else None
+            row[field] = to_date(v) if field in DATE_FIELDS else to_text(v)
+        row["list"] = _list_from_status(row["status"])
+        detail, pages, hours = {}, 0.0, 0.0
+        for t, cols in types.items():
+            cell = lambda key: (to_num(ws.cell(r, cols[key]).value)
+                                if key in cols else None)
+            n, mins, rate, hrs_cell = cell("pages"), cell("minutes"), cell("rate"), cell("hours")
+            if not rate and mins:
+                rate = 60.0 / mins       # Excel Online saves may drop cached formulas
+            hrs = n / rate if n and rate else hrs_cell
+            if hrs_cell is not None and hrs is not None and hrs != hrs_cell \
+                    and abs(hrs - hrs_cell) > 0.05 * max(hrs, hrs_cell):
+                STRUCTURE_FINDINGS.append((
+                    "MEDIUM", "hours-cell-stale",
+                    f"'{name}': the {t.upper()} hours cell says {hrs_cell:g} but "
+                    f"{n:g} pages at {rate:g} pages/hour is {hrs:g} hours. The "
+                    f"dashboard uses the computed hours; fix the cell's formula."))
+            if not (n or mins or rate or hrs):
+                continue
+            detail[t] = {"pages": n or 0, "min_per_page": mins, "rate": rate,
+                         "hours": round(hrs, 2) if hrs is not None else None}
+            if t != "qa":
+                pages += n or 0
+                hours += hrs or 0
+        qa = detail.get("qa", {})
+        row.update({
+            "page_type": ", ".join(f"{t.upper()} {d['pages']:g}" for t, d in detail.items()
+                                   if t != "qa" and d["pages"]) or None,
+            "complexity": None,
+            "total_pages": pages if detail else None,
+            "mig_hours_needed": hours if detail else None,
+            "mig_rate": pages / hours if pages and hours else None,
+            "mig_min_per_page": round(60.0 * hours / pages, 1) if pages and hours else None,
+            "mig_pages_assigned_shown": None, "mig_pages_remaining_shown": None,
+            "qa_pages": qa.get("pages"),
+            "qa_min_per_page": qa.get("min_per_page"), "qa_rate": qa.get("rate"),
+            "qa_hours_needed": qa.get("hours"),
+            "qa_pages_assigned_shown": None, "qa_pages_remaining_shown": None,
+            "page_types": json.dumps(detail) if detail else None,
+        })
+        rows.append(row)
+    return rows
+
+
 def _project_columns(ws):
     """Map project fields to columns by header text (row 4); the live
     tracker reorders columns and renames 'Migration' to 'Page Build'."""
-    headers = {c: re.sub(r"\s+", " ", to_text(ws.cell(4, c).value)).strip().lower()
-               for c in range(1, ws.max_column + 1)}
+    headers = _headers(ws)
     if not any("project" in h for h in headers.values()):
         return dict(PROJECT_FIXED)
     cols = {}
@@ -269,6 +391,10 @@ def _project_columns(ws):
 
 
 def _parse_project_sheet(ws, listname):
+    headers = _headers(ws)
+    types = _page_type_columns(headers)
+    if types:
+        return _parse_project_sheet_v2(ws, headers, types)
     cols = _project_columns(ws)
     rows = []
     for r in range(5, ws.max_row + 1):
@@ -324,6 +450,9 @@ def parse_projects(wb):
                 continue
             seen.add(key)
             rows.append(row)
+    for row in rows:            # columns only the rebuilt layout fills
+        row.setdefault("qa_pages", None)
+        row.setdefault("page_types", None)
     return rows
 
 
@@ -337,6 +466,10 @@ def normalize_role(raw):
         return "Migration"
     if t == "qa" or t.startswith("q/a") or t.startswith("qa "):
         return "QA"
+    # the rebuilt tracker sizes PUBLISH and FIREFIGHTING pages on the
+    # Projects sheet, so those roles are page work for the rollups too
+    if any(t.startswith(b) for b in BUILD_ROLES):
+        return "Migration"
     return (raw or "").strip()
 
 
@@ -394,7 +527,15 @@ def lookup_rate(rates, project, role, sheet=""):
 def parse_assignments(wb, sheet, source, rates=None):
     ws = wb[sheet]
     assigns, orphans = [], []
-    weeks = _header_weeks(ws, 4, 6, 3)
+    # Rebuilt tracker (2026-09-30): row 5 reads Pages Assigned | Hours |
+    # Hours Left per week with the week date above each triplet on row 4,
+    # column 4 is Total Pages Left (no rate column) and there is no
+    # completed-pages column: done comes from the client matrix.
+    hdr5 = _headers(ws, 5)
+    rebuilt = ("hours left" in hdr5.values()
+               and not any("complet" in h or h == "done" for h in hdr5.values()))
+    first_pa = next((c for c, h in sorted(hdr5.items()) if h == "pages assigned"), 6)
+    weeks = _header_weeks(ws, 4, first_pa if rebuilt else 6, 3)
     if not weeks:  # header unreadable: fall back to the fixed 3-col grid
         weeks = [(6 + 3 * w, wk) for w, wk in enumerate(WEEKS)]
     seen_roles = set()
@@ -405,7 +546,7 @@ def parse_assignments(wb, sheet, source, rates=None):
         role = normalize_role(role_raw)
         if role_raw:
             seen_roles.add(role_raw)
-        rate = to_num(ws.cell(r, 4).value)
+        rate = None if rebuilt else to_num(ws.cell(r, 4).value)
         if rate is None and rates and project:
             # the sheet's own Pages/Hr (auto) looks the project up whatever
             # the role says, so hours for Strategy/Publish rows derive the
@@ -415,7 +556,7 @@ def parse_assignments(wb, sheet, source, rates=None):
         for col, week in weeks:
             pages = to_num(ws.cell(r, col).value)
             hours = to_num(ws.cell(r, col + 1).value)
-            done = to_num(ws.cell(r, col + 2).value)
+            done = None if rebuilt else to_num(ws.cell(r, col + 2).value)
             if pages is None and hours is None and done is None:
                 continue
             eff = hours
@@ -448,7 +589,10 @@ def parse_assignments(wb, sheet, source, rates=None):
 
 
 def parse_reported_capacity(wb):
-    """The tracker's own Weekly Capacity numbers, kept for comparison."""
+    """The tracker's own Weekly Capacity numbers, kept for comparison. The
+    rebuilt tracker has no such sheet, so there is nothing to compare."""
+    if "Weekly Capacity" not in wb.sheetnames:
+        return []
     ws = wb["Weekly Capacity"]
     rows = []
     weeks = _header_weeks(ws, 4, 2, 2, stop_words=("legend", "total")) \
@@ -486,7 +630,8 @@ def build_db(people, capacity, projects, assigns, orphans, reported):
             qa_min_per_page REAL, qa_rate REAL, qa_hours_needed REAL,
             qa_pages_assigned_shown REAL, qa_pages_remaining_shown REAL,
             start_date TEXT, mig_deadline TEXT, client_deadline TEXT,
-            priority TEXT, status TEXT, notes TEXT, list TEXT);
+            priority TEXT, status TEXT, notes TEXT, list TEXT,
+            qa_pages REAL, page_types TEXT);
         CREATE TABLE assignments (id INTEGER PRIMARY KEY, source TEXT,
             src_row INTEGER, person TEXT, project TEXT, role TEXT,
             role_raw TEXT, rate REAL, orphan INTEGER DEFAULT 0);
@@ -720,7 +865,7 @@ def validate(db, projects):
         "SELECT DISTINCT person FROM assignments WHERE orphan = 0")}
     reported_people = {r[0] for r in db.execute(
         "SELECT DISTINCT person FROM reported_capacity")}
-    for p in sorted(assigned_people - reported_people):
+    for p in (sorted(assigned_people - reported_people) if reported_people else []):
         add("HIGH", "person-missing-from-capacity",
             f"'{p}' has assignments but no row on the Weekly Capacity sheet, so "
             f"their hours are never capacity-checked.")
@@ -794,6 +939,17 @@ def validate(db, projects):
             f"Assignment rows reference projects that are on no project sheet "
             f"(Active, Planned or Completed): {names}. Their pages count for "
             f"nobody until the project is listed, or the rows are removed.")
+
+    # 8. A client deadline earlier than the start date is a typo (the
+    #    rebuilt tracker listed Washtenaw due 2026-01-01 with a 9/21 start);
+    #    the dashboard would read it as months overdue.
+    for pr in projects:
+        sd, cd = pr.get("start_date"), pr.get("client_deadline")
+        if sd and cd and cd < sd:
+            add("HIGH", "deadline-before-start",
+                f"'{pr['name']}': client deadline {cd} is earlier than its start "
+                f"date {sd}, probably the wrong year. Until it is fixed the "
+                f"dashboard shows this project as overdue.")
 
     return findings
 

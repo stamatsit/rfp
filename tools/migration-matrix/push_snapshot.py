@@ -95,7 +95,7 @@ def build_snapshot():
                 "web_url": office_url(url)}
 
     return {
-        "contract": "1.1",
+        "contract": "1.2",
         "generated_at": utc(),
         "source": os.environ.get("MM_SOURCE_NAME", "mac-agent"),
         "source_files": {
