@@ -81,3 +81,16 @@ Laura rebuilt the assignment spreadsheet from scratch on 2026-09-30 (the
 Pending: Crystal's `content-matrix-washtenaw.xlsx` lives in her own OneDrive;
 the sync only reads the shared Migration Matrix folder, so WCC done stays 0
 until her working copy sits there next to the Morehead one.
+
+## Sources read in place (2026-10-12)
+The sync no longer needs copies in Eric's OneDrive folder. `MM_SHARE_URLS`
+(GitHub secret, one "Anyone with the link" share per line, folder or single
+file, any owner, optionally `name.xlsx=link`) replaces `MM_SHARE_URL`. A
+file link is followed for its guest cookie, downloaded with `&download=1`,
+and named via REST `GetFileById`. cloud_sync writes
+`contract/sources-weburls.runtime.json` (name -> link) and push_snapshot
+uses it for the dashboard's open buttons; `folder_url` is empty then.
+Live links: Laura's tracker (her OneDrive root), Crystal's Morehead matrix
+(morehead-alumni/), Crystal's WCC matrix (Documents/Washtenaw, link pending).
+If an owner removes or regenerates a link the run fails loudly rather than
+serving stale data. Graph (IT consent) remains the no-anonymous-links option.

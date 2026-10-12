@@ -84,11 +84,22 @@ def build_snapshot():
         except Exception:
             pass
 
+    # cloud_sync writes file name -> the owner's share link for everything it
+    # pulled; that beats the committed map and the folder guess, so the
+    # dashboard opens the file where it actually lives
+    runtime = {}
+    rt_path = os.path.join(HERE, "contract", "sources-weburls.runtime.json")
+    if os.path.exists(rt_path):
+        try:
+            runtime = json.load(open(rt_path))
+        except Exception:
+            pass
+
     folder = (urlmap.get("_folder") or "").rstrip("/")
 
     def fmeta(path):
         base = os.path.basename(path)
-        url = urlmap.get(base) or (
+        url = runtime.get(base) or urlmap.get(base) or (
             f"{folder}/{urllib.parse.quote(base)}" if folder else "")
         return {"name": base, "sha256": sha256(path),
                 "mtime": utc(os.path.getmtime(path)),
@@ -101,7 +112,8 @@ def build_snapshot():
         "source_files": {
             "tracker": fmeta(os.path.abspath(bm.SRC)),
             "matrices": [fmeta(p) for p in cm.find_matrices()],
-            "folder_url": urlmap.get("_folder", ""),
+            # files read through their owners' links live in no one folder
+            "folder_url": "" if runtime else urlmap.get("_folder", ""),
         },
         "week": str(bm.CUR_WEEK),
         "week_lbl": str(data.get("week_lbl", "")),

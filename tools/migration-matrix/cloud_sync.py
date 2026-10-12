@@ -7,11 +7,13 @@
      MS_DRIVE_PATH names the folder (default "Migration Matrix").
      Files fetched this way are mirrored into Supabase Storage so the app's
      Spreadsheets view shows the same copies.
-  2. A OneDrive "Anyone with the link" share of the same folder, via
-     MM_SHARE_URL. Needs no Microsoft credentials: following the link mints an
-     anonymous guest session, and SharePoint's REST API then lists and serves
-     the files with that session. Used when no MS_* env is present. Files are
-     mirrored into Supabase Storage the same way.
+  2. OneDrive "Anyone with the link" shares, via MM_SHARE_URLS (one link per
+     line: a folder, or a single file owned by anyone, so Laura's tracker and
+     Crystal's matrices are read in place; MM_SHARE_URL is the older
+     one-folder form). Needs no Microsoft credentials: following a link mints
+     an anonymous guest session, and SharePoint's REST API then lists and
+     serves the files with that session. Used when no MS_* env is present.
+     Files are mirrored into Supabase Storage the same way.
   3. Supabase Storage bucket mm-sources (tracker/<file>, matrices/<file>),
      fed by uploads in the app. Last resort when neither of the above is set.
 Then: build_master -> make_present -> push_snapshot (source github-action).
@@ -47,6 +49,15 @@ def sb_upload(path, data):
     req = urllib.request.Request(f"{SB}/storage/v1/object/{BUCKET}/{urllib.parse.quote(path)}",
                                  data=data, headers=hdr, method="POST")
     with urllib.request.urlopen(req, timeout=120) as r:
+        return r.status
+
+
+def sb_remove(paths):
+    if not paths:
+        return
+    req = urllib.request.Request(f"{SB}/storage/v1/object/{BUCKET}", method="DELETE",
+                                 data=json.dumps({"prefixes": paths}).encode(), headers=H)
+    with urllib.request.urlopen(req, timeout=60) as r:
         return r.status
 
 
@@ -108,54 +119,122 @@ UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/140.0 Safari/537.36")
 
 
-def share_fetch_sources():
-    """Read the folder behind an anonymous share link; returns (tracker_path, n_matrices).
+RUNTIME_URLMAP = os.path.join(HERE, "contract", "sources-weburls.runtime.json")
 
-    SharePoint refuses the REST API outright (401) until the share link itself
-    has been followed, which sets a guest cookie. So: open the link, keep the
-    jar, then list and download through the same opener.
-    """
-    share = os.environ["MM_SHARE_URL"]
+
+def _share_links():
+    """MM_SHARE_URLS: one share link per line (a folder or a single file, any
+    owner), optionally written 'name.xlsx=link' to force the file name.
+    MM_SHARE_URL (one folder link) is the older form and still works."""
+    raw = os.environ.get("MM_SHARE_URLS") or os.environ.get("MM_SHARE_URL") or ""
+    out = []
+    for line in re.split(r"[\n,]+", raw):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        name, sep, url = line.partition("=")
+        if sep and url.strip().startswith("http"):
+            out.append((name.strip(), url.strip()))
+        else:
+            out.append((None, line))
+    return out
+
+
+def _guest_opener(share):
+    """Follow a share link in a fresh cookie jar: SharePoint refuses the REST
+    API outright (401) until the link itself has been opened, which mints a
+    guest session scoped to that one share."""
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
     opener.addheaders = [("User-Agent", UA)]
     with opener.open(urllib.request.Request(share), timeout=60) as r:
         landing = r.geturl()
-    # The landing URL carries the folder's server-relative path in ?id=
-    q = urllib.parse.parse_qs(urllib.parse.urlparse(landing).query)
-    rel = (q.get("id") or [None])[0]
-    if not rel:
-        sys.exit("share link did not resolve to a folder path; is it still shared?")
-    site = "https://" + urllib.parse.urlparse(landing).netloc + re.sub(r"^(/personal/[^/]+).*", r"\1", rel)
-    api = f"{site}/_api/web/GetFolderByServerRelativeUrl('{urllib.parse.quote(rel)}')/Files?$select=Name,Length,TimeLastModified"
-    req = urllib.request.Request(api, headers={"Accept": "application/json;odata=nometadata"})
+    return opener, landing
+
+
+def _rest_json(opener, url):
+    req = urllib.request.Request(url, headers={"Accept": "application/json;odata=nometadata"})
     with opener.open(req, timeout=60) as r:
-        items = json.load(r).get("value", [])
-    tracker, n_mat = None, 0
-    for it in items:
-        name = it["Name"]
-        if not name.lower().endswith(".xlsx") or name.startswith("~$"):
-            continue
-        furl = (f"{site}/_api/web/GetFileByServerRelativeUrl("
-                f"'{urllib.parse.quote(rel + '/' + name)}')/$value")
-        with opener.open(urllib.request.Request(furl), timeout=180) as r:
-            data = r.read()
+        return json.load(r)
+
+
+def share_fetch_sources():
+    """Read every share link in MM_SHARE_URLS; returns (tracker_path, n_matrices).
+
+    A link may open a FOLDER (its landing URL carries the server-relative
+    path in ?id=; every .xlsx inside is read) or a single FILE (the landing
+    URL is Doc.aspx?sourcedoc={guid}; the bytes come from <link>&download=1,
+    the real name and modified time from REST GetFileById). So Laura's
+    tracker and Crystal's matrices are read where their owners keep them,
+    no copies. Each file's link is remembered in sources-weburls.runtime.json
+    so the dashboard's buttons open the owner's file.
+    """
+    tracker, n_mat, webmap = None, 0, {}
+
+    def keep(name, data, modified, link):
+        nonlocal tracker, n_mat
         if not data[:2] == b"PK":
             print(f"  share: {name} did not come back as a workbook, skipped")
-            continue
+            return
         is_matrix = "content-matrix" in name.lower()
         sub = "matrices" if is_matrix else "tracker"
         dest = os.path.join(OUT, sub, name)
         open(dest, "wb").write(data)
         try:
+            if not is_matrix:   # one tracker in the mirror, whatever it is called today
+                sb_remove([f"tracker/{n}" for n in sb_list("tracker") if n != name])
             sb_upload(f"{sub}/{name}", data)   # mirror for the app's Spreadsheets view
         except Exception as e:
             print("mirror to storage failed (non-fatal):", str(e)[:120])
+        webmap[name] = link
         if is_matrix:
             n_mat += 1
         elif tracker is None or "tracker" in name.lower():
             tracker = dest
-        print(f"  share: {name} ({len(data)} bytes, modified {it.get('TimeLastModified')})")
+        print(f"  share: {name} ({len(data)} bytes, modified {modified})")
+
+    for forced_name, share in _share_links():
+        opener, landing = _guest_opener(share)
+        parsed = urllib.parse.urlparse(landing)
+        q = urllib.parse.parse_qs(parsed.query)
+        rel = (q.get("id") or [None])[0]
+        doc = (q.get("sourcedoc") or [None])[0]
+        if rel:                                   # a folder
+            site = "https://" + parsed.netloc + re.sub(r"^(/personal/[^/]+).*", r"\1", rel)
+            api = (f"{site}/_api/web/GetFolderByServerRelativeUrl('{urllib.parse.quote(rel)}')"
+                   f"/Files?$select=Name,Length,TimeLastModified")
+            for it in _rest_json(opener, api).get("value", []):
+                name = it["Name"]
+                if not name.lower().endswith(".xlsx") or name.startswith("~$"):
+                    continue
+                furl = (f"{site}/_api/web/GetFileByServerRelativeUrl("
+                        f"'{urllib.parse.quote(rel + '/' + name)}')/$value")
+                with opener.open(urllib.request.Request(furl), timeout=180) as r:
+                    data = r.read()
+                keep(name, data, it.get("TimeLastModified"),
+                     "https://" + parsed.netloc + urllib.parse.quote(rel + "/" + name))
+        elif doc:                                 # a single file
+            guid = doc.strip("{}")
+            site = "https://" + parsed.netloc + re.sub(r"^(/personal/[^/]+).*", r"\1", parsed.path)
+            try:
+                meta = _rest_json(opener, f"{site}/_api/web/GetFileById('{guid}')"
+                                          f"?$select=Name,Length,TimeLastModified")
+            except Exception as e:
+                print(f"  share: could not read the file's name ({str(e)[:80]})")
+                meta = {}
+            name = forced_name or meta.get("Name")
+            if not name:
+                sys.exit(f"cannot tell what file {share[:60]}... is; write it as "
+                         f"'name.xlsx=link' in MM_SHARE_URLS")
+            dl = share + ("&" if "?" in share else "?") + "download=1"
+            with opener.open(urllib.request.Request(dl), timeout=180) as r:
+                data = r.read()
+            keep(name, data, meta.get("TimeLastModified"), share)
+        else:
+            sys.exit(f"share link did not resolve to a folder or a file; is it still "
+                     f"shared? ({landing[:90]})")
+    os.makedirs(os.path.dirname(RUNTIME_URLMAP), exist_ok=True)
+    json.dump(webmap, open(RUNTIME_URLMAP, "w"), indent=1)
     return tracker, n_mat
 
 
@@ -167,10 +246,10 @@ def main():
         if not tracker:
             sys.exit("no tracker .xlsx in the OneDrive folder")
         origin = "onedrive"
-    elif os.environ.get("MM_SHARE_URL"):
+    elif os.environ.get("MM_SHARE_URLS") or os.environ.get("MM_SHARE_URL"):
         tracker, n_mat = share_fetch_sources()
         if not tracker:
-            sys.exit("no tracker .xlsx behind the share link")
+            sys.exit("no tracker .xlsx behind the share links")
         origin = "onedrive-share"
     else:
         trackers = sb_list("tracker")
@@ -192,7 +271,8 @@ def main():
             print(r.stdout[-2000:], r.stderr[-2000:]); sys.exit(f"{script} failed")
         print(f"ok {script}")
     url = os.environ.get("MM_INGEST_URL", "https://ai.stamats.com/api/migration/ingest")
-    r = subprocess.run([sys.executable, os.path.join(HERE, "push_snapshot.py"), "--post", url],
+    mode = "--dry-run" if os.environ.get("MM_DRY_RUN") else "--post"   # dry run: validate, store nothing
+    r = subprocess.run([sys.executable, os.path.join(HERE, "push_snapshot.py"), mode, url],
                        cwd=HERE, env=env, capture_output=True, text=True, timeout=180)
     print(r.stdout.strip()[-400:], r.stderr.strip()[-400:])
     sys.exit(r.returncode)

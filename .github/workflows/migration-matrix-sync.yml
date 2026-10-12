@@ -32,4 +32,5 @@ jobs:
           MS_CLIENT_SECRET: ${{ secrets.MS_CLIENT_SECRET }}
           MS_USER: ${{ secrets.MS_USER }}
           MM_SHARE_URL: ${{ secrets.MM_SHARE_URL }}
+          MM_SHARE_URLS: ${{ secrets.MM_SHARE_URLS }}
         run: python tools/migration-matrix/cloud_sync.py

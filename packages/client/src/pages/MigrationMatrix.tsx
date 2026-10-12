@@ -668,8 +668,8 @@ function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData
           <OpenLink href={links?.folder_url}><FolderOpen size={13} /> Open the OneDrive folder</OpenLink>
         </div>
         <p className="text-[13px] text-slate-600 dark:text-slate-300">
-          Edit the spreadsheets in the shared OneDrive folder like always. The dashboard reads them
-          from SharePoint by itself through the working day, so there is nothing to upload and no
+          The dashboard reads each spreadsheet where its owner keeps it, through the link listed
+          next to it below. Edit your own file like always: there is nothing to upload and no
           button to press. Changes show up here on the next run, normally within a few minutes.
         </p>
       </Card>
