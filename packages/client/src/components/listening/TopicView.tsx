@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, useNavigate } from "react-router-dom"
-import { AlertCircle, ChevronDown, ChevronLeft, Copy, Download, FileText, FileType2, Loader2, Lock, MoreHorizontal, RefreshCw, RotateCcw, Trash2, Users } from "lucide-react"
+import { AlertCircle, CalendarRange, ChevronDown, ChevronLeft, Copy, Download, FileText, FileType2, FileSpreadsheet, Link2, Loader2, Lock, MoreHorizontal, RefreshCw, RotateCcw, Trash2, Users } from "lucide-react"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { toast } from "@/hooks/useToast"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
@@ -14,8 +14,8 @@ import { Questions } from "./report/Questions"
 import { News, OwnVoice, Subtopics, Voices } from "./report/Subtopics"
 import { Sources, type SourceView } from "./report/Sources"
 import { Method } from "./report/Method"
-import { exportDocx, exportPdf, type ExportInput } from "./exportReport"
-import { ACCENT, Card, WINDOW_LABEL, personName, plural, reportMarkdown, sampleLabel, timeAgo } from "./ui"
+import { countedLinks, exportDocx, exportPdf, exportSources, type ExportInput } from "./exportReport"
+import { ACCENT, Card, personName, plural, reportMarkdown, sampleLabel, timeAgo, windowLabel } from "./ui"
 
 type Scan = ReturnType<typeof useScan>
 
@@ -140,7 +140,7 @@ function ShareControl({ shared, onChange }: { shared: boolean; onChange: (next: 
 /** Export: a PDF to share, a Word file to edit, or plain text to paste. */
 function ExportMenu({ input }: { input: () => ExportInput }) {
   const [open, setOpen] = useState(false)
-  const [busy, setBusy] = useState<"pdf" | "docx" | null>(null)
+  const [busy, setBusy] = useState<"pdf" | "docx" | "csv" | null>(null)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!open) return
@@ -176,7 +176,33 @@ function ExportMenu({ input }: { input: () => ExportInput }) {
       toast.error("Could not copy. Your browser blocked clipboard access.")
     }
   }
-  const item = "w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
+  // Every relevant post with its full text, fetched on demand (the page only holds excerpts).
+  const sources = async () => {
+    setOpen(false)
+    setBusy("csv")
+    const i = input()
+    try {
+      const { sources: rows } = await listeningApi.sources(i.topic.id)
+      await exportSources(i.topic, i.report, rows)
+      toast.success(`Spreadsheet downloaded: ${plural(rows.length, "source")}`)
+    } catch (err) {
+      console.error("Sources export failed:", err)
+      toast.error("Could not create the spreadsheet. Try again.")
+    } finally {
+      setBusy(null)
+    }
+  }
+  const copyLinks = async () => {
+    setOpen(false)
+    const links = countedLinks(input().items)
+    try {
+      await navigator.clipboard.writeText(links.join("\n"))
+      toast.success(`Copied ${plural(links.length, "link")}`)
+    } catch {
+      toast.error("Could not copy. Your browser blocked clipboard access.")
+    }
+  }
+  const item ="w-full flex items-start gap-3 px-3 py-2.5 rounded-lg text-left hover:bg-slate-50 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:bg-slate-50 dark:focus-visible:bg-slate-800"
   return (
     <div className="relative" ref={ref}>
       <button
@@ -214,13 +240,28 @@ function ExportMenu({ input }: { input: () => ExportInput }) {
               <span className="block text-[12px] text-slate-500">Paste into an email, a chat or Basecamp.</span>
             </span>
           </button>
+          <p className="px-3 pt-2.5 pb-1 mt-1.5 border-t border-black/[0.06] dark:border-white/[0.08] text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">The posts behind it</p>
+          <button role="menuitem" type="button" className={item} onClick={() => void sources()}>
+            <FileSpreadsheet size={16} className="mt-0.5 text-emerald-600" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">All sources (spreadsheet)</span>
+              <span className="block text-[12px] text-slate-500">Every relevant post with its link and full text, to dig further in Copilot or ChatGPT.</span>
+            </span>
+          </button>
+          <button role="menuitem" type="button" className={item} onClick={() => void copyLinks()}>
+            <Link2 size={16} className="mt-0.5 text-slate-500" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">Copy source links</span>
+              <span className="block text-[12px] text-slate-500">A clean list of links to the posts counted in this report.</span>
+            </span>
+          </button>
         </div>
       )}
     </div>
   )
 }
 
-function Menu({ onRebuild, onDelete, disabled }: { onRebuild: () => void; onDelete: () => void; disabled: boolean }) {
+function Menu({ onRebuild, onRescope, onDelete, disabled }: { onRebuild: () => void; onRescope: () => void; onDelete: () => void; disabled: boolean }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -254,6 +295,13 @@ function Menu({ onRebuild, onDelete, disabled }: { onRebuild: () => void; onDele
             <span>
               <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">Refresh analysis</span>
               <span className="block text-[12px] text-slate-500">Rewrite ideas and subtopics from what is already collected. No new search.</span>
+            </span>
+          </button>
+          <button role="menuitem" type="button" className={item} onClick={() => { setOpen(false); onRescope() }}>
+            <CalendarRange size={16} className="mt-0.5 text-slate-500" />
+            <span>
+              <span className="block text-[13.5px] font-medium text-slate-800 dark:text-slate-100">Scan another time range</span>
+              <span className="block text-[12px] text-slate-500">Start a new scan of this topic over different dates. This one stays as it is.</span>
             </span>
           </button>
           <button role="menuitem" type="button" disabled={disabled} className={item} onClick={() => { setOpen(false); onDelete() }}>
@@ -456,11 +504,11 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
   const meta = report
     ? [
         sampleLabel(report),
-        `${WINDOW_LABEL[topic.timeWindow]}`,
+        windowLabel(topic),
         runsDone > 1 ? `${runsDone} scans` : null,
         topic.lastRunAt ? `updated ${timeAgo(topic.lastRunAt)}` : null,
       ].filter(Boolean)
-    : [WINDOW_LABEL[topic.timeWindow]]
+    : [windowLabel(topic)]
 
   return (
     <div>
@@ -500,7 +548,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
                   <RefreshCw size={15} className={scanning ? "animate-spin motion-reduce:animate-none" : ""} />
                   {scanning ? "Scanning..." : "Rescan for more"}
                 </button>
-                <Menu onRebuild={rebuild} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
+                <Menu onRebuild={rebuild} onRescope={() => onNewSearch(topic.query)} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
               </>
             )}
           </div>

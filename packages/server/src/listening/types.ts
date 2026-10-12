@@ -29,7 +29,8 @@ export type Sentiment = "positive" | "neutral" | "negative" | "mixed"
 
 export type Audience = "student" | "parent" | "patient" | "professional" | "general"
 
-export type TimeWindow = "3m" | "1y" | "any"
+/** Preset relative ranges, any time, or "custom": a fixed range held in the topic's windowFrom and windowTo. */
+export type TimeWindow = "1d" | "1w" | "1m" | "3m" | "1y" | "any" | "custom"
 
 /** A raw search hit or comment before dedupe and labeling. */
 export interface RawItem {
@@ -288,6 +289,19 @@ export interface RunSummary {
 
 export type RunStatus = "running" | "complete" | "failed" | "cancelled"
 
+/** A scan with its topic, as the usage view needs it. */
+export interface UsageRun {
+  createdBy: string
+  trigger: RunTrigger
+  status: RunStatus
+  startedAt: string
+  searchCalls: number
+  topicId: string
+  query: string
+  shared: boolean
+  topicOwner: string
+}
+
 export type RunTrigger = "initial" | "rescan" | "rebuild"
 
 export interface TopicRow {
@@ -295,6 +309,9 @@ export interface TopicRow {
   createdBy: string
   query: string
   timeWindow: TimeWindow
+  /** First and last day (YYYY-MM-DD) when timeWindow is "custom", else null. */
+  windowFrom: string | null
+  windowTo: string | null
   plan: Plan | null
   report: Report | null
   itemCount: number

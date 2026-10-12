@@ -3,6 +3,7 @@
  * optionally a rescan, and check the report's invariants.
  *
  *   cd packages/server && npx tsx src/listening/cli.ts "online nursing degree" [--rescan] [--window 1y]
+ *   ... "FAFSA changes" --window custom --from 2026-03-01 --to 2026-05-31
  *
  * Search/API responses go through the dev file cache (.cache/listening), so
  * re-running the same topic the same day costs no Google quota.
@@ -18,11 +19,14 @@ import type { RunEvent, TimeWindow } from "./types.js"
 
 async function main() {
   const args = process.argv.slice(2)
-  const query = args.find((a) => !a.startsWith("--"))
-  if (!query) throw new Error('usage: cli.ts "topic" [--rescan] [--window 3m|1y|any]')
+  const query = args.find((a, i) => !a.startsWith("--") && !["--window", "--from", "--to"].includes(args[i - 1] ?? ""))
+  if (!query) throw new Error('usage: cli.ts "topic" [--rescan] [--window 1d|1w|1m|3m|1y|any|custom --from YYYY-MM-DD --to YYYY-MM-DD]')
   const rescan = args.includes("--rescan")
   const wi = args.indexOf("--window")
   const timeWindow = (wi >= 0 ? args[wi + 1] : "1y") as TimeWindow
+  const opt = (name: string) => (args.indexOf(name) >= 0 ? args[args.indexOf(name) + 1] ?? null : null)
+  const windowFrom = opt("--from")
+  const windowTo = opt("--to")
 
   const store = new MemoryStore()
   const stageAt = new Map<string, number>()
@@ -49,7 +53,7 @@ async function main() {
     last = t0
     const { topic, runId } =
       trigger === "initial"
-        ? await startRun(store, { trigger, createdBy: "cli@local", query, timeWindow })
+        ? await startRun(store, { trigger, createdBy: "cli@local", query, timeWindow, windowFrom, windowTo })
         : await startRun(store, { trigger, createdBy: "cli@local", topicId: topicId! })
     console.log(`\n=== ${trigger}: ${query}`)
     const status = await executeRun(deps, { topic, runId, trigger }, emit)
@@ -63,6 +67,8 @@ async function main() {
     console.log(`  items ${r.totals.collected} (new ${r.totals.newThisRun}, read in full ${r.totals.fullyRead}), people about it ${r.totals.relevant}, sentiment score ${r.sentiment.score}`)
     console.log(`  not counted: ${x.mentions} passing mentions, ${x.self} own accounts, ${x.organizations} organizations, ${x.media} media`)
     if (r.ownVoice) console.log(`  own voice (${r.ownVoice.name}, ${r.ownVoice.count}): ${r.ownVoice.note}`)
+    const dated = items.map((i) => i.publishedAt).filter((d): d is string => !!d).sort()
+    console.log(`  dated items ${dated.length} of ${items.length}: ${dated[0]?.slice(0, 10) ?? "-"} to ${dated[dated.length - 1]?.slice(0, 10) ?? "-"}`)
     console.log(`  search calls ${r.coverage.searchCalls}, YouTube units ${r.coverage.youtubeUnits}, analysis ${r.analysisSource}${r.thin ? ", THIN" : ""}`)
     if (r.coverage.notes.length) console.log(`  notes: ${r.coverage.notes.join(" | ")}`)
     if (r.warnings.length) console.log(`  warnings: ${r.warnings.join(" | ")}`)

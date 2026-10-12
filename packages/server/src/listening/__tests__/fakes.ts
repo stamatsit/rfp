@@ -131,7 +131,8 @@ export function fakeItem(over: Partial<RawItem> & { url: string }): RawItem {
     kind: "post",
     title: `Thread ${++seq}`,
     text: "I love the flexibility of my online program. Who finds the clinical placement for online students?",
-    publishedAt: "2026-08-01T00:00:00.000Z",
+    // Thirty days ago, so date-range checks behave the same whenever the tests run.
+    publishedAt: new Date(Date.now() - 30 * 86400e3).toISOString(),
     engagement: { score: 10, comments: 4 },
     lane: "search:reddit:0",
     depth: "snippet",

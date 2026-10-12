@@ -1,7 +1,7 @@
 # Topic Ideation (social listening for content ideas)
 
 **Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: Eric only).
-Migrations 009 and 010 are applied to rfp-prod. Internal planning notes (people, meeting notes, account
+Migrations 009, 010 and 011 are applied to rfp-prod. Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
 ## What it is
@@ -92,6 +92,34 @@ questions, subtopics, quotes, the institution's own posts, news, and how it was 
 the built-in Helvetica, so emoji and scripts it cannot draw are dropped from the PDF only
 (`pdfSafe`); the Word file keeps them. File name: `Topic Ideation - <topic> - <report date>`.
 
+## Time ranges
+
+`listening/window.ts`. A topic is scanned over a preset (past 24 hours, week, month, 3 months,
+year, or any time) or a fixed custom range (`time_window = 'custom'` with `window_from` and
+`window_to`, migration 011). `resolveWindow` turns the choice into what each source takes: Google
+`dateRestrict` for presets and the date sort (`sort=date:r:YYYYMMDD:YYYYMMDD`) for a fixed range,
+Serper `tbs`, YouTube `publishedAfter`/`publishedBefore`, Google News `when:Nd` or
+`after: before:`. Search engines apply presets themselves and their snippet dates are approximate,
+so a dated search hit is only checked against a fixed range; a reply carries its own exact date and
+is left out when older than any range. Undated items are kept; a day of slack absorbs time zones.
+What was left out is named in the report notes. A topic keeps the range it was created with; "Scan
+another time range" in the topic menu starts a new scan of the same topic (`/listening?q=`).
+
+## Team usage
+
+`GET /usage` (`service.usage`): today's scans (the shared Google allowance resets at midnight
+Pacific) and a seven-day tally per person, shown under "Who has scanned?" on the home page.
+Refreshes use no searches and are left out. A private topic's name shows only to its owner and
+admins; teammates see "a private topic".
+
+## Sources export
+
+Export menu, "All sources (spreadsheet)": `GET /topics/:id/sources` returns every relevant post
+with its full text and labels; the browser writes a CSV (link, platform, date, counted or why not,
+feeling, subtopic, title, text) for deeper analysis in another tool. Cells that start like a
+formula are prefixed with an apostrophe, since post text comes from the open web. "Copy source
+links" copies the links of the posts counted in the report.
+
 ## Honesty guarantees (enforced in code, see `listening/checks.ts`)
 
 - Every count and percentage is computed from stored labels; model prose with numbers is dropped.
@@ -155,11 +183,11 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 74 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 84 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 22 tests on fixtures,
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 28 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, and saving to and working the idea board.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
@@ -171,5 +199,5 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 - crawl4ai as an optional fallback reader: decision pending; see [crawl4ai-option.md](crawl4ai-option.md).
 - Scheduled rescans and alerts: not built.
-- Widening an existing topic's time range in place (today: start a new search with a longer range).
+- Changing an existing topic's time range in place (today: the topic menu starts a new scan of the same topic over another range).
 - "People also ask" from Serper responses as their own section, once Serper is funded.

@@ -24,6 +24,7 @@ import { within, type Store } from "./store.js"
 import { synthesize, verifyIdeas, type SynthResult } from "./synthesize.js"
 import { RunCancelled, type Coverage, type Plan, type RunEvent, type RunTrigger, type TimeWindow, type TopicRow } from "./types.js"
 import { describeError } from "./util/http.js"
+import { inWindow } from "./window.js"
 
 export interface EngineDeps extends HarvestDeps {
   store: Store
@@ -56,11 +57,17 @@ export class TopicNotFound extends Error {
 export async function startRun(
   store: Store,
   input:
-    | { trigger: "initial"; createdBy: string; query: string; timeWindow: TimeWindow }
+    | { trigger: "initial"; createdBy: string; query: string; timeWindow: TimeWindow; windowFrom?: string | null; windowTo?: string | null }
     | { trigger: "rescan" | "rebuild"; createdBy: string; topicId: string },
 ): Promise<{ topic: TopicRow; runId: string }> {
   if (input.trigger === "initial") {
-    const topic = await store.createTopic({ createdBy: input.createdBy, query: input.query, timeWindow: input.timeWindow })
+    const topic = await store.createTopic({
+      createdBy: input.createdBy,
+      query: input.query,
+      timeWindow: input.timeWindow,
+      windowFrom: input.windowFrom ?? null,
+      windowTo: input.windowTo ?? null,
+    })
     const runId = await store.createRun(topic.id, input.createdBy, "initial")
     await store.updateTopic(topic.id, { lastRunStatus: "running", lastRunAt: new Date().toISOString() })
     return { topic, runId }
@@ -188,6 +195,8 @@ export async function executeRun(
         plan,
         runId,
         timeWindow: topic.timeWindow,
+        windowFrom: topic.windowFrom,
+        windowTo: topic.windowTo,
         trigger,
         existing,
         signal,
@@ -220,7 +229,11 @@ export async function executeRun(
           const read = await deepRead(deps.reader, threads, await store.existingCanonicalUrls(topic.id), signal)
           check()
           await store.updateThreads(read.updates)
-          const replies = await store.insertItems(topic.id, runId, read.comments)
+          // A reply carries its own date: one outside the time range was not said in it.
+          const inRange = read.comments.filter((c) => inWindow(c, h.window))
+          const late = read.comments.length - inRange.length
+          if (late) laneNotes.push(`Left out ${late} ${late === 1 ? "reply" : "replies"} dated outside the time range`)
+          const replies = await store.insertItems(topic.id, runId, inRange)
           newItems += replies.length
           fullyRead = read.fullyRead
           laneNotes.push(...read.notes)

@@ -22,6 +22,7 @@ import {
   type RunTrigger,
   type TimeWindow,
   type TopicRow,
+  type UsageRun,
 } from "./types.js"
 
 export class ActiveRunError extends Error {
@@ -48,8 +49,17 @@ export interface RunFinish {
   error?: string | null
 }
 
+export interface NewTopic {
+  createdBy: string
+  query: string
+  timeWindow: TimeWindow
+  /** First and last day (YYYY-MM-DD) of a custom range. */
+  windowFrom?: string | null
+  windowTo?: string | null
+}
+
 export interface Store {
-  createTopic(input: { createdBy: string; query: string; timeWindow: TimeWindow }): Promise<TopicRow>
+  createTopic(input: NewTopic): Promise<TopicRow>
   getTopic(id: string): Promise<TopicRow | null>
   /** Topics created by this user (case-insensitive email), newest activity first. */
   listTopics(createdBy: string): Promise<TopicRow[]>
@@ -85,6 +95,8 @@ export interface Store {
   updateThreads(updates: ThreadUpdate[]): Promise<void>
   allItems(topicId: string): Promise<Item[]>
   searchCallsSince(since: Date): Promise<number>
+  /** Scans started since a date, newest first, with their topic (for the usage view). */
+  runsSince(since: Date): Promise<UsageRun[]>
   /** Marks runs stuck in "running" (crashed function, killed deploy) as failed. */
   failStaleRuns(olderThanMs: number): Promise<number>
 }
@@ -93,6 +105,8 @@ export interface Store {
 export const STALE_RUN_MS = 6 * 60 * 1000
 
 const iso = (d: unknown): string | null => (d instanceof Date ? d.toISOString() : typeof d === "string" ? d : null)
+/** A date column as YYYY-MM-DD (the driver may hand back a Date or a string). */
+const dayOf = (d: unknown): string | null => iso(d)?.slice(0, 10) ?? null
 
 // ─── Postgres ──────────────────────────────────────────────────────────────
 
@@ -104,6 +118,8 @@ function topicFromRow(r: Record<string, any>, withReport = true): TopicRow {
     createdBy: r.created_by,
     query: r.query,
     timeWindow: r.time_window,
+    windowFrom: dayOf(r.window_from),
+    windowTo: dayOf(r.window_to),
     plan: (r.plan as Plan) ?? null,
     report: withReport ? ((r.report as Report) ?? null) : null,
     itemCount: r.item_count ?? 0,
@@ -177,10 +193,10 @@ function itemFromRow(r: Record<string, any>): Item {
 export class PgStore implements Store {
   constructor(private sql: Sql) {}
 
-  async createTopic(input: { createdBy: string; query: string; timeWindow: TimeWindow }): Promise<TopicRow> {
+  async createTopic(input: NewTopic): Promise<TopicRow> {
     const [r] = await this.sql`
-      INSERT INTO listening_topics (created_by, query, time_window)
-      VALUES (${input.createdBy}, ${input.query}, ${input.timeWindow})
+      INSERT INTO listening_topics (created_by, query, time_window, window_from, window_to)
+      VALUES (${input.createdBy}, ${input.query}, ${input.timeWindow}, ${input.windowFrom ?? null}::date, ${input.windowTo ?? null}::date)
       RETURNING *`
     return topicFromRow(r!)
   }
@@ -193,7 +209,7 @@ export class PgStore implements Store {
   async listTopics(createdBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
       FROM listening_topics WHERE lower(created_by) = ${createdBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
@@ -202,7 +218,7 @@ export class PgStore implements Store {
   async listSharedTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
       FROM listening_topics WHERE shared AND lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
@@ -211,7 +227,7 @@ export class PgStore implements Store {
   async listOthersTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
       FROM listening_topics WHERE lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 500`
     return rows.map((r) => topicFromRow(r, false))
@@ -412,6 +428,24 @@ export class PgStore implements Store {
     return Number(r?.["n"] ?? 0)
   }
 
+  async runsSince(since: Date): Promise<UsageRun[]> {
+    const rows = await this.sql`
+      SELECT r.created_by, r.trigger, r.status, r.started_at, r.search_calls, r.topic_id, t.query, t.shared, t.created_by AS topic_owner
+      FROM listening_runs r JOIN listening_topics t ON t.id = r.topic_id
+      WHERE r.started_at >= ${since} ORDER BY r.started_at DESC LIMIT 500`
+    return rows.map((r) => ({
+      createdBy: r["created_by"] as string,
+      trigger: r["trigger"] as RunTrigger,
+      status: r["status"] as RunStatus,
+      startedAt: iso(r["started_at"])!,
+      searchCalls: Number(r["search_calls"] ?? 0),
+      topicId: r["topic_id"] as string,
+      query: r["query"] as string,
+      shared: r["shared"] === true,
+      topicOwner: r["topic_owner"] as string,
+    }))
+  }
+
   async failStaleRuns(olderThanMs: number): Promise<number> {
     const cutoff = new Date(Date.now() - olderThanMs)
     const rows = await this.sql`
@@ -470,13 +504,15 @@ export class MemoryStore implements Store {
   runs = new Map<string, RunSummary & { createdBy: string; cancel: boolean; coverage: Coverage | null; youtubeUnits: number }>()
   items = new Map<string, Item & { canonicalUrl: string }>()
 
-  async createTopic(input: { createdBy: string; query: string; timeWindow: TimeWindow }): Promise<TopicRow> {
+  async createTopic(input: NewTopic): Promise<TopicRow> {
     const now = new Date().toISOString()
     const t: TopicRow = {
       id: crypto.randomUUID(),
       createdBy: input.createdBy,
       query: input.query,
       timeWindow: input.timeWindow,
+      windowFrom: input.windowFrom ?? null,
+      windowTo: input.windowTo ?? null,
       plan: null,
       report: null,
       itemCount: 0,
@@ -659,6 +695,15 @@ export class MemoryStore implements Store {
   }
   async searchCallsSince(since: Date) {
     return [...this.runs.values()].filter((r) => new Date(r.startedAt) >= since).reduce((s, r) => s + r.searchCalls, 0)
+  }
+  async runsSince(since: Date) {
+    return [...this.runs.values()]
+      .filter((r) => new Date(r.startedAt) >= since)
+      .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
+      .flatMap((r) => {
+        const t = this.topics.get(r.topicId)
+        return t ? [{ createdBy: r.createdBy, trigger: r.trigger, status: r.status, startedAt: r.startedAt, searchCalls: r.searchCalls, topicId: r.topicId, query: t.query, shared: t.shared, topicOwner: t.createdBy }] : []
+      })
   }
   async failStaleRuns(olderThanMs: number) {
     let n = 0

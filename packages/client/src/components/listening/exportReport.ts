@@ -7,14 +7,13 @@
  * The PDF is drawn as real text with jsPDF (selectable, searchable, sharp at
  * any zoom, links that click), not a screenshot of the page.
  */
-import type { ItemView, Platform, Report, RunSummary, SentimentBreakdown, TopicRow } from "@/types/listening"
+import type { ItemView, Platform, Report, RunSummary, SentimentBreakdown, SourceRow, TopicRow } from "@/types/listening"
 import {
   AUDIENCE_LABEL,
   METHOD_TEXT,
   PLATFORM,
   SENTIMENT_COLOR,
   SENTIMENT_LABEL,
-  WINDOW_LABEL,
   exclusionParts,
   fmtDate,
   isLegacyReport,
@@ -24,6 +23,7 @@ import {
   plural,
   sampleLabel,
   verdict,
+  windowLabel,
 } from "./ui"
 
 export interface ExportInput {
@@ -73,7 +73,7 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
 
   out.push({ t: "eyebrow", text: "Stamats · Topic Ideation" })
   out.push({ t: "title", text: topic.query })
-  out.push({ t: "meta", text: [sampleLabel(r), WINDOW_LABEL[topic.timeWindow], plural(scans, "scan"), `by ${personName(topic.createdBy)}`, `report of ${longDate(r.generatedAt)}`].join(" · ") })
+  out.push({ t: "meta", text: [sampleLabel(r), windowLabel(topic), plural(scans, "scan"), `by ${personName(topic.createdBy)}`, `report of ${longDate(r.generatedAt)}`].join(" · ") })
   const left = exclusionParts(r)
   if (left.length) out.push({ t: "p", text: `Not counted: ${joinList(left)}.`, tone: "muted" })
   if (isLegacyReport(r)) {
@@ -90,7 +90,7 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
   out.push({
     t: "p",
     tone: "muted",
-    text: [plural(r.platforms.length, "platform"), `${r.totals.fullyRead.toLocaleString()} read in full`, where.length ? `Where: ${where.join(", ")}` : ""].filter(Boolean).join(" · "),
+    text: [plural(r.platforms.length, "platform"), `${r.totals.fullyRead.toLocaleString()} read in full`, where.length ? `Sample by platform (what this tool can read, not all conversation): ${where.join(", ")}` : ""].filter(Boolean).join(" · "),
   })
 
   out.push({ t: "h2", text: r.ideas.length ? `Content ideas (${r.ideas.length})` : "Content ideas" })
@@ -173,10 +173,10 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
   return out
 }
 
-export function exportFilename(topic: TopicRow, report: Report, ext: "pdf" | "docx"): string {
+export function exportFilename(topic: TopicRow, report: Report, ext: "pdf" | "docx" | "csv"): string {
   const day = (report.generatedAt || new Date().toISOString()).slice(0, 10)
   const name = topic.query.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80)
-  return `Topic Ideation - ${name} - ${day}.${ext}`
+  return `Topic Ideation - ${name}${ext === "csv" ? " - sources" : ""} - ${day}.${ext}`
 }
 
 /** Display form of a link: no protocol or www, shortened to fit. */
@@ -475,4 +475,55 @@ export async function exportDocx(input: ExportInput): Promise<void> {
     ],
   })
   saveAs(await d.Packer.toBlob(doc), exportFilename(input.topic, input.report, "docx"))
+}
+
+// ─── Sources ────────────────────────────────────────────────────────────────
+
+/**
+ * One CSV cell: always quoted, quotes doubled. Post text comes from the open
+ * web, so a cell that starts like a formula (= + - @) gets a leading apostrophe
+ * and can never run when the file is opened in Excel or Sheets.
+ */
+export function csvCell(value: string): string {
+  const v = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value
+  return `"${v.replace(/"/g, '""')}"`
+}
+
+/** Every relevant source as a spreadsheet: link, labels and full text, counted posts first. */
+export function sourcesCsv(rows: SourceRow[]): string {
+  const head = ["Link", "Platform", "Type", "Date", "Author", "Counted in report", "If not counted, why", "Feeling", "Audience", "Subtopic", "Question asked", "Title", "Text"]
+  const lines = [head.map(csvCell).join(",")]
+  for (const r of rows) {
+    lines.push(
+      [
+        r.url,
+        r.platform,
+        r.kind,
+        r.publishedAt ? r.publishedAt.slice(0, 10) : "",
+        r.author ?? "",
+        r.counted ? "yes" : "no",
+        r.notCounted,
+        r.sentiment,
+        r.audience,
+        r.subtopic,
+        r.question,
+        r.title,
+        r.text.replace(/\s+/g, " ").trim(),
+      ]
+        .map(csvCell)
+        .join(","),
+    )
+  }
+  // A byte-order mark makes Excel read the file as UTF-8.
+  return `﻿${lines.join("\r\n")}\r\n`
+}
+
+export async function exportSources(topic: TopicRow, report: Report, rows: SourceRow[]): Promise<void> {
+  const { saveAs } = await import("file-saver")
+  saveAs(new Blob([sourcesCsv(rows)], { type: "text/csv;charset=utf-8" }), exportFilename(topic, report, "csv"))
+}
+
+/** Links to the posts counted in the report, one per line, for pasting into another tool. */
+export function countedLinks(items: Map<string, ItemView>): string[] {
+  return [...new Set([...items.values()].filter((i) => i.relevant !== false && i.counted !== false).map((i) => i.url))]
 }

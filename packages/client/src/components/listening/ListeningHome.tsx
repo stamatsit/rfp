@@ -1,16 +1,126 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, BookmarkCheck, Loader2, Lock, Radar, Search, Users } from "lucide-react"
-import type { AccessInfo, TimeWindow, TopicRow } from "@/types/listening"
-import { ACCENT, Card, SentimentPill, fmtClock, personName, plural, timeAgo } from "./ui"
+import { ArrowRight, BookmarkCheck, ChevronDown, Loader2, Lock, Radar, Search, Users } from "lucide-react"
+import { listeningApi } from "@/lib/listeningApi"
+import type { AccessInfo, TimeWindow, TopicRow, Usage } from "@/types/listening"
+import { ACCENT, Card, SentimentPill, WINDOW_OPTIONS, fmtClock, personName, plural, timeAgo } from "./ui"
 
 const EXAMPLES = ["online nursing degrees", "college enrollment trends", "FAFSA changes", "Coe College"]
 
-const WINDOWS: Array<[TimeWindow, string]> = [
-  ["1y", "Past year"],
-  ["3m", "Past 3 months"],
-  ["any", "Any time"],
-]
+/** Today as the browser sees it, YYYY-MM-DD, for the date fields' upper bound. */
+function today(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
+/** Why a custom range cannot be scanned yet, or null when it can. */
+export function rangeProblem(from: string, to: string): string | null {
+  if (!from || !to) return "Choose a start date and an end date."
+  if (from > to) return "The start date must be on or before the end date."
+  if (from > today()) return "The start date cannot be in the future."
+  if (from < "2005-01-01") return "Choose a start date in 2005 or later."
+  return null
+}
+
+const TRIGGER_LABEL = { initial: "new scan", rescan: "rescan", rebuild: "refresh" } as const
+
+/**
+ * Who has used the shared search allowance: today's scans and a seven-day
+ * tally, loaded when opened. Teammates' private topic names stay hidden.
+ */
+function UsagePanel() {
+  const [open, setOpen] = useState(false)
+  const [data, setData] = useState<Usage | null>(null)
+  const [failed, setFailed] = useState(false)
+  const toggle = () => {
+    const next = !open
+    setOpen(next)
+    if (!next) return
+    setFailed(false)
+    listeningApi
+      .usage()
+      .then(setData)
+      .catch(() => setFailed(true))
+  }
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        aria-controls="usage-panel"
+        className="inline-flex items-center gap-1 text-[12.5px] font-medium text-sky-700 dark:text-sky-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded"
+      >
+        Who has scanned? <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div id="usage-panel" className="mt-3 mx-auto max-w-xl text-left rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.08] dark:border-white/[0.1] p-4 sm:p-5">
+          {failed ? (
+            <p className="text-[13px] text-slate-500">Could not load usage. Close and open this again to retry.</p>
+          ) : !data ? (
+            <div className="shimmer h-24 rounded-xl" aria-busy="true" aria-label="Loading usage" />
+          ) : (
+            <>
+              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400">Today</p>
+              <p className="text-[13.5px] text-slate-700 dark:text-slate-200 mt-1.5">
+                <b className="font-semibold tabular-nums">{data.budget.used}</b> of {data.budget.limit} searches used, about {plural(data.budget.scansLeft, "scan")} left. Resets at {fmtClock(data.budget.resetsAt)}.
+              </p>
+              <div className="mt-2.5 h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" role="img" aria-label={`${data.budget.used} of ${data.budget.limit} searches used today`}>
+                <div className={`h-full rounded-full ${data.budget.scansLeft <= 1 ? "bg-amber-500" : "bg-sky-500"}`} style={{ width: `${Math.min(100, Math.round((100 * data.budget.used) / Math.max(1, data.budget.limit)))}%` }} />
+              </div>
+              {data.today.length === 0 ? (
+                <p className="text-[13px] text-slate-500 mt-3">No one has scanned yet today.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+                  {data.today.map((s) => (
+                    <li key={`${s.who}-${s.startedAt}`} className="py-2 flex items-baseline justify-between gap-3 text-[13px]">
+                      <span className="min-w-0">
+                        <span className="font-medium text-slate-800 dark:text-slate-100">{personName(s.who)}</span>
+                        <span className="text-slate-500">
+                          {" "}
+                          · {TRIGGER_LABEL[s.trigger]}
+                          {s.status === "running" ? ", running now" : s.status === "failed" ? ", did not finish" : s.status === "cancelled" ? ", cancelled" : ""}
+                        </span>
+                        <span className="block text-slate-500 truncate">
+                          {s.topic && s.topicId ? (
+                            <Link to={`/listening/${s.topicId}`} className="hover:text-sky-700 dark:hover:text-sky-400 hover:underline">
+                              {s.topic}
+                            </Link>
+                          ) : (
+                            "a private topic"
+                          )}
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right text-slate-500 tabular-nums">
+                        {fmtClock(s.startedAt)}
+                        <span className="block text-[12px] text-slate-400">{plural(s.searchCalls, "search", "searches")}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mt-4">Last 7 days</p>
+              {data.week.length === 0 ? (
+                <p className="text-[13px] text-slate-500 mt-1.5">No scans in the last 7 days.</p>
+              ) : (
+                <ul className="mt-2 flex flex-wrap gap-2">
+                  {data.week.map((w) => (
+                    <li key={w.who} className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-1 text-[12.5px] text-slate-700 dark:text-slate-200">
+                      {personName(w.who)} <span className="text-slate-500 tabular-nums">{plural(w.scans, "scan")}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-[12px] leading-relaxed text-slate-400 mt-4">
+                Everyone shares one daily allowance. A new scan or a rescan uses about 17 to 24 searches. Refresh analysis and exports use none.
+              </p>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
 
 /**
  * mine: your topic (marked when shared). shared: someone shared it with you.
@@ -94,11 +204,15 @@ export function ListeningHome({
   starting: boolean
   startError: string | null
   initialQuery: string
-  onScan: (query: string, tw: TimeWindow) => void
+  onScan: (query: string, tw: TimeWindow, range?: { from: string; to: string }) => void
   onEdit?: () => void
 }) {
   const [q, setQ] = useState(initialQuery)
   const [tw, setTw] = useState<TimeWindow>("1y")
+  const [from, setFrom] = useState("")
+  const [to, setTo] = useState("")
+  const custom = tw === "custom"
+  const rangeError = custom ? rangeProblem(from, to) : null
   const input = useRef<HTMLInputElement>(null)
   const now = Date.now()
 
@@ -112,11 +226,11 @@ export function ListeningHome({
   const low = budget && !backup ? budget.scansLeft <= 1 : false
   const out = budget && !backup ? budget.scansLeft === 0 : false
   const missing = access && (!access.sources.model || (!access.sources.search && !access.sources.youtube))
-  const canScan = q.trim().length >= 2 && !starting && !out && !missing
+  const canScan = q.trim().length >= 2 && !starting && !out && !missing && !rangeError
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (canScan) onScan(q.trim(), tw)
+    if (canScan) onScan(q.trim(), tw, custom ? { from, to } : undefined)
   }
 
   return (
@@ -157,7 +271,7 @@ export function ListeningHome({
                   onChange={(e) => setTw(e.target.value as TimeWindow)}
                   className="h-12 appearance-none rounded-xl bg-slate-50 dark:bg-slate-800 pl-3.5 pr-9 text-[14px] font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 cursor-pointer"
                 >
-                  {WINDOWS.map(([v, l]) => (
+                  {WINDOW_OPTIONS.map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
                     </option>
@@ -176,6 +290,43 @@ export function ListeningHome({
               </button>
             </div>
           </div>
+          {custom && (
+            <div className="mt-3 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.08] dark:border-white/[0.1] px-4 py-3">
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                <label className="flex flex-col gap-1 text-[12px] font-medium text-slate-500">
+                  From
+                  <input
+                    type="date"
+                    value={from}
+                    min="2005-01-01"
+                    max={to || today()}
+                    onChange={(e) => {
+                      setFrom(e.target.value)
+                      onEdit?.()
+                    }}
+                    className="h-10 rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 px-3 text-[14px] text-slate-800 dark:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  />
+                </label>
+                <label className="flex flex-col gap-1 text-[12px] font-medium text-slate-500">
+                  To
+                  <input
+                    type="date"
+                    value={to}
+                    min={from || "2005-01-01"}
+                    max={today()}
+                    onChange={(e) => {
+                      setTo(e.target.value)
+                      onEdit?.()
+                    }}
+                    className="h-10 rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 px-3 text-[14px] text-slate-800 dark:text-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  />
+                </label>
+                <p className={`text-[12.5px] pb-2.5 ${rangeError && (from || to) ? "text-amber-700 dark:text-amber-400" : "text-slate-400"}`} aria-live="polite">
+                  {rangeError && (from || to) ? rangeError : "Only posts dated inside these dates are kept."}
+                </p>
+              </div>
+            </div>
+          )}
         </form>
 
         <div className="flex flex-wrap items-center justify-center gap-2 mt-4">
@@ -214,6 +365,7 @@ export function ListeningHome({
             </p>
           ) : null}
         </div>
+        {budget && !missing && <UsagePanel />}
       </section>
 
       <section aria-labelledby="your-topics">

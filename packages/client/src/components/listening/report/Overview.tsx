@@ -167,7 +167,7 @@ export function Overview({
         {conv > 0 && (
           <div className="grid gap-7 sm:grid-cols-2 mt-7 pt-6 border-t border-black/[0.05] dark:border-white/[0.06]">
             <div>
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-3">Where the conversation is</p>
+              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-3">Where our sample came from</p>
               <ul className="space-y-2">
                 {topPlatforms.map((p) => (
                   <li key={p.platform} className="grid grid-cols-[88px_1fr_40px] items-center gap-3 text-[13px]">
@@ -179,6 +179,7 @@ export function Overview({
                   </li>
                 ))}
               </ul>
+              <p className="text-[12px] leading-relaxed text-slate-400 mt-3">The platforms this tool can read. Not a measure of where all the conversation happens.</p>
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-3">Posts by month</p>

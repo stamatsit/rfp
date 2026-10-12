@@ -9,7 +9,8 @@ export type Platform =
 
 export type Sentiment = "positive" | "neutral" | "negative" | "mixed"
 export type Audience = "student" | "parent" | "patient" | "professional" | "general"
-export type TimeWindow = "3m" | "1y" | "any"
+/** Preset relative ranges, any time, or "custom" (a fixed range in the topic's windowFrom and windowTo). */
+export type TimeWindow = "1d" | "1w" | "1m" | "3m" | "1y" | "any" | "custom"
 export type RunStatus = "running" | "complete" | "failed" | "cancelled"
 export type RunTrigger = "initial" | "rescan" | "rebuild"
 export type Stage = "plan" | "search" | "read" | "label" | "cluster" | "write" | "save"
@@ -166,6 +167,9 @@ export interface TopicRow {
   createdBy: string
   query: string
   timeWindow: TimeWindow
+  /** First and last day (YYYY-MM-DD) of a custom range. */
+  windowFrom?: string | null
+  windowTo?: string | null
   plan: Plan | null
   report: Report | null
   itemCount: number
@@ -279,3 +283,27 @@ export type RunEvent =
   | { type: "done"; topicId: string; runId: string }
   | { type: "error"; message: string; topicId?: string; runId?: string }
   | { type: "ping" }
+
+/** One relevant source with its full text, from GET /topics/:id/sources. */
+export interface SourceRow {
+  url: string
+  platform: string
+  kind: string
+  title: string
+  text: string
+  author: string | null
+  publishedAt: string | null
+  counted: boolean
+  notCounted: string
+  sentiment: string
+  audience: string
+  subtopic: string
+  question: string
+}
+
+/** Who has used the shared search allowance, from GET /usage. */
+export interface Usage {
+  budget: Budget
+  today: Array<{ who: string; startedAt: string; trigger: RunTrigger; status: RunStatus; searchCalls: number; topic: string | null; topicId: string | null }>
+  week: Array<{ who: string; scans: number; searchCalls: number }>
+}

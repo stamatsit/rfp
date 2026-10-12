@@ -15,6 +15,8 @@ import {
   setIdeaStatus,
   shareTopic,
   topicDetail,
+  topicSources,
+  usage,
 } from "../service.js"
 import { ActiveRunError, MemoryStore, within } from "../store.js"
 import type { RunEvent } from "../types.js"
@@ -475,6 +477,72 @@ describe("service: an admin sees every scan, read only", () => {
     expect(await removeTopic(eric, topic.id)).toMatchObject({ ok: false, status: 404 })
     expect(await shareTopic(eric, topic.id, true)).toMatchObject({ ok: false, status: 404 })
     expect(await store.getTopic(topic.id)).toMatchObject({ shared: false })
+  })
+})
+
+describe("service: usage and the sources export", () => {
+  const people = (store: MemoryStore) => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store) })
+    return { eric: as("eric.yerke@stamats.com"), joe: as("joe.volk@stamats.com"), mariah: as("mariah.tang@stamats.com") }
+  }
+
+  it("shows who scanned today and this week, and hides private topic names from teammates", async () => {
+    const store = new MemoryStore()
+    const { eric, joe, mariah } = people(store)
+    const mine = await initial(store, fakeDeps(store), "Coe College")
+    const j = await startRun(store, { trigger: "initial", createdBy: "joe.volk@stamats.com", query: "FAFSA changes", timeWindow: "1y" })
+    await executeRun(fakeDeps(store), { topic: j.topic, runId: j.runId, trigger: "initial" }, () => {})
+    // A refresh uses no searches and is not a scan.
+    const rb = await startRun(store, { trigger: "rebuild", createdBy: "joe.volk@stamats.com", topicId: j.topic.id })
+    await executeRun(fakeDeps(store), { topic: rb.topic, runId: rb.runId, trigger: "rebuild" }, () => {})
+
+    const m = await usage(mariah)
+    expect(m.today.map((s) => [s.who, s.trigger, s.topic]).sort()).toEqual([
+      ["eric.yerke@stamats.com", "initial", null],
+      ["joe.volk@stamats.com", "initial", null],
+    ])
+    expect(m.today.every((s) => s.searchCalls > 0 && s.topicId === null)).toBe(true)
+    expect(m.week).toEqual([
+      { who: "eric.yerke@stamats.com", scans: 1, searchCalls: m.today.find((s) => s.who.startsWith("eric"))!.searchCalls },
+      { who: "joe.volk@stamats.com", scans: 1, searchCalls: m.today.find((s) => s.who.startsWith("joe"))!.searchCalls },
+    ])
+    expect(m.budget.used).toBe(m.week.reduce((n, p) => n + p.searchCalls, 0))
+    expect(m.budget.limit).toBe(100)
+
+    // You see your own topic's name; an admin sees every name; sharing reveals it to the team.
+    expect((await usage(joe)).today.map((s) => s.topic).sort()).toEqual(["FAFSA changes", null].sort())
+    expect((await usage(eric)).today.map((s) => s.topic).sort()).toEqual(["Coe College", "FAFSA changes"])
+    await shareTopic(eric, mine.topicId, true)
+    expect((await usage(mariah)).today.map((s) => s.topic).sort()).toEqual(["Coe College", null].sort())
+  })
+
+  it("exports every relevant source with its full text and why it is not counted", async () => {
+    const store = new MemoryStore()
+    const { eric, joe } = people(store)
+    const { topicId } = await initial(store, fakeDeps(store, { llm: new FakeLlm({ namedEntity: "Coe College" }) }), "Coe College")
+    const items = await store.allItems(topicId)
+    const r = await topicSources(eric, topicId)
+    if (!r.ok) throw new Error(r.error)
+    const rows = r.body.sources
+    // Every relevant item, none of the off-topic ones, each once, counted ones first.
+    expect(rows.length).toBe(items.filter((i) => i.labels?.relevant).length)
+    expect(new Set(rows.map((x) => x.url)).size).toBe(rows.length)
+    const firstNot = rows.findIndex((x) => !x.counted)
+    expect(rows.slice(firstNot).every((x) => !x.counted)).toBe(true)
+    expect(rows.filter((x) => x.counted).length).toBe((await store.getTopic(topicId))!.report!.totals.relevant)
+    // Full text, not an excerpt, and a plain reason on everything left out.
+    for (const row of rows) expect(row.text).toBe(items.find((i) => i.url === row.url)!.text)
+    expect(rows.filter((x) => x.counted).every((x) => x.notCounted === "" && x.subtopic !== "")).toBe(true)
+    const reasons = new Set(rows.filter((x) => !x.counted).map((x) => x.notCounted))
+    expect([...reasons].sort()).toEqual(["Coe College's own account", "news outlet", "passing mention"])
+    expect(rows.find((x) => x.notCounted === "news outlet")!.platform).toMatch(/News|Facebook/)
+
+    // Only people who can open the topic can export its sources.
+    expect(await topicSources(joe, topicId)).toMatchObject({ ok: false, status: 404 })
+    await shareTopic(eric, topicId, true)
+    expect(await topicSources(joe, topicId)).toMatchObject({ ok: true })
   })
 })
 

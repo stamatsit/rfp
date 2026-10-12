@@ -7,7 +7,8 @@ import { DEADLINES_MS, LIMITS } from "../config.js"
 import { cacheKey, TTL, type ResponseCache } from "../cache.js"
 import { fetchJson, HttpError } from "../util/http.js"
 import { clip, decodeEntities } from "../util/text.js"
-import type { RawItem, TimeWindow } from "../types.js"
+import type { RawItem } from "../types.js"
+import type { DateWindow } from "../window.js"
 
 interface SearchResp {
   items?: Array<{ id?: { videoId?: string }; snippet?: { title?: string; description?: string; channelTitle?: string; publishedAt?: string } }>
@@ -42,11 +43,6 @@ export interface YoutubeHarvest {
 
 const API = "https://www.googleapis.com/youtube/v3"
 
-function publishedAfter(tw: TimeWindow, now = Date.now()): string | null {
-  if (tw === "any") return null
-  const days = tw === "3m" ? 92 : 366
-  return new Date(now - days * 86400e3).toISOString()
-}
 
 export class YoutubeSource {
   constructor(
@@ -66,7 +62,7 @@ export class YoutubeSource {
 
   async harvest(
     q: string,
-    tw: TimeWindow,
+    window: DateWindow,
     opts: { pageToken?: string | null; knownVideoIds?: Set<string>; signal?: AbortSignal },
   ): Promise<YoutubeHarvest> {
     const notes: string[] = []
@@ -80,8 +76,8 @@ export class YoutubeSource {
       order: "relevance",
       safeSearch: "moderate",
     }
-    const after = publishedAfter(tw)
-    if (after) params["publishedAfter"] = after
+    if (window.after) params["publishedAfter"] = window.after.toISOString()
+    if (window.before) params["publishedBefore"] = window.before.toISOString()
     if (opts.pageToken) params["pageToken"] = opts.pageToken
     const s = await this.get<SearchResp>("search", params, opts.signal)
     if (!s.cached) units += 100

@@ -6,6 +6,7 @@
  * (SerperProvider) plugs into.
  */
 import { DEADLINES_MS } from "../config.js"
+import { compactDay } from "../window.js"
 import { cacheKey, TTL, type ResponseCache } from "../cache.js"
 import { fetchJson, HttpError } from "../util/http.js"
 import { decodeEntities } from "../util/text.js"
@@ -17,7 +18,10 @@ export interface SearchRequest {
   sites: string[]
   /** 1-based result offset: 1, 11, ... 91. */
   start: number
+  /** A relative range in Google's form ("d1", "m3", "y1"), or null. */
   dateRestrict: string | null
+  /** A fixed range (both bounds), used instead of dateRestrict; null otherwise. */
+  dateRange?: { after: Date; before: Date } | null
 }
 
 export interface SearchPage {
@@ -119,12 +123,15 @@ export class PseProvider implements SearchProvider {
 
   async search(req: SearchRequest, laneId: string, signal?: AbortSignal): Promise<SearchPage> {
     const q = siteScopedQuery(req.q, req.sites)
-    const key = cacheKey({ p: "pse", cx: this.engineId, q, start: req.start, d: req.dateRestrict })
+    // A fixed range uses Google's date sort ("date:r:YYYYMMDD:YYYYMMDD"); dateRestrict only does "the last N".
+    const range = req.dateRange ? `date:r:${compactDay(req.dateRange.after)}:${compactDay(req.dateRange.before)}` : null
+    const key = cacheKey({ p: "pse", cx: this.engineId, q, start: req.start, d: range ?? req.dateRestrict })
     let data = await this.cache.get<PseResponse>(key)
     const fromCache = !!data
     if (!data) {
       const params = new URLSearchParams({ key: this.apiKey, cx: this.engineId, q, num: "10", start: String(req.start) })
-      if (req.dateRestrict) params.set("dateRestrict", req.dateRestrict)
+      if (range) params.set("sort", range)
+      else if (req.dateRestrict) params.set("dateRestrict", req.dateRestrict)
       try {
         data = await fetchJson<PseResponse>(`https://www.googleapis.com/customsearch/v1?${params}`, {
           deadlineMs: DEADLINES_MS.search,

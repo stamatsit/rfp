@@ -7,7 +7,7 @@
  * gets maxDuration 300 (vercel.json and the config export below).
  *
  * Route map (drift-script probes read this comment):
- * /listening/access /listening/topics /listening/runs /listening/ideas
+ * /listening/access /listening/topics /listening/runs /listening/ideas /listening/usage
  */
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import crypto from "crypto"
@@ -175,10 +175,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     let mm: RegExpMatchArray | null
     if (method === "GET" && path === "/access") return res.json(await m.svc.access(ctx))
+    if (method === "GET" && path === "/usage") return res.json(await m.svc.usage(ctx))
     if (method === "GET" && path === "/topics") return res.json(await m.svc.listTopics(ctx))
     if (method === "POST" && path === "/topics") {
-      const body = (req.body ?? {}) as { query?: unknown; timeWindow?: unknown }
-      return await stream({ trigger: "initial", query: body.query, timeWindow: body.timeWindow })
+      const body = (req.body ?? {}) as { query?: unknown; timeWindow?: unknown; from?: unknown; to?: unknown }
+      return await stream({ trigger: "initial", query: body.query, timeWindow: body.timeWindow, from: body.from, to: body.to })
     }
     if ((mm = path.match(/^\/topics\/([^/]+)$/))) {
       if (method === "GET") return send(await m.svc.topicDetail(ctx, mm[1]!))
@@ -187,6 +188,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (method === "POST" && (mm = path.match(/^\/topics\/([^/]+)\/(rescan|rebuild)$/))) {
       return await stream({ trigger: mm[2] as "rescan" | "rebuild", topicId: mm[1]! })
     }
+    if (method === "GET" && (mm = path.match(/^\/topics\/([^/]+)\/sources$/))) return send(await m.svc.topicSources(ctx, mm[1]!))
     if (method === "POST" && (mm = path.match(/^\/topics\/([^/]+)\/share$/))) {
       return send(await m.svc.shareTopic(ctx, mm[1]!, (req.body as { shared?: unknown } | undefined)?.shared))
     }

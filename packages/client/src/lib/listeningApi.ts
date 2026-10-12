@@ -6,7 +6,7 @@
  */
 import { fetchWithCredentials, handleResponse } from "./api"
 import { addCsrfHeader } from "./csrfToken"
-import type { AccessInfo, IdeaStatus, RunEvent, RunSummary, SavedIdea, TimeWindow, TopicDetail, TopicRow } from "@/types/listening"
+import type { AccessInfo, IdeaStatus, RunEvent, RunSummary, SavedIdea, SourceRow, TimeWindow, TopicDetail, TopicRow, Usage } from "@/types/listening"
 
 const BASE = "/api/listening"
 
@@ -38,12 +38,14 @@ async function send<T>(method: "POST" | "PATCH" | "DELETE", path: string, body?:
 
 export const listeningApi = {
   access: () => get<AccessInfo>("/access"),
+  usage: () => get<Usage>("/usage"),
   // `team` (admins only): every topic other people created, shared or private.
   topics: () => get<{ topics: TopicRow[]; shared?: TopicRow[]; team?: TopicRow[] }>("/topics"),
   topic: (id: string) => get<TopicDetail>(`/topics/${id}`),
   run: (id: string) => get<{ run: RunSummary }>(`/runs/${id}`),
   cancel: (runId: string) => send<{ ok: true }>("POST", `/runs/${runId}/cancel`),
   remove: (id: string) => send<{ ok: true }>("DELETE", `/topics/${id}`),
+  sources: (id: string) => get<{ sources: SourceRow[] }>(`/topics/${id}/sources`),
   share: (id: string, shared: boolean) => send<{ shared: boolean }>("POST", `/topics/${id}/share`, { shared }),
   ideas: () => get<{ ideas: SavedIdea[] }>("/ideas"),
   saveIdea: (topicId: string, ideaId: string) => send<{ idea: SavedIdea }>("POST", "/ideas", { topicId, ideaId }),
@@ -52,7 +54,7 @@ export const listeningApi = {
 }
 
 export type ScanRequest =
-  | { kind: "new"; query: string; timeWindow: TimeWindow }
+  | { kind: "new"; query: string; timeWindow: TimeWindow; from?: string; to?: string }
   | { kind: "rescan" | "rebuild"; topicId: string }
 
 /**
@@ -62,7 +64,7 @@ export type ScanRequest =
  */
 export async function streamScan(req: ScanRequest, onEvent: (e: RunEvent) => void, signal?: AbortSignal): Promise<void> {
   const path = req.kind === "new" ? "/topics" : `/topics/${req.topicId}/${req.kind}`
-  const body = req.kind === "new" ? { query: req.query, timeWindow: req.timeWindow } : {}
+  const body = req.kind === "new" ? { query: req.query, timeWindow: req.timeWindow, ...(req.timeWindow === "custom" ? { from: req.from, to: req.to } : {}) } : {}
   const headers = await addCsrfHeader({ "Content-Type": "application/json", Accept: "text/event-stream" })
   const res = await fetch(`${BASE}${path}`, { method: "POST", headers, credentials: "include", body: JSON.stringify(body), signal })
   if (!res.ok) {

@@ -56,10 +56,12 @@ const wrap = (fn: (req: Request, res: Response) => Promise<unknown>) => (req: Re
   })
 }
 
+router.get("/usage", wrap(async (req, res) => res.json(await svc.usage(ctx(req)))))
 router.get("/access", wrap(async (req, res) => res.json(await svc.access(ctx(req)))))
 router.get("/topics", wrap(async (req, res) => res.json(await svc.listTopics(ctx(req)))))
 router.get("/topics/:id", wrap(async (req, res) => send(res, await svc.topicDetail(ctx(req), req.params["id"]!))))
 router.delete("/topics/:id", wrap(async (req, res) => send(res, await svc.removeTopic(ctx(req), req.params["id"]!))))
+router.get("/topics/:id/sources", wrap(async (req, res) => send(res, await svc.topicSources(ctx(req), req.params["id"]!))))
 router.post("/topics/:id/share", wrap(async (req, res) => send(res, await svc.shareTopic(ctx(req), req.params["id"]!, req.body?.shared))))
 router.get("/runs/:id", wrap(async (req, res) => send(res, await svc.runStatus(ctx(req), req.params["id"]!))))
 router.post("/runs/:id/cancel", wrap(async (req, res) => send(res, await svc.cancelRun(ctx(req), req.params["id"]!))))
@@ -85,7 +87,7 @@ async function stream(req: Request, res: Response, request: svc.RunRequest) {
   if (!res.writableEnded) res.end()
 }
 
-router.post("/topics", wrap((req, res) => stream(req, res, { trigger: "initial", query: req.body?.query, timeWindow: req.body?.timeWindow })))
+router.post("/topics", wrap((req, res) => stream(req, res, { trigger: "initial", query: req.body?.query, timeWindow: req.body?.timeWindow, from: req.body?.from, to: req.body?.to })))
 router.post("/topics/:id/rescan", wrap((req, res) => stream(req, res, { trigger: "rescan", topicId: req.params["id"]! })))
 router.post("/topics/:id/rebuild", wrap((req, res) => stream(req, res, { trigger: "rebuild", topicId: req.params["id"]! })))
 

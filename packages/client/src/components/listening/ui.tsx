@@ -5,7 +5,7 @@
 import { useState, type ReactNode } from "react"
 import { Check, Copy } from "lucide-react"
 import { toast } from "@/hooks/useToast"
-import type { Audience, IdeaStatus, ItemView, Platform, Report, Sentiment, SentimentBreakdown } from "@/types/listening"
+import type { Audience, IdeaStatus, ItemView, Platform, Report, Sentiment, SentimentBreakdown, TimeWindow } from "@/types/listening"
 
 export const ACCENT = "linear-gradient(135deg, #0D9488 0%, #0284C7 55%, #4F46E5 100%)"
 
@@ -76,7 +76,37 @@ export const IDEA_STATUS_ORDER: IdeaStatus[] = ["new", "pitched", "in_progress",
 
 // ─── the sample ─────────────────────────────────────────────────────────────
 
-export const WINDOW_LABEL = { "3m": "past 3 months", "1y": "past year", any: "any time" } as const
+export const WINDOW_LABEL: Record<TimeWindow, string> = {
+  "1d": "past 24 hours",
+  "1w": "past week",
+  "1m": "past month",
+  "3m": "past 3 months",
+  "1y": "past year",
+  any: "any time",
+  custom: "custom dates",
+}
+
+/** The picker's options, shortest first, custom last. */
+export const WINDOW_OPTIONS: Array<[TimeWindow, string]> = [
+  ["1d", "Past 24 hours"],
+  ["1w", "Past week"],
+  ["1m", "Past month"],
+  ["3m", "Past 3 months"],
+  ["1y", "Past year"],
+  ["any", "Any time"],
+  ["custom", "Custom dates"],
+]
+
+function longDay(day: string): string {
+  const d = new Date(`${day}T12:00:00Z`)
+  return Number.isNaN(d.getTime()) ? day : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+}
+
+/** "past year", or "Mar 1, 2026 to May 31, 2026" for a custom range. */
+export function windowLabel(t: { timeWindow: TimeWindow; windowFrom?: string | null; windowTo?: string | null }): string {
+  if (t.timeWindow === "custom" && t.windowFrom && t.windowTo) return t.windowFrom === t.windowTo ? longDay(t.windowFrom) : `${longDay(t.windowFrom)} to ${longDay(t.windowTo)}`
+  return WINDOW_LABEL[t.timeWindow] ?? WINDOW_LABEL["1y"]
+}
 
 /** How a report is made, in plain words. Shown under "How this was made" and in exports. */
 export const METHOD_TEXT =

@@ -9,7 +9,7 @@
  * phrasing (catches new posts), page 1 for phrasings added this run, then one
  * page deeper per (phrasing, group) via stored cursors, capped per run.
  */
-import { LIMITS, SITE_GROUPS, TIME_WINDOW_RESTRICT } from "./config.js"
+import { LIMITS, SITE_GROUPS } from "./config.js"
 import type { NewsSource } from "./sources/news.js"
 import type { SearchPage, SearchProvider } from "./sources/pse.js"
 import { isReadable, type PageReader } from "./sources/reader.js"
@@ -18,6 +18,7 @@ import type { Engagement, Item, LaneResult, Plan, RawItem, RunTrigger, TimeWindo
 import { describeError, mapLimit } from "./util/http.js"
 import { normForMatch, queryTokens } from "./util/text.js"
 import { canonicalUrl, isListingPage, platformOf, youtubeVideoId } from "./util/url.js"
+import { inWindow, resolveWindow, type DateWindow } from "./window.js"
 
 export const MAX_SEARCH_CALLS_PER_RUN = 24
 
@@ -33,6 +34,9 @@ export interface HarvestInput {
   plan: Plan
   runId: string
   timeWindow: TimeWindow
+  /** First and last day of a custom range (YYYY-MM-DD). */
+  windowFrom?: string | null
+  windowTo?: string | null
   trigger: RunTrigger
   existing: Set<string>
   signal?: AbortSignal
@@ -47,6 +51,8 @@ export interface HarvestOutput {
   serperCalls: number
   youtubeUnits: number
   notes: string[]
+  /** The range every source was asked for; replies read later are checked against it too. */
+  window: DateWindow
 }
 
 interface Job {
@@ -96,7 +102,9 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
   let searchCalls = 0
   let serperCalls = 0
   let youtubeUnits = 0
-  const dateRestrict = TIME_WINDOW_RESTRICT[input.timeWindow]
+  const window = resolveWindow(input.timeWindow, input.windowFrom, input.windowTo)
+  const dateRestrict = window.restrict
+  const dateRange = window.fixed && window.after && window.before ? { after: window.after, before: window.before } : null
 
   // ── Google search lanes ──────────────────────────────────────────────────
   const searchTask = (async () => {
@@ -134,7 +142,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
         if (quotaOut) throw new Error(quotaOut)
         const t = Date.now()
         const page: SearchPage = await deps.search!.search(
-          { q: search.q, sites: group.sites, start: job.start, dateRestrict },
+          { q: search.q, sites: group.sites, start: job.start, dateRestrict, dateRange },
           `search:${job.groupId}:${job.searchIndex}`,
           input.signal,
         )
@@ -180,7 +188,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
         if (id) known.add(id)
       }
       const pageToken = input.trigger === "rescan" ? plan.youtube?.nextPageToken ?? null : null
-      const r = await deps.youtube.harvest(plan.searches[0]!.q, input.timeWindow, { pageToken, knownVideoIds: known, signal: input.signal })
+      const r = await deps.youtube.harvest(plan.searches[0]!.q, window, { pageToken, knownVideoIds: known, signal: input.signal })
       youtubeUnits += r.units
       plan.youtube = { nextPageToken: r.nextPageToken }
       raw.push(...r.items)
@@ -215,7 +223,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
     const t = Date.now()
     if (!deps.news) return
     try {
-      const items = await deps.news.harvest(plan.searches[0]!.q, input.timeWindow, input.signal)
+      const items = await deps.news.harvest(plan.searches[0]!.q, window, input.signal)
       raw.push(...items)
       const lane: LaneResult = { lane: "news", label: "News", status: "ok", count: items.length, ms: Date.now() - t }
       lanes.push(lane)
@@ -232,8 +240,13 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
 
   // ── Dedupe against the batch and the topic ───────────────────────────────
   const fresh = new Map<string, RawItem & { canonicalUrl: string }>()
+  let outOfRange = 0
   for (const it of raw) {
     if (isListingPage(it.url)) continue
+    if (!inWindow(it, window)) {
+      outOfRange++
+      continue
+    }
     const c = canonicalUrl(it.url)
     if (input.existing.has(c)) continue
     const prev = fresh.get(c)
@@ -255,9 +268,10 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
     notes.push(`Kept the ${LIMITS.maxNewItemsPerRun} strongest new items this run; a rescan picks up more`)
   }
 
+  if (outOfRange) notes.push(`Left out ${outOfRange} ${outOfRange === 1 ? "item" : "items"} dated outside the time range`)
   const order = ["reddit", "forums", "social", "reviews", "youtube", "news"]
   lanes.sort((a, b) => order.indexOf(a.lane) - order.indexOf(b.lane))
-  return { items, plan, lanes, searchCalls, serperCalls, youtubeUnits, notes }
+  return { items, plan, lanes, searchCalls, serperCalls, youtubeUnits, notes, window }
 }
 
 /**

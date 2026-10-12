@@ -2,7 +2,7 @@
  * Topic Ideation tuning. Every number here was chosen against a measured
  * constraint; see docs/in-progress/social-listening.md.
  */
-import type { Platform, TimeWindow } from "./types.js"
+import type { Platform } from "./types.js"
 
 /**
  * Google Programmable Search engine created 2025-12-07 with "Search the
@@ -77,12 +77,6 @@ export const PLATFORM_LABEL: Record<Platform, string> = {
   reviews: "Reviews",
   news: "News",
   other: "Web",
-}
-
-export const TIME_WINDOW_RESTRICT: Record<TimeWindow, string | null> = {
-  "3m": "m3",
-  "1y": "y1",
-  any: null,
 }
 
 export const LIMITS = {

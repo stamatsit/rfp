@@ -56,6 +56,8 @@ export function buildDetail(
     shared?: boolean
     /** Who created the topic and ran its scans; defaults to Eric, or Mariah for a viewer. */
     owner?: string
+    /** A fixed custom date range instead of the past year. */
+    range?: { from: string; to: string }
   } = {},
 ) {
   const legacy = opts.version === 1
@@ -166,7 +168,9 @@ export function buildDetail(
       shared: opts.shared ?? !!opts.viewer,
       sharedAt: opts.shared ?? !!opts.viewer ? "2026-10-07T21:00:00.000Z" : null,
       query,
-      timeWindow: "1y",
+      timeWindow: opts.range ? "custom" : "1y",
+      windowFrom: opts.range?.from ?? null,
+      windowTo: opts.range?.to ?? null,
       plan: {
         interpretation: "x",
         isNamedEntity: !!opts.institution,
@@ -223,6 +227,20 @@ export interface Mock {
   runStatus: string
   /** The idea board, as the server holds it. */
   ideas: Array<Record<string, unknown> & { id: string; status: string }>
+  /** Who has scanned, as GET /usage returns it. */
+  usage: unknown
+}
+
+export const USAGE = {
+  budget: { used: 34, limit: 100, resetsAt: "2026-10-13T07:00:00.000Z", scansLeft: 3 },
+  today: [
+    { who: "mariah.tang@stamats.com", startedAt: "2026-10-12T14:13:00.000Z", trigger: "initial", status: "complete", searchCalls: 17, topic: null, topicId: null },
+    { who: "eric.yerke@stamats.com", startedAt: "2026-10-12T16:40:00.000Z", trigger: "rescan", status: "complete", searchCalls: 17, topic: "online nursing degree", topicId: TOPIC_ID },
+  ],
+  week: [
+    { who: "eric.yerke@stamats.com", scans: 4, searchCalls: 68 },
+    { who: "mariah.tang@stamats.com", scans: 1, searchCalls: 17 },
+  ],
 }
 
 export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbidden?: boolean } = {}): Promise<Mock> {
@@ -239,6 +257,7 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     deletes: [],
     runStatus: "complete",
     ideas: [],
+    usage: USAGE,
     ...over,
   }
   // Instant scrolling (the page honours reduced motion), so "scrolled into view" checks never race a smooth scroll.
@@ -270,6 +289,31 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     }
     if (method === "GET" && path.startsWith("/runs/")) return r.fulfill({ json: { run: { ...m.detail.runs[0], status: m.runStatus } } })
     if (method === "GET" && path === "/ideas") return r.fulfill({ json: { ideas: m.ideas } })
+    if (method === "GET" && path === "/usage") return r.fulfill({ json: m.usage })
+    if (method === "GET" && path === `/topics/${TOPIC_ID}/sources`) {
+      // Every relevant source with its full text, counted ones first, as the server returns them.
+      const subName = new Map((m.detail.topic.report?.subtopics ?? []).map((x) => [x.id, x.name]))
+      const sources = m.detail.items
+        .filter((i) => i.relevant)
+        .map((i, n) => ({
+          url: i.url,
+          platform: i.platform === "reddit" ? "Reddit" : i.platform === "youtube" ? "YouTube" : i.platform === "quora" ? "Quora" : "Facebook",
+          kind: i.kind,
+          title: i.title,
+          // One post begins like a spreadsheet formula, to prove the export neutralises it.
+          text: n === 1 ? '=HYPERLINK("https://evil.example","click")' : `${i.excerpt} Full text of the post, with "quotes", a comma, and a second sentence.`,
+          author: i.author,
+          publishedAt: i.publishedAt,
+          counted: i.counted !== false,
+          notCounted: i.counted !== false ? "" : i.speaker === "media" ? "news outlet" : i.speaker === "self" ? "Coe College's own account" : "passing mention",
+          sentiment: i.sentiment ?? "neutral",
+          audience: i.audience,
+          subtopic: (i.subtopicId && subName.get(i.subtopicId)) || "",
+          question: "",
+        }))
+        .sort((a, b) => Number(b.counted) - Number(a.counted))
+      return r.fulfill({ json: { sources } })
+    }
     if (method === "POST" && path === `/topics/${TOPIC_ID}/share`) {
       const body = req.postDataJSON() as { shared: boolean }
       m.posts.push({ url: path, body })

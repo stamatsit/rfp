@@ -30,6 +30,12 @@ export function tbsFor(dateRestrict: string | null, now = new Date()): string | 
   return `cdr:1,cd_min:${fmt(from)},cd_max:${fmt(now)}`
 }
 
+/** A fixed range as Google's tbs custom date range. */
+export function tbsForRange(after: Date, before: Date): string {
+  const fmt = (d: Date) => `${d.getUTCMonth() + 1}/${d.getUTCDate()}/${d.getUTCFullYear()}`
+  return `cdr:1,cd_min:${fmt(after)},cd_max:${fmt(before)}`
+}
+
 export function explainSerperError(err: unknown): Error {
   if (err instanceof HttpError) {
     const body = err.body ?? ""
@@ -59,7 +65,7 @@ export class SerperProvider implements SearchProvider {
   async search(req: SearchRequest, laneId: string, signal?: AbortSignal): Promise<SearchPage> {
     const q = siteScopedQuery(req.q, req.sites)
     const page = Math.floor((req.start - 1) / 10) + 1
-    const tbs = tbsFor(req.dateRestrict)
+    const tbs = req.dateRange ? tbsForRange(req.dateRange.after, req.dateRange.before) : tbsFor(req.dateRestrict)
     const key = cacheKey({ p: "serper", q, page, tbs })
     let data = await this.cache.get<SerperResponse>(key)
     const fromCache = !!data

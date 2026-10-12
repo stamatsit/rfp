@@ -7,7 +7,7 @@
  * path change and a running scan must keep its live stream.
  */
 import { useCallback, useEffect, useState } from "react"
-import { Link, useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { Lock } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { IdeaBoard } from "@/components/listening/IdeaBoard"
@@ -33,7 +33,10 @@ export function TopicIdeation() {
   const [team, setTeam] = useState<TopicRow[] | null>(null)
   const [ideaCount, setIdeaCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
-  const [prefill, setPrefill] = useState("")
+  // A topic to put in the search box, carried in the address (?q=) because the
+  // app rebuilds this page on every navigation and would lose it from state.
+  const [search] = useSearchParams()
+  const prefill = search.get("q") ?? ""
   const scan = useScan()
   useDocumentTitle("Topic Ideation")
 
@@ -69,7 +72,8 @@ export function TopicIdeation() {
     if (topicId !== s.topicId) navigate(`/listening/${s.topicId}`)
   }, [scan.state, topicId, navigate])
 
-  const startNew = (query: string, timeWindow: TimeWindow) => void scan.start({ kind: "new", query, timeWindow })
+  const startNew = (query: string, timeWindow: TimeWindow, range?: { from: string; to: string }) =>
+    void scan.start({ kind: "new", query, timeWindow, ...(timeWindow === "custom" && range ? range : {}) })
 
   const startingNew = scan.state.trigger === "initial" && scan.state.phase === "starting"
   const startError = scan.state.trigger === "initial" && scan.state.phase === "failed" && !scan.state.topicId ? scan.state.error : null
@@ -100,10 +104,7 @@ export function TopicIdeation() {
             key={topicId}
             topicId={topicId}
             scan={scan}
-            onNewSearch={(q) => {
-              setPrefill(q)
-              navigate("/listening")
-            }}
+            onNewSearch={(q) => navigate(`/listening?q=${encodeURIComponent(q)}`)}
           />
         ) : (
           <ListeningHome

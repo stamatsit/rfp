@@ -4,12 +4,15 @@
  * the two cannot drift apart in behaviour.
  */
 import { isListeningAdmin } from "./access.js"
-import { DAILY_SEARCH_BUDGET } from "./config.js"
+import { DAILY_SEARCH_BUDGET, PLATFORM_LABEL } from "./config.js"
+import { engagementOf, isPublicConversation } from "./metrics.js"
+import { entityOf } from "./plan.js"
 import { configuredSources } from "./deps.js"
 import { abortLocalRun, executeRun, startRun, TopicNotFound, type EngineDeps } from "./engine.js"
 import { MAX_SEARCH_CALLS_PER_RUN } from "./harvest.js"
 import { itemViews } from "./report.js"
 import { ActiveRunError, type Store } from "./store.js"
+import { TIME_WINDOWS, validateCustomRange } from "./window.js"
 import type { IdeaStatus, RunEvent, RunTrigger, SavedIdea, SavedIdeaSource, TimeWindow, TopicRow } from "./types.js"
 
 export interface ServiceCtx {
@@ -21,7 +24,6 @@ export interface ServiceCtx {
 export type Result<T> = { ok: true; body: T } | { ok: false; status: number; error: string; code?: string }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-const WINDOWS: TimeWindow[] = ["3m", "1y", "any"]
 
 /** Start of today in Pacific time, when Google's daily allowance resets. */
 export function pacificMidnight(now = new Date()): Date {
@@ -41,6 +43,49 @@ export async function budget(store: Store): Promise<{ used: number; limit: numbe
   const resetsAt = new Date(since.getTime() + 24 * 3600e3).toISOString()
   const scansLeft = Math.max(0, Math.floor((DAILY_SEARCH_BUDGET - used) / 20))
   return { used, limit: DAILY_SEARCH_BUDGET, resetsAt, scansLeft }
+}
+
+export interface UsageScan {
+  who: string
+  startedAt: string
+  trigger: RunTrigger
+  status: string
+  searchCalls: number
+  /** The topic's name, or null when it is someone's private topic you cannot open. */
+  topic: string | null
+  topicId: string | null
+}
+
+/**
+ * Who has scanned: today's scans (the shared Google allowance resets at
+ * midnight Pacific) and a seven-day tally per person, so the team can see
+ * what is left before starting a big scan. Refreshes use no searches and are
+ * left out. A private topic's name shows only to its owner and admins.
+ */
+export async function usage(ctx: ServiceCtx): Promise<{
+  budget: Awaited<ReturnType<typeof budget>>
+  today: UsageScan[]
+  week: Array<{ who: string; scans: number; searchCalls: number }>
+}> {
+  const since = pacificMidnight()
+  const admin = isListeningAdmin(ctx.userEmail)
+  const [b, runs] = await Promise.all([budget(ctx.store), ctx.store.runsSince(new Date(Date.now() - 7 * 86400e3))])
+  const scans = runs.filter((r) => r.trigger !== "rebuild")
+  const today = scans
+    .filter((r) => new Date(r.startedAt) >= since)
+    .map((r) => {
+      const canSee = admin || r.shared || ownsTopic({ createdBy: r.topicOwner }, ctx.userEmail)
+      return { who: r.createdBy, startedAt: r.startedAt, trigger: r.trigger, status: r.status, searchCalls: r.searchCalls, topic: canSee ? r.query : null, topicId: canSee ? r.topicId : null }
+    })
+  const tally = new Map<string, { who: string; scans: number; searchCalls: number }>()
+  for (const r of scans) {
+    const who = r.createdBy.trim().toLowerCase()
+    const t = tally.get(who) ?? { who, scans: 0, searchCalls: 0 }
+    t.scans++
+    t.searchCalls += r.searchCalls
+    tally.set(who, t)
+  }
+  return { budget: b, today, week: [...tally.values()].sort((a, c) => c.scans - a.scans || a.who.localeCompare(c.who)) }
 }
 
 export async function access(ctx: ServiceCtx) {
@@ -117,6 +162,75 @@ export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<u
   }
   const role = ownsTopic(topic, ctx.userEmail) ? "owner" : "viewer"
   return { ok: true, body: { topic, role, items: itemViews(items, topic.report), runs, activeRun, savedIdeas } }
+}
+
+/** One relevant source with its full text and labels, for the sources export. */
+export interface SourceRow {
+  url: string
+  platform: string
+  kind: string
+  title: string
+  text: string
+  author: string | null
+  publishedAt: string | null
+  /** Counted in the report's figures (a person's post mainly about the topic). */
+  counted: boolean
+  /** Why it is not counted, or "". */
+  notCounted: string
+  sentiment: string
+  audience: string
+  subtopic: string
+  question: string
+}
+
+/**
+ * Every relevant source for a topic you can read, with full text, so the list
+ * can be handed to another tool for deeper analysis. Off-topic items are left out.
+ */
+export async function topicSources(ctx: ServiceCtx, id: string): Promise<Result<{ sources: SourceRow[] }>> {
+  const topic = await readableTopic(ctx, id)
+  if (!topic) return { ok: false, status: 404, error: "Topic not found" }
+  const items = await ctx.store.allItems(id)
+  const subOf = new Map<string, string>()
+  for (const s of topic.report?.subtopics ?? []) for (const itemId of s.itemIds) subOf.set(itemId, s.name)
+  const entity = entityOf(topic.plan)
+  const rows = items
+    .filter((it) => it.labels?.relevant)
+    .map((it) => {
+      const l = it.labels!
+      const counted = isPublicConversation(it)
+      const notCounted = counted
+        ? ""
+        : it.platform === "news" || l.speaker === "media"
+          ? "news outlet"
+          : l.speaker === "self"
+            ? `${entity ?? "the institution"}'s own account`
+            : l.speaker === "organization"
+              ? "organization"
+              : l.about === false
+                ? "passing mention"
+                : "not yet analysed under the current rules"
+      return {
+        row: {
+          url: it.url,
+          platform: PLATFORM_LABEL[it.platform] ?? it.platform,
+          kind: it.kind,
+          title: it.title,
+          text: it.text,
+          author: it.author ?? null,
+          publishedAt: it.publishedAt ?? null,
+          counted,
+          notCounted,
+          sentiment: l.sentiment,
+          audience: l.audience,
+          subtopic: subOf.get(it.id) ?? "",
+          question: l.question ?? "",
+        } satisfies SourceRow,
+        engagement: engagementOf(it),
+      }
+    })
+    .sort((a, b) => Number(b.row.counted) - Number(a.row.counted) || b.engagement - a.engagement)
+  return { ok: true, body: { sources: rows.map((r) => r.row) } }
 }
 
 /** Owner only: make a topic readable by everyone with access, or private again. */
@@ -208,7 +322,7 @@ export async function runStatus(ctx: ServiceCtx, runId: string): Promise<Result<
 }
 
 export type RunRequest =
-  | { trigger: "initial"; query: unknown; timeWindow: unknown }
+  | { trigger: "initial"; query: unknown; timeWindow: unknown; from?: unknown; to?: unknown }
   | { trigger: "rescan" | "rebuild"; topicId: string }
 
 export interface PreparedRun {
@@ -247,8 +361,14 @@ export async function prepareRun(ctx: ServiceCtx, req: RunRequest): Promise<Resu
     if (req.trigger === "initial") {
       const query = cleanQuery(req.query)
       if (!query) return { ok: false, status: 400, error: "Enter a topic between 2 and 140 characters", code: "bad_query" }
-      const tw = WINDOWS.includes(req.timeWindow as TimeWindow) ? (req.timeWindow as TimeWindow) : "1y"
-      const r = await startRun(ctx.store, { trigger: "initial", createdBy: ctx.userEmail, query, timeWindow: tw })
+      const tw = TIME_WINDOWS.includes(req.timeWindow as TimeWindow) ? (req.timeWindow as TimeWindow) : "1y"
+      let range: { from: string; to: string } | null = null
+      if (tw === "custom") {
+        const v = validateCustomRange(req.from, req.to)
+        if (!v.ok) return { ok: false, status: 400, error: v.error, code: "bad_range" }
+        range = { from: v.from, to: v.to }
+      }
+      const r = await startRun(ctx.store, { trigger: "initial", createdBy: ctx.userEmail, query, timeWindow: tw, windowFrom: range?.from ?? null, windowTo: range?.to ?? null })
       return { ok: true, body: { ...r, trigger: "initial" } }
     }
     if (!(await ownTopic(ctx, req.topicId))) return { ok: false, status: 404, error: "Topic not found" }

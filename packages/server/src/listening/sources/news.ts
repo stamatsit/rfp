@@ -6,9 +6,18 @@ import { DEADLINES_MS } from "../config.js"
 import { cacheKey, TTL, type ResponseCache } from "../cache.js"
 import { fetchText } from "../util/http.js"
 import { clip, decodeEntities, stripHtml } from "../util/text.js"
-import type { RawItem, TimeWindow } from "../types.js"
+import type { RawItem } from "../types.js"
+import type { DateWindow } from "../window.js"
 
-const WHEN: Record<TimeWindow, string> = { "3m": " when:90d", "1y": " when:365d", any: "" }
+/** Google News search operators for a range: "when:7d" for the last N days, "after: before:" for fixed dates. */
+export function newsDateOperators(w: DateWindow): string {
+  if (w.fixed && w.after && w.before) {
+    // "before:" excludes its own day, so name the day after the last one.
+    const end = new Date(w.before.getTime() + 86400e3)
+    return ` after:${w.after.toISOString().slice(0, 10)} before:${end.toISOString().slice(0, 10)}`
+  }
+  return w.days ? ` when:${w.days}d` : ""
+}
 
 export function parseNewsRss(xml: string, max = 15): RawItem[] {
   const out: RawItem[] = []
@@ -44,8 +53,8 @@ export function parseNewsRss(xml: string, max = 15): RawItem[] {
 export class NewsSource {
   constructor(private cache: ResponseCache) {}
 
-  async harvest(q: string, tw: TimeWindow, signal?: AbortSignal): Promise<RawItem[]> {
-    const query = `${q}${WHEN[tw]}`
+  async harvest(q: string, window: DateWindow, signal?: AbortSignal): Promise<RawItem[]> {
+    const query = `${q}${newsDateOperators(window)}`
     const key = cacheKey({ p: "news", q: query })
     let xml = await this.cache.get<string>(key)
     if (!xml) {

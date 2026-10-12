@@ -17,6 +17,7 @@ import { describeError } from "./util/http.js"
 import { queryTokens, normForMatch } from "./util/text.js"
 import { canonicalUrl } from "./util/url.js"
 import type { RawItem } from "./types.js"
+import { resolveWindow } from "./window.js"
 
 const QUERIES = [
   { q: "online nursing degree", entity: false },
@@ -73,13 +74,13 @@ async function main() {
         console.log(`  ${lane.id.padEnd(10)} ${String(r.v.items.length).padStart(3)} items  ${String(r.ms).padStart(5)}ms  on-topic ${onTopicShare(r.v.items, q)}%  next=${r.v.nextStart ?? "-"}  ${r.v.fromCache ? "(cache)" : ""}  [${plats}]  dated=${r.v.items.filter((i) => i.publishedAt).length}`)
       } else console.log(`  ${lane.id.padEnd(10)} FAILED ${r.ms}ms: ${r.err}`)
     }
-    const y = await timed(() => youtube.harvest(q, "1y", {}))
+    const y = await timed(() => youtube.harvest(q, resolveWindow("1y"), {}))
     if (y.ok) {
       ytUnits += y.v.units
       all.push(...y.v.items)
       console.log(`  youtube    ${String(y.v.items.length).padStart(3)} items  ${String(y.ms).padStart(5)}ms  videos=${y.v.videos} commentVideos=${y.v.commentVideos} units=${y.v.units}  ${y.v.notes.join("; ")}`)
     } else console.log(`  youtube    FAILED ${y.ms}ms: ${y.err}`)
-    const n = await timed(() => news.harvest(sq, "1y"))
+    const n = await timed(() => news.harvest(sq, resolveWindow("1y")))
     if (n.ok) {
       all.push(...n.v)
       console.log(`  news       ${String(n.v.length).padStart(3)} items  ${String(n.ms).padStart(5)}ms  on-topic ${onTopicShare(n.v, q)}%`)
