@@ -1415,6 +1415,26 @@ def main():
                              f"project '{link['project']}' "
                              f"({link['total_pages']:g} pages total) via "
                              f"reviewer '{link['hint']}'."})
+        if s.get("skipped"):
+            findings.append({"severity": "LOW", "check": "matrix-tabs-skipped",
+                             "detail": f"Client matrix '{s['name']}': tab(s) "
+                             f"{', '.join(s['skipped'])} look like page lists but "
+                             f"are not numbered section tabs (1-Stamats, "
+                             f"2-Programs...), so they were not counted."})
+        if s.get("client_owned"):
+            findings.append({"severity": "LOW", "check": "matrix-client-owned",
+                             "detail": f"Client matrix '{s['name']}': "
+                             f"{s['client_owned']} pages are assigned to the "
+                             f"client, not Stamats, so they are left out of the "
+                             f"team's totals."})
+        if link and link["project"] and link["total_pages"] \
+                and abs(link["total_pages"] - s["total"]) > 0.05 * max(link["total_pages"], s["total"]):
+            findings.append({"severity": "MEDIUM", "check": "matrix-tracker-pages-differ",
+                             "detail": f"'{link['project']}': the tracker sizes it at "
+                             f"{link['total_pages']:g} pages but the client matrix "
+                             f"lists {s['total']} Stamats pages. Percent done is "
+                             f"matrix pages built over the tracker total until the "
+                             f"two agree."})
         print(f"client matrix: {s['name']}, {s['total']} pages, "
               f"funnel {[(l, n) for l, n in s['funnel']]}")
 

@@ -94,3 +94,18 @@ Live links: Laura's tracker (her OneDrive root), Crystal's Morehead matrix
 (morehead-alumni/), Crystal's WCC matrix (Documents/Washtenaw, link pending).
 If an owner removes or regenerates a link the run fails loudly rather than
 serving stale data. Graph (IT consent) remains the no-anonymous-links option.
+
+## Matrix tabs and ownership (2026-10-13)
+Crystal's WCC matrix exposed two accuracy holes in client_matrix.py:
+- Tab selection was "any sheet 60+ columns wide", which swallowed
+  For-Reuse-Delete (5,107 rows, 16,375 columns) as pages. Section tabs are
+  now the numbered ones (`1-Stamats`, `2-Programs`, `3-WCC`); other wide tabs
+  are skipped and reported (`matrix-tabs-skipped`). A matrix with no numbered
+  tab keeps the width rule. The DASHBOARD tab cannot be the selector: its
+  Tab ID rows are template leftovers.
+- Pages whose Assigned To names the client (3-WCC: 544 rows) never get a
+  Stamats completion date, so they are left out of every count
+  (`matrix-client-owned`); a blank owner inherits its tab's majority.
+`matrix-tracker-pages-differ` (MEDIUM) fires when the tracker's page count and
+the matrix's Stamats page count differ by more than 5% (Washtenaw: 802 vs
+697). Percent done stays matrix built over tracker total until they agree.

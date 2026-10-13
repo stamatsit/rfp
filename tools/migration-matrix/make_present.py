@@ -217,7 +217,12 @@ def main():
                  "ORDER BY COUNT(*) DESC", mname)
         qa_done_m = q("SELECT COUNT(*) FROM client_pages WHERE matrix=? "
                       "AND qa_date IS NOT NULL", mname)[0][0]
+        meta = q("SELECT sections, skipped, client_owned FROM client_matrix_meta "
+                 "WHERE matrix=?", mname)
+        sections, skipped, client_owned = meta[0] if meta else ("", "", 0)
         mx = {"name": mname, "total": mtotal, "funnel": funnel,
+              "sections": sections, "skipped_tabs": skipped,
+              "client_owned": client_owned or 0,
               "delivered": funnel[4][1],
               "migrated": funnel[2][1],
               "qa_done": qa_done_m,

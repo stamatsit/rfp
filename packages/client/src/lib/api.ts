@@ -2658,7 +2658,12 @@ export interface MmClientMatrix {
   total: number
   migrated: number
   delivered: number
-  migrators: number
+  migrators: Array<[string, number, number]>
+  // tabs that were read, tabs that looked like page lists but were not
+  // numbered sections, and pages assigned to the client (left out of totals)
+  sections?: string
+  skipped_tabs?: string
+  client_owned?: number
   funnel: Array<[string, number]>
   weekly_deliveries: Array<[string, number]>
   cycle_med: number | null

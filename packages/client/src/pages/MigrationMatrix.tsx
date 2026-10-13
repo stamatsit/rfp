@@ -525,7 +525,7 @@ export function MigrationMatrix() {
         </Card>
         {c.matrix && (
           <Card>
-            <Label>Client content matrix · {c.matrix.total} pages{Math.abs(c.matrix.total - c.total) > c.total * 0.05 ? " · page counts disagree with the tracker: QA check" : ""}</Label>
+            <Label>Client content matrix · {c.matrix.total} Stamats pages{c.matrix.client_owned ? ` · ${n(c.matrix.client_owned)} more owned by the client, not counted` : ""}{Math.abs(c.matrix.total - c.total) > c.total * 0.05 ? " · page counts disagree with the tracker: QA check" : ""}</Label>
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 {c.matrix.funnel.map(([stage, k]) => (

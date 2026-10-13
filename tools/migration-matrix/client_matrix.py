@@ -24,7 +24,7 @@ COL = {
     "r1_updates": 30,
     "mig_assigned_to": 37, "mig_r1_by": 41, "mig_r1_done": 42,
     "qa_r1_by": 44, "qa_r1_done": 45, "mig_r2_done": 47, "qa_r2_done": 49,
-    "delivered": 54, "client_final": 61, "mig_r3_done": 51,
+    "delivered": 54, "client_final": 61, "mig_r3_done": 51, "qa_r3_done": 53,
 }
 DISPOSITIONS = ["Write New", "Revise", "Optimize", "Reuse", "As Is",
                 "Import", "Delete"]
@@ -73,10 +73,26 @@ def find_matrices():
                   and "-FIXED" not in os.path.basename(p))  # our own output
 
 
+# Crystal's section tabs are numbered: 1-Stamats, 2-Programs, 3-WCC. Other
+# tabs can be just as wide (a For-Reuse-Delete dump, a redirects list) and
+# must not be mistaken for page lists.
+SECTION_TAB = re.compile(r"^\d+\s*-")
+
+
+def _is_client_owned(assigned_to):
+    """Pages the client builds itself (Assigned To names the client, not
+    Stamats) never get a Stamats completion date, so they are not the team's
+    work and stay out of every count. Blank counts as Stamats."""
+    s = (assigned_to or "").strip().lower()
+    return bool(s) and "stamats" not in s
+
+
 def parse_matrix(path):
     wb = openpyxl.load_workbook(path, data_only=True)
     name = os.path.basename(path).replace(".xlsx", "")
-    out = {"name": name, "sections": [], "pages": [], "broken_refs": 0}
+    out = {"name": name, "sections": [], "pages": [], "broken_refs": 0,
+           "skipped": [], "client_owned": 0}
+    numbered = [ws.title for ws in wb.worksheets if SECTION_TAB.match(ws.title.strip())]
     # their own DASHBOARD rollup, if present, and whether it has rotted
     for ws in wb.worksheets:
         if ws.title.upper() == "DASHBOARD":
@@ -84,18 +100,35 @@ def parse_matrix(path):
                 1 for row in ws.iter_rows() for c in row
                 if isinstance(c.value, str) and "#REF!" in c.value)
             continue
-        if ws.max_column < 60:  # not a page-lifecycle sheet
+        # Numbered tabs are the sections. Any other tab wide enough to look
+        # like a page list is skipped and reported, never counted. A matrix
+        # with no numbered tab at all falls back to the width rule.
+        if numbered:
+            if ws.title not in numbered:
+                if ws.max_column >= 60:
+                    out["skipped"].append(ws.title)
+                continue
+        elif ws.max_column < 60:  # not a page-lifecycle sheet
             continue
         out["sections"].append(ws.title)
         # A page row has a legacy URL, a title or a new URL (write-new pages
         # have no legacy URL). Crystal's live file starts data on row 5;
         # the counts row (row 4) is all numbers and is skipped by content,
         # not by position.
+        raw_pages = []
         for r in range(4, ws.max_row + 1):
             if not _is_page(_val(ws, r, "url"), _val(ws, r, "title"),
                             _val(ws, r, "new_url")):
                 continue
-            page = {k: _val(ws, r, k) for k in COL}
+            raw_pages.append({k: _val(ws, r, k) for k in COL})
+        # A blank Assigned To inherits the tab's majority owner: on a tab the
+        # client works (3-WCC) a blank row is theirs, not a Stamats page.
+        owners = [p["assigned_to"].strip() for p in raw_pages if p["assigned_to"]]
+        majority = max(set(owners), key=owners.count) if owners else None
+        for page in raw_pages:
+            if _is_client_owned(page["assigned_to"] or majority):
+                out["client_owned"] += 1
+                continue
             disp = next((lab for lab, key in zip(DISPOSITIONS, DISP_COLS)
                          if page[key]), None)
             stage = "Not started"
@@ -133,6 +166,7 @@ def summarize(m):
         "dispositions": disp, "funnel": funnel,
         "no_disposition": disp.get("(none)", 0),
         "broken_refs": m["broken_refs"],
+        "skipped": m["skipped"], "client_owned": m["client_owned"],
     }
 
 
@@ -147,10 +181,16 @@ def ingest(db):
             qa_done INT, delivered INT, client_final INT,
             draft_date TEXT, delivered_date TEXT, rework INT,
             migrated_date TEXT, qa_date TEXT);
+        DROP TABLE IF EXISTS client_matrix_meta;
+        CREATE TABLE client_matrix_meta (matrix TEXT, sections TEXT,
+            skipped TEXT, client_owned INT);
     """)
     summaries = []
     for path in find_matrices():
         m = parse_matrix(path)
+        db.execute("INSERT INTO client_matrix_meta VALUES (?,?,?,?)",
+                   (m["name"], ", ".join(m["sections"]), ", ".join(m["skipped"]),
+                    m["client_owned"]))
         for p in m["pages"]:
             db.execute(
                 "INSERT INTO client_pages VALUES "
