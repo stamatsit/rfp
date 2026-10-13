@@ -2701,6 +2701,10 @@ export interface MmClient {
   // contract 1.1: pages-first table fields
   assigned?: number
   left?: number
+  // 1.2: with a client matrix, done = delivered to the client (column BB),
+  // built = the migrator's completion date (column AP)
+  built?: number
+  left_to_build?: number
   qa_done?: number
   min_per_page?: number | null
   qa_min_per_page?: number | null

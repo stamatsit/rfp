@@ -122,8 +122,10 @@ def facts_blob():
             facts["projects_table"] = [
                 {"project": c["name"], "list": c.get("list"),
                  "status": c.get("status"), "total_pages": c["total"],
-                 "assigned": c.get("assigned"), "done": c["done"],
-                 "left_to_build": c.get("left"), "unassigned": c.get("remaining"),
+                 "assigned": c.get("assigned"),
+                 "built": c.get("built", c["done"]), "done": c["done"],
+                 "left_to_build": c.get("left_to_build", c.get("left")),
+                 "not_delivered": c.get("left"), "unassigned": c.get("remaining"),
                  "hours_to_finish": c.get("hours_to_finish"),
                  "build_minutes_per_page": c.get("min_per_page"),
                  "client_deadline": c.get("deadline"),

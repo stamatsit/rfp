@@ -86,12 +86,16 @@ def resolve_initials(initials, roster, overrides):
 
 
 def matrix_completions(db, matrix_name, roster, overrides):
-    """Completions dated in one client matrix, per (person, role, week).
-    Returns (counts, unmatched, resolved): counts {(person, role, week): n},
-    unmatched {(initials, role): {week: n}}, resolved {initials: name|None}."""
+    """Pages delivered to the client, per (person, role, week). Deliver to
+    Client (column BB) is the one source of truth for completion (Eric,
+    2026-10-13); a delivered page counts for the migrator who built it
+    (column AO) and the QA who passed it (column AR) in the week of its BB
+    date. Returns (counts, unmatched, resolved): counts {(person, role,
+    week): n}, unmatched {(initials, role): {week: n}}, resolved
+    {initials: name|None}."""
     counts, unmatched, resolved = {}, {}, {}
-    for col_ini, col_date, role in (("migrator", "migrated_date", "Migration"),
-                                    ("qa", "qa_date", "QA")):
+    for col_ini, col_date, role in (("migrator", "delivered_date", "Migration"),
+                                    ("qa", "delivered_date", "QA")):
         for ini, d in db.execute(
                 f"SELECT {col_ini}, {col_date} FROM client_pages "
                 f"WHERE matrix=? AND {col_date} IS NOT NULL", (matrix_name,)):
@@ -261,20 +265,26 @@ def main():
         mig = rollup.get((name, "Migration"), {})
         qa = rollup.get((name, "QA"), {})
         mx0 = matrix_by_project.get(name)
-        # Crystal's rule: completed pages come from the CLIENT MATRIX, never
-        # hand-entered in the tracker. Tracker keeps assignments/hours.
-        done = round(mx0["migrated"]) if mx0 else round(mig.get("main_done", 0))
+        # Crystal's rule: nothing about completion is typed into the tracker.
+        # With a client matrix, BUILT is the migrator's completion date
+        # (column AP) and DONE is Deliver to Client (column BB, Eric's call
+        # 2026-10-13: AT to BA are rounds the dashboard need not track).
+        # Without a matrix both fall back to the tracker's Pages Completed,
+        # which the rebuilt tracker no longer carries.
+        built = round(mx0["migrated"]) if mx0 else round(mig.get("main_done", 0))
+        done = round(mx0["delivered"]) if mx0 else built
         qa_done = round(mx0["qa_done"]) if mx0 else round(qa.get("main_done", 0))
         assigned = round(mig.get("main_pages", 0))
         remaining = max(round(total - mig.get("main_pages", 0)), 0)  # over-assigned => 0
-        left = max(round(total - done), 0)
+        left = max(round(total - done), 0)             # not yet delivered
+        left_to_build = max(round(total - built), 0)   # not yet built
         qa_left = max(round(total - qa_done), 0)
         mig_rate, qa_rate = pr["mig_rate"], pr["qa_rate"]
         min_per_page = (pr["mig_min_per_page"] if pr["mig_min_per_page"]
                         else round(60 / mig_rate, 1) if mig_rate else None)
         qa_min_per_page = (pr["qa_min_per_page"] if pr["qa_min_per_page"]
                            else round(60 / qa_rate, 1) if qa_rate else None)
-        hours_to_finish = (round(left / mig_rate + (qa_left / qa_rate if qa_rate else 0))
+        hours_to_finish = (round(left_to_build / mig_rate + (qa_left / qa_rate if qa_rate else 0))
                            if mig_rate else None)
         f = fc.get(name, {})
         days = (datetime.date.fromisoformat(pr["client_deadline"])
@@ -359,7 +369,8 @@ def main():
                              f"({idle[0][1]:g}h free).")
         return {
             "name": name, "type": pr["page_type"], "total": total,
-            "done": done, "remaining": remaining,
+            "done": done, "built": built, "left_to_build": left_to_build,
+            "remaining": remaining,
             "pct": round(100 * done / total) if total else 0,
             "deadline": pr["client_deadline"], "projected": f.get("finish"),
             "hours_left": round(f.get("hours", 0)), "verdict": verdict,

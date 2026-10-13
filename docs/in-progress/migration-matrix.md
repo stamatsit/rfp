@@ -109,3 +109,18 @@ Crystal's WCC matrix exposed two accuracy holes in client_matrix.py:
 `matrix-tracker-pages-differ` (MEDIUM) fires when the tracker's page count and
 the matrix's Stamats page count differ by more than 5% (Washtenaw: 802 vs
 697). Percent done stays matrix built over tracker total until they agree.
+
+## Done means delivered (2026-10-13, Eric)
+Deliver to Client (column BB) is the one source of truth for completion.
+A project's Done and percent done are delivered pages over the tracker
+total. Per person, a delivered page counts for the migrator who built it
+(column AO) and the QA who passed it (column AR) in the week of its BB
+date; the Weekly, Team and Person views all say "done" and mean delivered.
+Built (column AP, the migrator's own completion date) is shown beside done
+on the project page and drives hours to finish, since hours are about
+building; required pace is pages not yet delivered over weeks left.
+Columns AT to BA (QA and rework rounds) are read but are not progress.
+Delivery lags building by about five days (112 built vs 14 delivered in
+the week of 10/5), so a page built on Friday shows as done the week after.
+Client rows add `built` and `left_to_build`; facts add `built` and
+`not_delivered`.

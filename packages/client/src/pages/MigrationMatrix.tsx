@@ -470,9 +470,9 @@ export function MigrationMatrix() {
           </div>
         </Card>
         <Card>
-          <Label>Pages · done counted from the {c.done_source}</Label>
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 text-center">
-            {([[n(c.total), "total"], [n(assigned), "assigned"], [n(c.done), "done"], [n(left), "left to build"], [n(c.remaining), "unassigned"]] as Array<[string, string]>).map(([v, k]) => (
+          <Label>Pages · {c.matrix ? "built is the migrator's completion date (column AP), done is delivered to the client (column BB)" : "done counted from the tracker"}</Label>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 text-center">
+            {([[n(c.total), "total"], [n(assigned), "assigned"], [n(c.built ?? c.done), "built"], [n(c.done), "done"], [n(c.left_to_build ?? left), "left to build"], [n(c.remaining), "unassigned"]] as Array<[string, string]>).map(([v, k]) => (
               <div key={k}>
                 <p className={`text-2xl font-bold tabular-nums ${k === "left to build" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">{k}</p>
@@ -737,8 +737,8 @@ const COLS: Array<{ key: SortKey; label: string; num?: boolean; title: string }>
   { key: "group", label: "Status", title: "active, planned or archived, then the tracker's own status" },
   { key: "total", label: "Total", num: true, title: "Total pages on the tracker" },
   { key: "assigned", label: "Assigned", num: true, title: "Pages assigned to people so far" },
-  { key: "done", label: "Done", num: true, title: "Pages built: client matrix where one exists, else the tracker" },
-  { key: "left", label: "Remaining", num: true, title: "Pages still to build: total minus done" },
+  { key: "done", label: "Done", num: true, title: "Pages delivered to the client (matrix column BB). Pages built so far are on the project page." },
+  { key: "left", label: "Remaining", num: true, title: "Pages not yet delivered: total minus done" },
   { key: "week", label: "Assigned this week", num: true, title: "Pages assigned to people in the current tracker week. Pages completed this week are on the Weekly tab." },
   { key: "hours", label: "Hours remaining", num: true, title: "Remaining pages at the project's minutes per page, plus QA" },
   { key: "start", label: "Start", title: "Estimated start date from the tracker. A project with a start date ahead of today is booked, not late." },
@@ -903,7 +903,7 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
             className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"><ChevronRight size={16} /></button>
         </div>
         <p className="text-[12.5px] text-slate-500 max-w-2xl">
-          Assigned is what Laura's tracker planned for the week. Done is what the client matrix records as built (projects without a matrix use the tracker's Pages Completed).
+          Assigned is what Laura's tracker planned for the week. Done is pages delivered to the client (matrix column BB) in that week, credited to the migrator who built them and the QA who passed them; projects without a matrix use the tracker.
           {behind && isCurrent ? ` This is the tracker's latest staffed week; today is the week of ${isoLbl(weekly.calendar_week!)}.` : ""}
         </p>
       </div>
@@ -1104,7 +1104,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
         </Card>
       </div>
       <Card>
-        <Label>Pages per week · track = assigned, fill = done</Label>
+        <Label>Pages per week · track = assigned, fill = done (delivered)</Label>
         <ThroughputChart series={series} weekNow={weekly?.labels[curIdx] ?? ""} />
       </Card>
       {weekRows.length > 0 && (
