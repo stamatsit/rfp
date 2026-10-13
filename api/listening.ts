@@ -178,8 +178,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (method === "GET" && path === "/usage") return res.json(await m.svc.usage(ctx))
     if (method === "GET" && path === "/topics") return res.json(await m.svc.listTopics(ctx))
     if (method === "POST" && path === "/topics") {
-      const body = (req.body ?? {}) as { query?: unknown; timeWindow?: unknown; from?: unknown; to?: unknown }
-      return await stream({ trigger: "initial", query: body.query, timeWindow: body.timeWindow, from: body.from, to: body.to })
+      const body = (req.body ?? {}) as { query?: unknown; timeWindow?: unknown; from?: unknown; to?: unknown; exclude?: unknown }
+      return await stream({ trigger: "initial", query: body.query, timeWindow: body.timeWindow, from: body.from, to: body.to, exclude: body.exclude })
     }
     if ((mm = path.match(/^\/topics\/([^/]+)$/))) {
       if (method === "GET") return send(await m.svc.topicDetail(ctx, mm[1]!))

@@ -9,6 +9,7 @@ import { engagementOf, isPublicConversation } from "./metrics.js"
 import { entityOf } from "./plan.js"
 import { configuredSources } from "./deps.js"
 import { DRAFT_KINDS, DraftError, writeDraft } from "./drafts.js"
+import { cleanExclusions } from "./exclude.js"
 import { abortLocalRun, executeRun, startRun, TopicNotFound, type EngineDeps } from "./engine.js"
 import { MAX_SEARCH_CALLS_PER_RUN } from "./harvest.js"
 import { LlmError } from "./llm.js"
@@ -493,7 +494,7 @@ export async function runStatus(ctx: ServiceCtx, runId: string): Promise<Result<
 }
 
 export type RunRequest =
-  | { trigger: "initial"; query: unknown; timeWindow: unknown; from?: unknown; to?: unknown }
+  | { trigger: "initial"; query: unknown; timeWindow: unknown; from?: unknown; to?: unknown; exclude?: unknown }
   | { trigger: "rescan" | "rebuild"; topicId: string }
 
 export interface PreparedRun {
@@ -539,7 +540,17 @@ export async function prepareRun(ctx: ServiceCtx, req: RunRequest): Promise<Resu
         if (!v.ok) return { ok: false, status: 400, error: v.error, code: "bad_range" }
         range = { from: v.from, to: v.to }
       }
-      const r = await startRun(ctx.store, { trigger: "initial", createdBy: ctx.userEmail, query, timeWindow: tw, windowFrom: range?.from ?? null, windowTo: range?.to ?? null })
+      const leave = cleanExclusions(req.exclude, query)
+      if (!leave.ok) return { ok: false, status: 400, error: leave.error, code: "bad_exclude" }
+      const r = await startRun(ctx.store, {
+        trigger: "initial",
+        createdBy: ctx.userEmail,
+        query,
+        timeWindow: tw,
+        windowFrom: range?.from ?? null,
+        windowTo: range?.to ?? null,
+        excludeTerms: leave.terms,
+      })
       return { ok: true, body: { ...r, trigger: "initial" } }
     }
     if (!(await ownTopic(ctx, req.topicId))) return { ok: false, status: 404, error: "Topic not found" }

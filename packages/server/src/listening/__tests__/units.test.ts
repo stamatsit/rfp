@@ -11,6 +11,7 @@ import { assemblePlan, entityOf, fallbackPlan } from "../plan.js"
 import { isListeningAdmin, listeningAllowed, listeningVisibility, seesEveryTopic } from "../access.js"
 import { noDashes } from "../report.js"
 import { cleanQuery, pacificMidnight } from "../service.js"
+import { cleanExclusions, listExclusions, mentionsExcluded, withExclusions } from "../exclude.js"
 import { HttpError } from "../util/http.js"
 import type { Item, Plan } from "../types.js"
 
@@ -338,5 +339,72 @@ describe("service helpers", () => {
   })
   it("removes em and en dashes from model text", () => {
     expect(noDashes("Flexible — but costly; 2025–2026")).toBe("Flexible, but costly; 2025-2026")
+  })
+})
+
+describe("words to leave out", () => {
+  const ok = (input: unknown, query = "higher ed marketing") => {
+    const r = cleanExclusions(input, query)
+    if (!r.ok) throw new Error(r.error)
+    return r.terms
+  }
+  const refused = (input: unknown, query = "higher ed marketing") => {
+    const r = cleanExclusions(input, query)
+    return r.ok ? null : r.error
+  }
+
+  it("reads a comma list or an array, tidies it, and merges repeats", () => {
+    for (const nothing of [undefined, null, "", [], " , ,"]) expect(ok(nothing)).toEqual([])
+    expect(ok("sports, graduate school\nrankings")).toEqual(["sports", "graduate school", "rankings"])
+    expect(ok(["  Sports ", "sports", "SPORTS"])).toEqual(["Sports"])
+    // Quotation marks and search operators typed out of habit are dropped.
+    expect(ok('-"greek life", -rankings, +athletics, \u201Cfootball\u201D')).toEqual(["greek life", "rankings", "athletics", "football"])
+    expect(ok("k-12")).toEqual(["k-12"])
+  })
+
+  it("refuses what it cannot use, and says why", () => {
+    expect(refused(7)).toMatch(/separated by commas/)
+    expect(refused(["sports", 3])).toMatch(/separated by commas/)
+    expect(refused("a")).toMatch(/2 to 40 characters/)
+    expect(refused("x".repeat(41))).toMatch(/2 to 40 characters/)
+    expect(refused("one two three four five")).toMatch(/four words or fewer/)
+    expect(refused("a1, b2, c3, d4, e5, f6, g7, h8, i9")).toMatch(/up to 8/)
+    expect(ok("a1, b2, c3, d4, e5, f6, g7, h8")).toHaveLength(8)
+    // A word that is part of the topic would leave out everything.
+    expect(refused("marketing")).toBe('"marketing" is part of the topic, so leaving it out would leave out everything')
+    expect(refused("Higher Ed")).toMatch(/part of the topic/)
+    expect(refused("sport", "college sports")).toMatch(/part of the topic/)
+    expect(ok("sports", "college enrollment")).toEqual(["sports"])
+  })
+
+  it("finds a mention as whole words, in any case, through punctuation, with a simple plural", () => {
+    expect(mentionsExcluded("Our Sports teams did well", ["sports"])).toBe("sports")
+    expect(mentionsExcluded("one sport, many fans", ["sport"])).toBe("sport")
+    expect(mentionsExcluded("many sports, one fan", ["sport"])).toBe("sport")
+    // A singular is never guessed: leaving out "news" must not drop every "new".
+    expect(mentionsExcluded("one sport, many fans", ["sports"])).toBeNull()
+    expect(mentionsExcluded("a new program opens", ["news"])).toBeNull()
+    expect(mentionsExcluded("in the news today", ["news"])).toBe("news")
+    expect(mentionsExcluded("two classes this fall", ["class"])).toBe("class")
+    expect(mentionsExcluded("The Graduate-School rankings are out", ["graduate school"])).toBe("graduate school")
+    expect(mentionsExcluded("graduate schools near me", ["graduate school"])).toBe("graduate school")
+    // Not inside another word.
+    expect(mentionsExcluded("We will start in the smart classroom", ["art"])).toBeNull()
+    expect(mentionsExcluded("transportation costs", ["sport"])).toBeNull()
+    expect(mentionsExcluded("the graduate went back to school", ["graduate school"])).toBeNull()
+    // The first match is the one reported; no list means no match.
+    expect(mentionsExcluded("football and rankings", ["rankings", "football"])).toBe("rankings")
+    expect(mentionsExcluded("anything", [])).toBeNull()
+    expect(mentionsExcluded("anything", undefined)).toBeNull()
+  })
+
+  it("writes the leave-out operators a search engine understands", () => {
+    expect(withExclusions("online nursing degree", [])).toBe("online nursing degree")
+    expect(withExclusions("online nursing degree", undefined)).toBe("online nursing degree")
+    expect(withExclusions('"Coe College"', ["sports", "greek life"])).toBe('"Coe College" -sports -"greek life"')
+    expect(siteScopedQuery(withExclusions("fafsa", ["scam"]), ["reddit.com"])).toBe("fafsa -scam site:reddit.com")
+    expect(listExclusions(["a"])).toBe("a")
+    expect(listExclusions(["a", "b"])).toBe("a and b")
+    expect(listExclusions(["a", "b", "c"])).toBe("a, b and c")
   })
 })

@@ -90,7 +90,7 @@ async function stream(req: Request, res: Response, request: svc.RunRequest) {
   if (!res.writableEnded) res.end()
 }
 
-router.post("/topics", wrap((req, res) => stream(req, res, { trigger: "initial", query: req.body?.query, timeWindow: req.body?.timeWindow, from: req.body?.from, to: req.body?.to })))
+router.post("/topics", wrap((req, res) => stream(req, res, { trigger: "initial", query: req.body?.query, timeWindow: req.body?.timeWindow, from: req.body?.from, to: req.body?.to, exclude: req.body?.exclude })))
 router.post("/topics/:id/rescan", wrap((req, res) => stream(req, res, { trigger: "rescan", topicId: req.params["id"]! })))
 router.post("/topics/:id/rebuild", wrap((req, res) => stream(req, res, { trigger: "rebuild", topicId: req.params["id"]! })))
 

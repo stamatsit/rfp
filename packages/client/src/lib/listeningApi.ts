@@ -61,7 +61,7 @@ export const listeningApi = {
 }
 
 export type ScanRequest =
-  | { kind: "new"; query: string; timeWindow: TimeWindow; from?: string; to?: string }
+  | { kind: "new"; query: string; timeWindow: TimeWindow; from?: string; to?: string; exclude?: string[] }
   | { kind: "rescan" | "rebuild"; topicId: string }
 
 /**
@@ -71,7 +71,10 @@ export type ScanRequest =
  */
 export async function streamScan(req: ScanRequest, onEvent: (e: RunEvent) => void, signal?: AbortSignal): Promise<void> {
   const path = req.kind === "new" ? "/topics" : `/topics/${req.topicId}/${req.kind}`
-  const body = req.kind === "new" ? { query: req.query, timeWindow: req.timeWindow, ...(req.timeWindow === "custom" ? { from: req.from, to: req.to } : {}) } : {}
+  const body =
+    req.kind === "new"
+      ? { query: req.query, timeWindow: req.timeWindow, ...(req.timeWindow === "custom" ? { from: req.from, to: req.to } : {}), ...(req.exclude?.length ? { exclude: req.exclude } : {}) }
+      : {}
   const headers = await addCsrfHeader({ "Content-Type": "application/json", Accept: "text/event-stream" })
   const res = await fetch(`${BASE}${path}`, { method: "POST", headers, credentials: "include", body: JSON.stringify(body), signal })
   if (!res.ok) {

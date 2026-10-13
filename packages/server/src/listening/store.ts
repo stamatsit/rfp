@@ -60,6 +60,8 @@ export interface NewTopic {
   /** First and last day (YYYY-MM-DD) of a custom range. */
   windowFrom?: string | null
   windowTo?: string | null
+  /** Words and phrases to leave out of every scan of this topic. */
+  excludeTerms?: string[]
 }
 
 export interface Store {
@@ -133,6 +135,7 @@ function topicFromRow(r: Record<string, any>, withReport = true): TopicRow {
     timeWindow: r.time_window,
     windowFrom: dayOf(r.window_from),
     windowTo: dayOf(r.window_to),
+    excludeTerms: Array.isArray(r.exclude_terms) ? (r.exclude_terms as string[]) : [],
     plan: (r.plan as Plan) ?? null,
     report: withReport ? ((r.report as Report) ?? null) : null,
     itemCount: r.item_count ?? 0,
@@ -212,8 +215,9 @@ export class PgStore implements Store {
 
   async createTopic(input: NewTopic): Promise<TopicRow> {
     const [r] = await this.sql`
-      INSERT INTO listening_topics (created_by, query, time_window, window_from, window_to)
-      VALUES (${input.createdBy}, ${input.query}, ${input.timeWindow}, ${input.windowFrom ?? null}::date, ${input.windowTo ?? null}::date)
+      INSERT INTO listening_topics (created_by, query, time_window, window_from, window_to, exclude_terms)
+      VALUES (${input.createdBy}, ${input.query}, ${input.timeWindow}, ${input.windowFrom ?? null}::date, ${input.windowTo ?? null}::date,
+              ${this.sql.json((input.excludeTerms ?? []) as never)})
       RETURNING *`
     return topicFromRow(r!)
   }
@@ -226,7 +230,7 @@ export class PgStore implements Store {
   async listTopics(createdBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, exclude_terms, created_at, updated_at
       FROM listening_topics WHERE lower(created_by) = ${createdBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
@@ -235,7 +239,7 @@ export class PgStore implements Store {
   async listSharedTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, exclude_terms, created_at, updated_at
       FROM listening_topics WHERE shared AND lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 200`
     return rows.map((r) => topicFromRow(r, false))
@@ -244,7 +248,7 @@ export class PgStore implements Store {
   async listOthersTopics(excludeCreatedBy: string): Promise<TopicRow[]> {
     const rows = await this.sql`
       SELECT id, created_by, query, time_window, item_count, relevant_count, sentiment_score, headline,
-             last_run_at, last_run_status, shared, shared_at, window_from, window_to, created_at, updated_at
+             last_run_at, last_run_status, shared, shared_at, window_from, window_to, exclude_terms, created_at, updated_at
       FROM listening_topics WHERE lower(created_by) <> ${excludeCreatedBy.trim().toLowerCase()}
       ORDER BY updated_at DESC LIMIT 500`
     return rows.map((r) => topicFromRow(r, false))
@@ -569,6 +573,7 @@ export class MemoryStore implements Store {
       timeWindow: input.timeWindow,
       windowFrom: input.windowFrom ?? null,
       windowTo: input.windowTo ?? null,
+      excludeTerms: [...(input.excludeTerms ?? [])],
       plan: null,
       report: null,
       itemCount: 0,

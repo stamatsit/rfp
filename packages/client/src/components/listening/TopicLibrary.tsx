@@ -39,11 +39,17 @@ export function rangeLabel(t: TopicRow): string {
   return l.charAt(0).toUpperCase() + l.slice(1)
 }
 
-/** Every word typed must appear in the topic, its summary, its time range or its owner's name. */
+/** ", without sports" or ", without sports +2": enough to tell two scans of one topic apart. */
+export function withoutLabel(t: TopicRow): string {
+  const terms = t.excludeTerms ?? []
+  return terms.length ? `, without ${terms[0]}${terms.length > 1 ? ` +${terms.length - 1}` : ""}` : ""
+}
+
+/** Every word typed must appear in the topic, its summary, its time range, what it leaves out or its owner's name. */
 export function matchesFilter(t: TopicRow, find: string): boolean {
   const words = find.toLowerCase().split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
-  const hay = `${t.query} ${t.headline ?? ""} ${rangeLabel(t)} ${personName(t.createdBy)}`.toLowerCase()
+  const hay = `${t.query} ${t.headline ?? ""} ${rangeLabel(t)} ${(t.excludeTerms ?? []).join(" ")} ${personName(t.createdBy)}`.toLowerCase()
   return words.every((w) => hay.includes(w))
 }
 
@@ -141,7 +147,10 @@ function TopicCard({ t, now, scope, teamView }: { t: TopicRow; now: number; scop
             </span>
           )}
           <h3 className="text-[15.5px] font-semibold leading-snug text-slate-900 dark:text-white line-clamp-2">{t.query}</h3>
-          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">{rangeLabel(t)}</p>
+          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">
+            {rangeLabel(t)}
+            {withoutLabel(t)}
+          </p>
           <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-3">{summary}</p>
           <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-slate-500">
             {running ? (
@@ -177,7 +186,10 @@ function TopicLine({ t, now, scope, teamView }: { t: TopicRow; now: number; scop
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2.5">
             <span className="max-w-full truncate text-[14.5px] font-semibold text-slate-900 dark:text-white">{t.query}</span>
-            <span className="text-[12px] text-slate-500 dark:text-slate-400 whitespace-nowrap">{rangeLabel(t)}</span>
+            <span className="text-[12px] text-slate-500 dark:text-slate-400 whitespace-nowrap">
+              {rangeLabel(t)}
+              {withoutLabel(t)}
+            </span>
           </span>
           <span className="mt-1 flex items-center gap-2 min-w-0 text-[12.5px] text-slate-500 dark:text-slate-400">
             {badge && (

@@ -290,6 +290,25 @@ for (const vp of VIEWPORTS) {
       await ideas("26-thumbs-more-ideas")
     })
 
+    test(`${vp.name} ${t} leave out`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await setup(page, { topics: [{ ...buildDetail().topic, excludeTerms: ["sports", "rankings"] }], detail: buildDetail({ exclude: ["sports", "rankings"] }) })
+      await page.goto("/listening")
+      await page.getByPlaceholder("A topic, or a school or hospital by name").fill("higher ed marketing")
+      await page.getByRole("button", { name: "Leave out words" }).click()
+      await page.getByLabel("Leave out", { exact: true }).fill("sports, rankings")
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-27-leave-out-form.png`, fullPage: true })
+      await page.getByLabel("Leave out", { exact: true }).fill("marketing")
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-28-leave-out-problem.png` })
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText(/leaving out sports, rankings/).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-29-leave-out-topic.png` })
+    })
+
     test(`${vp.name} ${t} progress`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await theme(page, t)

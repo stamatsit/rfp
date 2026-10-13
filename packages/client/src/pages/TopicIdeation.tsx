@@ -37,6 +37,8 @@ export function TopicIdeation() {
   // app rebuilds this page on every navigation and would lose it from state.
   const [search] = useSearchParams()
   const prefill = search.get("q") ?? ""
+  // Words to leave out, carried the same way when a topic is scanned again over another range.
+  const prefillLeave = search.get("x") ?? ""
   const scan = useScan()
   useDocumentTitle("Topic Ideation")
 
@@ -72,8 +74,8 @@ export function TopicIdeation() {
     if (topicId !== s.topicId) navigate(`/listening/${s.topicId}`)
   }, [scan.state, topicId, navigate])
 
-  const startNew = (query: string, timeWindow: TimeWindow, range?: { from: string; to: string }) =>
-    void scan.start({ kind: "new", query, timeWindow, ...(timeWindow === "custom" && range ? range : {}) })
+  const startNew = (query: string, timeWindow: TimeWindow, range?: { from: string; to: string }, exclude: string[] = []) =>
+    void scan.start({ kind: "new", query, timeWindow, ...(timeWindow === "custom" && range ? range : {}), ...(exclude.length ? { exclude } : {}) })
 
   const startingNew = scan.state.trigger === "initial" && scan.state.phase === "starting"
   const startError = scan.state.trigger === "initial" && scan.state.phase === "failed" && !scan.state.topicId ? scan.state.error : null
@@ -104,7 +106,7 @@ export function TopicIdeation() {
             key={topicId}
             topicId={topicId}
             scan={scan}
-            onNewSearch={(q) => navigate(`/listening?q=${encodeURIComponent(q)}`)}
+            onNewSearch={(q, leave) => navigate(`/listening?q=${encodeURIComponent(q)}${leave?.length ? `&x=${encodeURIComponent(leave.join(", "))}` : ""}`)}
           />
         ) : (
           <ListeningHome
@@ -117,6 +119,7 @@ export function TopicIdeation() {
             starting={startingNew}
             startError={startError}
             initialQuery={prefill}
+            initialExclude={prefillLeave}
             onScan={startNew}
             onEdit={() => startError && scan.reset()}
           />

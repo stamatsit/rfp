@@ -4,6 +4,7 @@
  *
  *   cd packages/server && npx tsx src/listening/cli.ts "online nursing degree" [--rescan] [--window 1y]
  *   ... "FAFSA changes" --window custom --from 2026-03-01 --to 2026-05-31
+ *   ... "higher ed marketing" --exclude "sports, rankings"
  *
  * Search/API responses go through the dev file cache (.cache/listening), so
  * re-running the same topic the same day costs no Google quota.
@@ -14,12 +15,13 @@ import path from "node:path"
 import { checkReport } from "./checks.js"
 import { buildDeps } from "./deps.js"
 import { executeRun, startRun } from "./engine.js"
+import { cleanExclusions } from "./exclude.js"
 import { MemoryStore } from "./store.js"
 import type { RunEvent, TimeWindow } from "./types.js"
 
 async function main() {
   const args = process.argv.slice(2)
-  const query = args.find((a, i) => !a.startsWith("--") && !["--window", "--from", "--to"].includes(args[i - 1] ?? ""))
+  const query = args.find((a, i) => !a.startsWith("--") && !["--window", "--from", "--to", "--exclude"].includes(args[i - 1] ?? ""))
   if (!query) throw new Error('usage: cli.ts "topic" [--rescan] [--window 1d|1w|1m|3m|1y|any|custom --from YYYY-MM-DD --to YYYY-MM-DD]')
   const rescan = args.includes("--rescan")
   const wi = args.indexOf("--window")
@@ -27,6 +29,8 @@ async function main() {
   const opt = (name: string) => (args.indexOf(name) >= 0 ? args[args.indexOf(name) + 1] ?? null : null)
   const windowFrom = opt("--from")
   const windowTo = opt("--to")
+  const leave = cleanExclusions(opt("--exclude"), query)
+  if (!leave.ok) throw new Error(leave.error)
 
   const store = new MemoryStore()
   const stageAt = new Map<string, number>()
@@ -53,7 +57,7 @@ async function main() {
     last = t0
     const { topic, runId } =
       trigger === "initial"
-        ? await startRun(store, { trigger, createdBy: "cli@local", query, timeWindow, windowFrom, windowTo })
+        ? await startRun(store, { trigger, createdBy: "cli@local", query, timeWindow, windowFrom, windowTo, excludeTerms: leave.terms })
         : await startRun(store, { trigger, createdBy: "cli@local", topicId: topicId! })
     console.log(`\n=== ${trigger}: ${query}`)
     const status = await executeRun(deps, { topic, runId, trigger }, emit)

@@ -22,6 +22,7 @@ import { entityOf, extendPlan, fallbackPlan, makePlan } from "./plan.js"
 import { buildReport, groupSubtopics, ownPosts, subtopicInputs } from "./report.js"
 import { within, type Store } from "./store.js"
 import { synthesize, verifyIdeas, type SynthResult } from "./synthesize.js"
+import { listExclusions, mentionsExcluded } from "./exclude.js"
 import { ideaTaste } from "./taste.js"
 import { RunCancelled, type Coverage, type Plan, type RunEvent, type RunTrigger, type TimeWindow, type TopicRow } from "./types.js"
 import { describeError } from "./util/http.js"
@@ -58,7 +59,7 @@ export class TopicNotFound extends Error {
 export async function startRun(
   store: Store,
   input:
-    | { trigger: "initial"; createdBy: string; query: string; timeWindow: TimeWindow; windowFrom?: string | null; windowTo?: string | null }
+    | { trigger: "initial"; createdBy: string; query: string; timeWindow: TimeWindow; windowFrom?: string | null; windowTo?: string | null; excludeTerms?: string[] }
     | { trigger: "rescan" | "rebuild"; createdBy: string; topicId: string },
 ): Promise<{ topic: TopicRow; runId: string }> {
   if (input.trigger === "initial") {
@@ -68,6 +69,7 @@ export async function startRun(
       timeWindow: input.timeWindow,
       windowFrom: input.windowFrom ?? null,
       windowTo: input.windowTo ?? null,
+      excludeTerms: input.excludeTerms ?? [],
     })
     const runId = await store.createRun(topic.id, input.createdBy, "initial")
     await store.updateTopic(topic.id, { lastRunStatus: "running", lastRunAt: new Date().toISOString() })
@@ -142,6 +144,8 @@ export async function executeRun(
   const warnings: string[] = []
   const coverage = emptyCoverage()
   let newItems = 0
+  // Words this topic leaves out, fixed when it was first scanned.
+  const exclude = topic.excludeTerms ?? []
   emit({ type: "started", topicId: topic.id, runId, trigger })
 
   try {
@@ -150,7 +154,7 @@ export async function executeRun(
     if (trigger === "initial") {
       emit({ type: "stage", stage: "plan" })
       try {
-        plan = await makePlan(llm, topic.query, signal)
+        plan = await makePlan(llm, topic.query, signal, exclude)
       } catch (err) {
         check()
         plan = fallbackPlan(topic.query)
@@ -174,7 +178,7 @@ export async function executeRun(
       const toLabel = await store.unlabeledItems(topic.id, LIMITS.maxNewItemsPerRun)
       if (!toLabel.length) return
       if (showProgress) emit({ type: "stage", stage: "label", detail: `${toLabel.length}` })
-      const outcome = await labelItems(llm, toLabel, { query: topic.query, plan }, {
+      const outcome = await labelItems(llm, toLabel, { query: topic.query, plan, exclude }, {
         signal,
         stopAt,
         onProgress: showProgress ? (n) => emit({ type: "counts", labeled: n }) : undefined,
@@ -200,6 +204,7 @@ export async function executeRun(
         windowTo: topic.windowTo,
         trigger,
         existing,
+        exclude,
         signal,
         onLane: (lane) => emit({ type: "lane", lane }),
       })
@@ -231,9 +236,12 @@ export async function executeRun(
           check()
           await store.updateThreads(read.updates)
           // A reply carries its own date: one outside the time range was not said in it.
-          const inRange = read.comments.filter((c) => inWindow(c, h.window))
-          const late = read.comments.length - inRange.length
+          const dated = read.comments.filter((c) => inWindow(c, h.window))
+          const late = read.comments.length - dated.length
           if (late) laneNotes.push(`Left out ${late} ${late === 1 ? "reply" : "replies"} dated outside the time range`)
+          const inRange = dated.filter((c) => !mentionsExcluded(c.text, exclude))
+          const unwanted = dated.length - inRange.length
+          if (unwanted) laneNotes.push(`Left out ${unwanted} ${unwanted === 1 ? "reply that mentions" : "replies that mention"} ${listExclusions(exclude)}`)
           const replies = await store.insertItems(topic.id, runId, inRange)
           newItems += replies.length
           fullyRead = read.fullyRead

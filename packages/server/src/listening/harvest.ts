@@ -10,6 +10,7 @@
  * page deeper per (phrasing, group) via stored cursors, capped per run.
  */
 import { LIMITS, SITE_GROUPS } from "./config.js"
+import { listExclusions, mentionsExcluded, withExclusions } from "./exclude.js"
 import type { NewsSource } from "./sources/news.js"
 import type { SearchPage, SearchProvider } from "./sources/pse.js"
 import { isReadable, type PageReader } from "./sources/reader.js"
@@ -39,6 +40,8 @@ export interface HarvestInput {
   windowTo?: string | null
   trigger: RunTrigger
   existing: Set<string>
+  /** Words and phrases to leave out: added to every search, and nothing that mentions one is kept. */
+  exclude?: readonly string[]
   signal?: AbortSignal
   onLane?: (lane: LaneResult) => void
 }
@@ -142,7 +145,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
         if (quotaOut) throw new Error(quotaOut)
         const t = Date.now()
         const page: SearchPage = await deps.search!.search(
-          { q: search.q, sites: group.sites, start: job.start, dateRestrict, dateRange },
+          { q: withExclusions(search.q, input.exclude), sites: group.sites, start: job.start, dateRestrict, dateRange },
           `search:${job.groupId}:${job.searchIndex}`,
           input.signal,
         )
@@ -188,7 +191,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
         if (id) known.add(id)
       }
       const pageToken = input.trigger === "rescan" ? plan.youtube?.nextPageToken ?? null : null
-      const r = await deps.youtube.harvest(plan.searches[0]!.q, window, { pageToken, knownVideoIds: known, signal: input.signal })
+      const r = await deps.youtube.harvest(withExclusions(plan.searches[0]!.q, input.exclude), window, { pageToken, knownVideoIds: known, signal: input.signal })
       youtubeUnits += r.units
       plan.youtube = { nextPageToken: r.nextPageToken }
       raw.push(...r.items)
@@ -223,7 +226,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
     const t = Date.now()
     if (!deps.news) return
     try {
-      const items = await deps.news.harvest(plan.searches[0]!.q, window, input.signal)
+      const items = await deps.news.harvest(withExclusions(plan.searches[0]!.q, input.exclude), window, input.signal)
       raw.push(...items)
       const lane: LaneResult = { lane: "news", label: "News", status: "ok", count: items.length, ms: Date.now() - t }
       lanes.push(lane)
@@ -241,10 +244,16 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
   // ── Dedupe against the batch and the topic ───────────────────────────────
   const fresh = new Map<string, RawItem & { canonicalUrl: string }>()
   let outOfRange = 0
+  let leftOut = 0
   for (const it of raw) {
     if (isListingPage(it.url)) continue
     if (!inWindow(it, window)) {
       outOfRange++
+      continue
+    }
+    // The search operators catch most of these; this catches the rest, whatever the source did with the operator.
+    if (mentionsExcluded(`${it.title} ${it.text}`, input.exclude)) {
+      leftOut++
       continue
     }
     const c = canonicalUrl(it.url)
@@ -269,6 +278,7 @@ export async function harvest(deps: HarvestDeps, input: HarvestInput): Promise<H
   }
 
   if (outOfRange) notes.push(`Left out ${outOfRange} ${outOfRange === 1 ? "item" : "items"} dated outside the time range`)
+  if (leftOut) notes.push(`Left out ${leftOut} ${leftOut === 1 ? "item that mentions" : "items that mention"} ${listExclusions([...(input.exclude ?? [])])}`)
   const order = ["reddit", "forums", "social", "reviews", "youtube", "news"]
   lanes.sort((a, b) => order.indexOf(a.lane) - order.indexOf(b.lane))
   return { items, plan, lanes, searchCalls, serperCalls, youtubeUnits, notes, window }

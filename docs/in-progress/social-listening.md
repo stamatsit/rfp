@@ -2,8 +2,8 @@
 
 **Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: the soft-launch list in
 `listening/access.ts`). Everyone on it sees every scan (team visibility, since 2026-10-14).
-Migrations 009, 010 and 011 are applied to rfp-prod; 012 (drafts) and 013
-(thumbs) must be applied before the code that reads them is deployed. Internal planning notes (people, meeting notes, account
+Migrations 009, 010 and 011 are applied to rfp-prod; 012 (drafts), 013
+(thumbs) and 014 (words to leave out) must be applied before the code that reads them is deployed. Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
 ## What it is
@@ -169,6 +169,27 @@ is left out when older than any range. Undated items are kept; a day of slack ab
 What was left out is named in the report notes. A topic keeps the range it was created with; "Scan
 another time range" in the topic menu starts a new scan of the same topic (`/listening?q=`).
 
+## Words to leave out
+
+`listening/exclude.ts`, migration 014 (`listening_topics.exclude_terms`). Up to eight words or
+phrases, set on the search form ("Leave out words") when a topic is first scanned and kept with
+it, so every rescan leaves them out too. Two things happen:
+
+1. Every search (Google, YouTube, Google News) carries them as leave-out operators (`-word`,
+   `-"two words"`), added at search time so the stored phrasings stay clean, and the planner is
+   told not to write searches about them.
+2. Anything collected that still mentions one is dropped before it is stored, replies included,
+   and a post whose full text turns out to mention one is marked not relevant without asking the
+   model (`labels.leftOut`). This is the guarantee: no post that mentions an excluded word, as a
+   whole word or phrase in any letter case, is counted. A simple plural counts ("sport" matches
+   "sports"); a singular is never guessed ("news" does not match "new").
+
+It is about the words and nothing looser. The labeler is deliberately not told the list: asked to
+also drop posts "mainly about" those words, it dropped 15 to 30 percent of unrelated posts in a
+test on a real topic. A word that is part of the topic itself is refused. The topic's header, "How
+this was made", the exports and the library all say what a topic leaves out, and "Scan another
+time range" carries the list to the new scan (`/listening?q=...&x=...`).
+
 ## Team usage
 
 `GET /usage` (`service.usage`): today's scans (the shared Google allowance resets at midnight
@@ -249,16 +270,16 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 95 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 102 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board, drafts and
-  their checks, thumbs and taste, more ideas and its refusals).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 38 tests on fixtures,
+  their checks, thumbs and taste, more ideas and its refusals, words to leave out).
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 40 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, saving to and working the idea board, and a library of 100 topics
   (tabs, filter, person, sort, paging, both views, phone width), each kind of draft, thumbs, and
-  more ideas.
+  more ideas and words to leave out.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory
@@ -272,6 +293,7 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 - "People also ask" from Serper responses as their own section, once Serper is funded.
 - Library: grouping one topic's scans over several time ranges under one entry; a hint under the
   search box when the topic typed has already been scanned (saves the shared allowance).
-- Words to leave out of a scan (negative keywords), set on the search form.
+- Leaving out a subject rather than a word (posts about it that never use the word). It needs its
+  own yes or no from the model per post; folding it into relevance was not precise enough.
 - Screenshots of representative posts for client decks. Reddit blocks server browsers, so this
   needs a feasibility test before it is promised.

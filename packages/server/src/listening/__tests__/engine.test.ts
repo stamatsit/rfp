@@ -25,7 +25,8 @@ import { ActiveRunError, MemoryStore, within } from "../store.js"
 import { dropUnknownNumbers, unquoteUnverified } from "../drafts.js"
 import { ideaTaste } from "../taste.js"
 import type { BlogOutline, ContentIdea, HeadlineSet, IdeaDraft, LinkedInPost, RunEvent } from "../types.js"
-import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
+import { labelItems } from "../label.js"
+import { FakeLlm, FakeSearch, fakeDeps, fakeNews, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
 
 /** Run this block with each person seeing only their own and shared topics (LISTENING_VISIBILITY=private). */
 function privateVisibility() {
@@ -939,6 +940,95 @@ describe("service: team visibility, the default", () => {
     } finally {
       delete process.env["LISTENING_VISIBILITY"]
     }
+  })
+})
+
+describe("words to leave out of a scan", () => {
+  const LEAVE = ["sourdough", "visa paperwork"]
+  const OPS = ' -sourdough -"visa paperwork"'
+
+  it("go on every search, drop what still comes back, and are told to the planner", async () => {
+    const store = new MemoryStore()
+    const search = new FakeSearch()
+    const llm = new FakeLlm()
+    const yt: string[] = []
+    const news: string[] = []
+    const { topic, runId } = await startRun(store, { trigger: "initial", createdBy: "eric.yerke@stamats.com", query: "online nursing degree", timeWindow: "1y", excludeTerms: LEAVE })
+    expect(topic.excludeTerms).toEqual(LEAVE)
+    const status = await executeRun(fakeDeps(store, { search, llm, youtube: fakeYoutube({ queries: yt }), news: fakeNews(news) }), { topic, runId, trigger: "initial" }, () => {})
+    expect(status).toBe("complete")
+    // Every search, on every source, carried the operators after the phrasing.
+    expect(search.calls.length).toBeGreaterThan(4)
+    for (const c of search.calls) expect(c.q.endsWith(OPS), c.q).toBe(true)
+    expect(yt).toEqual([`online nursing degree${OPS}`])
+    expect(news).toEqual([`online nursing degree${OPS}`])
+    // The planner's stored phrasings stay clean: the operators are added at search time.
+    const saved = (await store.getTopic(topic.id))!
+    expect(saved.plan!.searches.every((s) => !s.q.includes(" -"))).toBe(true)
+    expect(llm.prompts.get("listening_plan")).toContain("Leave out: sourdough, visa paperwork.")
+    // The labeler is not told the list: leaving out is decided by the words, not by the model.
+    expect(llm.systems.get("listening_labels")).not.toMatch(/sourdough|left out/i)
+
+    // The fake search still returns a sourdough post and a visa paperwork thread on every page; none was kept.
+    const items = await store.allItems(topic.id)
+    expect(items.length).toBeGreaterThan(5)
+    expect(items.filter((i) => /sourdough|visa paperwork/i.test(`${i.title} ${i.text}`))).toEqual([])
+    expect(saved.report!.coverage.notes.join(" | ")).toMatch(/Left out \d+ items that mention sourdough and visa paperwork/)
+    expect(checkReport(saved.report!, items)).toEqual([])
+
+    // The same scan without the list keeps them, so the difference is the list.
+    const plain = new MemoryStore()
+    const p = await startRun(plain, { trigger: "initial", createdBy: "eric.yerke@stamats.com", query: "online nursing degree", timeWindow: "1y" })
+    await executeRun(fakeDeps(plain), { topic: p.topic, runId: p.runId, trigger: "initial" }, () => {})
+    expect((await plain.allItems(p.topic.id)).some((i) => /sourdough/i.test(i.text))).toBe(true)
+    expect(p.topic.excludeTerms).toEqual([])
+
+    // A rescan keeps leaving them out.
+    const again = new FakeSearch()
+    const rs = await startRun(store, { trigger: "rescan", createdBy: "eric.yerke@stamats.com", topicId: topic.id })
+    await executeRun(fakeDeps(store, { search: again }), { topic: rs.topic, runId: rs.runId, trigger: "rescan" }, () => {})
+    expect(again.calls.length).toBeGreaterThan(0)
+    for (const c of again.calls) expect(c.q.endsWith(OPS), c.q).toBe(true)
+    expect((await store.allItems(topic.id)).filter((i) => /sourdough|visa paperwork/i.test(i.text))).toEqual([])
+  })
+
+  it("a post that mentions one is never relevant, and the model is not asked about it", async () => {
+    const llm = new FakeLlm()
+    const item = (id: string, text: string) => ({ id, topicId: "t", url: `https://www.reddit.com/r/x/comments/${id}/`, platform: "reddit", kind: "post", title: "", text, author: null, publishedAt: null, depth: "full", lane: "reddit", firstSeenRunId: "r", labels: null }) as never
+    const out = await labelItems(
+      llm,
+      [item("a", "I love my online nursing program. Who finds the clinical placement?"), item("b", "Great program, and here is my Sourdough recipe too."), item("c", "The clinical placement was great.")],
+      { query: "online nursing degree", plan: null, exclude: ["sourdough"] },
+    )
+    expect(out.labels.get("b")).toMatchObject({ relevant: false, about: false, leftOut: "sourdough", question: null, quote: null })
+    expect(out.labels.get("a")!.relevant).toBe(true)
+    expect(out.labels.get("a")!.leftOut).toBeUndefined()
+    expect(out.labels.size).toBe(3)
+    expect(out.missing).toBe(0)
+    // Only the other two went to the model.
+    expect(llm.prompts.get("listening_labels")).not.toMatch(/sourdough/i)
+    expect((llm.prompts.get("listening_labels")!.match(/\[a\d+\]/g) ?? []).length).toBe(2)
+  })
+
+  it("are validated before a scan starts, and stored with the topic", async () => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const ctx = { store, userEmail: "eric.yerke@stamats.com", deps: () => fakeDeps(store) }
+    for (const exclude of ["nursing", "a", ["sports", 3], "a1,b2,c3,d4,e5,f6,g7,h8,i9"]) {
+      expect(await prepareRun(ctx, { trigger: "initial", query: "online nursing degree", timeWindow: "1y", exclude }), String(exclude)).toMatchObject({ ok: false, status: 400, code: "bad_exclude" })
+    }
+    // Nothing was created by a refused request.
+    expect((await listTopics(ctx)).topics).toEqual([])
+    const ok = await prepareRun(ctx, { trigger: "initial", query: "online nursing degree", timeWindow: "1y", exclude: 'sports, "Greek life", sports' })
+    if (!ok.ok) throw new Error(ok.error)
+    expect(ok.body.topic.excludeTerms).toEqual(["sports", "Greek life"])
+    expect((await listTopics(ctx)).topics[0]!.excludeTerms).toEqual(["sports", "Greek life"])
+    const d = await topicDetail(ctx, ok.body.topic.id)
+    expect(d.ok && (d.body as { topic: { excludeTerms: string[] } }).topic.excludeTerms).toEqual(["sports", "Greek life"])
+    // No list is the same as before.
+    const none = await prepareRun(ctx, { trigger: "initial", query: "college enrollment trends", timeWindow: "1y" })
+    expect(none.ok && none.body.topic.excludeTerms).toEqual([])
   })
 })
 

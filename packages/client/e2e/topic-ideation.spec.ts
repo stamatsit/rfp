@@ -616,6 +616,76 @@ test.describe("Topic Ideation", () => {
     await expect(page.getByLabel("Time range")).toBeVisible()
   })
 
+  test("leave out words: checked in the form, sent with the scan, shown on the topic and carried to the next scan", async ({ page }) => {
+    const m = await setup(page)
+    await page.goto("/listening")
+    const box = page.getByPlaceholder("A topic, or a school or hospital by name")
+    const scan = page.getByRole("button", { name: "Scan", exact: true })
+    await box.fill("online nursing degree")
+    // Hidden until asked for.
+    await expect(page.getByLabel("Leave out", { exact: true })).toHaveCount(0)
+    await page.getByRole("button", { name: "Leave out words" }).click()
+    const leave = page.getByLabel("Leave out", { exact: true })
+    await expect(leave).toBeFocused()
+    await expect(page.getByText("Posts that mention any of these are not collected or counted. For example: sports, rankings.")).toBeVisible()
+    await expect(scan).toBeEnabled()
+
+    // A word from the topic itself, too many, too long: each says why and holds the scan.
+    await leave.fill("nursing")
+    await expect(page.getByText('"nursing" is part of the topic, so leaving it out would leave out everything.')).toBeVisible()
+    await expect(scan).toBeDisabled()
+    await leave.fill("a1, b2, c3, d4, e5, f6, g7, h8, i9")
+    await expect(page.getByText("Leave out up to 8 words or phrases.")).toBeVisible()
+    await expect(scan).toBeDisabled()
+    await leave.fill("one two three four five")
+    await expect(page.getByText("Keep each phrase to four words or fewer.")).toBeVisible()
+    await expect(scan).toBeDisabled()
+
+    // Typed the way people type: quotes, a minus sign, a repeat.
+    await leave.fill('sports, -"Greek life", Sports')
+    await expect(page.getByText("Leaving out sports, Greek life. Posts that mention any of them are not collected or counted.")).toBeVisible()
+    await expect(scan).toBeEnabled()
+    m.detail = buildDetail({ exclude: ["sports", "Greek life"] })
+    await scan.click()
+    await expect(page).toHaveURL(new RegExp(`/listening/${TOPIC_ID}$`))
+    expect(m.posts[0]).toEqual({ url: "/topics", body: { query: "online nursing degree", timeWindow: "1y", exclude: ["sports", "Greek life"] } })
+    // The topic says what it leaves out, in its header and in how it was made.
+    await expect(page.getByText(/· leaving out sports, Greek life ·/)).toBeVisible()
+    await page.getByRole("button", { name: /How this was made/ }).click()
+    await expect(page.getByText("Left out of this topic on request: sports, Greek life. Every search excluded them, and no post that mentions one is counted.")).toBeVisible()
+
+    // Scanning the topic again over another range brings the list along.
+    await page.getByRole("button", { name: "More actions" }).click()
+    await page.getByRole("menuitem", { name: /Scan another time range/ }).click()
+    await expect(page).toHaveURL(/\/listening\?q=online%20nursing%20degree&x=sports%2C%20Greek%20life$/)
+    await expect(page.getByLabel("Leave out", { exact: true })).toHaveValue("sports, Greek life")
+    // Closing the field stops leaving anything out: the next scan sends no list.
+    await page.getByRole("button", { name: "Stop leaving words out" }).click()
+    await expect(page.getByLabel("Leave out", { exact: true })).toHaveCount(0)
+    await page.getByRole("button", { name: "Scan", exact: true }).click()
+    await expect.poll(() => m.posts.filter((p) => p.url === "/topics").length).toBe(2)
+    expect(m.posts.filter((p) => p.url === "/topics")[1]!.body).toEqual({ query: "online nursing degree", timeWindow: "1y" })
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("leave out words: the library tells two scans of a topic apart and finds one by what it leaves out", async ({ page }) => {
+    const base = buildDetail().topic
+    const topics = [
+      { ...base, id: "a", query: "higher ed marketing" },
+      { ...base, id: "b", query: "higher ed marketing", excludeTerms: ["sports", "rankings", "greek life"] },
+      ...manyTopics(8),
+    ]
+    await setup(page, { topics })
+    await page.goto("/listening")
+    const rows = page.getByRole("list", { name: "Your topics" }).getByRole("listitem")
+    await expect(rows).toHaveCount(10)
+    await expect(rows.nth(1)).toContainText("Past year, without sports +2")
+    await expect(rows.nth(0)).not.toContainText("without")
+    await page.getByLabel("Filter topics").fill("marketing rankings")
+    await expect(rows).toHaveCount(1)
+    await expect(rows.first()).toContainText("without sports +2")
+  })
+
   test("thin report: a broader-topic suggestion puts that topic in the search box", async ({ page }) => {
     const m = await setup(page, { detail: buildDetail({ thin: true }) })
     await page.goto(`/listening/${TOPIC_ID}`)

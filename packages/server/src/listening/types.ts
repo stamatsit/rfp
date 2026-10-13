@@ -83,6 +83,8 @@ export interface ItemLabels {
   question: string | null
   /** Verbatim quote worth showing, verified against the text, or null. */
   quote: string | null
+  /** Set when the item was marked not relevant because it mentions this excluded word or phrase. */
+  leftOut?: string
 }
 
 export interface Item extends RawItem {
@@ -322,6 +324,8 @@ export interface TopicRow {
   headline: string | null
   lastRunAt: string | null
   lastRunStatus: RunStatus | null
+  /** Words and phrases this topic's scans leave out, fixed when it was first scanned. */
+  excludeTerms: string[]
   /** Readable (and exportable) by everyone with Topic Ideation access; only the creator can change it. */
   shared: boolean
   sharedAt: string | null

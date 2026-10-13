@@ -172,6 +172,8 @@ export interface TopicRow {
   /** First and last day (YYYY-MM-DD) of a custom range. */
   windowFrom?: string | null
   windowTo?: string | null
+  /** Words and phrases this topic's scans leave out. Absent from older servers. */
+  excludeTerms?: string[]
   plan: Plan | null
   report: Report | null
   itemCount: number

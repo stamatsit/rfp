@@ -123,7 +123,7 @@ export function buildDetail(
     /** Who created the topic and ran its scans; defaults to Eric, or Mariah for a viewer. */
     owner?: string
     /** A fixed custom date range instead of the past year. */
-    range?: { from: string; to: string }
+    range?: { from: string; to: string }; exclude?: string[]
   } = {},
 ) {
   const legacy = opts.version === 1
@@ -237,6 +237,7 @@ export function buildDetail(
       timeWindow: opts.range ? "custom" : "1y",
       windowFrom: opts.range?.from ?? null,
       windowTo: opts.range?.to ?? null,
+      excludeTerms: opts.exclude ?? [],
       plan: {
         interpretation: "x",
         isNamedEntity: !!opts.institution,

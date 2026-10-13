@@ -11,6 +11,7 @@
  */
 import { z } from "zod"
 import { LIMITS } from "./config.js"
+import { mentionsExcluded } from "./exclude.js"
 import type { LlmClient } from "./llm.js"
 import { entityOf } from "./plan.js"
 import { LABEL_VERSION, type Audience, type Item, type ItemLabels, type Plan, type Sentiment, type Speaker } from "./types.js"
@@ -116,7 +117,7 @@ export interface LabelOutcome {
 export async function labelItems(
   llm: LlmClient,
   items: Item[],
-  ctx: { query: string; plan: Plan | null },
+  ctx: { query: string; plan: Plan | null; exclude?: readonly string[] },
   opts: { signal?: AbortSignal; onProgress?: (labeled: number) => void; stopAt?: number } = {},
 ): Promise<LabelOutcome> {
   const labels = new Map<string, ItemLabels>()
@@ -125,6 +126,20 @@ export async function labelItems(
   const outOfTime = () => opts.stopAt !== undefined && Date.now() > opts.stopAt
   const system = systemPrompt(ctx.query, ctx.plan)
   const entity = entityOf(ctx.plan)
+
+  // An item that mentions an excluded word is not relevant, whatever the model would say, so it is never asked.
+  // The model is not told the list: asked to also drop posts "mainly about" those words, it dropped
+  // 15 to 30 percent of unrelated posts in a test on a real topic. Leaving out means the words, nothing looser.
+  const ask: Item[] = []
+  for (const it of items) {
+    const term = mentionsExcluded(`${it.title} ${it.text}`, ctx.exclude)
+    if (!term) {
+      ask.push(it)
+      continue
+    }
+    labels.set(it.id, { v: LABEL_VERSION, relevant: false, about: false, speaker: "person", sentiment: "neutral", subtopic: "general", audience: "general", question: null, quote: null, leftOut: term })
+  }
+  if (labels.size) opts.onProgress?.(labels.size)
 
   const runBatch = async (batch: Item[]): Promise<Item[]> => {
     const alias = new Map<string, Item>()
@@ -160,7 +175,7 @@ export async function labelItems(
   }
 
   const batches: Item[][] = []
-  for (let i = 0; i < items.length; i += LIMITS.labelBatch) batches.push(items.slice(i, i + LIMITS.labelBatch))
+  for (let i = 0; i < ask.length; i += LIMITS.labelBatch) batches.push(ask.slice(i, i + LIMITS.labelBatch))
 
   const leftovers: Item[] = []
   await mapLimit(batches, LIMITS.labelConcurrency, async (b) => {

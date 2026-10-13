@@ -25,13 +25,13 @@ Students, parents, adult learners, patients and professionals discuss topics on 
 Write searches the way those people actually type when asking each other, not the way a marketer would phrase it.
 Never add site: operators. Never invent facts about the topic.`
 
-export async function makePlan(llm: LlmClient, query: string, signal?: AbortSignal): Promise<Plan> {
+export async function makePlan(llm: LlmClient, query: string, signal?: AbortSignal, exclude: readonly string[] = []): Promise<Plan> {
   const out = await llm.structured({
     name: "listening_plan",
     schema: PlanSchema,
     system: SYSTEM,
     user: `Topic: ${query}
-
+${exclude.length ? `Leave out: ${exclude.join(", ")}. The team does not want these; write no search about them, and do not put minus signs or these words in a search (they are added for you).\n` : ""}
 Return ${LIMITS.maxSearches - 1} alternative searches that would surface different parts of the conversation about this topic (questions, complaints, comparisons, experiences). Keep the topic's meaning; do not drift to a different subject.`,
     maxTokens: 1200,
     signal,

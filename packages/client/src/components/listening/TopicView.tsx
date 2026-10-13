@@ -317,7 +317,7 @@ function Menu({ onRebuild, onRescope, onDelete, disabled }: { onRebuild: () => v
   )
 }
 
-export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; scan: Scan; onNewSearch: (q: string) => void }) {
+export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; scan: Scan; onNewSearch: (q: string, leave?: string[]) => void }) {
   const navigate = useNavigate()
   const [detail, setDetail] = useState<TopicDetail | null>(null)
   const [loadError, setLoadError] = useState<{ status: number; message: string } | null>(null)
@@ -566,14 +566,16 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
   const viewer = detail!.role === "viewer"
   // Everyone sees every topic, so there is nothing to share and nothing private.
   const teamView = detail!.visibility === "team"
+  const leaving = topic.excludeTerms?.length ? `leaving out ${topic.excludeTerms.join(", ")}` : null
   const meta = report
     ? [
         sampleLabel(report),
         windowLabel(topic),
+        leaving,
         runsDone > 1 ? `${runsDone} scans` : null,
         topic.lastRunAt ? `updated ${timeAgo(topic.lastRunAt)}` : null,
       ].filter(Boolean)
-    : [windowLabel(topic)]
+    : [windowLabel(topic), leaving].filter(Boolean)
 
   return (
     <div>
@@ -617,7 +619,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
                   <RefreshCw size={15} className={scanning ? "animate-spin motion-reduce:animate-none" : ""} />
                   {scanning ? "Scanning..." : "Rescan for more"}
                 </button>
-                <Menu onRebuild={rebuild} onRescope={() => onNewSearch(topic.query)} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
+                <Menu onRebuild={rebuild} onRescope={() => onNewSearch(topic.query, topic.excludeTerms ?? [])} onDelete={() => setConfirmDelete(true)} disabled={scanning} />
               </>
             )}
           </div>
@@ -679,7 +681,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
           <div className="space-y-12 mt-6">
             <Overview
               report={report}
-              onSuggestion={onNewSearch}
+              onSuggestion={(q) => onNewSearch(q)}
               onShowNotCounted={() => showSources("notCounted")}
               onRefresh={viewer ? undefined : rebuild}
               busy={scanning}
@@ -706,7 +708,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
                 setSourceView((s) => ({ view: null, seq: s.seq }))
               }}
             />
-            <Method report={report} plan={topic.plan} runs={detail!.runs} />
+            <Method report={report} plan={topic.plan} runs={detail!.runs} leftOut={topic.excludeTerms ?? []} />
           </div>
         </>
       )}

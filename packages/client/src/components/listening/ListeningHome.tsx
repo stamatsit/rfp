@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, ChevronDown, Loader2, Radar, Search } from "lucide-react"
+import { ArrowRight, Ban, ChevronDown, Loader2, Radar, Search, X } from "lucide-react"
 import { listeningApi } from "@/lib/listeningApi"
 import type { AccessInfo, TimeWindow, TopicRow, Usage } from "@/types/listening"
+import { excludeProblem, parseExclusions } from "./exclude"
 import { TopicLibrary } from "./TopicLibrary"
 import { ACCENT, WINDOW_OPTIONS, fmtClock, personName, plural } from "./ui"
 
@@ -133,6 +134,7 @@ export function ListeningHome({
   starting,
   startError,
   initialQuery,
+  initialExclude = "",
   onScan,
   onEdit,
 }: {
@@ -148,7 +150,9 @@ export function ListeningHome({
   starting: boolean
   startError: string | null
   initialQuery: string
-  onScan: (query: string, tw: TimeWindow, range?: { from: string; to: string }) => void
+  /** Words to leave out, comma separated, when the form is opened from a topic that had some. */
+  initialExclude?: string
+  onScan: (query: string, tw: TimeWindow, range?: { from: string; to: string }, exclude?: string[]) => void
   onEdit?: () => void
 }) {
   const [q, setQ] = useState(initialQuery)
@@ -157,6 +161,12 @@ export function ListeningHome({
   const [to, setTo] = useState("")
   const custom = tw === "custom"
   const rangeError = custom ? rangeProblem(from, to) : null
+  // Words to leave out of this topic's scans.
+  const [leave, setLeave] = useState(initialExclude)
+  const [leaveOpen, setLeaveOpen] = useState(initialExclude.trim() !== "")
+  const leaveInput = useRef<HTMLInputElement>(null)
+  const leaveList = leaveOpen ? parseExclusions(leave) : []
+  const leaveError = leaveList.length ? excludeProblem(leaveList, q) : null
   const input = useRef<HTMLInputElement>(null)
   const now = Date.now()
 
@@ -164,6 +174,10 @@ export function ListeningHome({
     setQ(initialQuery)
     input.current?.focus()
   }, [initialQuery])
+  useEffect(() => {
+    setLeave(initialExclude)
+    setLeaveOpen(initialExclude.trim() !== "")
+  }, [initialExclude])
 
   const teamView = access?.visibility === "team"
   const budget = access?.budget
@@ -171,11 +185,11 @@ export function ListeningHome({
   const low = budget && !backup ? budget.scansLeft <= 1 : false
   const out = budget && !backup ? budget.scansLeft === 0 : false
   const missing = access && (!access.sources.model || (!access.sources.search && !access.sources.youtube))
-  const canScan = q.trim().length >= 2 && !starting && !out && !missing && !rangeError
+  const canScan = q.trim().length >= 2 && !starting && !out && !missing && !rangeError && !leaveError
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (canScan) onScan(q.trim(), tw, custom ? { from, to } : undefined)
+    if (canScan) onScan(q.trim(), tw, custom ? { from, to } : undefined, leaveList)
   }
 
   return (
@@ -270,6 +284,59 @@ export function ListeningHome({
                   {rangeError && (from || to) ? rangeError : "Only posts dated inside these dates are kept."}
                 </p>
               </div>
+            </div>
+          )}
+          {leaveOpen ? (
+            <div className="mt-3 rounded-2xl bg-white dark:bg-slate-900 border border-black/[0.08] dark:border-white/[0.1] px-4 py-3">
+              <div className="flex items-end gap-2">
+                <label className="flex-1 min-w-0 flex flex-col gap-1 text-[12px] font-medium text-slate-500">
+                  Leave out
+                  <input
+                    ref={leaveInput}
+                    value={leave}
+                    onChange={(e) => {
+                      setLeave(e.target.value)
+                      onEdit?.()
+                    }}
+                    maxLength={400}
+                    autoComplete="off"
+                    placeholder="Words or phrases, separated by commas"
+                    className="h-10 w-full rounded-lg border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 px-3 text-[14px] font-normal text-slate-800 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeave("")
+                    setLeaveOpen(false)
+                    onEdit?.()
+                  }}
+                  aria-label="Stop leaving words out"
+                  title="Stop leaving words out"
+                  className="shrink-0 w-10 h-10 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <p className={`mt-2 text-[12.5px] leading-relaxed ${leaveError ? "text-amber-700 dark:text-amber-400" : "text-slate-400"}`} aria-live="polite">
+                {leaveError ??
+                  (leaveList.length
+                    ? `Leaving out ${leaveList.join(", ")}. Posts that mention ${leaveList.length === 1 ? "it" : "any of them"} are not collected or counted.`
+                    : "Posts that mention any of these are not collected or counted. For example: sports, rankings.")}
+              </p>
+            </div>
+          ) : (
+            <div className="mt-2.5 pl-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setLeaveOpen(true)
+                  window.setTimeout(() => leaveInput.current?.focus(), 0)
+                }}
+                className="inline-flex items-center gap-1.5 rounded text-[12.5px] font-medium text-slate-500 dark:text-slate-400 hover:text-sky-700 dark:hover:text-sky-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+              >
+                <Ban size={13} /> Leave out words
+              </button>
             </div>
           )}
         </form>

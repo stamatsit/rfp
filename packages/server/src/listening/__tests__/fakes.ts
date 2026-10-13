@@ -35,8 +35,9 @@ export interface FakeLlmOpts {
 
 export class FakeLlm implements LlmClient {
   calls: string[] = []
-  /** The last prompt sent for each call name. */
+  /** The last prompt sent for each call name, and the instructions that went with it. */
   prompts = new Map<string, string>()
+  systems = new Map<string, string>()
   private meter = newUsage()
   constructor(private opts: FakeLlmOpts = {}) {}
   usage(): LlmUsage {
@@ -45,6 +46,7 @@ export class FakeLlm implements LlmClient {
   async structured<T>(args: StructuredArgs<T>): Promise<T> {
     this.calls.push(args.name)
     this.prompts.set(args.name, args.user)
+    this.systems.set(args.name, args.system)
     this.meter.calls++
     if (this.opts.delayMs) {
       await new Promise((r, j) => {
@@ -255,9 +257,10 @@ export function resultIndex(url: string): number | null {
   return m ? Number(m[1]) : null
 }
 
-export function fakeYoutube(opts: { fail?: boolean } = {}): YoutubeSource {
+export function fakeYoutube(opts: { fail?: boolean; queries?: string[] } = {}): YoutubeSource {
   return {
-    async harvest(): Promise<YoutubeHarvest> {
+    async harvest(q: string): Promise<YoutubeHarvest> {
+      opts.queries?.push(q)
       if (opts.fail) throw new Error("YouTube quotaExceeded")
       return {
         items: [
@@ -282,9 +285,10 @@ export function fakeYoutube(opts: { fail?: boolean } = {}): YoutubeSource {
   } as unknown as YoutubeSource
 }
 
-export function fakeNews(): NewsSource {
+export function fakeNews(queries: string[] = []): NewsSource {
   return {
-    async harvest(): Promise<RawItem[]> {
+    async harvest(q: string): Promise<RawItem[]> {
+      queries.push(q)
       return [fakeItem({ url: "https://news.google.com/rss/articles/xyz", platform: "news", kind: "article", text: "State board reviews online nursing programs.", lane: "news" })]
     },
   } as unknown as NewsSource

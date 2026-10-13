@@ -156,6 +156,9 @@ export function exportBlocks({ report: r, topic, items, runs }: ExportInput): Bl
 
   out.push({ t: "h2", text: "How this was made" })
   out.push({ t: "p", text: METHOD_TEXT })
+  if (topic.excludeTerms?.length) {
+    out.push({ t: "p", text: `Left out of this topic on request: ${topic.excludeTerms.join(", ")}. Every search excluded them, and no post that mentions one is counted.` })
+  }
   if (topic.plan?.searches.length) out.push({ t: "p", text: `Searches used: ${topic.plan.searches.map((s) => s.q.replace(/"/g, "")).join("; ")}.` })
   if (r.coverage.lanes.length) {
     const lanes = r.coverage.lanes.map((l) => (l.status === "ok" ? `${l.label} ${l.count} found` : `${l.label} ${l.note ?? l.status}`))

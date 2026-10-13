@@ -5,7 +5,7 @@ import { Card, METHOD_TEXT, fmtDate, fmtClock, personName, plural, verdictFromSc
 
 const TRIGGER: Record<RunSummary["trigger"], string> = { initial: "First scan", rescan: "Rescan", rebuild: "Refreshed analysis" }
 
-export function Method({ report, plan, runs }: { report: Report; plan: Plan | null; runs: RunSummary[] }) {
+export function Method({ report, plan, runs, leftOut = [] }: { report: Report; plan: Plan | null; runs: RunSummary[]; leftOut?: string[] }) {
   const [open, setOpen] = useState(false)
   return (
     <section id="method" className="scroll-mt-32">
@@ -52,6 +52,11 @@ export function Method({ report, plan, runs }: { report: Report; plan: Plan | nu
                 ))}
               </ul>
               <p className="mt-4 text-slate-500 leading-relaxed">{METHOD_TEXT}</p>
+              {leftOut.length > 0 && (
+                <p className="mt-2 text-slate-500 leading-relaxed">
+                  Left out of this topic on request: {leftOut.join(", ")}. Every search excluded {leftOut.length === 1 ? "it" : "them"}, and no post that mentions {leftOut.length === 1 ? "it" : "one"} is counted.
+                </p>
+              )}
             </div>
             <div>
               <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-2">Scan history</p>
