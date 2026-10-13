@@ -295,5 +295,9 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
   search box when the topic typed has already been scanned (saves the shared allowance).
 - Leaving out a subject rather than a word (posts about it that never use the word). It needs its
   own yes or no from the model per post; folding it into relevance was not precise enough.
-- Screenshots of representative posts for client decks. Reddit blocks server browsers, so this
-  needs a feasibility test before it is promised.
+- Screenshots of representative posts for client decks: tested 2026-10-13 and not possible from
+  the server. Reddit answers the app's capture service with "You've been blocked by network
+  security" on both its layouts, and Quora refuses it too. Getting round that block is not
+  something to build. What works today: every quote and source links to the live post, to open
+  and capture in your own browser. A possible substitute is a one-page proof sheet per idea
+  (the quotes word for word, with dates and links), clearly not a screenshot.
