@@ -111,6 +111,28 @@ def matrix_completions(db, matrix_name, roster, overrides):
     return counts, unmatched, resolved
 
 
+def delivered_days(db, matrix_by_project, roster, overrides):
+    """{(person, week): {day: n}}: pages delivered per working day, credited
+    the same way as matrix_completions (migrator and QA), for the per day
+    breakdown inside each week on the Weekly tab (contract 1.3)."""
+    out = {}
+    for mx in matrix_by_project.values():
+        for col in ("migrator", "qa"):
+            for ini, d in db.execute(
+                    f"SELECT {col}, delivered_date FROM client_pages "
+                    f"WHERE matrix=? AND delivered_date IS NOT NULL", (mx["name"],)):
+                person = resolve_initials(ini, roster, overrides)
+                if not person:
+                    continue
+                try:
+                    wk = monday_of(d)
+                except ValueError:
+                    continue
+                slot = out.setdefault((person, wk), {})
+                slot[d[:10]] = slot.get(d[:10], 0) + 1
+    return out
+
+
 def unified_rows(db, matrix_by_project, roster, overrides):
     """Tracker assignment rows (person, project, role, week: pages, hours,
     completed) with 'completed' replaced by client-matrix completions for
@@ -224,9 +246,24 @@ def main():
         meta = q("SELECT sections, skipped, client_owned FROM client_matrix_meta "
                  "WHERE matrix=?", mname)
         sections, skipped, client_owned = meta[0] if meta else ("", "", 0)
+        # contract 1.3: every page in exactly one stage, and who holds the
+        # pages that are waiting (QA to finish, or to build); blank initials
+        # are an explicit "unassigned" row, never attributed to anyone
+        pipeline = {st: 0 for st in cm.STAGES}
+        for st, n_ in q("SELECT stage, COUNT(*) FROM client_pages WHERE matrix=? "
+                        "GROUP BY stage", mname):
+            pipeline[st] = pipeline.get(st, 0) + n_
+        queues = []
+        for ini, role, n_ in q("SELECT holder, holder_role, COUNT(*) FROM client_pages "
+                               "WHERE matrix=? AND stage IN ('in QA', 'building') "
+                               "GROUP BY holder, holder_role ORDER BY COUNT(*) DESC", mname):
+            person = resolve_initials(ini, roster, overrides) if ini else None
+            queues.append({"initials": ini or "", "person": person or ini or "unassigned",
+                           "role": role, "pages": n_, "unassigned": not ini})
         mx = {"name": mname, "total": mtotal, "funnel": funnel,
               "sections": sections, "skipped_tabs": skipped,
               "client_owned": client_owned or 0,
+              "pipeline": pipeline, "queues": queues,
               "delivered": funnel[4][1],
               "migrated": funnel[2][1],
               "qa_done": qa_done_m,
@@ -261,10 +298,14 @@ def main():
 
     def build_client(name):
         pr = projects[name]
-        total = pr["total_pages"] or 0
         mig = rollup.get((name, "Migration"), {})
         qa = rollup.get((name, "QA"), {})
         mx0 = matrix_by_project.get(name)
+        # The denominator is the matrix's Stamats page count where a matrix
+        # exists (same source as done), else the tracker's sizing; the
+        # tracker figure rides along as planned_total (Eric, 2026-10-13).
+        planned_total = pr["total_pages"] or 0
+        total = round(mx0["total"]) if mx0 and mx0["total"] else planned_total
         # Crystal's rule: nothing about completion is typed into the tracker.
         # With a client matrix, BUILT is the migrator's completion date
         # (column AP) and DONE is Deliver to Client (column BB, Eric's call
@@ -369,6 +410,7 @@ def main():
                              f"({idle[0][1]:g}h free).")
         return {
             "name": name, "type": pr["page_type"], "total": total,
+            "planned_total": planned_total,
             "done": done, "built": built, "left_to_build": left_to_build,
             "remaining": remaining,
             "pct": round(100 * done / total) if total else 0,
@@ -417,6 +459,18 @@ def main():
                    if (cap.get((p, bm.CUR_WEEK), 0) or ov_load.get(p, 0))
                    and ov_load.get(p, 0) > cap.get((p, bm.CUR_WEEK), 0) + 0.1])
 
+    # pages sitting with each person right now (QA to finish, or to build)
+    holding = {}
+    for mx in matrix_by_project.values():
+        for qrow in mx.get("queues", []):
+            if qrow["unassigned"]:
+                continue
+            h = holding.setdefault(qrow["person"], {"in_qa": 0, "building": 0})
+            h["in_qa" if qrow["role"] == "QA" else "building"] += qrow["pages"]
+    qa_unassigned = sum(qrow["pages"] for mx in matrix_by_project.values()
+                        for qrow in mx.get("queues", [])
+                        if qrow["unassigned"] and qrow["role"] == "QA")
+
     # team table
     totals, breakdown, pweek = {}, {}, {}
     for r in rows:
@@ -445,6 +499,8 @@ def main():
             "wk_hours": round(tw[0], 1),
             "this_week": {"assigned": round(tw[2]), "done": round(tw[1]), "hours": round(tw[0], 1)},
             "last_week": {"assigned": round(lw[2]), "done": round(lw[1]), "hours": round(lw[0], 1)},
+            "in_qa": holding.get(p, {}).get("in_qa", 0),
+            "building": holding.get(p, {}).get("building", 0),
             "weekly": [[wk_lbl(w), round(pweek[(p, w)][0], 1),
                         round(pweek[(p, w)][1])] for w in weeks_p],
             "projects": [[proj, round(v[0], 1), round(v[1]), round(v[2])]
@@ -463,6 +519,7 @@ def main():
         slot = by_pw.setdefault((r["person"], r["week"]), {})
         s = slot.setdefault(r["project"], [0, 0.0, 0, r["done_source"]])
         s[0] += r["pages"]; s[1] += r["hours"]; s[2] += r["completed"]
+    days_by_pw = delivered_days(db, matrix_by_project, roster, overrides)
     weekly_people = []
     for p in people_names:
         wk_entries = []
@@ -474,7 +531,8 @@ def main():
             wk_entries.append({
                 "week": w, "assigned": sum(x["assigned"] for x in plist),
                 "hours": round(sum(v[1] for v in prs.values()), 1),
-                "done": sum(x["done"] for x in plist), "projects": plist})
+                "done": sum(x["done"] for x in plist), "projects": plist,
+                "days": [[d, k] for d, k in sorted(days_by_pw.get((p, w), {}).items())]})
         weekly_people.append({"name": p, "role": people_roles.get(p),
                               "avail": [cap.get((p, w), 0) for w in weeks_all],
                               "weeks": wk_entries})
@@ -499,6 +557,7 @@ def main():
             "clients": clients, "team": team, "weekly": weekly,
             "overview": {"avail": round(ov_avail, 1),
                          "assigned": ov_assigned, "over": over,
+                         "qa_unassigned": qa_unassigned,
                          "active": len(active_names),
                          "archived": len(clients) - len(active_names)}}
     tpl = open(os.path.join(HERE, "present_template.html")).read()

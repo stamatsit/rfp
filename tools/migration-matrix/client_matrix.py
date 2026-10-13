@@ -25,7 +25,34 @@ COL = {
     "mig_assigned_to": 37, "mig_r1_by": 41, "mig_r1_done": 42,
     "qa_r1_by": 44, "qa_r1_done": 45, "mig_r2_done": 47, "qa_r2_done": 49,
     "delivered": 54, "client_final": 61, "mig_r3_done": 51, "qa_r3_done": 53,
+    "ready_date": 40, "mig_r2_by": 46, "qa_r2_by": 48, "mig_r3_by": 50, "qa_r3_by": 52,
 }
+# One stage per page, decided from the latest round with any entry. Deliver
+# to Client (column BB) is the only completion; QA pass or fail is never
+# inferred (Eric, 2026-10-13). A built page sits "in QA" with whoever's
+# initials are on that round, or with nobody, until a date closes the round.
+STAGES = ["delivered", "in QA", "QA done, not delivered", "building",
+          "ready to build", "not started"]
+ROUNDS = (("mig_r3_by", "mig_r3_done", "qa_r3_by", "qa_r3_done"),
+          ("mig_r2_by", "mig_r2_done", "qa_r2_by", "qa_r2_done"),
+          ("mig_r1_by", "mig_r1_done", "qa_r1_by", "qa_r1_done"))
+
+
+def page_stage(page):
+    """(stage, holder initials or None, holder role or None)."""
+    if page["delivered"]:
+        return "delivered", None, None
+    for m_by, m_done, q_by, q_done in ROUNDS:
+        if not (page[m_by] or page[m_done] or page[q_by] or page[q_done]):
+            continue
+        if page[m_done] and not page[q_done]:
+            return "in QA", (page[q_by] or "").strip().upper() or None, "QA"
+        if page[m_done] and page[q_done]:
+            return "QA done, not delivered", None, None
+        return "building", (page[m_by] or "").strip().upper() or None, "Migration"
+    if page["ready_date"]:
+        return "ready to build", None, None
+    return "not started", None, None
 DISPOSITIONS = ["Write New", "Revise", "Optimize", "Reuse", "As Is",
                 "Import", "Delete"]
 DISP_COLS = ["disp_write_new", "disp_revise", "disp_optimize", "disp_reuse",
@@ -131,17 +158,14 @@ def parse_matrix(path):
                 continue
             disp = next((lab for lab, key in zip(DISPOSITIONS, DISP_COLS)
                          if page[key]), None)
-            stage = "Not started"
-            for lab, key in FUNNEL:
-                if page[key]:
-                    stage = lab
+            stage, holder, holder_role = page_stage(page)
             out["pages"].append({
                 "section": ws.title, "url": page["url"],
                 "page_id": page["page_id"], "title": page["title"],
                 "disposition": disp, "writer": page["writer"],
                 "reviewer": page["reviewer"],
                 "migrator": page["mig_r1_by"], "qa": page["qa_r1_by"],
-                "stage": stage,
+                "stage": stage, "holder": holder, "holder_role": holder_role,
                 "draft_date": (page["draft_delivered"] or "")[:10] or None,
                 "delivered_date": (page["delivered"] or "")[:10] or None,
                 # migration / QA completion dates (Round 1) drive the weekly
@@ -161,9 +185,11 @@ def summarize(m):
     for p in pages:
         disp[p["disposition"] or "(none)"] = disp.get(p["disposition"] or "(none)", 0) + 1
     funnel = [(lab, sum(1 for p in pages if p[key])) for lab, key in FUNNEL]
+    stages = {st: sum(1 for p in pages if p["stage"] == st) for st in STAGES}
     return {
         "name": m["name"], "sections": m["sections"], "total": total,
-        "dispositions": disp, "funnel": funnel,
+        "dispositions": disp, "funnel": funnel, "stages": stages,
+        "qa_unassigned": sum(1 for p in pages if p["stage"] == "in QA" and not p["holder"]),
         "no_disposition": disp.get("(none)", 0),
         "broken_refs": m["broken_refs"],
         "skipped": m["skipped"], "client_owned": m["client_owned"],
@@ -180,7 +206,7 @@ def ingest(db):
             draft_delivered INT, writing_done INT, migrated INT,
             qa_done INT, delivered INT, client_final INT,
             draft_date TEXT, delivered_date TEXT, rework INT,
-            migrated_date TEXT, qa_date TEXT);
+            migrated_date TEXT, qa_date TEXT, holder TEXT, holder_role TEXT);
         DROP TABLE IF EXISTS client_matrix_meta;
         CREATE TABLE client_matrix_meta (matrix TEXT, sections TEXT,
             skipped TEXT, client_owned INT);
@@ -194,13 +220,14 @@ def ingest(db):
         for p in m["pages"]:
             db.execute(
                 "INSERT INTO client_pages VALUES "
-                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (m["name"], p["section"], p["url"], p["page_id"], p["title"],
                  p["disposition"], p["writer"], p["reviewer"], p["migrator"],
                  p["qa"], p["stage"], p["draft_delivered"], p["r1_updates"],
                  p["mig_r1_done"], p["qa_r1_done"], p["delivered"],
                  p["client_final"], p["draft_date"], p["delivered_date"],
-                 p["rework"], p["migrated_date"], p["qa_date"]))
+                 p["rework"], p["migrated_date"], p["qa_date"],
+                 p["holder"], p["holder_role"]))
         summaries.append(summarize(m))
     db.commit()
     return summaries

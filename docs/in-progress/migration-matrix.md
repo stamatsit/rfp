@@ -124,3 +124,24 @@ Delivery lags building by about five days (112 built vs 14 delivered in
 the week of 10/5), so a page built on Friday shows as done the week after.
 Client rows add `built` and `left_to_build`; facts add `built` and
 `not_delivered`.
+
+## Pipeline, QA queue, per day (2026-10-13, contract 1.3)
+Decided with Eric by multiple choice:
+- Denominator: the matrix's Stamats page count where a matrix exists (same
+  source as done); the tracker's sizing rides along as `planned_total` and
+  shows as "planned N" under Total when it differs.
+- One stage per page, from the latest round with any entry, no pass or fail
+  inferred: delivered (BB) / in QA (build dated, QA not) / QA done, not
+  delivered / building (initials, no build date) / ready to build (AN) /
+  not started. `client_matrix.page_stage`. Stages sum to the matrix total.
+- Waiting on: who holds pages in QA (latest round's QA initials) or to
+  build (migrator initials); blank initials are an explicit "unassigned"
+  row, never attributed. Project page card, Team tab columns In QA and
+  Building (sort "by QA to finish"), `overview.qa_unassigned`, chat facts
+  `pipeline` / `waiting_on` / `pages_in_qa_now`, manager brief WATCH line.
+- Weekly tab: weeks stay the Monday number; each week carries `days`
+  (pages delivered per working day per person) shown when a row expands
+  and on the person page.
+First run on Washtenaw: 697 Stamats pages, delivered 19 (3%), in QA 206 of
+which 201 have no QA initials, building 228 (Chris J 150, Debbie 42,
+Brian 27, Katie 9), ready 227, not started 9.

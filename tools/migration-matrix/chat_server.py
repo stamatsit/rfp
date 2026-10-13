@@ -130,14 +130,19 @@ def facts_blob():
                  "build_minutes_per_page": c.get("min_per_page"),
                  "client_deadline": c.get("deadline"),
                  "done_source": c.get("done_source"),
-                 "page_types": c.get("page_types")}
+                 "planned_total_on_tracker": c.get("planned_total"),
+                 "page_types": c.get("page_types"),
+                 # every page in one stage; who holds pages waiting in QA or to build
+                 "pipeline": (c.get("matrix") or {}).get("pipeline"),
+                 "waiting_on": (c.get("matrix") or {}).get("queues")}
                 for c in pdata.get("clients", [])]
             facts["team_performance"] = [
                 {"person": t["name"], "role": t.get("role"),
                  "hours": t["hours"], "pages_assigned": t["assigned"],
                  "pages_done": t["done"], "pages_left": t.get("left"),
                  "done_pct_of_assigned": t["comp"], "pages_per_hour": t.get("vel"),
-                 "this_week": t.get("this_week"), "last_week": t.get("last_week")}
+                 "this_week": t.get("this_week"), "last_week": t.get("last_week"),
+                 "pages_in_qa_now": t.get("in_qa"), "pages_building_now": t.get("building")}
                 for t in pdata.get("team", [])]
             wk = pdata.get("weekly") or {}
             weeks = wk.get("weeks", [])
@@ -147,6 +152,7 @@ def facts_blob():
                     {"week_of": wk["labels"][i],
                      "pages_assigned": p["weeks"][i]["assigned"],
                      "pages_done": p["weeks"][i]["done"],
+                     "delivered_by_day": p["weeks"][i].get("days"),
                      "hours": p["weeks"][i]["hours"],
                      "projects": [{"project": x["project"], "assigned": x["assigned"],
                                    "done": x["done"]} for x in p["weeks"][i]["projects"]]}

@@ -2664,6 +2664,9 @@ export interface MmClientMatrix {
   sections?: string
   skipped_tabs?: string
   client_owned?: number
+  // 1.3: every page in exactly one stage, and who holds the ones waiting
+  pipeline?: Record<string, number>
+  queues?: Array<{ initials: string; person: string; role: string; pages: number; unassigned: boolean }>
   funnel: Array<[string, number]>
   weekly_deliveries: Array<[string, number]>
   cycle_med: number | null
@@ -2705,6 +2708,9 @@ export interface MmClient {
   // built = the migrator's completion date (column AP)
   built?: number
   left_to_build?: number
+  // 1.3: total is the matrix's Stamats page count where a matrix exists;
+  // the tracker's own sizing rides along here
+  planned_total?: number
   qa_done?: number
   min_per_page?: number | null
   qa_min_per_page?: number | null
@@ -2733,10 +2739,13 @@ export interface MmTeamMember {
   left?: number
   this_week?: MmWeekTotals
   last_week?: MmWeekTotals
+  // 1.3: pages sitting with this person right now (client matrix)
+  in_qa?: number
+  building?: number
 }
 
 export interface MmWeeklyProject { project: string; assigned: number; hours: number; done: number; done_source: "matrix" | "tracker" }
-export interface MmWeeklyWeek { week: string; assigned: number; hours: number; done: number; projects: MmWeeklyProject[] }
+export interface MmWeeklyWeek { week: string; assigned: number; hours: number; done: number; projects: MmWeeklyProject[]; days?: Array<[string, number]> }
 export interface MmWeeklyPerson { name: string; role: string | null; avail: number[]; weeks: MmWeeklyWeek[] }
 export interface MmWeeklyUnmatched { initials: string; role: string; project: string; pages: number; weeks: Record<string, number> }
 /** contract 1.1: per person, per week pages assigned (tracker) vs done (client matrix where one exists). */

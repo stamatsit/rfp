@@ -86,6 +86,9 @@ const groupOf = (c: Row): Group => (c.archived ? "archived" : c.list === "planne
 const leftOf = (c: MmClient) => c.left ?? Math.max(c.total - c.done, 0)
 const assignedOf = (c: MmClient) => c.assigned ?? Math.max(c.total - c.remaining, 0)
 const isoLbl = (iso: string) => { const [, m, d] = iso.split("-"); return `${parseInt(m || "0", 10)}/${parseInt(d || "0", 10)}` }
+const dayLbl = (iso: string) => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "numeric", day: "numeric" })
+/** One stage per page (contract 1.3); the order the project page lists them in. */
+const PIPELINE_STAGES = ["delivered", "in QA", "QA done, not delivered", "building", "ready to build", "not started"]
 const n = (v: number) => v.toLocaleString()
 const pctOf = (done: number, assigned: number) => (assigned > 0 ? `${Math.round((100 * done) / assigned)}%` : done > 0 ? `+${n(done)}` : "")
 const NUM = "px-3 py-2.5 text-right tabular-nums"
@@ -484,8 +487,46 @@ export function MigrationMatrix() {
             {" · "}{c.hours_to_finish != null ? `about ${n(c.hours_to_finish)} hours to finish` : "hours unknown without a rate"}
             {" · "}pace {c.actual_pace}/wk{c.required_pace != null ? `, need ${c.required_pace}/wk` : ""}
             {dl != null && <>{" · "}{Math.abs(dl)} day{Math.abs(dl) === 1 ? "" : "s"} {dl < 0 ? "past deadline" : "to deadline"}</>}
+            {c.planned_total != null && c.planned_total !== c.total && <>{" · "}tracker plans {n(c.planned_total)}</>}
           </p>
         </Card>
+        {c.matrix?.pipeline && (
+          <Card>
+            <Label>Where every page stands · one stage per page, delivered means column BB</Label>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                {PIPELINE_STAGES.map((stage) => {
+                  const k = c.matrix!.pipeline![stage] ?? 0
+                  return (
+                    <div key={stage} className="flex items-center gap-3 text-[12.5px]">
+                      <span className="w-44 shrink-0 text-slate-500 truncate">{stage}</span>
+                      <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: `${Math.round((100 * k) / Math.max(c.matrix!.total, 1))}%`, background: stage === "delivered" ? "#059669" : stage === "in QA" ? "#D97706" : GRADIENT }} />
+                      </div>
+                      <span className="w-12 text-right tabular-nums text-slate-700 dark:text-slate-200">{n(k)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.05em] text-slate-400 mb-2">Waiting on</p>
+                {(c.matrix!.queues?.length ?? 0) === 0 ? <p className="text-[12.5px] text-slate-400">nothing is sitting with anyone</p> : (
+                  <ul className="space-y-1 text-[13px] text-slate-700 dark:text-slate-200">
+                    {c.matrix!.queues!.map((qr) => (
+                      <li key={qr.role + qr.initials} className="flex items-center gap-2">
+                        {qr.unassigned
+                          ? <span className="font-medium text-amber-600 dark:text-amber-400">unassigned</span>
+                          : <button onClick={() => setView({ c: null, p: qr.person })} className="font-medium hover:text-[#C41230]">{qr.person}</button>}
+                        <span className="text-slate-400">{qr.role === "QA" ? "QA to finish" : "to build"}</span>
+                        <span className="ml-auto tabular-nums font-semibold">{n(qr.pages)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
         {byPerson.length > 0 && weekly && (
           <Card>
             <Label>By person · week of {weekly.labels[weekIdx] ?? weekNow}{weekIdx > 0 ? ` vs week of ${weekly.labels[weekIdx - 1]}` : ""}</Label>
@@ -735,7 +776,7 @@ type SortKey = "name" | "group" | "total" | "assigned" | "done" | "left" | "week
 const COLS: Array<{ key: SortKey; label: string; num?: boolean; title: string }> = [
   { key: "name", label: "Project", title: "Sort by name" },
   { key: "group", label: "Status", title: "active, planned or archived, then the tracker's own status" },
-  { key: "total", label: "Total", num: true, title: "Total pages on the tracker" },
+  { key: "total", label: "Total", num: true, title: "Stamats pages in the client matrix where one exists, else the tracker's sizing. When the two differ, the tracker's figure shows underneath as planned." },
   { key: "assigned", label: "Assigned", num: true, title: "Pages assigned to people so far" },
   { key: "done", label: "Done", num: true, title: "Pages delivered to the client (matrix column BB). Pages built so far are on the project page." },
   { key: "left", label: "Remaining", num: true, title: "Pages not yet delivered: total minus done" },
@@ -833,7 +874,7 @@ function ProjectsTable({ rows, weekOf, open }: { rows: Row[]; weekOf: Map<string
                     <span className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${GROUP_PILL[g]}`}>{g}</span>
                     {c.status && <span className="block text-[11.5px] text-slate-400 mt-0.5">{c.status}</span>}
                   </td>
-                  <td className={NUM}>{n(c.total)}</td>
+                  <td className={NUM}>{n(c.total)}{c.planned_total != null && c.planned_total !== c.total && <span className="block text-[10.5px] font-normal text-amber-600 dark:text-amber-400">planned {n(c.planned_total)}</span>}</td>
                   <td className={NUM}>{n(assignedOf(c))}</td>
                   <td className={`${NUM} font-semibold`}>{n(c.done)} <span className="text-slate-400 font-normal text-[11px]">{c.pct}%</span></td>
                   <td className={`${NUM} ${leftOf(c) > 0 && g !== "archived" ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOf(c))}</td>
@@ -882,7 +923,7 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
   const prevLbl = idx > 0 ? weekly.labels[idx - 1] ?? null : null
   const isCurrent = weekly.weeks[idx] === weekly.current
   const behind = !!weekly.calendar_week && weekly.current !== weekly.calendar_week
-  const empty = { week: "", assigned: 0, hours: 0, done: 0, projects: [] as MmWeekly["people"][number]["weeks"][number]["projects"] }
+  const empty = { week: "", assigned: 0, hours: 0, done: 0, projects: [] as MmWeekly["people"][number]["weeks"][number]["projects"], days: [] as Array<[string, number]> }
   const rows = weekly.people
     .map((p) => ({ p, w: p.weeks[idx] ?? empty, lw: idx > 0 ? p.weeks[idx - 1] : undefined, avail: p.avail[idx] ?? 0 }))
     .sort((a, b) => (b.w.assigned + b.w.done) - (a.w.assigned + a.w.done)
@@ -946,6 +987,13 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
                     <td className={`${NUM} text-slate-500`}>{pctOf(w.done, w.assigned)}</td>
                     <td className={`px-5 py-2.5 text-right tabular-nums ${over ? "text-red-600 dark:text-red-400" : "text-slate-500"}`}>{w.hours || avail ? `${w.hours} / ${avail}` : ""}</td>
                   </tr>
+                  {isOpen && (w.days?.length ?? 0) > 0 && (
+                    <tr className="border-b border-black/[0.04] dark:border-white/[0.05] bg-slate-50/60 dark:bg-slate-800/40 text-[12px]">
+                      <td className="pl-12 pr-3 py-1.5 text-slate-500" colSpan={7}>
+                        delivered by day: {w.days!.map(([d, k]) => `${dayLbl(d)} ${k}`).join(" · ")}
+                      </td>
+                    </tr>
+                  )}
                   {isOpen && w.projects.map((pr) => (
                     <tr key={p.name + pr.project} className="border-b border-black/[0.04] dark:border-white/[0.05] bg-slate-50/60 dark:bg-slate-800/40 text-[12.5px]">
                       <td className="pl-12 pr-3 py-1.5">
@@ -995,11 +1043,11 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
 
 function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () => void; openPerson: (n: string) => void }) {
   const [q, setQ] = useState("")
-  const [sort, setSort] = useState<"done" | "left" | "week" | "hours">("done")
+  const [sort, setSort] = useState<"done" | "left" | "week" | "hours" | "qa">("done")
   const leftOfT = (t: MmTeamMember) => t.left ?? Math.max(t.assigned - t.done, 0)
   const rows = useMemo(() => {
     const f = team.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) || t.role.toLowerCase().includes(q.toLowerCase()))
-    const key = (t: MmTeamMember) => sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : t[sort]
+    const key = (t: MmTeamMember) => sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : sort === "qa" ? (t.in_qa ?? 0) : t[sort]
     return [...f].sort((a, b) => key(b) - key(a) || a.name.localeCompare(b.name))
   }, [team, q, sort])
   return (
@@ -1010,10 +1058,10 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
       <div className="flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="filter people or roles"
           className="h-9 px-3 text-[13px] rounded-xl border border-black/[0.06] dark:border-white/[0.08] bg-white dark:bg-slate-900 dark:text-white outline-none focus:border-[#C41230]/60 w-56" />
-        {(["done", "left", "week", "hours"] as const).map((s) => (
+        {(["done", "left", "qa", "week", "hours"] as const).map((s) => (
           <button key={s} onClick={() => setSort(s)}
             className={`h-9 px-3 text-[12.5px] font-medium rounded-xl border ${sort === s ? "border-[#C41230] text-[#C41230] dark:text-rose-300" : "border-black/[0.06] dark:border-white/[0.08] text-slate-500"}`}>
-            by {s === "week" ? "assigned this week" : s === "left" ? "remaining" : s}
+            by {s === "week" ? "assigned this week" : s === "left" ? "remaining" : s === "qa" ? "QA to finish" : s}
           </button>
         ))}
       </div>
@@ -1024,6 +1072,8 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
               <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
               <th className="px-3 py-3 font-medium text-right">Assigned</th><th className="px-3 py-3 font-medium text-right">Done</th>
               <th className="px-3 py-3 font-medium text-right">Remaining</th>
+              <th className="px-3 py-3 font-medium text-right" title="pages sitting with this person for QA right now, from the client matrix">In QA</th>
+              <th className="px-3 py-3 font-medium text-right" title="pages with this person's initials in the matrix and no build date yet">Building</th>
               <th className="px-3 py-3 font-medium text-right" title="pages assigned and done in the current tracker week">This week</th>
               <th className="px-3 py-3 font-medium text-right" title="pages assigned and done the week before">Last week</th>
               <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th>
@@ -1039,6 +1089,8 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
                 <td className={NUM}>{n(t.assigned)}</td>
                 <td className={`${NUM} font-semibold`}>{n(t.done)} <span className="text-slate-400 font-normal text-[11px]">{t.comp}%</span></td>
                 <td className={`${NUM} ${leftOfT(t) > 0 ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOfT(t))}</td>
+                <td className={`${NUM} ${(t.in_qa ?? 0) > 0 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-400"}`}>{n(t.in_qa ?? 0)}</td>
+                <td className={`${NUM} text-slate-500`}>{n(t.building ?? 0)}</td>
                 <td className={NUM}>{t.this_week ? <>{n(t.this_week.assigned)} <span className="text-slate-400">→</span> {n(t.this_week.done)}</> : ""}</td>
                 <td className={`${NUM} text-slate-500`}>{t.last_week ? <>{n(t.last_week.assigned)} <span className="text-slate-400">→</span> {n(t.last_week.done)}</> : ""}</td>
                 <td className={`${NUM} text-slate-400`}>{t.hours}</td>
@@ -1125,6 +1177,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
                       {r.w.projects.map((pr, k) => (
                         <span key={pr.project}>{k > 0 ? " · " : ""}<button onClick={() => openProject(pr.project)} className="hover:text-[#C41230]">{pr.project}</button> {n(pr.assigned)} → {n(pr.done)}</span>
                       ))}
+                      {(r.w.days?.length ?? 0) > 0 && <span className="block text-[11px] text-slate-400 mt-0.5">by day: {r.w.days!.map(([d, k]) => `${dayLbl(d)} ${k}`).join(" · ")}</span>}
                     </td>
                   </tr>
                 ))}
