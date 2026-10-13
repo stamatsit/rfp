@@ -17,13 +17,14 @@ export const MIGRATION_MATRIX_ALLOW = [
 ] as const
 
 /**
- * Topic Ideation soft launch: Eric plus Content Marketing. The API enforces the
- * same list (server listening/access.ts); keep the two in step.
+ * Topic Ideation soft launch: Eric, Content Marketing and people added since.
+ * The API enforces the same list (server listening/access.ts); keep the two in step.
  */
 export const TOPIC_IDEATION_ALLOW = [
   "eric.yerke@stamats.com",
   "joe.volk@stamats.com",
   "mariah.tang@stamats.com",
+  "chris.rapozo@stamats.com",
 ] as const
 
 /** Case-insensitive membership test; tolerates a missing/loading user. */

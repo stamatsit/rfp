@@ -288,7 +288,7 @@ describe("access", () => {
   it("lets in Eric and Content Marketing by default, in any letter case, and no one else", () => {
     const saved = process.env["LISTENING_ALLOWLIST"]
     delete process.env["LISTENING_ALLOWLIST"]
-    for (const e of ["eric.yerke@stamats.com", "joe.volk@stamats.com", "Mariah.Tang@stamats.com", " joe.volk@stamats.com "]) expect(listeningAllowed(e), e).toBe(true)
+    for (const e of ["eric.yerke@stamats.com", "joe.volk@stamats.com", "Mariah.Tang@stamats.com", " joe.volk@stamats.com ", "Chris.Rapozo@stamats.com"]) expect(listeningAllowed(e), e).toBe(true)
     for (const e of ["laura.hynes@stamats.com", "joe.volk@gmail.com", "", null, undefined]) expect(listeningAllowed(e), String(e)).toBe(false)
     process.env["LISTENING_ALLOWLIST"] = "someone@stamats.com"
     expect(listeningAllowed("joe.volk@stamats.com")).toBe(false)
@@ -300,7 +300,7 @@ describe("access", () => {
     const saved = process.env["LISTENING_ADMINS"]
     delete process.env["LISTENING_ADMINS"]
     expect(isListeningAdmin("Eric.Yerke@stamats.com")).toBe(true)
-    for (const e of ["joe.volk@stamats.com", "mariah.tang@stamats.com", "", null]) expect(isListeningAdmin(e), String(e)).toBe(false)
+    for (const e of ["joe.volk@stamats.com", "mariah.tang@stamats.com", "chris.rapozo@stamats.com", "", null]) expect(isListeningAdmin(e), String(e)).toBe(false)
     process.env["LISTENING_ADMINS"] = "outsider@stamats.com"
     expect(isListeningAdmin("outsider@stamats.com")).toBe(false)
     if (saved === undefined) delete process.env["LISTENING_ADMINS"]

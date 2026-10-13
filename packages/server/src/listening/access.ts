@@ -10,6 +10,8 @@ const DEFAULT_ALLOWLIST = [
   // Content Marketing, the team the tool was built for (2026-10-09).
   "joe.volk@stamats.com",
   "mariah.tang@stamats.com",
+  // Added after the team demo (2026-10-13).
+  "chris.rapozo@stamats.com",
 ]
 
 export function listeningAllowlist(): string[] {
