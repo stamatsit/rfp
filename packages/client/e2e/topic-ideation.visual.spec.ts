@@ -5,7 +5,7 @@
  *   cd packages/client && SHOTS=/path/to/dir npx playwright test e2e/topic-ideation.visual.spec.ts
  */
 import { test, type Page } from "@playwright/test"
-import { RUN_1, TOPIC_ID, buildDetail, setup } from "./fixtures/listeningMocks"
+import { RUN_1, TOPIC_ID, buildDetail, manyTopics, setup } from "./fixtures/listeningMocks"
 
 const DIR = process.env["SHOTS"]
 test.skip(!DIR, "set SHOTS=<dir> to capture screenshots")
@@ -132,7 +132,8 @@ for (const vp of VIEWPORTS) {
       const theirs = buildDetail({ viewer: true })
       const m = await setup(page, { topics: [{ ...mine.topic, shared: true }], shared: [{ ...theirs.topic, id: "t9", query: "FAFSA changes", headline: "Parents and students are frustrated by lower aid estimates and confusing corrections." }], detail: mine })
       await page.goto("/listening")
-      await page.getByRole("heading", { name: /Shared with you/ }).waitFor()
+      await page.getByRole("tab", { name: /Shared with you/ }).click()
+      await page.getByText("Shared by Mariah Tang").waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-9-home-shared.png`, fullPage: true })
 
@@ -178,7 +179,8 @@ for (const vp of VIEWPORTS) {
         detail: joes,
       })
       await page.goto("/listening")
-      await page.getByRole("heading", { name: /Everyone's topics/ }).waitFor()
+      await page.getByRole("tab", { name: /Everyone's topics/ }).click()
+      await page.getByText("Joe Volk · private").waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-14-admin-home.png`, fullPage: true })
       await page.goto(`/listening/${TOPIC_ID}`)
@@ -226,6 +228,66 @@ for (const vp of VIEWPORTS) {
       await page.getByText("Eric Yerke's topic · read only").waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-31-team-topic.png` })
+    })
+
+    test(`${vp.name} ${t} library`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      const mine = manyTopics(60)
+      mine[0] = { ...mine[0]!, query: "what prospective graduate students say about tuition discounts at small private colleges" }
+      await setup(page, { admin: true, topics: mine, team: manyTopics(40, ["joe.volk@stamats.com", "mariah.tang@stamats.com", "sam.lee@stamats.com"], "team") })
+      await page.goto("/listening")
+      await page.getByRole("list", { name: "Your topics" }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-18-library-list.png`, fullPage: true })
+      await page.getByLabel("Filter topics").fill("fafsa")
+      await page.getByText("3 of 60 topics").waitFor()
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-19-library-filtered.png`, fullPage: true })
+      await page.getByLabel("Filter topics").fill("zzz")
+      await page.getByText("No topics match").waitFor()
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-20-library-no-match.png`, fullPage: true })
+      await page.getByRole("button", { name: "Clear filters" }).click()
+      await page.getByRole("tab", { name: /Everyone's topics/ }).click()
+      await page.getByLabel("Person", { exact: true }).selectOption("joe.volk@stamats.com")
+      await page.getByText("14 of 40 topics").waitFor()
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-21-library-person.png`, fullPage: true })
+      await page.getByLabel("Person", { exact: true }).selectOption("")
+      await page.getByRole("button", { name: "Cards", exact: true }).click()
+      await page.getByLabel("Sort by", { exact: true }).selectOption("posts")
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-22-library-cards.png`, fullPage: true })
+    })
+
+    test(`${vp.name} ${t} drafts`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await setup(page)
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("People weigh flexibility").waitFor()
+      // The whole ideas section, whatever its height, without the sticky header drawn over it.
+      const ideas = async (name: string) => {
+        await page.evaluate(() => window.scrollTo(0, 0))
+        await settle(page)
+        const box = (await page.locator("#ideas").locator("..").boundingBox())!
+        await page.screenshot({ path: `${DIR}/${vp.name}-${t}-${name}.png`, fullPage: true, clip: { x: Math.max(0, box.x - 16), y: box.y - 16, width: Math.min(vp.width, box.width + 32), height: box.height + 32 } })
+      }
+      await page.getByRole("button", { name: /^Blog outline/ }).first().click()
+      await page.getByRole("region", { name: "Blog outline" }).getByText("What students are asking").waitFor()
+      await ideas("23-draft-outline")
+      await page.getByRole("button", { name: /^LinkedIn post/ }).first().click()
+      await page.getByRole("region", { name: "LinkedIn post" }).getByText("#HigherEdMarketing").waitFor()
+      await ideas("24-draft-post")
+      await page.getByRole("button", { name: /^Headlines/ }).first().click()
+      await page.getByRole("region", { name: "Headlines" }).getByRole("listitem").first().waitFor()
+      await ideas("25-draft-headlines")
+      // Thumbs and More ideas: one liked, one passed on, two just added.
+      await page.getByRole("button", { name: /^Headlines/ }).first().click()
+      await page.getByRole("button", { name: /^More ideas like this: Who finds/ }).click()
+      await page.getByRole("button", { name: /^Fewer ideas like this: The real cost/ }).click()
+      await page.getByRole("button", { name: "More ideas", exact: true }).click()
+      await page.locator("#idea-idea4").waitFor()
+      await page.getByText("2 ideas added").waitFor({ state: "hidden", timeout: 15000 }).catch(() => {})
+      await ideas("26-thumbs-more-ideas")
     })
 
     test(`${vp.name} ${t} progress`, async ({ page }) => {

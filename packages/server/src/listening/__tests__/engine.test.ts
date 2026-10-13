@@ -4,10 +4,13 @@ import { executeRun, groupLaneNotes, startRun } from "../engine.js"
 import {
   access,
   cancelRun,
+  draftIdea,
   listIdeas,
   listTopics,
+  moreIdeas,
   ownsTopic,
   prepareRun,
+  rateIdea,
   removeIdea,
   removeTopic,
   runStatus,
@@ -19,7 +22,9 @@ import {
   usage,
 } from "../service.js"
 import { ActiveRunError, MemoryStore, within } from "../store.js"
-import type { RunEvent } from "../types.js"
+import { dropUnknownNumbers, unquoteUnverified } from "../drafts.js"
+import { ideaTaste } from "../taste.js"
+import type { BlogOutline, ContentIdea, HeadlineSet, IdeaDraft, LinkedInPost, RunEvent } from "../types.js"
 import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
 
 /** Run this block with each person seeing only their own and shared topics (LISTENING_VISIBILITY=private). */
@@ -448,6 +453,318 @@ describe("service: sharing and the idea board (private visibility)", () => {
     expect(await removeIdea(eric, s.id)).toEqual({ ok: true, body: { ok: true } })
     expect((await listIdeas(eric)).ideas).toEqual([])
     expect(await saveIdea(eric, { topicId: 7, ideaId: "idea1" })).toMatchObject({ ok: false, status: 400 })
+  })
+})
+
+describe("service: drafts from an idea", () => {
+  const scanned = async (llm = new FakeLlm()) => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store, { llm }) })
+    const { topicId } = await initial(store, fakeDeps(store), "online nursing degree")
+    const idea = (await store.getTopic(topicId))!.report!.ideas[0]!
+    return { store, llm, eric: as("eric.yerke@stamats.com"), joe: as("joe.volk@stamats.com"), topicId, idea }
+  }
+  const draftCalls = (llm: FakeLlm) => llm.calls.filter((c) => c.startsWith("listening_draft_"))
+
+  it("drafting from a topic saves the idea, writes once, and returns the stored draft after that", async () => {
+    const { store, llm, eric, topicId, idea } = await scanned()
+    const first = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "headlines" })
+    if (!first.ok) throw new Error(first.error)
+    // The idea is on the board now, and the draft hangs off that saved copy.
+    const board = await listIdeas(eric)
+    expect(board.ideas.map((i) => i.idea.headline)).toEqual([idea.headline])
+    expect(first.body.idea.id).toBe(board.ideas[0]!.id)
+    expect(first.body.draft).toMatchObject({ kind: "headlines", savedIdeaId: board.ideas[0]!.id })
+    expect(board.drafts[board.ideas[0]!.id]!.map((d) => d.kind)).toEqual(["headlines"])
+    expect(draftCalls(llm)).toEqual(["listening_draft_headlines"])
+
+    // Asking again costs nothing: same draft, no model call. From the topic or from the board.
+    const again = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "headlines" })
+    const fromBoard = await draftIdea(eric, { savedId: first.body.idea.id, kind: "headlines" })
+    expect(again.ok && again.body.draft.id).toBe(first.body.draft.id)
+    expect(fromBoard.ok && fromBoard.body.draft.id).toBe(first.body.draft.id)
+    expect(draftCalls(llm)).toHaveLength(1)
+
+    // "Write another" replaces it: one draft per kind.
+    const fresh = await draftIdea(eric, { savedId: first.body.idea.id, kind: "headlines", fresh: true })
+    expect(fresh.ok && fresh.body.draft.id).toBe(first.body.draft.id)
+    expect(draftCalls(llm)).toHaveLength(2)
+    await draftIdea(eric, { savedId: first.body.idea.id, kind: "blog_outline" })
+    await draftIdea(eric, { savedId: first.body.idea.id, kind: "linkedin_post" })
+    expect((await store.listDrafts([first.body.idea.id])).map((d) => d.kind).sort()).toEqual(["blog_outline", "headlines", "linkedin_post"])
+
+    // The topic page gets the drafts for the ideas you saved from it.
+    const detail = await topicDetail(eric, topicId)
+    if (!detail.ok) throw new Error(detail.error)
+    const body = detail.body as { savedIdeas: Record<string, string>; drafts: Record<string, IdeaDraft[]> }
+    expect(body.drafts[body.savedIdeas[idea.id]!]!).toHaveLength(3)
+    // No searches were used: drafting is the model only.
+    expect((await usage(eric)).today.filter((s) => s.trigger !== "initial")).toEqual([])
+  })
+
+  it("keeps a blog outline to notes, with no invented numbers, quotes, dashes or sources", async () => {
+    const { eric, topicId, idea } = await scanned()
+    const r = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "blog_outline" })
+    if (!r.ok) throw new Error(r.error)
+    const o = r.body.draft.content as BlogOutline
+    const n = r.body.idea.sources.length
+    expect(n).toBeGreaterThanOrEqual(2)
+    expect(o.workingTitle).toBe("Who arranges your clinical placement, and when to ask")
+    // The statistic no post contains is gone; the sentence before it stays.
+    expect(o.angle).toBe("Placement support varies by program.")
+    expect(JSON.stringify(o)).not.toMatch(/73|9 in 10|—|–/)
+    // The heading-less section is dropped; four remain, in order.
+    expect(o.sections.map((s) => s.heading)).toEqual(["What students are asking", "How placement usually works", "Questions to ask a program", "Next steps"])
+    expect(o.sections[1]!.points).toEqual(["Describe the common arrangements"])
+    // An invented quotation loses its marks; words a post really contains keep them.
+    expect(o.sections[0]!.points[1]).toBe("Unpack nobody tells you who finds the site in plain words")
+    expect(o.sections[2]!.points[1]).toBe('Name the fear: "the clinical placement was a nightmare"')
+    // Posts the model cited by number become links to real saved sources only, once each.
+    const saved = r.body.idea.sources
+    expect(o.sections[0]!.sources).toEqual(saved.slice(0, 2).map((x) => ({ url: x.url, platform: x.platform })))
+    expect(o.sections[1]!.sources).toEqual([{ url: saved[1]!.url, platform: saved[1]!.platform }])
+    expect(o.sections[2]!.sources).toEqual([])
+    expect(o.sections[3]!.sources).toEqual([{ url: saved[0]!.url, platform: saved[0]!.platform }])
+  })
+
+  it("cleans a LinkedIn post and a headline set the same way", async () => {
+    const { eric, topicId, idea } = await scanned()
+    const p = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "linkedin_post" })
+    if (!p.ok) throw new Error(p.error)
+    const post = p.body.draft.content as LinkedInPost
+    const paragraphs = post.post.split("\n\n")
+    expect(paragraphs).toHaveLength(5)
+    expect(paragraphs[0]).toBe("Online nursing students keep asking one thing, who actually finds the clinical placement?")
+    expect(post.post).not.toMatch(/#|—|68%|"my advisor/)
+    expect(paragraphs[1]).toContain("One student said my advisor promised a placement in week one and that is the worry in a sentence.")
+    expect(paragraphs[2]).toBe("That gap is where trust is lost.")
+    expect(post.hashtags).toEqual(["HigherEd", "nursingeducation", "Enrollment"])
+
+    const h = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "headlines" })
+    if (!h.ok) throw new Error(h.error)
+    const texts = (h.body.draft.content as HeadlineSet).headlines.map((x) => x.text)
+    // Not the idea's own headline, no repeats, no numerals, no dashes.
+    expect(texts).not.toContain(idea.headline)
+    expect(new Set(texts).size).toBe(texts.length)
+    expect(texts).toHaveLength(7)
+    expect(texts.join(" ")).not.toMatch(/\d|—/)
+    expect(texts).toContain("Clinical placement, what online programs owe you")
+  })
+
+  it("belongs to the person who saved the idea, and goes when the idea goes", async () => {
+    const { store, eric, joe, topicId, idea } = await scanned()
+    const mine = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "headlines" })
+    if (!mine.ok) throw new Error(mine.error)
+    // Joe cannot draft from Eric's saved idea, or from his private topic.
+    expect(await draftIdea(joe, { savedId: mine.body.idea.id, kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
+    expect(await draftIdea(joe, { topicId, ideaId: idea.id, kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
+    expect((await listIdeas(joe)).drafts).toEqual({})
+    // Shared: Joe can draft, on his own board, without touching Eric's draft.
+    await shareTopic(eric, topicId, true)
+    const his = await draftIdea(joe, { topicId, ideaId: idea.id, kind: "headlines" })
+    if (!his.ok) throw new Error(his.error)
+    expect(his.body.idea.id).not.toBe(mine.body.idea.id)
+    expect(his.body.draft.id).not.toBe(mine.body.draft.id)
+    // Removing the idea removes its drafts; a rescan or deleting the topic does not.
+    await store.updateTopic(topicId, { report: { ...(await store.getTopic(topicId))!.report!, ideas: [] } })
+    expect((await listIdeas(eric)).drafts[mine.body.idea.id]).toHaveLength(1)
+    expect(await draftIdea(eric, { savedId: mine.body.idea.id, kind: "blog_outline" })).toMatchObject({ ok: true })
+    expect(await removeIdea(eric, mine.body.idea.id)).toMatchObject({ ok: true })
+    expect(await store.listDrafts([mine.body.idea.id])).toEqual([])
+    expect(await store.listDrafts([his.body.idea.id])).toHaveLength(1)
+  })
+
+  it("refuses a kind it does not know, and says try again when the model fails or returns too little", async () => {
+    const { eric, topicId, idea } = await scanned()
+    for (const kind of ["article", "", null, undefined, 3]) expect(await draftIdea(eric, { topicId, ideaId: idea.id, kind }), String(kind)).toMatchObject({ ok: false, status: 400, code: "bad_kind" })
+    // Nothing was saved to the board by a refused request.
+    expect((await listIdeas(eric)).ideas).toEqual([])
+    expect(await draftIdea(eric, { topicId, ideaId: "idea999", kind: "headlines" })).toMatchObject({ ok: false, status: 404, code: "idea_gone" })
+    expect(await draftIdea(eric, { savedId: "not-a-uuid", kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
+
+    const thin = await scanned(new FakeLlm({ thinDrafts: true }))
+    for (const kind of ["blog_outline", "linkedin_post", "headlines"]) {
+      expect(await draftIdea(thin.eric, { topicId: thin.topicId, ideaId: thin.idea.id, kind }), kind).toMatchObject({ ok: false, status: 502, code: "draft_failed" })
+    }
+    // A failed draft stores nothing, not even the idea, so the next try starts clean.
+    expect(await listIdeas(thin.eric)).toEqual({ ideas: [], drafts: {} })
+    const down = await scanned(new FakeLlm({ failOn: new Set(["listening_draft_headlines"]) }))
+    await expect(draftIdea(down.eric, { topicId: down.topicId, ideaId: down.idea.id, kind: "headlines" })).rejects.toThrow("fake failure")
+    expect((await listIdeas(down.eric)).ideas).toEqual([])
+  })
+
+  it("number and quotation checks, on their own", () => {
+    const known = new Set(["2026", "27"])
+    expect(dropUnknownNumbers("FAFSA for 2026 to 27 opened late. Roughly 4 in 10 families gave up. Ask for help early.", known)).toBe("FAFSA for 2026 to 27 opened late. Ask for help early.")
+    expect(dropUnknownNumbers("No numbers here at all.", new Set())).toBe("No numbers here at all.")
+    const posts = ["Nobody told me the deadline moved. I found out from a friend."]
+    expect(unquoteUnverified('She said "nobody told me the deadline moved" and left.', posts)).toBe('She said "nobody told me the deadline moved" and left.')
+    expect(unquoteUnverified("She said “the office never called me back” and left.", posts)).toBe("She said the office never called me back and left.")
+    // One or two quoted words are emphasis, not a quotation.
+    expect(unquoteUnverified('The so-called "free" option and the "priority deadline" both confuse people.', posts)).toBe('The so-called "free" option and the "priority deadline" both confuse people.')
+  })
+})
+
+describe("service: thumbs and more ideas", () => {
+  const scanned = async (llm = new FakeLlm({ rejectIdeas: ["Rejected by the second check"] })) => {
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store, { llm }) })
+    const { topicId } = await initial(store, fakeDeps(store), "online nursing degree")
+    const ideas = (await store.getTopic(topicId))!.report!.ideas
+    return { store, llm, eric: as("eric.yerke@stamats.com"), joe: as("joe.volk@stamats.com"), topicId, ideas }
+  }
+  const votesOf = async (ctx: Parameters<typeof topicDetail>[0], topicId: string) => {
+    const d = await topicDetail(ctx, topicId)
+    if (!d.ok) throw new Error(d.error)
+    return (d.body as { votes: Record<string, number> }).votes
+  }
+  const LIKED = "Who finds your clinical placement (guide, for student)"
+  const PASSED = "The real cost (article, for parent)"
+
+  it("thumbs: one vote per idea per person, changeable and clearable, on topics you can read", async () => {
+    const { store, eric, joe, topicId, ideas } = await scanned()
+    expect(ideas.map((i) => i.headline)).toEqual(["Who finds your clinical placement", "The real cost"])
+    expect(await votesOf(eric, topicId)).toEqual({})
+    expect(await rateIdea(eric, { topicId, ideaId: "idea1", vote: 1 })).toEqual({ ok: true, body: { vote: 1 } })
+    expect(await rateIdea(eric, { topicId, ideaId: "idea2", vote: -1 })).toEqual({ ok: true, body: { vote: -1 } })
+    expect(await votesOf(eric, topicId)).toEqual({ idea1: 1, idea2: -1 })
+    // Changing a vote replaces it; 0 clears it.
+    await rateIdea(eric, { topicId, ideaId: "idea1", vote: -1 })
+    expect(await votesOf(eric, topicId)).toEqual({ idea1: -1, idea2: -1 })
+    expect(await rateIdea(eric, { topicId, ideaId: "idea1", vote: 0 })).toEqual({ ok: true, body: { vote: null } })
+    expect(await votesOf(eric, topicId)).toEqual({ idea2: -1 })
+    expect(await store.listVotes({ topicId })).toHaveLength(1)
+
+    for (const vote of [2, "1", null, undefined, true]) expect(await rateIdea(eric, { topicId, ideaId: "idea1", vote }), String(vote)).toMatchObject({ ok: false, status: 400, code: "bad_vote" })
+    expect(await rateIdea(eric, { topicId, ideaId: "idea99", vote: 1 })).toMatchObject({ ok: false, status: 404, code: "idea_gone" })
+    expect(await rateIdea(eric, { topicId: 5, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: false, status: 400 })
+    // Joe cannot vote on a private topic; on a shared one his vote is his own.
+    expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: false, status: 404 })
+    await shareTopic(eric, topicId, true)
+    expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: true })
+    expect(await votesOf(joe, topicId)).toEqual({ idea1: 1 })
+    expect(await votesOf(eric, topicId)).toEqual({ idea2: -1 })
+
+    // A refresh rewrites the ideas; a vote follows its idea by headline.
+    const rb = await startRun(store, { trigger: "rebuild", createdBy: "eric.yerke@stamats.com", topicId })
+    await executeRun(fakeDeps(store), { topic: rb.topic, runId: rb.runId, trigger: "rebuild" }, () => {})
+    expect(await votesOf(eric, topicId)).toEqual({ idea2: -1 })
+    // Deleting the topic keeps the vote as taste, detached from the topic.
+    await removeTopic(eric, topicId)
+    expect((await store.listVotes({ createdBy: "eric.yerke@stamats.com" })).map((v) => [v.topicId, v.vote, v.idea.headline])).toEqual([[null, -1, "The real cost"]])
+  })
+
+  it("taste: thumbs up and saved ideas are liked, thumbs down is passed on, a split vote says nothing", async () => {
+    const { store, eric, joe, topicId } = await scanned()
+    expect(await ideaTaste(store, topicId, "eric.yerke@stamats.com")).toEqual({ liked: [], passed: [] })
+    await rateIdea(eric, { topicId, ideaId: "idea1", vote: 1 })
+    await rateIdea(eric, { topicId, ideaId: "idea2", vote: -1 })
+    expect(await ideaTaste(store, topicId, "eric.yerke@stamats.com")).toEqual({ liked: [LIKED], passed: [PASSED] })
+    // A teammate reading the shared topic disagrees about idea 1: it drops out of both lists.
+    await shareTopic(eric, topicId, true)
+    await rateIdea(joe, { topicId, ideaId: "idea1", vote: -1 })
+    expect(await ideaTaste(store, topicId, "eric.yerke@stamats.com")).toEqual({ liked: [], passed: [PASSED] })
+    await rateIdea(joe, { topicId, ideaId: "idea1", vote: 0 })
+    // Saving counts as liking, until the idea is dropped on the board.
+    await rateIdea(eric, { topicId, ideaId: "idea1", vote: 0 })
+    const saved = await saveIdea(eric, { topicId, ideaId: "idea1" })
+    if (!saved.ok) throw new Error(saved.error)
+    expect((await ideaTaste(store, topicId, "eric.yerke@stamats.com")).liked).toEqual([LIKED])
+    await setIdeaStatus(eric, saved.body.idea.id, "dropped")
+    expect((await ideaTaste(store, topicId, "eric.yerke@stamats.com")).liked).toEqual([])
+    // Joe's taste is his own: Eric's thumbs down on this topic reaches him only because he can read it.
+    expect(await ideaTaste(store, topicId, "joe.volk@stamats.com")).toEqual({ liked: [], passed: [PASSED] })
+  })
+
+  it("more ideas: adds only ideas that are new and pass the second check, numbered after the topic's own", async () => {
+    const { store, llm, eric, topicId } = await scanned()
+    const before = (await store.getTopic(topicId))!
+    const r = await moreIdeas(eric, topicId)
+    if (!r.ok) throw new Error(r.error)
+    // Dropped: the repeat of an existing idea, the one resting on a single post, the one the second check rejected.
+    expect(r.body.added.map((i) => [i.id, i.headline, i.added])).toEqual([
+      ["idea3", "Questions to ask before you enroll", true],
+      ["idea4", "What the real cost leaves out", true],
+    ])
+    for (const i of r.body.added) expect(i.evidenceItemIds.length).toBeGreaterThanOrEqual(2)
+    expect(r.body.ideas.map((i) => i.id)).toEqual(["idea1", "idea2", "idea3", "idea4"])
+    const after = (await store.getTopic(topicId))!
+    expect(after.report!.ideas).toEqual(r.body.ideas)
+    // Everything else in the report is untouched, and it still passes every honesty check.
+    expect({ ...after.report!, ideas: [] }).toEqual({ ...before.report!, ideas: [] })
+    expect(checkReport(after.report!, await store.allItems(topicId))).toEqual([])
+    // The model was told what exists, both passes ran, and no search or scan was used.
+    expect(llm.calls).toEqual(["listening_more_ideas", "listening_idea_check"])
+    expect(llm.prompts.get("listening_more_ideas")).toContain("- Who finds your clinical placement: a\n- The real cost: a")
+    expect(await store.listRuns(topicId)).toHaveLength(1)
+    expect((await usage(eric)).budget.used).toBe((await store.listRuns(topicId))[0]!.searchCalls)
+
+    // The new ideas can be saved, rated and drafted from like any other.
+    expect(await saveIdea(eric, { topicId, ideaId: "idea3" })).toMatchObject({ ok: true })
+    expect(await rateIdea(eric, { topicId, ideaId: "idea4", vote: 1 })).toMatchObject({ ok: true })
+    // Asking again when nothing else holds up adds nothing and says so with an empty list.
+    const again = await moreIdeas(eric, topicId)
+    expect(again).toMatchObject({ ok: true, body: { added: [] } })
+    expect((await store.getTopic(topicId))!.report!.ideas).toHaveLength(4)
+  })
+
+  it("thumbs steer what is written next, in more ideas and in a refresh", async () => {
+    const { store, llm, eric, topicId } = await scanned()
+    await moreIdeas(eric, topicId)
+    expect(llm.prompts.get("listening_more_ideas")).not.toContain("Liked:")
+    await rateIdea(eric, { topicId, ideaId: "idea1", vote: 1 })
+    await rateIdea(eric, { topicId, ideaId: "idea2", vote: -1 })
+    await moreIdeas(eric, topicId)
+    const prompt = llm.prompts.get("listening_more_ideas")!
+    expect(prompt).toContain("This is taste, not evidence: never cite it")
+    expect(prompt).toContain(`Liked:\n- ${LIKED}`)
+    expect(prompt).toContain(`Passed on:\n- ${PASSED}`)
+    // A refresh (and so a rescan) writes its ideas with the same guidance.
+    const rb = await startRun(store, { trigger: "rebuild", createdBy: "eric.yerke@stamats.com", topicId })
+    await executeRun(fakeDeps(store, { llm }), { topic: rb.topic, runId: rb.runId, trigger: "rebuild" }, () => {})
+    expect(llm.prompts.get("listening_synthesis")).toContain(`Passed on:\n- ${PASSED}`)
+  })
+
+  it("more ideas: the owner only, never during a scan, and nothing is added unless the second check ran", async () => {
+    const { store, eric, joe, topicId, ideas } = await scanned()
+    const stored = async () => (await store.getTopic(topicId))!.report!.ideas
+    // Not the owner: a teammate on a shared topic cannot change its report.
+    await shareTopic(eric, topicId, true)
+    expect(await moreIdeas(joe, topicId)).toMatchObject({ ok: false, status: 404 })
+    expect(await moreIdeas(eric, "not-a-uuid")).toMatchObject({ ok: false, status: 404 })
+
+    // The second check is down: no unchecked idea is added.
+    const down = await scanned(new FakeLlm({ llmErrorOn: new Set(["listening_idea_check"]) }))
+    expect(await moreIdeas(down.eric, down.topicId)).toMatchObject({ ok: false, status: 502, code: "ideas_failed" })
+    expect((await down.store.getTopic(down.topicId))!.report!.ideas).toEqual(down.ideas)
+    const dead = await scanned(new FakeLlm({ llmErrorOn: new Set(["listening_more_ideas"]) }))
+    expect(await moreIdeas(dead.eric, dead.topicId)).toMatchObject({ ok: false, status: 502, code: "ideas_failed" })
+
+    // The report changed while the ideas were being written (a scan finished): the stale result is discarded.
+    const slow = await scanned(new FakeLlm({ delayMs: 40 }))
+    const pending = moreIdeas(slow.eric, slow.topicId)
+    const current = (await slow.store.getTopic(slow.topicId))!.report!
+    await slow.store.updateTopic(slow.topicId, { report: { ...current, generatedAt: "2030-01-01T00:00:00.000Z" } })
+    expect(await pending).toMatchObject({ ok: false, status: 409, code: "changed" })
+    expect((await slow.store.getTopic(slow.topicId))!.report!.ideas).toEqual(slow.ideas)
+
+    // A full topic, and a topic mid-scan.
+    const full: ContentIdea[] = Array.from({ length: 24 }, (_, n) => ({ ...ideas[0]!, id: `idea${n + 1}`, headline: `Idea number ${n + 1}` }))
+    await store.updateTopic(topicId, { report: { ...(await store.getTopic(topicId))!.report!, ideas: full } })
+    expect(await moreIdeas(eric, topicId)).toMatchObject({ ok: false, status: 409, code: "idea_limit" })
+    await store.updateTopic(topicId, { report: { ...(await store.getTopic(topicId))!.report!, ideas } })
+    await startRun(store, { trigger: "rescan", createdBy: "eric.yerke@stamats.com", topicId })
+    expect(await moreIdeas(eric, topicId)).toMatchObject({ ok: false, status: 409, code: "active_run" })
+    expect(await stored()).toEqual(ideas)
+
+    // No report yet.
+    const fresh = await startRun(store, { trigger: "initial", createdBy: "eric.yerke@stamats.com", query: "never scanned", timeWindow: "1y" })
+    await store.finishRun(fresh.runId, { status: "failed", newItems: 0, totalItems: 0, relevantItems: 0, sentimentScore: null, searchCalls: 0, youtubeUnits: 0, costUsd: 0, coverage: null as never })
+    expect(await moreIdeas(eric, fresh.topic.id)).toMatchObject({ ok: false, status: 409, code: "no_report" })
   })
 })
 

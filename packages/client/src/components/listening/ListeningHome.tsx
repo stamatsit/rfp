@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowRight, BookmarkCheck, ChevronDown, Loader2, Lock, Radar, Search, Users } from "lucide-react"
+import { ArrowRight, ChevronDown, Loader2, Radar, Search } from "lucide-react"
 import { listeningApi } from "@/lib/listeningApi"
 import type { AccessInfo, TimeWindow, TopicRow, Usage } from "@/types/listening"
-import { ACCENT, Card, SentimentPill, WINDOW_OPTIONS, fmtClock, personName, plural, timeAgo } from "./ui"
+import { TopicLibrary } from "./TopicLibrary"
+import { ACCENT, WINDOW_OPTIONS, fmtClock, personName, plural } from "./ui"
 
 const EXAMPLES = ["online nursing degrees", "college enrollment trends", "FAFSA changes", "Coe College"]
 
@@ -119,67 +120,6 @@ function UsagePanel() {
         </div>
       )}
     </div>
-  )
-}
-
-/**
- * mine: your topic (marked when shared). shared: someone shared it with you.
- * team: someone else's topic, seen because everyone sees every topic (teamView)
- * or because you are an admin (then marked shared or private).
- */
-type CardKind = "mine" | "shared" | "team"
-
-function TopicCard({ t, now, kind = "mine", teamView = false }: { t: TopicRow; now: number; kind?: CardKind; teamView?: boolean }) {
-  const running = t.lastRunStatus === "running"
-  const failed = !running && (t.lastRunStatus === "failed" || t.lastRunStatus === "cancelled") && !t.headline
-  const who = personName(t.createdBy)
-  // With team visibility every topic is open to everyone, so "shared" and "private" mean nothing: just the owner.
-  const badge =
-    kind === "team"
-      ? teamView
-        ? { text: who, Icon: Users, tone: "slate" }
-        : { text: `${who} · ${t.shared ? "shared" : "private"}`, Icon: t.shared ? Users : Lock, tone: t.shared ? "sky" : "slate" }
-      : kind === "shared"
-        ? { text: `Shared by ${who}`, Icon: Users, tone: "sky" }
-        : t.shared && !teamView
-          ? { text: "Shared with your team", Icon: Users, tone: "sky" }
-          : null
-  return (
-    <Link
-      to={`/listening/${t.id}`}
-      className="group block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded-2xl"
-    >
-      <Card className="h-full p-5 flex flex-col group-hover:border-black/[0.12] dark:group-hover:border-white/[0.16] group-hover:shadow-[0_4px_16px_rgba(15,23,42,0.06)] transition-all">
-        {badge && (
-          <span
-            className={`self-start inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-medium mb-2 ${
-              badge.tone === "sky" ? "bg-sky-50 dark:bg-sky-500/10 text-sky-700 dark:text-sky-300" : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300"
-            }`}
-          >
-            <badge.Icon size={12} /> {badge.text}
-          </span>
-        )}
-        <h3 className="text-[15.5px] font-semibold leading-snug text-slate-900 dark:text-white line-clamp-2">{t.query}</h3>
-        <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-3">
-          {t.headline ?? (running ? "First scan in progress..." : failed ? "The last scan did not finish. Open to try again." : "No results yet.")}
-        </p>
-        <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-slate-500">
-          {running ? (
-            <span className="inline-flex items-center gap-1.5 font-medium text-sky-600 dark:text-sky-400">
-              <Loader2 size={13} className="animate-spin motion-reduce:animate-none" /> Scanning
-            </span>
-          ) : failed ? (
-            <span className="font-medium text-rose-600 dark:text-rose-400">Did not finish</span>
-          ) : (
-            <span className="flex items-center gap-3">
-              <SentimentPill score={t.sentimentScore} />
-              <span className="tabular-nums">{plural(t.relevantCount, "post")}</span>
-            </span>
-          )}
-          <span className="shrink-0">{timeAgo(t.lastRunAt ?? t.updatedAt, now)}</span>
-        </div>
-      </Card>
-    </Link>
   )
 }
 
@@ -373,79 +313,7 @@ export function ListeningHome({
         {budget && !missing && <UsagePanel />}
       </section>
 
-      <section aria-labelledby="your-topics">
-        <div className="flex items-center justify-between gap-3 mb-4">
-          <h2 id="your-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500">
-            Your topics {topics && topics.length > 0 && <span className="text-slate-400 tabular-nums">{topics.length}</span>}
-          </h2>
-          <Link
-            to="/listening/ideas"
-            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200 border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-          >
-            <BookmarkCheck size={15} className="text-sky-600 dark:text-sky-400" />
-            Idea board
-            {ideaCount !== null && <span className="tabular-nums text-slate-400">{ideaCount}</span>}
-          </Link>
-        </div>
-        {loading && !topics ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-busy="true">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="shimmer h-40 rounded-2xl" />
-            ))}
-          </div>
-        ) : !topics || topics.length === 0 ? (
-          <Card className="p-10 text-center">
-            <p className="text-[14.5px] font-medium text-slate-700 dark:text-slate-200">Nothing scanned yet</p>
-            <p className="text-[13.5px] text-slate-500 mt-1.5 max-w-md mx-auto">
-              Every topic you scan is saved here. Come back any time to read it again or rescan for newer posts.
-            </p>
-          </Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {topics.map((t) => (
-              <TopicCard key={t.id} t={t} now={now} teamView={teamView} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      {team ? (
-        <section aria-labelledby="team-topics" className="mt-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-x-3 gap-y-1 mb-4">
-            <h2 id="team-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
-              Everyone&apos;s topics <span className="text-slate-400 tabular-nums">{team.length}</span>
-            </h2>
-            <p className="text-[12.5px] text-slate-400">
-              {teamView
-                ? "Every scan anyone on the team runs shows here. Open, export and save ideas from any of them; only the person who ran it can rescan."
-                : "As an admin you can open every scan, private ones too. Only the person who ran it can rescan."}
-            </p>
-          </div>
-          {team.length === 0 ? (
-            <Card className="p-8 text-center text-[13.5px] text-slate-500">No one else has run a scan yet.</Card>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {team.map((t) => (
-                <TopicCard key={t.id} t={t} now={now} kind="team" teamView={teamView} />
-              ))}
-            </div>
-          )}
-        </section>
-      ) : shared.length > 0 ? (
-        <section aria-labelledby="shared-topics" className="mt-10">
-          <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-x-3 gap-y-1 mb-4">
-            <h2 id="shared-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
-              Shared with you <span className="text-slate-400 tabular-nums">{shared.length}</span>
-            </h2>
-            <p className="text-[12.5px] text-slate-400">Read, export and save ideas. Only the owner can rescan.</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {shared.map((t) => (
-              <TopicCard key={t.id} t={t} now={now} kind="shared" />
-            ))}
-          </div>
-        </section>
-      ) : null}
+      <TopicLibrary topics={topics} shared={shared} team={team} teamView={teamView} ideaCount={ideaCount} loading={loading} now={now} />
     </div>
   )
 }

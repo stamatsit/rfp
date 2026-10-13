@@ -2,7 +2,8 @@
 
 **Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: the soft-launch list in
 `listening/access.ts`). Everyone on it sees every scan (team visibility, since 2026-10-14).
-Migrations 009, 010 and 011 are applied to rfp-prod. Internal planning notes (people, meeting notes, account
+Migrations 009, 010 and 011 are applied to rfp-prod; 012 (drafts) and 013
+(thumbs) must be applied before the code that reads them is deployed. Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
 ## What it is
@@ -80,6 +81,27 @@ can open it, export it and save its ideas (`role: "viewer"` in the detail respon
 refresh, delete, cancel and sharing stay with the owner; unsharing ends access at once. Saved
 copies a teammate already made stay on their board.
 
+## Topic library
+
+`components/listening/TopicLibrary.tsx`, the saved topics on the home page, built to stay usable at
+a hundred scans. One list at a time behind tabs (Your topics, then Shared with you, or Everyone's
+topics for an admin), each with its count. Every card and line shows the topic's time range, so the
+same topic scanned over two ranges can be told apart.
+
+- Fewer than 7 topics in a tab: the plain card grid, newest first, no controls.
+- From 7: a filter box (every word typed must appear in the topic, its summary, its range or its
+  owner's name), a sort (newest, A to Z, most posts, most positive, most negative) and a
+  cards/list switch. In the tabs that hold other people's topics, a person picker with counts.
+- From 13: the compact list is the default view. Either view shows 24 at a time with Show more.
+- Controls only act while they are on screen, so a filter typed in a long tab never hides topics
+  in a short one.
+- The view and sort are remembered in the browser (`localStorage`); the tab, filter and depth last
+  for the visit (`sessionStorage`), so coming back from a topic lands on the same list.
+
+Filtering and sorting run in the browser over what `GET /topics` already returns (list rows carry
+no report). The server caps that at 200 of your own and 500 of other people's; past that the list
+needs server-side paging.
+
 ## Idea board
 
 `/listening/ideas`. Save on any idea card stores a frozen copy in `listening_saved_ideas`
@@ -90,6 +112,39 @@ name kept). One save per idea per person (`UNIQUE (created_by, fingerprint)`, fi
 id plus normalized headline). Status: new, pitched, in progress, published, dropped. Each person's
 board is their own. API: `GET/POST /ideas`, `PATCH/DELETE /ideas/:id`; the topic detail response
 carries `savedIdeas` (report idea id to saved id) so Save shows as Saved.
+
+## Working an idea: drafts, thumbs, more ideas
+
+All three use the analysis model only and never a search.
+
+**Drafts** (`listening/drafts.ts`, `components/listening/IdeaDrafts.tsx`, migration 012). From any
+idea, on the topic page or the board: a **blog outline**, a **LinkedIn post** or **headlines**,
+written in place from the idea and the posts saved with it. The content team writes its own
+articles, so a blog gets an outline (notes for a writer, with the posts each section answers) and
+never finished copy. Drafts hang off the saved copy of the idea (`listening_idea_drafts`, one per
+kind per saved idea, removed with it), so drafting from a topic also saves the idea to the board,
+and only once the draft exists: a failed draft leaves nothing behind. Opening a draft again costs
+nothing; "Write another" asks once, then replaces it. Checks applied to every draft: a number
+survives only if the idea or one of its posts contains it, quotation marks survive only around
+words a post really contains, hashtags and dashes are stripped, and a draft too thin after the
+checks is refused rather than shown. API: `POST /ideas/draft` with `{savedId}` or
+`{topicId, ideaId}`, a `kind`, and `fresh` to replace.
+
+**Thumbs** (`listening/taste.ts`, migration 013). Thumbs up or down on any idea in a topic you can
+read; one vote per idea per person (`listening_idea_votes`), kept with a small copy of the idea so
+it outlives a rescan or the topic. Votes change nothing on the page. They become a few lines of
+guidance ("liked", "passed on") shown to the model the next time ideas are written for that
+person: thumbs up and saved ideas count as liked, thumbs down as passed on, and an idea one person
+liked and another passed on is left out. It is taste, never evidence, and nothing is trained on
+it. API: `POST /ideas/vote` with `{topicId, ideaId, vote}` (1, -1, or 0 to clear).
+
+**More ideas** (`writeMoreIdeas` in `synthesize.ts`, `moreIdeas` in `service.ts`). The owner can ask
+for up to 4 more ideas at a time (24 a topic) written from the posts already collected, each a
+different angle from the ones the topic has. Every new idea goes through the same second check
+against its cited posts as a scan's ideas; if that check cannot run, nothing is added, and when no
+further idea holds up the page says so. Not available while a scan runs, and discarded if the
+report changed meanwhile. A rescan or refresh rewrites the topic's ideas, added ones included;
+saved copies stay. API: `POST /topics/:id/ideas/more`.
 
 ## Export
 
@@ -194,13 +249,16 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 86 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 95 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
-  user never seeing or touching another's topics, sharing read only, the idea board).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 29 tests on fixtures,
+  user never seeing or touching another's topics, sharing read only, the idea board, drafts and
+  their checks, thumbs and taste, more ideas and its refusals).
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 38 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
-  teammate's read-only view, and saving to and working the idea board.
+  teammate's read-only view, saving to and working the idea board, and a library of 100 topics
+  (tabs, filter, person, sort, paging, both views, phone width), each kind of draft, thumbs, and
+  more ideas.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory
@@ -212,3 +270,8 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 - Scheduled rescans and alerts: not built.
 - Changing an existing topic's time range in place (today: the topic menu starts a new scan of the same topic over another range).
 - "People also ask" from Serper responses as their own section, once Serper is funded.
+- Library: grouping one topic's scans over several time ranges under one entry; a hint under the
+  search box when the topic typed has already been scanned (saves the shared allowance).
+- Words to leave out of a scan (negative keywords), set on the search form.
+- Screenshots of representative posts for client decks. Reddit blocks server browsers, so this
+  needs a feasibility test before it is promised.

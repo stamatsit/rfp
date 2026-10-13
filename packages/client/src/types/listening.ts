@@ -98,6 +98,8 @@ export interface ContentIdea {
   whyNow: string
   outline: string[]
   evidenceItemIds: string[]
+  /** Written by "More ideas" after the scan, from the posts already collected. */
+  added?: boolean
 }
 
 export interface NewsEntry {
@@ -208,6 +210,39 @@ export interface SavedIdea {
   updatedAt: string
 }
 
+/** Thumbs up or thumbs down on an idea. */
+export type IdeaVote = 1 | -1
+
+/** What can be drafted from a saved idea. A blog gets an outline, never copy. */
+export type DraftKind = "blog_outline" | "linkedin_post" | "headlines"
+
+export interface BlogOutline {
+  workingTitle: string
+  reader: string
+  angle: string
+  /** `sources` are the saved posts a section answers. */
+  sections: Array<{ heading: string; points: string[]; sources: Array<{ url: string; platform: Platform }> }>
+  close: string
+}
+
+export interface LinkedInPost {
+  /** Paragraphs separated by blank lines. */
+  post: string
+  /** Without the # sign. */
+  hashtags: string[]
+}
+
+export interface HeadlineSet {
+  headlines: Array<{ text: string; style: string }>
+}
+
+/** One draft per kind per saved idea; writing another replaces it. Removed with the saved idea. */
+export type IdeaDraft = { id: string; savedIdeaId: string; createdAt: string; updatedAt: string } & (
+  | { kind: "blog_outline"; content: BlogOutline }
+  | { kind: "linkedin_post"; content: LinkedInPost }
+  | { kind: "headlines"; content: HeadlineSet }
+)
+
 export interface RunSummary {
   id: string
   topicId: string
@@ -259,6 +294,10 @@ export interface TopicDetail {
   savedIdeas?: Record<string, string>
   /** Absent from older servers, which were "private". */
   visibility?: Visibility
+  /** Saved idea id -> the drafts written from it. Absent from older servers. */
+  drafts?: Record<string, IdeaDraft[]>
+  /** Report idea id -> your thumbs up (1) or thumbs down (-1). Absent from older servers. */
+  votes?: Record<string, IdeaVote>
 }
 
 /** Who sees whose scans: everyone with access ("team"), or each person their own and shared ones ("private"). */

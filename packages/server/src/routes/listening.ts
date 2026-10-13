@@ -67,6 +67,9 @@ router.get("/runs/:id", wrap(async (req, res) => send(res, await svc.runStatus(c
 router.post("/runs/:id/cancel", wrap(async (req, res) => send(res, await svc.cancelRun(ctx(req), req.params["id"]!))))
 router.get("/ideas", wrap(async (req, res) => res.json(await svc.listIdeas(ctx(req)))))
 router.post("/ideas", wrap(async (req, res) => send(res, await svc.saveIdea(ctx(req), req.body ?? {}))))
+router.post("/ideas/draft", wrap(async (req, res) => send(res, await svc.draftIdea(ctx(req), req.body ?? {}))))
+router.post("/ideas/vote", wrap(async (req, res) => send(res, await svc.rateIdea(ctx(req), req.body ?? {}))))
+router.post("/topics/:id/ideas/more", wrap(async (req, res) => send(res, await svc.moreIdeas(ctx(req), req.params["id"]!))))
 router.patch("/ideas/:id", wrap(async (req, res) => send(res, await svc.setIdeaStatus(ctx(req), req.params["id"]!, req.body?.status))))
 router.delete("/ideas/:id", wrap(async (req, res) => send(res, await svc.removeIdea(ctx(req), req.params["id"]!))))
 

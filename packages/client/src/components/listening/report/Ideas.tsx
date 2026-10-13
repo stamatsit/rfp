@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowUpRight, Bookmark, BookmarkCheck, ChevronDown, Lightbulb, Loader2 } from "lucide-react"
-import type { ContentIdea, ItemView, Report } from "@/types/listening"
-import { AUDIENCE_LABEL, Card, CopyButton, ExternalLink, PlatformBadge, SectionHeading, SentimentDot, Tag } from "../ui"
+import { ArrowUpRight, Bookmark, BookmarkCheck, ChevronDown, Lightbulb, Loader2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react"
+import type { ContentIdea, IdeaDraft, IdeaVote, ItemView, Report, SavedIdea } from "@/types/listening"
+import { IdeaDrafts } from "../IdeaDrafts"
+import { AUDIENCE_LABEL, Card, CopyButton, ExternalLink, NewBadge, PlatformBadge, SectionHeading, SentimentDot, Tag } from "../ui"
 
 export interface IdeaSaving {
   /** Report idea id -> saved copy id. */
@@ -10,18 +11,78 @@ export interface IdeaSaving {
   busy: string | null
   onSave: (ideaId: string) => void
   onUnsave: (ideaId: string) => void
+  topicId: string
+  /** Saved copy id -> the drafts written from it. */
+  drafts: Record<string, IdeaDraft[]>
+  /** A draft was written from this report idea; `idea` is its saved copy. */
+  onDrafted: (ideaId: string, idea: SavedIdea, draft: IdeaDraft) => void
+  /** Your thumbs, by report idea id. */
+  votes: Record<string, IdeaVote>
+  /** 1 or -1 to vote, 0 to clear. */
+  onVote: (ideaId: string, vote: IdeaVote | 0) => void
+}
+
+/** "More ideas": the topic's owner can ask for more, written from the posts already collected. */
+export interface IdeaAdding {
+  /** False for a teammate reading a shared topic, and while a scan runs. */
+  allowed: boolean
+  busy: boolean
+  /** What the last request came back with, when it added nothing. */
+  note: string | null
+  /** Ideas added since the page opened. */
+  fresh: Set<string>
+  onMore: () => void
+}
+
+/** Thumbs steer the ideas written next; they change nothing already on the page. */
+function Thumbs({ ideaId, headline, s }: { ideaId: string; headline: string; s: IdeaSaving }) {
+  const mine = s.votes[ideaId] ?? 0
+  const button = (vote: IdeaVote, Icon: typeof ThumbsUp, label: string, on: string) => (
+    <button
+      type="button"
+      onClick={() => s.onVote(ideaId, mine === vote ? 0 : vote)}
+      aria-pressed={mine === vote}
+      aria-label={`${label}: ${headline}`}
+      title={mine === vote ? `${label}. Click to clear.` : label}
+      className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
+        mine === vote ? on : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+      }`}
+    >
+      <Icon size={15} />
+    </button>
+  )
+  return (
+    <span className="inline-flex items-center" role="group" aria-label="Rate this idea">
+      {button(1, ThumbsUp, "More ideas like this", "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300")}
+      {button(-1, ThumbsDown, "Fewer ideas like this", "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300")}
+    </span>
+  )
 }
 
 function SaveButton({ ideaId, s }: { ideaId: string; s: IdeaSaving }) {
   const saved = !!s.saved[ideaId]
   const busy = s.busy === ideaId
+  // Removing a saved idea deletes the drafts written from it, so that asks once.
+  const drafted = saved && (s.drafts[s.saved[ideaId]!]?.length ?? 0) > 0
+  const [confirm, setConfirm] = useState(false)
+  useEffect(() => {
+    if (!confirm) return
+    const t = window.setTimeout(() => setConfirm(false), 3500)
+    return () => window.clearTimeout(t)
+  }, [confirm])
+  const click = () => {
+    if (!saved) return s.onSave(ideaId)
+    if (drafted && !confirm) return setConfirm(true)
+    setConfirm(false)
+    s.onUnsave(ideaId)
+  }
   return (
     <button
       type="button"
-      onClick={() => (saved ? s.onUnsave(ideaId) : s.onSave(ideaId))}
+      onClick={click}
       disabled={busy}
       aria-pressed={saved}
-      title={saved ? "Saved to your idea board. Click to remove it." : "Save to your idea board"}
+      title={saved ? (drafted ? "Saved to your idea board. Removing it deletes its drafts too." : "Saved to your idea board. Click to remove it.") : "Save to your idea board"}
       className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-60 ${
         saved
           ? "bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
@@ -29,7 +90,7 @@ function SaveButton({ ideaId, s }: { ideaId: string; s: IdeaSaving }) {
       }`}
     >
       {busy ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-      {saved ? "Saved" : "Save"}
+      {confirm ? "Remove, drafts too?" : saved ? "Saved" : "Save"}
     </button>
   )
 }
@@ -79,7 +140,7 @@ function Evidence({ ids, items, quotes }: { ids: string[]; items: Map<string, It
   )
 }
 
-function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving }: {
+function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving, fresh }: {
   idea: ContentIdea
   index: number
   items: Map<string, ItemView>
@@ -87,22 +148,29 @@ function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving
   subtopicName: string | null
   onSubtopic: () => void
   saving: IdeaSaving
+  /** Added by "More ideas" since the page opened. */
+  fresh: boolean
 }) {
   const [open, setOpen] = useState(false)
+  const savedId = saving.saved[idea.id]
   return (
-    <Card className="p-5 flex flex-col">
+    <Card id={`idea-${idea.id}`} className={`p-5 flex flex-col scroll-mt-36 ${fresh ? "ring-2 ring-sky-400/50" : ""}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[12px] font-semibold text-slate-400 tabular-nums mr-1">{String(index + 1).padStart(2, "0")}</span>
+          {fresh && <NewBadge />}
           <Tag tone="teal">{idea.format}</Tag>
           <Tag>For {AUDIENCE_LABEL[idea.audience].toLowerCase()}</Tag>
         </div>
-        <div className="flex items-center gap-0.5 -mr-1.5 -mt-1">
+        <div className="flex items-center gap-0.5 -mr-1.5 -mt-1 shrink-0">
+          <Thumbs ideaId={idea.id} headline={idea.headline} s={saving} />
           <SaveButton ideaId={idea.id} s={saving} />
           <CopyButton text={() => ideaText(idea, items)} label="" done="" ariaLabel="Copy this idea" className="!px-1.5" />
         </div>
       </div>
-      <h3 className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-slate-900 dark:text-white mt-3 text-balance">{idea.headline}</h3>
+      <h3 tabIndex={-1} className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-slate-900 dark:text-white mt-3 text-balance focus:outline-none">
+        {idea.headline}
+      </h3>
       <p className="text-[14px] leading-relaxed text-slate-600 dark:text-slate-300 mt-2">{idea.angle}</p>
       {idea.whyNow && (
         <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-2.5">
@@ -142,11 +210,22 @@ function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving
           <Evidence ids={idea.evidenceItemIds} items={items} quotes={quotes} />
         </div>
       )}
+      <IdeaDrafts
+        target={savedId ? { savedId } : { topicId: saving.topicId, ideaId: idea.id }}
+        drafts={savedId ? saving.drafts[savedId] ?? [] : []}
+        onDrafted={(saved, draft) => saving.onDrafted(idea.id, saved, draft)}
+      />
     </Card>
   )
 }
 
-export function Ideas({ report, items, onSubtopic, saving }: { report: Report; items: Map<string, ItemView>; onSubtopic: (id: string) => void; saving: IdeaSaving }) {
+export function Ideas({ report, items, onSubtopic, saving, adding }: {
+  report: Report
+  items: Map<string, ItemView>
+  onSubtopic: (id: string) => void
+  saving: IdeaSaving
+  adding: IdeaAdding
+}) {
   const quotes = new Map(report.quotes.map((q) => [q.itemId, q.text]))
   const subName = new Map(report.subtopics.map((s) => [s.id, s.name]))
   const savedHere = report.ideas.filter((i) => saving.saved[i.id]).length
@@ -156,7 +235,7 @@ export function Ideas({ report, items, onSubtopic, saving }: { report: Report; i
         id="ideas"
         title="Content ideas"
         count={report.ideas.length}
-        hint="Each idea is backed by at least two real posts, checked a second time against them. Save the ones worth pursuing to your idea board."
+        hint="Each idea is backed by at least two real posts, checked a second time against them. Save the ones worth pursuing, or start a draft from one."
         action={
           report.ideas.length ? (
             <div className="flex items-center gap-1 shrink-0">
@@ -196,8 +275,27 @@ export function Ideas({ report, items, onSubtopic, saving }: { report: Report; i
               subtopicName={idea.subtopicId ? subName.get(idea.subtopicId) ?? null : null}
               onSubtopic={() => idea.subtopicId && onSubtopic(idea.subtopicId)}
               saving={saving}
+              fresh={adding.fresh.has(idea.id)}
             />
           ))}
+        </div>
+      )}
+      {adding.allowed && report.totals.relevant >= 3 && report.analysisSource === "llm" && (
+        <div className="mt-6 flex flex-col items-center gap-2 text-center">
+          <button
+            type="button"
+            onClick={adding.onMore}
+            disabled={adding.busy}
+            className="inline-flex items-center gap-2 h-10 rounded-xl px-4 text-[14px] font-semibold text-slate-800 dark:text-slate-100 border border-black/[0.1] dark:border-white/[0.14] bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+          >
+            {adding.busy ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none text-sky-600" /> : <Sparkles size={16} className="text-sky-600 dark:text-sky-400" />}
+            {adding.busy ? "Writing more ideas" : "More ideas"}
+          </button>
+          <p className="text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400 max-w-lg text-pretty" aria-live="polite">
+            {adding.busy
+              ? "From the posts already collected, each checked against them. About 20 seconds, and no searches."
+              : adding.note ?? "Written from the posts already collected and checked against them, so it uses no searches. Your thumbs steer what comes next: more like the ideas you liked, fewer like the ones you passed on."}
+          </p>
         </div>
       )}
     </section>

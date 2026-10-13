@@ -8,6 +8,72 @@ export const TOPIC_ID = "11111111-1111-4111-8111-111111111111"
 export const RUN_1 = "22222222-2222-4222-8222-222222222222"
 export const RUN_2 = "33333333-3333-4333-8333-333333333333"
 
+const LIBRARY_SUBJECTS = [
+  "FAFSA changes",
+  "online nursing degree",
+  "college enrollment trends",
+  "transfer credit policies",
+  "campus housing costs",
+  "student loan forgiveness",
+  "dual enrollment programs",
+  "test optional admissions",
+  "community college pathways",
+  "graduate job outcomes",
+  "rural hospital closures",
+  "telehealth for seniors",
+  "nurse staffing shortages",
+  "urgent care wait times",
+  "maternity ward access",
+  "mental health counseling on campus",
+  "international student visas",
+  "adult learners returning to school",
+  "esports scholarships",
+  "study abroad safety",
+  "cybersecurity bootcamps",
+  "trade school versus college",
+  "campus dining plans",
+  "first generation student support",
+  "veterans education benefits",
+]
+const LIBRARY_RANGES = [
+  { timeWindow: "1y", windowFrom: null, windowTo: null },
+  { timeWindow: "3m", windowFrom: null, windowTo: null },
+  { timeWindow: "1w", windowFrom: null, windowTo: null },
+  { timeWindow: "custom", windowFrom: "2026-03-01", windowTo: "2026-05-31" },
+]
+
+/**
+ * A library's worth of saved topics, newest first, the way the list endpoint
+ * returns them: the same subjects scanned over several time ranges, with mixed
+ * feelings, sizes and owners. Topic 4 is still scanning and topic 9 failed.
+ */
+export function manyTopics(n: number, owners: string[] = ["eric.yerke@stamats.com"], idPrefix = "lib") {
+  return Array.from({ length: n }, (_, i) => {
+    const running = i === 3
+    const failed = i === 8
+    const subject = LIBRARY_SUBJECTS[i % LIBRARY_SUBJECTS.length]!
+    const at = new Date(Date.UTC(2026, 9, 7, 20, 0) - i * 5 * 3600e3).toISOString()
+    return {
+      id: `${idPrefix}-${i + 1}`,
+      createdBy: owners[i % owners.length]!,
+      shared: i % 4 === 0,
+      sharedAt: i % 4 === 0 ? at : null,
+      query: subject,
+      ...LIBRARY_RANGES[Math.floor(i / LIBRARY_SUBJECTS.length) % LIBRARY_RANGES.length]!,
+      plan: null,
+      report: null,
+      itemCount: running || failed ? 0 : ((i * 71) % 400) + 40,
+      relevantCount: running || failed ? 0 : ((i * 53) % 240) + 3,
+      sentimentScore: running || failed ? null : ((i * 37) % 141) - 70,
+      headline: running || failed ? null : `People discussing ${subject} split between cost worries and practical how-to questions, with a few strong personal stories.`,
+      lastRunAt: at,
+      lastRunStatus: running ? "running" : failed ? "failed" : "complete",
+      createdAt: at,
+      updatedAt: at,
+    }
+  })
+}
+
 export const sent = (positive: number, neutral: number, negative: number, mixed = 0) => {
   const total = positive + neutral + negative + mixed
   return { positive, neutral, negative, mixed, score: total ? Math.round((100 * (positive - negative)) / total) : 0 }
@@ -231,6 +297,61 @@ export interface Mock {
   usage: unknown
   /** What the server says about who sees whose scans; unset is an older server (private). */
   visibility?: "team" | "private"
+  /** Saved idea id -> its drafts, as the server holds them. */
+  drafts: Record<string, Array<Record<string, unknown> & { kind: string; version: number }>>
+  /** Not 200: the next draft requests fail with this status. */
+  draftStatus: number
+  /** Hold a draft request this long, so the writing state can be seen. */
+  draftDelayMs: number
+  /** Your thumbs, by report idea id. */
+  votes: Record<string, number>
+  /** Not 200: rating an idea fails with this status. */
+  voteStatus: number
+  /** What "More ideas" does: add two, add none, or fail with this status. */
+  moreIdeas: "two" | "none" | number
+  moreDelayMs: number
+}
+
+/** A draft as the server would return it. `version` changes the wording, to prove "Write another" replaced it. */
+export function fixtureDraft(kind: string, version: number, sources: Array<{ url: string; platform: string }>) {
+  const again = version > 1
+  if (kind === "blog_outline")
+    return {
+      workingTitle: again ? "Clinical placement, explained before you enroll" : "Who arranges your clinical placement, and when to ask",
+      reader: "Prospective online nursing students who worry about finding a clinical site.",
+      angle: "Placement support varies by program, and the page that explains it is often hard to find.",
+      sections: [
+        { heading: "What students are asking", points: ["Open with the question people keep raising", "Name the worry in plain words"], sources: sources.slice(0, 2) },
+        { heading: "How placement usually works", points: ["Describe the common arrangements", "Say what the student is expected to do"], sources: sources.slice(1, 2) },
+        { heading: "Questions to ask a program", points: ["List what to ask before enrolling"], sources: [] },
+        { heading: "Next steps", points: ["Point to the admissions contact"], sources: sources.slice(0, 1) },
+      ],
+      close: "End with the one question to ask an advisor.",
+    }
+  if (kind === "linkedin_post")
+    return {
+      post: [
+        again ? "The clinical placement question is not going away." : "Online nursing students keep asking one thing: who actually finds the clinical placement?",
+        "It comes up again and again, and the answer is rarely on the program page.",
+        "Say who arranges placements, when it happens, and what the student has to do.",
+        "What does your program page say about clinical placement today?",
+      ].join("\n\n"),
+      hashtags: ["HigherEdMarketing", "NursingEducation"],
+    }
+  return {
+    headlines: [
+      { text: again ? "Clinical placement, answered up front" : "Who arranges clinical placements for online students?", style: "question" },
+      { text: "How to ask a nursing program about clinical placement", style: "how-to" },
+      { text: "Clinical placement: what online programs owe you", style: "direct" },
+      { text: "No, you should not have to find your own clinical site", style: "myth" },
+      { text: "What online nursing students wish they had asked first", style: "reader voice" },
+      { text: "Clinical placement, explained for online students", style: "direct" },
+      { text: "The question every online nursing applicant should ask before they pay a deposit", style: "question" },
+      { text: "Before you enroll, ask who finds the site", style: "how-to" },
+      { text: "Why placement support decides the online nursing experience", style: "direct" },
+      { text: "I love my online program, but who finds the placement?", style: "reader voice" },
+    ],
+  }
 }
 
 export const USAGE = {
@@ -260,6 +381,13 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     runStatus: "complete",
     ideas: [],
     usage: USAGE,
+    drafts: {},
+    draftStatus: 200,
+    draftDelayMs: 0,
+    votes: {},
+    voteStatus: 200,
+    moreIdeas: "two",
+    moreDelayMs: 0,
     ...over,
   }
   // Instant scrolling (the page honours reduced motion), so "scrolled into view" checks never race a smooth scroll.
@@ -287,10 +415,10 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
       // Mark ideas already on the board, as the server does.
       const savedIdeas: Record<string, string> = {}
       for (const s of m.ideas) if (s["topicId"] === TOPIC_ID && typeof s["reportIdeaId"] === "string") savedIdeas[s["reportIdeaId"] as string] = s.id
-      return r.fulfill({ json: { ...m.detail, savedIdeas, ...(m.visibility ? { visibility: m.visibility } : {}) } })
+      return r.fulfill({ json: { ...m.detail, savedIdeas, drafts: m.drafts, votes: m.votes, ...(m.visibility ? { visibility: m.visibility } : {}) } })
     }
     if (method === "GET" && path.startsWith("/runs/")) return r.fulfill({ json: { run: { ...m.detail.runs[0], status: m.runStatus } } })
-    if (method === "GET" && path === "/ideas") return r.fulfill({ json: { ideas: m.ideas } })
+    if (method === "GET" && path === "/ideas") return r.fulfill({ json: { ideas: m.ideas, drafts: m.drafts } })
     if (method === "GET" && path === "/usage") return r.fulfill({ json: m.usage })
     if (method === "GET" && path === `/topics/${TOPIC_ID}/sources`) {
       // Every relevant source with its full text, counted ones first, as the server returns them.
@@ -322,18 +450,17 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
       m.detail = { ...m.detail, topic: { ...m.detail.topic, shared: body.shared } }
       return r.fulfill({ json: { shared: body.shared } })
     }
-    if (method === "POST" && path === "/ideas") {
-      const body = req.postDataJSON() as { topicId: string; ideaId: string }
-      m.posts.push({ url: path, body })
-      const idea = m.detail.topic.report?.ideas.find((i) => i.id === body.ideaId)
-      if (!idea) return r.fulfill({ status: 404, json: { error: "That idea is no longer in this report. Reload the page.", code: "idea_gone" } })
+    // A frozen copy of one of the report's ideas, put on the board, as the server makes it.
+    const saveFromReport = (topicId: string, ideaId: string) => {
+      const idea = m.detail.topic.report?.ideas.find((i) => i.id === ideaId)
+      if (!idea) return null
       const saved = {
         id: `saved-${m.ideas.length + 1}`,
         reportIdeaId: idea.id,
         createdBy: "eric.yerke@stamats.com",
-        topicId: body.topicId,
+        topicId,
         topicQuery: m.detail.topic.query,
-        fingerprint: `${body.topicId}:${idea.headline.toLowerCase()}`,
+        fingerprint: `${topicId}:${idea.headline.toLowerCase()}`,
         idea: { headline: idea.headline, angle: idea.angle, audience: idea.audience, format: idea.format, whyNow: idea.whyNow, outline: idea.outline, subtopic: "Clinical placement" },
         sources: idea.evidenceItemIds.map((id) => {
           const it = m.detail.items.find((x) => x.id === id)!
@@ -344,7 +471,62 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
         updatedAt: "2026-10-08T15:00:00.000Z",
       }
       m.ideas.unshift(saved)
+      return saved
+    }
+    if (method === "POST" && path === "/ideas") {
+      const body = req.postDataJSON() as { topicId: string; ideaId: string }
+      m.posts.push({ url: path, body })
+      const saved = saveFromReport(body.topicId, body.ideaId)
+      if (!saved) return r.fulfill({ status: 404, json: { error: "That idea is no longer in this report. Reload the page.", code: "idea_gone" } })
       return r.fulfill({ json: { idea: saved } })
+    }
+    if (method === "POST" && path === "/ideas/vote") {
+      const body = req.postDataJSON() as { topicId: string; ideaId: string; vote: number }
+      m.posts.push({ url: path, body })
+      if (m.voteStatus !== 200) return r.fulfill({ status: m.voteStatus, json: { error: "Something went wrong. Try again." } })
+      if (body.vote === 0) delete m.votes[body.ideaId]
+      else m.votes[body.ideaId] = body.vote
+      return r.fulfill({ json: { vote: body.vote === 0 ? null : body.vote } })
+    }
+    if (method === "POST" && path === `/topics/${TOPIC_ID}/ideas/more`) {
+      m.posts.push({ url: path, body: null })
+      if (m.moreDelayMs) await new Promise((done) => setTimeout(done, m.moreDelayMs))
+      const report = m.detail.topic.report!
+      if (typeof m.moreIdeas === "number") return r.fulfill({ status: m.moreIdeas, json: { error: "A scan is running for this topic. Ask again when it finishes.", code: "active_run" } })
+      if (m.moreIdeas === "none") return r.fulfill({ json: { added: [], ideas: report.ideas } })
+      const base = report.ideas[0]!
+      const n = report.ideas.length
+      const added = [
+        { ...base, id: `idea${n + 1}`, headline: "Questions to ask a program before you enroll", angle: "Give applicants the list.", format: "FAQ page", added: true },
+        { ...base, id: `idea${n + 2}`, headline: "What the full price leaves out", angle: "Name the costs people find later.", format: "article", added: true },
+      ]
+      report.ideas = [...report.ideas, ...added]
+      return r.fulfill({ json: { added, ideas: report.ideas } })
+    }
+    if (method === "POST" && path === "/ideas/draft") {
+      const body = req.postDataJSON() as { savedId?: string; topicId?: string; ideaId?: string; kind: string; fresh?: boolean }
+      m.posts.push({ url: path, body })
+      if (m.draftDelayMs) await new Promise((done) => setTimeout(done, m.draftDelayMs))
+      // A failed draft saves nothing, as on the server.
+      if (m.draftStatus !== 200) return r.fulfill({ status: m.draftStatus, json: { error: "The draft could not be written this time. Try again.", code: "draft_failed" } })
+      const found = body.savedId ? m.ideas.find((i) => i.id === body.savedId) : m.ideas.find((i) => i["topicId"] === body.topicId && i["reportIdeaId"] === body.ideaId)
+      const saved = found ?? (body.topicId && body.ideaId ? saveFromReport(body.topicId, body.ideaId) : null)
+      if (!saved) return r.fulfill({ status: 404, json: { error: "Idea not found" } })
+      const list = m.drafts[saved.id] ?? []
+      const existing = list.find((d) => d.kind === body.kind)
+      if (existing && !body.fresh) return r.fulfill({ json: { idea: saved, draft: existing } })
+      const version = (existing?.version ?? 0) + 1
+      const draft = {
+        id: `draft-${saved.id}-${body.kind}`,
+        savedIdeaId: saved.id,
+        kind: body.kind,
+        version,
+        content: fixtureDraft(body.kind, version, (saved as unknown as { sources: Array<{ url: string; platform: string }> }).sources),
+        createdAt: "2026-10-13T16:00:00.000Z",
+        updatedAt: "2026-10-13T16:00:00.000Z",
+      }
+      m.drafts[saved.id] = [...list.filter((d) => d.kind !== body.kind), draft]
+      return r.fulfill({ json: { idea: saved, draft } })
     }
     if (method === "PATCH" && path.startsWith("/ideas/")) {
       const body = req.postDataJSON() as { status: string }
@@ -357,6 +539,8 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     if (method === "DELETE" && path.startsWith("/ideas/")) {
       m.deletes.push(path)
       m.ideas = m.ideas.filter((i) => `/ideas/${i.id}` !== path)
+      // Drafts go with their idea.
+      delete m.drafts[path.replace("/ideas/", "")]
       return r.fulfill({ json: { ok: true } })
     }
     if (method === "POST") {

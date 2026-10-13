@@ -10,7 +10,11 @@ import type { ThreadUpdate } from "./harvest.js"
 import {
   LABEL_VERSION,
   type Coverage,
+  type DraftContent,
+  type DraftKind,
+  type IdeaDraft,
   type IdeaStatus,
+  type IdeaVoteRow,
   type Item,
   type ItemLabels,
   type SavedIdea,
@@ -77,6 +81,15 @@ export interface Store {
   deleteSavedIdea(id: string): Promise<void>
   /** Fingerprints this person saved from one topic, to mark ideas as saved. */
   savedFingerprints(createdBy: string, topicId: string): Promise<Set<string>>
+  /** Drafts written from these saved ideas, oldest first. */
+  listDrafts(savedIdeaIds: string[]): Promise<IdeaDraft[]>
+  /** Stores a draft, replacing this saved idea's earlier draft of the same kind. */
+  putDraft(input: { savedIdeaId: string; kind: DraftKind; content: DraftContent }): Promise<IdeaDraft>
+  /** One vote per idea per person; voting again replaces it. */
+  setVote(input: Omit<IdeaVoteRow, "updatedAt" | "topicId"> & { topicId: string }): Promise<void>
+  clearVote(createdBy: string, fingerprint: string): Promise<void>
+  /** Votes on one topic's ideas and/or by one person, newest first. */
+  listVotes(filter: { topicId?: string; createdBy?: string; limit?: number }): Promise<IdeaVoteRow[]>
   updateTopic(id: string, patch: TopicPatch): Promise<void>
   deleteTopic(id: string): Promise<void>
   createRun(topicId: string, createdBy: string, trigger: RunTrigger): Promise<string>
@@ -133,6 +146,10 @@ function topicFromRow(r: Record<string, any>, withReport = true): TopicRow {
     createdAt: iso(r.created_at)!,
     updatedAt: iso(r.updated_at)!,
   }
+}
+
+function draftFromRow(r: Record<string, any>): IdeaDraft {
+  return { id: r.id, savedIdeaId: r.saved_idea_id, kind: r.kind, content: r.content, createdAt: iso(r.created_at)!, updatedAt: iso(r.updated_at)! } as IdeaDraft
 }
 
 function savedIdeaFromRow(r: Record<string, any>): SavedIdea {
@@ -275,6 +292,45 @@ export class PgStore implements Store {
       SELECT fingerprint FROM listening_saved_ideas
       WHERE lower(created_by) = ${createdBy.trim().toLowerCase()} AND topic_id = ${topicId}::uuid`
     return new Set(rows.map((r) => r["fingerprint"] as string))
+  }
+
+  async listDrafts(savedIdeaIds: string[]): Promise<IdeaDraft[]> {
+    if (savedIdeaIds.length === 0) return []
+    const rows = await this.sql`
+      SELECT * FROM listening_idea_drafts WHERE saved_idea_id::text IN ${this.sql(savedIdeaIds)}
+      ORDER BY created_at`
+    return rows.map(draftFromRow)
+  }
+
+  async putDraft(input: { savedIdeaId: string; kind: DraftKind; content: DraftContent }): Promise<IdeaDraft> {
+    const [r] = await this.sql`
+      INSERT INTO listening_idea_drafts (saved_idea_id, kind, content)
+      VALUES (${input.savedIdeaId}::uuid, ${input.kind}, ${this.sql.json(input.content as never)})
+      ON CONFLICT (saved_idea_id, kind) DO UPDATE SET content = EXCLUDED.content, updated_at = now()
+      RETURNING *`
+    return draftFromRow(r!)
+  }
+
+  async setVote(input: Omit<IdeaVoteRow, "updatedAt" | "topicId"> & { topicId: string }): Promise<void> {
+    await this.sql`
+      INSERT INTO listening_idea_votes (created_by, topic_id, fingerprint, vote, idea, updated_at)
+      VALUES (${input.createdBy.trim().toLowerCase()}, ${input.topicId}::uuid, ${input.fingerprint}, ${input.vote}, ${this.sql.json(input.idea as never)}, clock_timestamp())
+      ON CONFLICT (created_by, fingerprint)
+      DO UPDATE SET vote = EXCLUDED.vote, idea = EXCLUDED.idea, topic_id = EXCLUDED.topic_id, updated_at = clock_timestamp()`
+  }
+
+  async clearVote(createdBy: string, fingerprint: string): Promise<void> {
+    await this.sql`DELETE FROM listening_idea_votes WHERE created_by = ${createdBy.trim().toLowerCase()} AND fingerprint = ${fingerprint}`
+  }
+
+  async listVotes(filter: { topicId?: string; createdBy?: string; limit?: number }): Promise<IdeaVoteRow[]> {
+    const rows = await this.sql`
+      SELECT created_by, topic_id, fingerprint, vote, idea, updated_at FROM listening_idea_votes
+      WHERE true
+        ${filter.topicId ? this.sql`AND topic_id = ${filter.topicId}::uuid` : this.sql``}
+        ${filter.createdBy ? this.sql`AND created_by = ${filter.createdBy.trim().toLowerCase()}` : this.sql``}
+      ORDER BY updated_at DESC LIMIT ${Math.min(Math.max(filter.limit ?? 100, 1), 500)}`
+    return rows.map((r) => ({ createdBy: r["created_by"], topicId: r["topic_id"] ?? null, fingerprint: r["fingerprint"], vote: r["vote"] === 1 ? 1 : -1, idea: r["idea"], updatedAt: iso(r["updated_at"])! }))
   }
 
   async updateTopic(id: string, p: TopicPatch): Promise<void> {
@@ -575,6 +631,43 @@ export class MemoryStore implements Store {
   }
   async deleteSavedIdea(id: string) {
     this.ideas.delete(id)
+    // Drafts go with their idea (ON DELETE CASCADE).
+    for (const [k, d] of this.drafts) if (d.savedIdeaId === id) this.drafts.delete(k)
+  }
+  votes = new Map<string, IdeaVoteRow>()
+  private voteTick = 0
+  async setVote(input: Omit<IdeaVoteRow, "updatedAt" | "topicId"> & { topicId: string }) {
+    const who = input.createdBy.trim().toLowerCase()
+    // A counter keeps "newest first" exact when two votes land in the same millisecond.
+    const updatedAt = new Date(Date.now() + ++this.voteTick).toISOString()
+    this.votes.set(`${who}|${input.fingerprint}`, { ...structuredClone(input), createdBy: who, updatedAt })
+  }
+  async clearVote(createdBy: string, fingerprint: string) {
+    this.votes.delete(`${createdBy.trim().toLowerCase()}|${fingerprint}`)
+  }
+  async listVotes(filter: { topicId?: string; createdBy?: string; limit?: number }) {
+    const who = filter.createdBy?.trim().toLowerCase()
+    return [...this.votes.values()]
+      .filter((v) => (!filter.topicId || v.topicId === filter.topicId) && (!who || v.createdBy === who))
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+      .slice(0, filter.limit ?? 100)
+      .map((v) => structuredClone(v))
+  }
+  drafts = new Map<string, IdeaDraft>()
+  async listDrafts(savedIdeaIds: string[]) {
+    const ids = new Set(savedIdeaIds)
+    return [...this.drafts.values()]
+      .filter((d) => ids.has(d.savedIdeaId))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+      .map((d) => structuredClone(d))
+  }
+  async putDraft(input: { savedIdeaId: string; kind: DraftKind; content: DraftContent }) {
+    const key = `${input.savedIdeaId}:${input.kind}`
+    const now = new Date().toISOString()
+    const before = this.drafts.get(key)
+    const row = { id: before?.id ?? crypto.randomUUID(), savedIdeaId: input.savedIdeaId, kind: input.kind, content: structuredClone(input.content), createdAt: before?.createdAt ?? now, updatedAt: now } as IdeaDraft
+    this.drafts.set(key, row)
+    return structuredClone(row)
   }
   async savedFingerprints(createdBy: string, topicId: string) {
     const who = createdBy.trim().toLowerCase()
@@ -602,6 +695,8 @@ export class MemoryStore implements Store {
     for (const [k, it] of this.items) if (it.topicId === id) this.items.delete(k)
     // Saved ideas outlive their topic (ON DELETE SET NULL).
     for (const i of this.ideas.values()) if (i.topicId === id) i.topicId = null
+    // So do votes: they still say what this person likes.
+    for (const v of this.votes.values()) if (v.topicId === id) v.topicId = null
   }
   async createRun(topicId: string, createdBy: string, trigger: RunTrigger) {
     await this.failStaleRuns(STALE_RUN_MS)

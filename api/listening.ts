@@ -198,6 +198,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (method === "GET") return res.json(await m.svc.listIdeas(ctx))
       if (method === "POST") return send(await m.svc.saveIdea(ctx, (req.body ?? {}) as { topicId?: unknown; ideaId?: unknown }))
     }
+    if (method === "POST" && (mm = path.match(/^\/topics\/([^/]+)\/ideas\/more$/))) return send(await m.svc.moreIdeas(ctx, mm[1]!))
+    if (method === "POST" && path === "/ideas/vote") {
+      return send(await m.svc.rateIdea(ctx, (req.body ?? {}) as { topicId?: unknown; ideaId?: unknown; vote?: unknown }))
+    }
+    if (method === "POST" && path === "/ideas/draft") {
+      return send(await m.svc.draftIdea(ctx, (req.body ?? {}) as { savedId?: unknown; topicId?: unknown; ideaId?: unknown; kind?: unknown; fresh?: unknown }))
+    }
     if ((mm = path.match(/^\/ideas\/([^/]+)$/))) {
       if (method === "PATCH") return send(await m.svc.setIdeaStatus(ctx, mm[1]!, (req.body as { status?: unknown } | undefined)?.status))
       if (method === "DELETE") return send(await m.svc.removeIdea(ctx, mm[1]!))

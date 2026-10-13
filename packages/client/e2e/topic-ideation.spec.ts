@@ -9,7 +9,7 @@ import fs from "node:fs"
 import zlib from "node:zlib"
 import { expect, test } from "@playwright/test"
 import JSZip from "jszip"
-import { RUN_1, RUN_2, RUN_EVENTS, TOPIC_ID, buildDetail, errorsOf, setup, sse } from "./fixtures/listeningMocks"
+import { RUN_1, RUN_2, RUN_EVENTS, TOPIC_ID, buildDetail, errorsOf, manyTopics, setup, sse } from "./fixtures/listeningMocks"
 
 /** Text drawn in a jsPDF file: inflate each content stream and join its (string) Tj operands. */
 function pdfText(buf: Buffer): string {
@@ -226,8 +226,11 @@ test.describe("Topic Ideation", () => {
     const theirs = buildDetail({ viewer: true })
     await setup(page, { shared: [theirs.topic], detail: theirs })
     await page.goto("/listening")
-    const section = page.getByRole("region", { name: /Shared with you/ })
+    // Nothing of your own yet, so the library opens on what was shared.
+    await expect(page.getByRole("tab", { name: /Shared with you/ })).toHaveAttribute("aria-selected", "true")
+    const section = page.getByRole("tabpanel", { name: /Shared with you/ })
     await expect(section.getByText("Shared by Mariah Tang")).toBeVisible()
+    await expect(section.getByText("Read, export and save ideas. Only the owner can rescan.")).toBeVisible()
     await section.getByRole("link", { name: /online nursing degree/ }).click()
     await expect(page.getByText("Shared by Mariah Tang · read only")).toBeVisible()
     await expect(page.getByRole("button", { name: "Export" })).toBeVisible()
@@ -249,11 +252,12 @@ test.describe("Topic Ideation", () => {
       detail: joes,
     })
     await page.goto("/listening")
-    const section = page.getByRole("region", { name: /Everyone's topics/ })
+    const section = page.getByRole("tabpanel", { name: /Everyone's topics/ })
+    await expect(section.getByText("As an admin you can open every scan, private ones too.")).toBeVisible()
     await expect(section.getByText("Joe Volk · private")).toBeVisible()
     await expect(section.getByText("Mariah Tang · shared")).toBeVisible()
     // The admin list already includes shared topics; no second list.
-    await expect(page.getByRole("heading", { name: /Shared with you/ })).toHaveCount(0)
+    await expect(page.getByRole("tab", { name: /Shared with you/ })).toHaveCount(0)
     await section.getByRole("link", { name: /online nursing degree/ }).click()
     await expect(page.getByText("Joe Volk's private topic · admin view, read only")).toBeVisible()
     await expect(page.getByRole("button", { name: /Rescan for more/ })).toHaveCount(0)
@@ -311,8 +315,8 @@ test.describe("Topic Ideation", () => {
     const mariahs = buildDetail({ viewer: true })
     await setup(page, { shared: [mariahs.topic] })
     await page.goto("/listening")
-    await expect(page.getByRole("heading", { name: /Shared with you/ })).toBeVisible()
-    await expect(page.getByRole("heading", { name: /Everyone's topics/ })).toHaveCount(0)
+    await expect(page.getByRole("tab", { name: /Shared with you/ })).toBeVisible()
+    await expect(page.getByRole("tab", { name: /Everyone's topics/ })).toHaveCount(0)
   })
 
   test("idea board: save from a topic, track status, filter, remove", async ({ page }) => {
@@ -344,6 +348,214 @@ test.describe("Topic Ideation", () => {
     await expect(page.getByText("No saved ideas yet")).toBeVisible()
     expect(m.deletes).toEqual(["/ideas/saved-1"])
     expect(errorsOf(page)).toEqual([])
+  })
+
+  test("drafts: a blog outline, a LinkedIn post and headlines from an idea, in place and kept with it", async ({ page, context }) => {
+    await context.grantPermissions(["clipboard-read", "clipboard-write"])
+    const m = await setup(page, { draftDelayMs: 500 })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    const clip = () => page.evaluate(() => navigator.clipboard.readText())
+    const draftPosts = () => m.posts.filter((p) => p.url === "/ideas/draft").map((p) => p.body)
+    const button = (name: string) => page.getByRole("button", { name: new RegExp(`^${name}`) }).first()
+
+    // Blog outline: says it is writing, then shows notes with the posts each section answers.
+    await button("Blog outline").click()
+    const outline = page.getByRole("region", { name: "Blog outline" })
+    await expect(outline.getByText("Writing an outline. About ten seconds.")).toBeVisible()
+    await expect(outline.getByText("Drafting saves this idea to your board, so the draft stays with it.")).toBeVisible()
+    await expect(outline.getByText("Who arranges your clinical placement, and when to ask")).toBeVisible()
+    await expect(outline.getByText("Notes to write from, built only from this idea and its posts. The article is yours to write.")).toBeVisible()
+    await expect(outline.getByText("What students are asking")).toBeVisible()
+    await expect(outline.getByText("Open with the question people keep raising")).toBeVisible()
+    await expect(outline.locator('a[href="https://www.reddit.com/r/nursing/comments/t1/thread_1/"]').first()).toHaveAttribute("target", "_blank")
+    await expect(outline.getByText("End with the one question to ask an advisor.")).toBeVisible()
+    expect(draftPosts()).toEqual([{ topicId: TOPIC_ID, ideaId: "idea1", kind: "blog_outline" }])
+    // Drafting saved the idea to the board.
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true")
+    await expect(button("Blog outline")).toContainText("(written)")
+
+    await outline.getByRole("button", { name: "Copy", exact: true }).click()
+    const copied = await clip()
+    expect(copied).toContain("Blog outline: Who arranges your clinical placement, and when to ask")
+    expect(copied).toContain("1. What students are asking\n   - Open with the question people keep raising")
+    expect(copied).toContain("Posts: https://www.reddit.com/r/nursing/comments/t1/thread_1/")
+    expect(copied).toContain("To close: End with the one question to ask an advisor.")
+
+    // Hiding and showing it again asks the server for nothing.
+    await button("Blog outline").click()
+    await expect(outline).toHaveCount(0)
+    await button("Blog outline").click()
+    await expect(outline.getByText("What students are asking")).toBeVisible()
+    expect(draftPosts()).toHaveLength(1)
+
+    // Write another asks first, then replaces it. Later requests go to the saved copy.
+    await outline.getByRole("button", { name: "Write another" }).click()
+    expect(draftPosts()).toHaveLength(1)
+    await outline.getByRole("button", { name: "Replace this one?" }).click()
+    await expect(outline.getByText("Clinical placement, explained before you enroll")).toBeVisible()
+    await expect(outline.getByText("Who arranges your clinical placement, and when to ask")).toHaveCount(0)
+    expect(draftPosts()[1]).toEqual({ savedId: "saved-1", kind: "blog_outline", fresh: true })
+
+    // LinkedIn post.
+    await button("LinkedIn post").click()
+    const post = page.getByRole("region", { name: "LinkedIn post" })
+    await expect(post.getByText("Online nursing students keep asking one thing: who actually finds the clinical placement?")).toBeVisible()
+    await expect(post.getByText("#HigherEdMarketing #NursingEducation")).toBeVisible()
+    await expect(post.getByText(/^\d+ words, \d+ characters$/)).toBeVisible()
+    await expect(post.getByText("A first draft to edit in your own voice. Check it against the posts before you publish.")).toBeVisible()
+    await post.getByRole("button", { name: "Copy", exact: true }).click()
+    expect(await clip()).toMatch(/^Online nursing students keep asking[\s\S]*clinical placement today\?\n\n#HigherEdMarketing #NursingEducation$/)
+    // One panel at a time.
+    await expect(outline).toHaveCount(0)
+
+    // Headlines: ten, each with its length and its own copy button.
+    await button("Headlines").click()
+    const heads = page.getByRole("region", { name: "Headlines" })
+    await expect(heads.getByRole("listitem")).toHaveCount(10)
+    await expect(heads.getByRole("listitem").first()).toContainText("Who arranges clinical placements for online students?")
+    await expect(heads.getByRole("listitem").first()).toContainText("53")
+    await heads.getByRole("button", { name: "Copy headline: Before you enroll, ask who finds the site" }).click()
+    expect(await clip()).toBe("Before you enroll, ask who finds the site")
+    await heads.getByRole("button", { name: "Copy all" }).click()
+    expect((await clip()).split("\n")).toHaveLength(10)
+    expect(draftPosts().map((b) => (b as { kind: string }).kind)).toEqual(["blog_outline", "blog_outline", "linkedin_post", "headlines"])
+
+    // After a reload the drafts are still there, and opening one writes nothing.
+    await page.reload()
+    await expect(button("Headlines")).toContainText("(written)")
+    await button("Headlines").click()
+    await expect(page.getByRole("region", { name: "Headlines" }).getByRole("listitem")).toHaveCount(10)
+    expect(draftPosts()).toHaveLength(4)
+
+    // On the idea board the same drafts sit with the idea.
+    await page.goto("/listening/ideas")
+    await expect(page.getByRole("button", { name: /^LinkedIn post/ })).toContainText("(written)")
+    await page.getByRole("button", { name: /^Blog outline/ }).click()
+    await expect(page.getByRole("region", { name: "Blog outline" }).getByText("Clinical placement, explained before you enroll")).toBeVisible()
+    expect(draftPosts()).toHaveLength(4)
+    // Removing the idea says the drafts go with it.
+    await page.getByRole("button", { name: "Remove" }).click()
+    await page.getByRole("button", { name: "Remove, drafts too?" }).click()
+    await expect(page.getByText("No saved ideas yet")).toBeVisible()
+    expect(m.drafts).toEqual({})
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("drafts: a failure says so, saves nothing, and Try again works", async ({ page }) => {
+    const m = await setup(page, { draftStatus: 502 })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await page.getByRole("button", { name: /^Headlines/ }).first().click()
+    const panel = page.getByRole("region", { name: "Headlines" })
+    await expect(panel.getByRole("alert")).toContainText("The draft could not be written this time. Try again.")
+    // Nothing was saved to the board by the failed attempt.
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveCount(0)
+    expect(m.ideas).toEqual([])
+    m.draftStatus = 200
+    await panel.getByRole("button", { name: "Try again" }).click()
+    await expect(panel.getByRole("listitem")).toHaveCount(10)
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true")
+    // Un-saving an idea that has drafts asks first.
+    await page.getByRole("button", { name: "Saved", exact: true }).click()
+    expect(m.deletes).toEqual([])
+    await page.getByRole("button", { name: "Remove, drafts too?" }).click()
+    await expect(page.getByText("Removed from your idea board")).toBeVisible()
+    expect(m.deletes).toEqual(["/ideas/saved-1"])
+    await expect(page.getByRole("region", { name: "Headlines" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /^Headlines/ }).first()).not.toContainText("(written)")
+  })
+
+  test("drafts: a teammate reading a shared topic can draft to their own board", async ({ page }) => {
+    const theirs = buildDetail({ viewer: true })
+    const m = await setup(page, { shared: [theirs.topic], detail: theirs })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText("Shared by Mariah Tang · read only")).toBeVisible()
+    await page.getByRole("button", { name: /^LinkedIn post/ }).first().click()
+    await expect(page.getByRole("region", { name: "LinkedIn post" }).getByText(/who actually finds the clinical placement\?/)).toBeVisible()
+    expect(m.ideas).toHaveLength(1)
+  })
+
+  test("thumbs: rate an idea, change your mind, clear it; kept across a reload and put back if the save fails", async ({ page }) => {
+    const m = await setup(page)
+    await page.goto(`/listening/${TOPIC_ID}`)
+    const HEAD = "Who finds your clinical placement in an online program"
+    const up = page.getByRole("button", { name: `More ideas like this: ${HEAD}` })
+    const down = page.getByRole("button", { name: `Fewer ideas like this: ${HEAD}` })
+    const votes = () => m.posts.filter((p) => p.url === "/ideas/vote").map((p) => p.body)
+    await expect(up).toHaveAttribute("aria-pressed", "false")
+    await up.click()
+    await expect(up).toHaveAttribute("aria-pressed", "true")
+    await expect.poll(votes).toEqual([{ topicId: TOPIC_ID, ideaId: "idea1", vote: 1 }])
+    // The other thumb replaces it; the same thumb again clears it.
+    await down.click()
+    await expect(down).toHaveAttribute("aria-pressed", "true")
+    await expect(up).toHaveAttribute("aria-pressed", "false")
+    await down.click()
+    await expect(down).toHaveAttribute("aria-pressed", "false")
+    await expect.poll(() => votes().map((b) => (b as { vote: number }).vote)).toEqual([1, -1, 0])
+    expect(m.votes).toEqual({})
+
+    await up.click()
+    await expect.poll(() => m.votes).toEqual({ idea1: 1 })
+    await page.reload()
+    await expect(page.getByRole("button", { name: `More ideas like this: ${HEAD}` })).toHaveAttribute("aria-pressed", "true")
+    // The second idea has its own thumbs.
+    await expect(page.getByRole("button", { name: "More ideas like this: The real cost per credit, explained" })).toHaveAttribute("aria-pressed", "false")
+
+    // The server refuses: the thumb goes back and the page says so.
+    m.voteStatus = 500
+    await page.getByRole("button", { name: `Fewer ideas like this: ${HEAD}` }).click()
+    await expect(page.getByText("Something went wrong. Try again.")).toBeVisible()
+    await expect(page.getByRole("button", { name: `More ideas like this: ${HEAD}` })).toHaveAttribute("aria-pressed", "true")
+    await expect(page.getByRole("button", { name: `Fewer ideas like this: ${HEAD}` })).toHaveAttribute("aria-pressed", "false")
+    expect(m.votes).toEqual({ idea1: 1 })
+  })
+
+  test("more ideas: written from the posts already collected, added with a New tag, and honest when nothing holds up", async ({ page }) => {
+    const m = await setup(page, { moreDelayMs: 500 })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    const more = page.getByRole("button", { name: "More ideas", exact: true })
+    await expect(page.getByText(/Your thumbs steer what comes next/)).toBeVisible()
+    await more.click()
+    const writing = page.getByRole("button", { name: "Writing more ideas" })
+    await expect(writing).toBeDisabled()
+    await expect(page.getByText("From the posts already collected, each checked against them. About 20 seconds, and no searches.")).toBeVisible()
+    await expect(page.getByText("2 ideas added")).toBeVisible()
+    expect(m.posts.filter((p) => p.url.endsWith("/ideas/more"))).toHaveLength(1)
+    // Two more cards, marked New, and the keyboard lands on the first of them.
+    await expect(page.getByRole("heading", { name: /Content ideas/ })).toContainText("4")
+    const first = page.locator("#idea-idea3")
+    await expect(first.getByRole("heading", { name: "Questions to ask a program before you enroll" })).toBeFocused()
+    await expect(first.getByText("New", { exact: true })).toBeVisible()
+    await expect(page.locator("#idea-idea4").getByText("New", { exact: true })).toBeVisible()
+    await expect(page.locator("#idea-idea1").getByText("New", { exact: true })).toHaveCount(0)
+    await expect(first).toBeInViewport()
+    // A new idea works like any other: it can be rated, saved and drafted from.
+    await first.getByRole("button", { name: /^More ideas like this/ }).click()
+    await expect.poll(() => m.votes).toEqual({ idea3: 1 })
+    await first.getByRole("button", { name: "Save", exact: true }).click()
+    await expect(first.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true")
+
+    // Nothing more holds up: no card is added and the page says what to do.
+    m.moreIdeas = "none"
+    await more.click()
+    await expect(page.getByText("No further idea held up against the posts collected. Rescan to bring in more conversation, then ask again.")).toBeVisible()
+    await expect(page.getByRole("heading", { name: /Content ideas/ })).toContainText("4")
+    // Refused (a scan is running): the reason shows in place.
+    m.moreIdeas = 409
+    await more.click()
+    await expect(page.getByText("A scan is running for this topic. Ask again when it finishes.")).toBeVisible()
+    await expect(more).toBeEnabled()
+    expect(errorsOf(page).filter((e) => !/409/.test(e))).toEqual([])
+  })
+
+  test("a teammate reading a shared topic can rate ideas but not add to the report", async ({ page }) => {
+    const theirs = buildDetail({ viewer: true })
+    const m = await setup(page, { shared: [theirs.topic], detail: theirs })
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByText("Shared by Mariah Tang · read only")).toBeVisible()
+    await expect(page.getByRole("button", { name: "More ideas", exact: true })).toHaveCount(0)
+    await page.getByRole("button", { name: /^Fewer ideas like this: Who finds your clinical placement/ }).click()
+    await expect.poll(() => m.votes).toEqual({ idea1: -1 })
   })
 
   test("idea board: the topic page knows what is already saved", async ({ page }) => {
@@ -536,6 +748,164 @@ test.describe("Topic Ideation", () => {
     expect(m.deletes).toEqual([`/topics/${TOPIC_ID}`])
   })
 
+  test("library: a hundred scans stay findable by tab, filter, person and sort", async ({ page }) => {
+    const mine = manyTopics(60)
+    mine[1] = { ...mine[1]!, id: TOPIC_ID }
+    const team = manyTopics(40, ["joe.volk@stamats.com", "mariah.tang@stamats.com", "sam.lee@stamats.com"], "team")
+    await setup(page, { admin: true, topics: mine, team })
+    await page.goto("/listening")
+    const yours = page.getByRole("tab", { name: /Your topics/ })
+    const everyone = page.getByRole("tab", { name: /Everyone's topics/ })
+    await expect(yours).toHaveAttribute("aria-selected", "true")
+    await expect(yours).toContainText("60")
+    await expect(everyone).toContainText("40")
+
+    // A page at a time, as compact lines, instead of sixty cards.
+    const rows = page.getByRole("list", { name: "Your topics" }).getByRole("listitem")
+    await expect(rows).toHaveCount(24)
+    await expect(page.getByRole("button", { name: "List", exact: true })).toHaveAttribute("aria-pressed", "true")
+    await expect(page.getByText("Showing 24 of 60")).toBeVisible()
+    await page.getByRole("button", { name: "Show 24 more" }).click()
+    await expect(rows).toHaveCount(48)
+    await page.getByRole("button", { name: "Show 12 more" }).click()
+    await expect(rows).toHaveCount(60)
+    await expect(page.getByText(/Showing \d+ of 60/)).toHaveCount(0)
+    // A topic still scanning and one that failed say so in place of figures.
+    await expect(rows.nth(3)).toContainText("Scanning")
+    await expect(rows.nth(8)).toContainText("Did not finish")
+
+    // Filter: one topic scanned over three ranges, told apart by the range on each line.
+    const filter = page.getByLabel("Filter topics")
+    await filter.fill("fafsa")
+    await expect(rows).toHaveCount(3)
+    await expect(page.getByText("3 of 60 topics")).toBeVisible()
+    await expect(rows.nth(0)).toContainText("Past year")
+    await expect(rows.nth(1)).toContainText("Past 3 months")
+    await expect(rows.nth(2)).toContainText("Past week")
+    await filter.fill("FAFSA  week")
+    await expect(rows).toHaveCount(1)
+    await filter.fill("zzz")
+    await expect(page.getByText("No topics match")).toBeVisible()
+    await expect(page.getByText("0 of 60 topics")).toBeVisible()
+    await page.getByRole("button", { name: "Clear filters" }).click()
+    await expect(filter).toHaveValue("")
+    await expect(rows).toHaveCount(24)
+    await filter.fill("fafsa")
+    await filter.press("Escape")
+    await expect(filter).toHaveValue("")
+
+    // Sort.
+    const sort = page.getByLabel("Sort by", { exact: true })
+    await sort.selectOption("name")
+    await expect(rows.first()).toContainText("adult learners returning to school")
+    await sort.selectOption("posts")
+    const most = [...mine].sort((a, b) => b.relevantCount - a.relevantCount)[0]!
+    await expect(rows.first()).toContainText(most.query)
+    await expect(rows.first()).toContainText(`${most.relevantCount} posts`)
+    await sort.selectOption("negative")
+    const scored = mine.filter((t) => t.sentimentScore !== null)
+    const lowest = [...scored].sort((a, b) => (a.sentimentScore as number) - (b.sentimentScore as number))[0]!
+    await expect(rows.first().getByRole("link")).toHaveAttribute("href", `/listening/${lowest.id}`)
+    // Topics with no feeling yet sink to the end, whichever way the sort runs.
+    await page.getByRole("button", { name: "Show 24 more" }).click()
+    await page.getByRole("button", { name: "Show 12 more" }).click()
+    await expect(rows.nth(58)).toContainText(/Scanning|Did not finish/)
+    await expect(rows.nth(59)).toContainText(/Scanning|Did not finish/)
+
+    // Everyone's topics: pick a person, or type their name.
+    await everyone.click()
+    const theirs = page.getByRole("list", { name: "Everyone's topics" }).getByRole("listitem")
+    await expect(theirs).toHaveCount(24)
+    const person = page.getByLabel("Person", { exact: true })
+    await expect(person.locator("option")).toHaveText(["All people", "Joe Volk (14)", "Mariah Tang (13)", "Sam Lee (13)"])
+    await person.selectOption("joe.volk@stamats.com")
+    await expect(theirs).toHaveCount(14)
+    await expect(page.getByText("14 of 40 topics")).toBeVisible()
+    await expect(theirs.first()).toContainText(/Joe Volk · (shared|private)/)
+    await person.selectOption("")
+    await filter.fill("mariah")
+    await expect(theirs).toHaveCount(13)
+    await filter.fill("")
+
+    // Arrow keys move between the tabs.
+    await everyone.focus()
+    await page.keyboard.press("ArrowLeft")
+    await expect(yours).toHaveAttribute("aria-selected", "true")
+    await expect(yours).toBeFocused()
+    await expect(page.getByLabel("Person", { exact: true })).toHaveCount(0)
+
+    // Cards on request; the view and the sort are remembered.
+    await page.getByRole("button", { name: "Cards", exact: true }).click()
+    await expect(page.getByRole("list", { name: "Your topics" }).getByRole("heading", { level: 3 })).toHaveCount(24)
+    await page.reload()
+    await expect(page.getByRole("button", { name: "Cards", exact: true })).toHaveAttribute("aria-pressed", "true")
+    await expect(page.getByLabel("Sort by", { exact: true })).toHaveValue("negative")
+
+    // Opening a topic and coming back lands on the same filtered list.
+    await page.getByLabel("Filter topics").fill("nursing")
+    await expect(rows).toHaveCount(3)
+    await page.locator(`a[href="/listening/${TOPIC_ID}"]`).click()
+    await expect(page.getByRole("heading", { level: 1, name: "online nursing degree" })).toBeVisible()
+    await page.goBack()
+    await expect(page.getByLabel("Filter topics")).toHaveValue("nursing")
+    await expect(rows).toHaveCount(3)
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("library: a few topics stay simple, and every card shows its time range", async ({ page }) => {
+    const base = buildDetail().topic
+    await setup(page, {
+      topics: [
+        { ...base, id: "a", query: "FAFSA changes" },
+        { ...base, id: "b", query: "FAFSA changes", timeWindow: "custom", windowFrom: "2026-03-01", windowTo: "2026-05-31" },
+        { ...base, id: "c", query: "Coe College", timeWindow: "3m" },
+      ],
+    })
+    await page.goto("/listening")
+    await expect(page.getByRole("heading", { name: /Your topics/ })).toContainText("3")
+    // No tabs and no filter bar until there is something to sift.
+    await expect(page.getByRole("tab", { name: /Your topics/ })).toHaveCount(0)
+    await expect(page.getByLabel("Filter topics")).toHaveCount(0)
+    await expect(page.getByLabel("Sort by", { exact: true })).toHaveCount(0)
+    const cards = page.getByRole("list", { name: "Your topics" }).getByRole("listitem")
+    await expect(cards).toHaveCount(3)
+    await expect(cards.nth(0)).toContainText("Past year")
+    await expect(cards.nth(1)).toContainText("Mar 1, 2026 to May 31, 2026")
+    await expect(cards.nth(2)).toContainText("Past 3 months")
+    expect(errorsOf(page)).toEqual([])
+  })
+
+  test("library: a filter left over from a long list never hides a short one", async ({ page }) => {
+    const team = manyTopics(40, ["joe.volk@stamats.com", "mariah.tang@stamats.com"], "team")
+    await setup(page, { admin: true, topics: [buildDetail().topic], team })
+    await page.goto("/listening")
+    await page.getByRole("tab", { name: /Everyone's topics/ }).click()
+    await page.getByLabel("Filter topics").fill("zzz")
+    await expect(page.getByText("No topics match")).toBeVisible()
+    // Your one topic has no filter bar, so nothing may be filtered out of it.
+    await page.getByRole("tab", { name: /Your topics/ }).click()
+    await expect(page.getByLabel("Filter topics")).toHaveCount(0)
+    await expect(page.getByRole("list", { name: "Your topics" }).getByRole("listitem")).toHaveCount(1)
+    await expect(page.getByText("No topics match")).toHaveCount(0)
+  })
+
+  test("phone width: a long library has no sideways scrolling in either view", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    const mine = manyTopics(60)
+    mine[0] = { ...mine[0]!, query: "what prospective graduate students say about tuition discounts at small private colleges in the midwest", timeWindow: "custom", windowFrom: "2026-03-01", windowTo: "2026-05-31" }
+    await setup(page, { admin: true, topics: mine, team: manyTopics(40, ["joe.volk@stamats.com", "mariah.tang@stamats.com"], "team") })
+    await page.goto("/listening")
+    const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    await expect(page.getByRole("list", { name: "Your topics" }).getByRole("listitem")).toHaveCount(24)
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    await page.getByRole("tab", { name: /Everyone's topics/ }).click()
+    await expect(page.getByLabel("Person", { exact: true })).toBeVisible()
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    await page.getByRole("button", { name: "Cards", exact: true }).click()
+    await expect(page.getByRole("list", { name: "Everyone's topics" }).getByRole("heading", { level: 3 })).toHaveCount(24)
+    expect(await overflow()).toBeLessThanOrEqual(0)
+  })
+
   test("not on the allowlist: a calm explanation, no tool", async ({ page }) => {
     await setup(page, {}, { forbidden: true })
     await page.goto("/listening")
@@ -548,7 +918,13 @@ test.describe("Topic Ideation", () => {
     await page.goto(`/listening/${TOPIC_ID}`)
     await expect(page.getByText("People weigh flexibility")).toBeVisible()
     await expect(page.getByRole("heading", { name: /What Coe College says about itself/ })).toBeAttached()
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
-    expect(overflow).toBeLessThanOrEqual(0)
+    const overflow = () => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+    expect(await overflow()).toBeLessThanOrEqual(0)
+    // Each draft, open, at phone width.
+    for (const [name, text] of [["Blog outline", "What students are asking"], ["LinkedIn post", "#HigherEdMarketing"], ["Headlines", "Before you enroll, ask who finds the site"]] as const) {
+      await page.getByRole("button", { name: new RegExp(`^${name}`) }).first().click()
+      await expect(page.getByRole("region", { name }).getByText(text).first()).toBeVisible()
+      expect(await overflow(), name).toBeLessThanOrEqual(0)
+    }
   })
 })

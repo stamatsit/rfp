@@ -6,7 +6,7 @@
  */
 import { fetchWithCredentials, handleResponse } from "./api"
 import { addCsrfHeader } from "./csrfToken"
-import type { AccessInfo, IdeaStatus, RunEvent, RunSummary, SavedIdea, SourceRow, TimeWindow, TopicDetail, TopicRow, Usage } from "@/types/listening"
+import type { AccessInfo, ContentIdea, DraftKind, IdeaDraft, IdeaStatus, IdeaVote, RunEvent, RunSummary, SavedIdea, SourceRow, TimeWindow, TopicDetail, TopicRow, Usage } from "@/types/listening"
 
 const BASE = "/api/listening"
 
@@ -47,7 +47,14 @@ export const listeningApi = {
   remove: (id: string) => send<{ ok: true }>("DELETE", `/topics/${id}`),
   sources: (id: string) => get<{ sources: SourceRow[] }>(`/topics/${id}/sources`),
   share: (id: string, shared: boolean) => send<{ shared: boolean }>("POST", `/topics/${id}/share`, { shared }),
-  ideas: () => get<{ ideas: SavedIdea[] }>("/ideas"),
+  ideas: () => get<{ ideas: SavedIdea[]; drafts?: Record<string, IdeaDraft[]> }>("/ideas"),
+  /** Thumbs up (1), thumbs down (-1) or clear (0) on one of a topic's ideas. */
+  vote: (topicId: string, ideaId: string, vote: IdeaVote | 0) => send<{ vote: IdeaVote | null }>("POST", "/ideas/vote", { topicId, ideaId, vote }),
+  /** Owner only: more ideas from the posts already collected. `added` is empty when none hold up. */
+  moreIdeas: (topicId: string) => send<{ added: ContentIdea[]; ideas: ContentIdea[] }>("POST", `/topics/${topicId}/ideas/more`),
+  /** Write (or fetch the stored) draft. From a topic's idea this saves the idea to the board first. */
+  draft: (target: { savedId: string } | { topicId: string; ideaId: string }, kind: DraftKind, fresh = false) =>
+    send<{ idea: SavedIdea; draft: IdeaDraft }>("POST", "/ideas/draft", { ...target, kind, ...(fresh ? { fresh: true } : {}) }),
   saveIdea: (topicId: string, ideaId: string) => send<{ idea: SavedIdea }>("POST", "/ideas", { topicId, ideaId }),
   setIdeaStatus: (id: string, status: IdeaStatus) => send<{ status: IdeaStatus }>("PATCH", `/ideas/${id}`, { status }),
   removeIdea: (id: string) => send<{ ok: true }>("DELETE", `/ideas/${id}`),

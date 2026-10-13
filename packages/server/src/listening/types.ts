@@ -189,6 +189,8 @@ export interface ContentIdea {
   whyNow: string
   outline: string[]
   evidenceItemIds: string[]
+  /** Written by "More ideas" after the scan, from the posts already collected. */
+  added?: boolean
 }
 
 export interface PlatformStat {
@@ -362,6 +364,65 @@ export interface SavedIdea {
   createdAt: string
   updatedAt: string
 }
+
+/** Thumbs up or thumbs down on an idea. */
+export type IdeaVote = 1 | -1
+
+export interface IdeaVoteRow {
+  createdBy: string
+  /** Null once the topic is deleted; the vote still informs taste. */
+  topicId: string | null
+  fingerprint: string
+  vote: IdeaVote
+  idea: { headline: string; angle: string; format: string; audience: string }
+  updatedAt: string
+}
+
+/**
+ * Ideas a team liked or passed on, one line each, shown to the model when it
+ * writes new ideas. Guidance only: it is never evidence and never trains anything.
+ */
+export interface IdeaTaste {
+  liked: string[]
+  passed: string[]
+}
+
+/**
+ * What can be drafted from a saved idea. The content team writes its own
+ * articles, so a blog gets an outline (notes for a writer), never copy.
+ */
+export type DraftKind = "blog_outline" | "linkedin_post" | "headlines"
+
+export interface BlogOutline {
+  workingTitle: string
+  reader: string
+  angle: string
+  /** `sources` are the saved posts a section answers, copied in so the outline stands on its own. */
+  sections: Array<{ heading: string; points: string[]; sources: Array<{ url: string; platform: Platform }> }>
+  close: string
+}
+
+export interface LinkedInPost {
+  /** Paragraphs separated by blank lines. */
+  post: string
+  /** Without the # sign. */
+  hashtags: string[]
+}
+
+export type HeadlineStyle = "question" | "how-to" | "direct" | "myth" | "reader voice"
+
+export interface HeadlineSet {
+  headlines: Array<{ text: string; style: HeadlineStyle }>
+}
+
+export type DraftContent = BlogOutline | LinkedInPost | HeadlineSet
+
+/** One draft per kind per saved idea; writing another replaces it. Removed with the saved idea. */
+export type IdeaDraft = { id: string; savedIdeaId: string; createdAt: string; updatedAt: string } & (
+  | { kind: "blog_outline"; content: BlogOutline }
+  | { kind: "linkedin_post"; content: LinkedInPost }
+  | { kind: "headlines"; content: HeadlineSet }
+)
 
 /** Progress events streamed to the browser while a run works. */
 export type RunEvent =

@@ -9,7 +9,8 @@ import { ArrowUpRight, Bookmark, ChevronDown, ChevronLeft, Trash2 } from "lucide
 import { toast } from "@/hooks/useToast"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import { ListeningApiError, listeningApi } from "@/lib/listeningApi"
-import type { IdeaStatus, SavedIdea } from "@/types/listening"
+import type { IdeaDraft, IdeaStatus, SavedIdea } from "@/types/listening"
+import { IdeaDrafts } from "./IdeaDrafts"
 import { AUDIENCE_LABEL, Card, CopyButton, ExternalLink, IDEA_STATUS, IDEA_STATUS_ORDER, PlatformBadge, Tag, fmtDate, plural } from "./ui"
 
 function ideaText(s: SavedIdea): string {
@@ -53,7 +54,13 @@ function StatusSelect({ value, onChange, label }: { value: IdeaStatus; onChange:
   )
 }
 
-function SavedIdeaCard({ s, onStatus, onRemove }: { s: SavedIdea; onStatus: (status: IdeaStatus) => void; onRemove: () => void }) {
+function SavedIdeaCard({ s, drafts, onStatus, onRemove, onDrafted }: {
+  s: SavedIdea
+  drafts: IdeaDraft[]
+  onStatus: (status: IdeaStatus) => void
+  onRemove: () => void
+  onDrafted: (draft: IdeaDraft) => void
+}) {
   const [open, setOpen] = useState(false)
   const [confirm, setConfirm] = useState(false)
   useEffect(() => {
@@ -132,6 +139,7 @@ function SavedIdeaCard({ s, onStatus, onRemove }: { s: SavedIdea; onStatus: (sta
           </ul>
         </div>
       )}
+      <IdeaDrafts target={{ savedId: s.id }} drafts={drafts} onDrafted={(_, draft) => onDrafted(draft)} />
       <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-slate-400">
         <span>Saved {fmtDate(s.createdAt)}</span>
         <span className="flex items-center gap-1">
@@ -144,7 +152,7 @@ function SavedIdeaCard({ s, onStatus, onRemove }: { s: SavedIdea; onStatus: (sta
             }`}
           >
             <Trash2 size={14} />
-            {confirm ? "Click to remove" : "Remove"}
+            {confirm ? (drafts.length ? "Remove, drafts too?" : "Click to remove") : "Remove"}
           </button>
         </span>
       </div>
@@ -155,6 +163,7 @@ function SavedIdeaCard({ s, onStatus, onRemove }: { s: SavedIdea; onStatus: (sta
 export function IdeaBoard() {
   const navigate = useNavigate()
   const [ideas, setIdeas] = useState<SavedIdea[] | null>(null)
+  const [drafts, setDrafts] = useState<Record<string, IdeaDraft[]>>({})
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<IdeaStatus | "all">("all")
   const [topic, setTopic] = useState<string>("all")
@@ -162,7 +171,9 @@ export function IdeaBoard() {
 
   const load = useCallback(async () => {
     try {
-      setIdeas((await listeningApi.ideas()).ideas)
+      const r = await listeningApi.ideas()
+      setIdeas(r.ideas)
+      setDrafts(r.drafts ?? {})
       setError(null)
     } catch (err) {
       if ((err as { status?: number }).status === 401) navigate("/login", { replace: true })
@@ -227,7 +238,7 @@ export function IdeaBoard() {
         <div>
           <h1 className="text-[28px] sm:text-[32px] font-semibold tracking-[-0.025em] leading-tight text-slate-900 dark:text-white">Idea board</h1>
           <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1.5 max-w-2xl">
-            Ideas you saved from your topics, with the posts behind them. Saved copies stay as they are when a topic is rescanned.
+            Ideas you saved from your topics, with the posts behind them and any drafts you started. Saved copies stay as they are when a topic is rescanned.
           </p>
         </div>
         {shown.length > 0 && <CopyButton text={() => shown.map(ideaText).join("\n\n---\n\n")} label={`Copy ${shown.length === 1 ? "idea" : `${shown.length} ideas`}`} className="h-10 !px-3.5 rounded-xl border border-black/[0.08] dark:border-white/[0.1] shrink-0" />}
@@ -298,7 +309,14 @@ export function IdeaBoard() {
           ) : (
             <div className="grid gap-4 md:grid-cols-2 items-start">
               {shown.map((s) => (
-                <SavedIdeaCard key={s.id} s={s} onStatus={(next) => void changeStatus(s.id, next)} onRemove={() => void remove(s.id)} />
+                <SavedIdeaCard
+                  key={s.id}
+                  s={s}
+                  drafts={drafts[s.id] ?? []}
+                  onStatus={(next) => void changeStatus(s.id, next)}
+                  onRemove={() => void remove(s.id)}
+                  onDrafted={(draft) => setDrafts((d) => ({ ...d, [s.id]: [...(d[s.id] ?? []).filter((x) => x.kind !== draft.kind), draft] }))}
+                />
               ))}
             </div>
           )}

@@ -4,7 +4,7 @@
  */
 import type { EngineDeps } from "../engine.js"
 import type { LlmClient, LlmUsage, StructuredArgs } from "../llm.js"
-import { newUsage } from "../llm.js"
+import { LlmError, newUsage } from "../llm.js"
 import type { NewsSource } from "../sources/news.js"
 import type { SearchPage, SearchProvider, SearchRequest } from "../sources/pse.js"
 import type { PageReader, ReadResult } from "../sources/reader.js"
@@ -21,6 +21,10 @@ export interface FakeLlmOpts {
   namedEntity?: string
   /** The idea check finds only one supporting post for ideas with these headlines. */
   rejectIdeas?: string[]
+  /** Drafts come back with almost nothing in them. */
+  thinDrafts?: boolean
+  /** These calls fail the way the real model client fails (an LlmError). */
+  llmErrorOn?: Set<string>
 }
 
 /**
@@ -31,6 +35,8 @@ export interface FakeLlmOpts {
 
 export class FakeLlm implements LlmClient {
   calls: string[] = []
+  /** The last prompt sent for each call name. */
+  prompts = new Map<string, string>()
   private meter = newUsage()
   constructor(private opts: FakeLlmOpts = {}) {}
   usage(): LlmUsage {
@@ -38,6 +44,7 @@ export class FakeLlm implements LlmClient {
   }
   async structured<T>(args: StructuredArgs<T>): Promise<T> {
     this.calls.push(args.name)
+    this.prompts.set(args.name, args.user)
     this.meter.calls++
     if (this.opts.delayMs) {
       await new Promise((r, j) => {
@@ -50,6 +57,7 @@ export class FakeLlm implements LlmClient {
     }
     if (args.signal?.aborted) throw args.signal.reason
     if (this.opts.failOn?.has(args.name)) throw new Error(`fake failure in ${args.name}`)
+    if (this.opts.llmErrorOn?.has(args.name)) throw new LlmError("api", `fake model outage in ${args.name}`)
     switch (args.name) {
       case "listening_plan":
         return {
@@ -118,6 +126,67 @@ export class FakeLlm implements LlmClient {
         })
         return { ideas } as T
       }
+      // One repeat of an existing idea, one new idea, one resting on a single post, one the
+      // second check can reject (rejectIdeas), and one more new idea.
+      case "listening_more_ideas": {
+        const ev = [...args.user.matchAll(/\[(e\d+)\]/g)].map((m) => m[1]!)
+        const subs = [...args.user.matchAll(/^\[(s\d+)\]/gm)].map((m) => m[1]!)
+        const idea = (headline: string, evidence: string[], n = 0) => ({ headline, angle: "a", audience: "student", format: "FAQ page", subtopicId: subs[n] ?? "s1", whyNow: "w", outline: ["one", "two", "three"], evidence })
+        return {
+          ideas: [
+            idea("Who finds your clinical placement", ev.slice(0, 3)),
+            idea("Questions to ask before you enroll", ev.slice(0, 3)),
+            idea("One post is not enough", ev.slice(0, 1)),
+            idea("Rejected by the second check", ev.slice(1, 4)),
+            idea("What the real cost leaves out", ev.slice(2, 5), 1),
+          ],
+        } as T
+      }
+      // Drafts deliberately break every rule once, so the checks have something to catch:
+      // a dash, a statistic no post contains, an invented quotation, and post numbers that do not exist.
+      case "listening_draft_blog_outline":
+        if (this.opts.thinDrafts) return { workingTitle: "Thin", reader: "r", angle: "a", sections: [{ heading: "Only one", points: ["p"], sources: [] }], close: "c" } as T
+        return {
+          workingTitle: "Who arranges your clinical placement — and when to ask",
+          reader: "Prospective online nursing students who worry about finding a clinical site.",
+          angle: "Placement support varies by program. About 73% of programs leave it to students.",
+          sections: [
+            { heading: "What students are asking", points: ["Open with the question people keep raising", "Unpack \"nobody tells you who finds the site\" in plain words"], sources: [1, 2, 99] },
+            { heading: "How placement usually works", points: ["Describe the common arrangements", "Mention that 9 in 10 students struggle"], sources: [2] },
+            { heading: "Questions to ask a program", points: ["List what to ask before enrolling", "Name the fear: \"the clinical placement was a nightmare\""], sources: [] },
+            { heading: "", points: ["A section with no heading"], sources: [] },
+            { heading: "Next steps", points: ["Point to the admissions contact"], sources: [0, 1.5, 1, 1] },
+          ],
+          close: "End with the one question to ask an advisor.",
+        } as T
+      case "listening_draft_linkedin_post":
+        if (this.opts.thinDrafts) return { post: "Too short.", hashtags: [] } as T
+        return {
+          post: [
+            "Online nursing students keep asking one thing — who actually finds the clinical placement? #nursing",
+            "It comes up again and again. One student said \"my advisor promised a placement in week one\" and that is the worry in a sentence.",
+            "A recent study found 68% of students were never told. That gap is where trust is lost.",
+            "The fix is not complicated. Say who arranges placements, when it happens, and what the student has to do. Put it where a prospective student will see it before they apply.",
+            "What does your program page say about clinical placement today?",
+          ].join("\n\n"),
+          hashtags: ["#HigherEd", "nursing education", "x", "Enrollment", "OneTooMany"],
+        } as T
+      case "listening_draft_headlines":
+        if (this.opts.thinDrafts) return { headlines: [{ text: "Only one", style: "direct" }] } as T
+        return {
+          headlines: [
+            { text: "Who finds your clinical placement", style: "question" },
+            { text: "Who arranges clinical placements for online nursing students?", style: "question" },
+            { text: "How to ask a nursing program about clinical placement", style: "how-to" },
+            { text: "Clinical placement — what online programs owe you", style: "direct" },
+            { text: "7 things to ask before you enroll", style: "direct" },
+            { text: "No, you should not have to find your own clinical site", style: "myth" },
+            { text: "How to ask a nursing program about clinical placement", style: "how-to" },
+            { text: "I love my online program, but who finds the placement?", style: "reader voice" },
+            { text: "What online nursing students wish they had asked first", style: "reader voice" },
+            { text: "Clinical placement, explained for online students", style: "direct" },
+          ],
+        } as T
       default:
         throw new Error(`FakeLlm: unexpected ${args.name}`)
     }

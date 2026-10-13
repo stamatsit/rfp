@@ -22,6 +22,7 @@ import { entityOf, extendPlan, fallbackPlan, makePlan } from "./plan.js"
 import { buildReport, groupSubtopics, ownPosts, subtopicInputs } from "./report.js"
 import { within, type Store } from "./store.js"
 import { synthesize, verifyIdeas, type SynthResult } from "./synthesize.js"
+import { ideaTaste } from "./taste.js"
 import { RunCancelled, type Coverage, type Plan, type RunEvent, type RunTrigger, type TimeWindow, type TopicRow } from "./types.js"
 import { describeError } from "./util/http.js"
 import { inWindow } from "./window.js"
@@ -287,6 +288,8 @@ export async function executeRun(
             overall: sentimentOf(conv),
             relevantCount: conv.length,
             ownVoice: entity ? { name: entity, items: ownPosts(items) } : null,
+            // Guidance only, so a scan never fails for want of it.
+            taste: await ideaTaste(store, topic.id, topic.createdBy).catch(() => null),
           },
           signal,
         )

@@ -6,10 +6,10 @@ import { toast } from "@/hooks/useToast"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import type { useScan } from "@/hooks/useScan"
 import { ListeningApiError, listeningApi } from "@/lib/listeningApi"
-import type { ItemView, TopicDetail } from "@/types/listening"
+import type { IdeaDraft, IdeaVote, ItemView, TopicDetail } from "@/types/listening"
 import { ScanProgress } from "./ScanProgress"
 import { Overview } from "./report/Overview"
-import { Ideas, type IdeaSaving } from "./report/Ideas"
+import { Ideas, type IdeaAdding, type IdeaSaving } from "./report/Ideas"
 import { Questions } from "./report/Questions"
 import { News, OwnVoice, Subtopics, Voices } from "./report/Subtopics"
 import { Sources, type SourceView } from "./report/Sources"
@@ -363,9 +363,67 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
   const [saved, setSaved] = useState<Record<string, string>>({})
   const [savingId, setSavingId] = useState<string | null>(null)
   useEffect(() => setSaved(detail?.savedIdeas ?? {}), [detail?.savedIdeas])
+  // Drafts written from those saved ideas, by saved idea id.
+  const [drafts, setDrafts] = useState<Record<string, IdeaDraft[]>>({})
+  useEffect(() => setDrafts(detail?.drafts ?? {}), [detail?.drafts])
+  // Your thumbs, by report idea id. Shown at once; put back if the server refuses.
+  const [votes, setVotes] = useState<Record<string, IdeaVote>>({})
+  useEffect(() => setVotes(detail?.votes ?? {}), [detail?.votes])
+  const vote = async (ideaId: string, next: IdeaVote | 0) => {
+    const before = votes
+    setVotes((v) => {
+      const out = { ...v }
+      if (next === 0) delete out[ideaId]
+      else out[ideaId] = next
+      return out
+    })
+    try {
+      await listeningApi.vote(topicId, ideaId, next)
+    } catch (err) {
+      setVotes(before)
+      toast.error((err as ListeningApiError).message ?? "Could not save your rating")
+    }
+  }
+  // More ideas, written from the posts already collected.
+  const [addingIdeas, setAddingIdeas] = useState(false)
+  const [moreNote, setMoreNote] = useState<string | null>(null)
+  const [freshIdeas, setFreshIdeas] = useState<Set<string>>(new Set())
+  const more = async () => {
+    if (addingIdeas) return
+    setAddingIdeas(true)
+    setMoreNote(null)
+    try {
+      const r = await listeningApi.moreIdeas(topicId)
+      if (r.added.length === 0) {
+        setMoreNote("No further idea held up against the posts collected. Rescan to bring in more conversation, then ask again.")
+        return
+      }
+      setDetail((d) => (d?.topic.report ? { ...d, topic: { ...d.topic, report: { ...d.topic.report, ideas: r.ideas } } } : d))
+      setFreshIdeas((f) => new Set([...f, ...r.added.map((i) => i.id)]))
+      toast.success(r.added.length === 1 ? "1 idea added" : `${r.added.length} ideas added`)
+      const first = r.added[0]!.id
+      window.setTimeout(() => {
+        const el = document.getElementById(`idea-${first}`)
+        el?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" })
+        el?.querySelector<HTMLElement>("h3")?.focus()
+      }, 60)
+    } catch (err) {
+      setMoreNote((err as ListeningApiError).message ?? "More ideas could not be written this time. Try again.")
+    } finally {
+      setAddingIdeas(false)
+    }
+  }
   const saving: IdeaSaving = {
     saved,
     busy: savingId,
+    topicId,
+    drafts,
+    votes,
+    onVote: (ideaId, next) => void vote(ideaId, next),
+    onDrafted: (ideaId, idea, draft) => {
+      setSaved((s) => ({ ...s, [ideaId]: idea.id }))
+      setDrafts((d) => ({ ...d, [idea.id]: [...(d[idea.id] ?? []).filter((x) => x.kind !== draft.kind), draft] }))
+    },
     onSave: async (ideaId) => {
       setSavingId(ideaId)
       try {
@@ -387,6 +445,11 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
         setSaved((s) => {
           const next = { ...s }
           delete next[ideaId]
+          return next
+        })
+        setDrafts((d) => {
+          const next = { ...d }
+          delete next[id]
           return next
         })
         toast.info("Removed from your idea board")
@@ -622,7 +685,13 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
               busy={scanning}
               canWiden={topic.timeWindow !== "any"}
             />
-            <Ideas report={report} items={items} onSubtopic={jumpToSubtopic} saving={saving} />
+            <Ideas
+              report={report}
+              items={items}
+              onSubtopic={jumpToSubtopic}
+              saving={saving}
+              adding={{ allowed: !viewer && !scanning, busy: addingIdeas, note: moreNote, fresh: freshIdeas, onMore: () => void more() } satisfies IdeaAdding}
+            />
             <Questions report={report} />
             <Subtopics report={report} items={items} openId={openSubtopic} onShowAll={showAllInSubtopic} />
             <Voices report={report} />
