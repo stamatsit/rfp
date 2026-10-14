@@ -2,8 +2,8 @@
 
 **Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: the soft-launch list in
 `listening/access.ts`). Everyone on it sees every scan (team visibility, since 2026-10-14).
-Migrations 009, 010 and 011 are applied to rfp-prod; 012 (drafts), 013
-(thumbs) and 014 (words to leave out) must be applied before the code that reads them is deployed. Internal planning notes (people, meeting notes, account
+Migrations 009 to 014 are applied to rfp-prod (012 drafts, 013 thumbs and 014 words to leave
+out on 2026-10-14, before the code that reads them shipped). Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
 ## What it is
