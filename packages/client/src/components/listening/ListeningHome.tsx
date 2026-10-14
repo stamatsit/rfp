@@ -124,20 +124,24 @@ function UsagePanel() {
 
 /**
  * mine: your topic (marked when shared). shared: someone shared it with you.
- * team: an admin's view of anyone's topic, shared or private.
+ * team: someone else's topic, seen because everyone sees every topic (teamView)
+ * or because you are an admin (then marked shared or private).
  */
 type CardKind = "mine" | "shared" | "team"
 
-function TopicCard({ t, now, kind = "mine" }: { t: TopicRow; now: number; kind?: CardKind }) {
+function TopicCard({ t, now, kind = "mine", teamView = false }: { t: TopicRow; now: number; kind?: CardKind; teamView?: boolean }) {
   const running = t.lastRunStatus === "running"
   const failed = !running && (t.lastRunStatus === "failed" || t.lastRunStatus === "cancelled") && !t.headline
   const who = personName(t.createdBy)
+  // With team visibility every topic is open to everyone, so "shared" and "private" mean nothing: just the owner.
   const badge =
     kind === "team"
-      ? { text: `${who} · ${t.shared ? "shared" : "private"}`, Icon: t.shared ? Users : Lock, tone: t.shared ? "sky" : "slate" }
+      ? teamView
+        ? { text: who, Icon: Users, tone: "slate" }
+        : { text: `${who} · ${t.shared ? "shared" : "private"}`, Icon: t.shared ? Users : Lock, tone: t.shared ? "sky" : "slate" }
       : kind === "shared"
         ? { text: `Shared by ${who}`, Icon: Users, tone: "sky" }
-        : t.shared
+        : t.shared && !teamView
           ? { text: "Shared with your team", Icon: Users, tone: "sky" }
           : null
   return (
@@ -196,7 +200,7 @@ export function ListeningHome({
   topics: TopicRow[] | null
   /** Topics teammates shared: read and export only. */
   shared?: TopicRow[]
-  /** Admins only: every topic other people created, shared or private. Replaces `shared` when present. */
+  /** Everyone's topics, when you see every topic (team visibility, or an admin). Replaces `shared` when present. */
   team?: TopicRow[] | null
   /** Ideas on your board, or null if unknown. */
   ideaCount?: number | null
@@ -221,6 +225,7 @@ export function ListeningHome({
     input.current?.focus()
   }, [initialQuery])
 
+  const teamView = access?.visibility === "team"
   const budget = access?.budget
   const backup = !!access?.sources.serper
   const low = budget && !backup ? budget.scansLeft <= 1 : false
@@ -398,7 +403,7 @@ export function ListeningHome({
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {topics.map((t) => (
-              <TopicCard key={t.id} t={t} now={now} />
+              <TopicCard key={t.id} t={t} now={now} teamView={teamView} />
             ))}
           </div>
         )}
@@ -410,14 +415,18 @@ export function ListeningHome({
             <h2 id="team-topics" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 whitespace-nowrap">
               Everyone&apos;s topics <span className="text-slate-400 tabular-nums">{team.length}</span>
             </h2>
-            <p className="text-[12.5px] text-slate-400">As an admin you can open every scan, private ones too. Only the person who ran it can rescan.</p>
+            <p className="text-[12.5px] text-slate-400">
+              {teamView
+                ? "Every scan anyone on the team runs shows here. Open, export and save ideas from any of them; only the person who ran it can rescan."
+                : "As an admin you can open every scan, private ones too. Only the person who ran it can rescan."}
+            </p>
           </div>
           {team.length === 0 ? (
             <Card className="p-8 text-center text-[13.5px] text-slate-500">No one else has run a scan yet.</Card>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {team.map((t) => (
-                <TopicCard key={t.id} t={t} now={now} kind="team" />
+                <TopicCard key={t.id} t={t} now={now} kind="team" teamView={teamView} />
               ))}
             </div>
           )}

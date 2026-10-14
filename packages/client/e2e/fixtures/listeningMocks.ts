@@ -229,6 +229,8 @@ export interface Mock {
   ideas: Array<Record<string, unknown> & { id: string; status: string }>
   /** Who has scanned, as GET /usage returns it. */
   usage: unknown
+  /** What the server says about who sees whose scans; unset is an older server (private). */
+  visibility?: "team" | "private"
 }
 
 export const USAGE = {
@@ -279,13 +281,13 @@ export async function setup(page: Page, over: Partial<Mock> = {}, opts: { forbid
     const method = req.method()
     if (opts.forbidden) return r.fulfill({ status: 403, json: { error: "Access denied" } })
     if (method === "GET" && path === "/access")
-      return r.fulfill({ json: { allowed: true, admin: m.admin, sources: { search: true, youtube: true, model: true, redditArchive: true }, budget: { used: 32, limit: 100, resetsAt: "2026-10-08T07:00:00.000Z", scansLeft: 3 } } })
+      return r.fulfill({ json: { allowed: true, admin: m.admin, ...(m.visibility ? { visibility: m.visibility } : {}), sources: { search: true, youtube: true, model: true, redditArchive: true }, budget: { used: 32, limit: 100, resetsAt: "2026-10-08T07:00:00.000Z", scansLeft: 3 } } })
     if (method === "GET" && path === "/topics") return r.fulfill({ json: { topics: m.topics, shared: m.shared, ...(m.team ? { team: m.team } : {}) } })
     if (method === "GET" && path === `/topics/${TOPIC_ID}`) {
       // Mark ideas already on the board, as the server does.
       const savedIdeas: Record<string, string> = {}
       for (const s of m.ideas) if (s["topicId"] === TOPIC_ID && typeof s["reportIdeaId"] === "string") savedIdeas[s["reportIdeaId"] as string] = s.id
-      return r.fulfill({ json: { ...m.detail, savedIdeas } })
+      return r.fulfill({ json: { ...m.detail, savedIdeas, ...(m.visibility ? { visibility: m.visibility } : {}) } })
     }
     if (method === "GET" && path.startsWith("/runs/")) return r.fulfill({ json: { run: { ...m.detail.runs[0], status: m.runStatus } } })
     if (method === "GET" && path === "/ideas") return r.fulfill({ json: { ideas: m.ideas } })

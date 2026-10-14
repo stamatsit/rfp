@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it } from "vitest"
 import { checkReport } from "../checks.js"
 import { executeRun, groupLaneNotes, startRun } from "../engine.js"
 import {
@@ -21,6 +21,16 @@ import {
 import { ActiveRunError, MemoryStore, within } from "../store.js"
 import type { RunEvent } from "../types.js"
 import { FakeLlm, FakeSearch, fakeDeps, fakeReader, fakeYoutube, resultIndex } from "./fakes.js"
+
+/** Run this block with each person seeing only their own and shared topics (LISTENING_VISIBILITY=private). */
+function privateVisibility() {
+  beforeEach(() => {
+    process.env["LISTENING_VISIBILITY"] = "private"
+  })
+  afterEach(() => {
+    delete process.env["LISTENING_VISIBILITY"]
+  })
+}
 
 async function initial(store: MemoryStore, deps = fakeDeps(store), query = "online nursing degree") {
   const events: RunEvent[] = []
@@ -315,7 +325,8 @@ describe("engine: failure paths", () => {
   })
 })
 
-describe("service: topics belong to the person who made them", () => {
+describe("service: topics belong to the person who made them (private visibility)", () => {
+  privateVisibility()
   it("lists, opens, rescans, cancels and deletes only your own topics", async () => {
     const store = new MemoryStore()
     process.env["OPENAI_API_KEY"] = "test"
@@ -353,7 +364,8 @@ describe("service: topics belong to the person who made them", () => {
   })
 })
 
-describe("service: sharing and the idea board", () => {
+describe("service: sharing and the idea board (private visibility)", () => {
+  privateVisibility()
   const setupScanned = async () => {
     process.env["OPENAI_API_KEY"] = "test"
     process.env["GOOGLE_PSE_API_KEY"] = "test"
@@ -439,7 +451,8 @@ describe("service: sharing and the idea board", () => {
   })
 })
 
-describe("service: an admin sees every scan, read only", () => {
+describe("service: an admin sees every scan, read only (private visibility)", () => {
+  privateVisibility()
   it("lists and opens everyone's topics, private ones too, says who ran each scan, and changes nothing", async () => {
     process.env["OPENAI_API_KEY"] = "test"
     process.env["GOOGLE_PSE_API_KEY"] = "test"
@@ -480,7 +493,8 @@ describe("service: an admin sees every scan, read only", () => {
   })
 })
 
-describe("service: usage and the sources export", () => {
+describe("service: usage and the sources export (private visibility)", () => {
+  privateVisibility()
   const people = (store: MemoryStore) => {
     process.env["OPENAI_API_KEY"] = "test"
     process.env["GOOGLE_PSE_API_KEY"] = "test"
@@ -543,6 +557,71 @@ describe("service: usage and the sources export", () => {
     expect(await topicSources(joe, topicId)).toMatchObject({ ok: false, status: 404 })
     await shareTopic(eric, topicId, true)
     expect(await topicSources(joe, topicId)).toMatchObject({ ok: true })
+  })
+})
+
+describe("service: team visibility, the default", () => {
+  it("everyone with access opens, exports and saves from every topic, read only; boards stay personal", async () => {
+    delete process.env["LISTENING_VISIBILITY"]
+    process.env["OPENAI_API_KEY"] = "test"
+    process.env["GOOGLE_PSE_API_KEY"] = "test"
+    const store = new MemoryStore()
+    const as = (userEmail: string) => ({ store, userEmail, deps: () => fakeDeps(store) })
+    const eric = as("eric.yerke@stamats.com")
+    const joe = as("joe.volk@stamats.com")
+    const leslie = as("leslie.schmidt@stamats.com")
+    const outsider = as("someone.else@stamats.com")
+    // Eric and Mariah each run a scan and share nothing.
+    const mine = await initial(store, fakeDeps(store), "online nursing degree")
+    const m = await startRun(store, { trigger: "initial", createdBy: "mariah.tang@stamats.com", query: "FAFSA changes", timeWindow: "1y" })
+    await executeRun(fakeDeps(store), { topic: m.topic, runId: m.runId, trigger: "initial" }, () => {})
+    expect((await store.getTopic(mine.topicId))!.shared).toBe(false)
+
+    // Leslie, who has run nothing, sees both under everyone's topics.
+    expect(await access(leslie)).toMatchObject({ allowed: true, admin: false, visibility: "team" })
+    const list = await listTopics(leslie)
+    expect(list.topics).toEqual([])
+    expect(list.team?.map((t) => [t.query, t.createdBy]).sort()).toEqual([["FAFSA changes", "mariah.tang@stamats.com"], ["online nursing degree", "eric.yerke@stamats.com"]])
+    // Joe opens Eric's topic read only, exports its sources and saves an idea to his own board.
+    const d = await topicDetail(joe, mine.topicId)
+    if (!d.ok) throw new Error(d.error)
+    expect(d.body).toMatchObject({ role: "viewer", visibility: "team" })
+    const src = await topicSources(joe, mine.topicId)
+    expect(src.ok && src.body.sources.length).toBeGreaterThan(0)
+    const saved = await saveIdea(joe, { topicId: mine.topicId, ideaId: "idea1" })
+    expect(saved.ok).toBe(true)
+    // Usage names every topic for everyone.
+    expect((await usage(joe)).today.every((s) => s.topic !== null)).toBe(true)
+
+    // Read only: nothing of Eric's can be changed by Joe.
+    expect(await prepareRun(joe, { trigger: "rescan", topicId: mine.topicId })).toMatchObject({ ok: false, status: 404 })
+    expect(await prepareRun(joe, { trigger: "rebuild", topicId: mine.topicId })).toMatchObject({ ok: false, status: 404 })
+    expect(await removeTopic(joe, mine.topicId)).toMatchObject({ ok: false, status: 404 })
+    expect(await shareTopic(joe, mine.topicId, true)).toMatchObject({ ok: false, status: 404 })
+    expect(await cancelRun(joe, mine.runId)).toMatchObject({ ok: false, status: 404 })
+    expect(await runStatus(joe, mine.runId)).toMatchObject({ ok: false, status: 404 })
+    expect(await store.getTopic(mine.topicId)).toMatchObject({ shared: false, query: "online nursing degree" })
+
+    // Idea boards stay personal: Eric does not see Joe's saved idea and cannot touch it.
+    expect((await listIdeas(eric)).ideas).toEqual([])
+    if (saved.ok) {
+      expect(await setIdeaStatus(eric, saved.body.idea.id, "pitched")).toMatchObject({ ok: false, status: 404 })
+      expect(await removeIdea(eric, saved.body.idea.id)).toMatchObject({ ok: false, status: 404 })
+    }
+
+    // Someone not on the list sees nothing (the routes refuse them before this, too).
+    expect((await listTopics(outsider)).team).toBeUndefined()
+    expect(await topicDetail(outsider, mine.topicId)).toMatchObject({ ok: false, status: 404 })
+
+    // LISTENING_VISIBILITY=private brings back private topics without a code change.
+    process.env["LISTENING_VISIBILITY"] = "private"
+    try {
+      expect((await listTopics(joe)).team).toBeUndefined()
+      expect(await topicDetail(joe, mine.topicId)).toMatchObject({ ok: false, status: 404 })
+      expect((await listTopics(eric)).team).toHaveLength(1)
+    } finally {
+      delete process.env["LISTENING_VISIBILITY"]
+    }
   })
 })
 

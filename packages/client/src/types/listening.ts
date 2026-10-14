@@ -257,7 +257,12 @@ export interface TopicDetail {
   activeRun: RunSummary | null
   /** Report idea id -> your saved copy's id, for ideas already on your board. */
   savedIdeas?: Record<string, string>
+  /** Absent from older servers, which were "private". */
+  visibility?: Visibility
 }
+
+/** Who sees whose scans: everyone with access ("team"), or each person their own and shared ones ("private"). */
+export type Visibility = "team" | "private"
 
 export interface Budget {
   used: number
@@ -270,6 +275,8 @@ export interface AccessInfo {
   allowed: boolean
   /** Can open and export every topic anyone has scanned (read only). */
   admin?: boolean
+  /** "team": everyone with access sees every topic, read only. Absent from older servers, which were "private". */
+  visibility?: Visibility
   sources: { search: boolean; google?: boolean; serper?: boolean; youtube: boolean; model: boolean; redditArchive: boolean }
   budget: Budget
 }

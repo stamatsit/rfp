@@ -264,6 +264,49 @@ test.describe("Topic Ideation", () => {
     expect(errorsOf(page)).toEqual([])
   })
 
+  test("team visibility: everyone sees every scan with its owner, read only, and nothing claims to be private", async ({ page }) => {
+    const erics = buildDetail({ viewer: true, owner: "eric.yerke@stamats.com", shared: false })
+    const mariahs = buildDetail({ viewer: true, shared: false })
+    const mine = buildDetail({ owner: "joe.volk@stamats.com" })
+    const m = await setup(page, {
+      visibility: "team",
+      topics: [{ ...mine.topic, id: "joe-1", query: "FAFSA changes", shared: true }],
+      team: [erics.topic, { ...mariahs.topic, id: "t-mariah", query: "college enrollment trends" }],
+      shared: [{ ...mariahs.topic, id: "t-mariah", query: "college enrollment trends" }],
+      detail: erics,
+    })
+    await page.goto("/listening")
+    // Joe is not an admin, yet the list of everyone's scans is there, with no private or shared labels.
+    const section = page.getByRole("region", { name: /Everyone's topics/ })
+    await expect(section.getByText("Every scan anyone on the team runs shows here. Open, export and save ideas from any of them; only the person who ran it can rescan.")).toBeVisible()
+    await expect(section.getByText("Eric Yerke", { exact: true })).toBeVisible()
+    await expect(section.getByText("Mariah Tang", { exact: true })).toBeVisible()
+    await expect(page.getByText(/· private|· shared|admin/)).toHaveCount(0)
+    await expect(page.getByText("Shared with your team")).toHaveCount(0)
+    // No second list of the same topics.
+    await expect(page.getByRole("heading", { name: /Shared with you/ })).toHaveCount(0)
+
+    // Eric's topic opens read only, says whose it is, and still exports and saves.
+    await section.getByRole("link", { name: /online nursing degree/ }).click()
+    await expect(page.getByText("Eric Yerke's topic · read only")).toBeVisible()
+    await expect(page.getByText(/private topic|admin view/)).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Export" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /Rescan for more/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "More actions" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: /^Share/ })).toHaveCount(0)
+    await page.getByRole("button", { name: "Save", exact: true }).first().click()
+    await expect(page.getByRole("button", { name: "Saved", exact: true })).toHaveAttribute("aria-pressed", "true")
+
+    // On your own topic there is nothing to share: everyone already sees it. Rescan and the menu stay.
+    m.detail = buildDetail()
+    await page.goto(`/listening/${TOPIC_ID}`)
+    await expect(page.getByRole("button", { name: /Rescan for more/ })).toBeVisible()
+    await expect(page.getByRole("button", { name: "More actions" })).toBeVisible()
+    await expect(page.getByRole("button", { name: /^Share/ })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "Shared", exact: true })).toHaveCount(0)
+    expect(errorsOf(page)).toEqual([])
+  })
+
   test("not an admin: no everyone's-topics list", async ({ page }) => {
     const mariahs = buildDetail({ viewer: true })
     await setup(page, { shared: [mariahs.topic] })

@@ -12,6 +12,9 @@ const DEFAULT_ALLOWLIST = [
   "mariah.tang@stamats.com",
   // Added after the team demo (2026-10-13).
   "chris.rapozo@stamats.com",
+  // Content Marketing, named after the team demo (2026-10-14).
+  "christopher.lott@stamats.com",
+  "leslie.schmidt@stamats.com",
 ]
 
 export function listeningAllowlist(): string[] {
@@ -48,4 +51,23 @@ export function isListeningAdmin(email: string | null | undefined): boolean {
   if (!email) return false
   const who = email.trim().toLowerCase()
   return listeningAllowed(who) && listeningAdmins().includes(who)
+}
+
+/**
+ * Who sees whose scans. "team" (the default since 2026-10-14): everyone with
+ * access can open and export every topic anyone has scanned, read only;
+ * rescan, refresh and delete stay with the person who ran it. "private": each
+ * person sees their own topics and the ones shared with them, and only admins
+ * see everything. LISTENING_VISIBILITY overrides.
+ */
+export type Visibility = "team" | "private"
+
+export function listeningVisibility(): Visibility {
+  return process.env["LISTENING_VISIBILITY"]?.trim().toLowerCase() === "private" ? "private" : "team"
+}
+
+/** Can open and export every topic anyone has scanned (read only). */
+export function seesEveryTopic(email: string | null | undefined): boolean {
+  if (!email || !listeningAllowed(email)) return false
+  return listeningVisibility() === "team" || isListeningAdmin(email)
 }

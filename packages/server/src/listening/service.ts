@@ -3,7 +3,7 @@
  * (local dev) and api/listening.ts (Vercel) are thin adapters over this, so
  * the two cannot drift apart in behaviour.
  */
-import { isListeningAdmin } from "./access.js"
+import { isListeningAdmin, listeningVisibility, seesEveryTopic } from "./access.js"
 import { DAILY_SEARCH_BUDGET, PLATFORM_LABEL } from "./config.js"
 import { engagementOf, isPublicConversation } from "./metrics.js"
 import { entityOf } from "./plan.js"
@@ -60,7 +60,7 @@ export interface UsageScan {
  * Who has scanned: today's scans (the shared Google allowance resets at
  * midnight Pacific) and a seven-day tally per person, so the team can see
  * what is left before starting a big scan. Refreshes use no searches and are
- * left out. A private topic's name shows only to its owner and admins.
+ * left out. A private topic's name shows only to those who can open it.
  */
 export async function usage(ctx: ServiceCtx): Promise<{
   budget: Awaited<ReturnType<typeof budget>>
@@ -68,13 +68,13 @@ export async function usage(ctx: ServiceCtx): Promise<{
   week: Array<{ who: string; scans: number; searchCalls: number }>
 }> {
   const since = pacificMidnight()
-  const admin = isListeningAdmin(ctx.userEmail)
+  const everything = seesEveryTopic(ctx.userEmail)
   const [b, runs] = await Promise.all([budget(ctx.store), ctx.store.runsSince(new Date(Date.now() - 7 * 86400e3))])
   const scans = runs.filter((r) => r.trigger !== "rebuild")
   const today = scans
     .filter((r) => new Date(r.startedAt) >= since)
     .map((r) => {
-      const canSee = admin || r.shared || ownsTopic({ createdBy: r.topicOwner }, ctx.userEmail)
+      const canSee = everything || r.shared || ownsTopic({ createdBy: r.topicOwner }, ctx.userEmail)
       return { who: r.createdBy, startedAt: r.startedAt, trigger: r.trigger, status: r.status, searchCalls: r.searchCalls, topic: canSee ? r.query : null, topicId: canSee ? r.topicId : null }
     })
   const tally = new Map<string, { who: string; scans: number; searchCalls: number }>()
@@ -89,7 +89,7 @@ export async function usage(ctx: ServiceCtx): Promise<{
 }
 
 export async function access(ctx: ServiceCtx) {
-  return { allowed: true, admin: isListeningAdmin(ctx.userEmail), sources: configuredSources(), budget: await budget(ctx.store) }
+  return { allowed: true, admin: isListeningAdmin(ctx.userEmail), visibility: listeningVisibility(), sources: configuredSources(), budget: await budget(ctx.store) }
 }
 
 /**
@@ -111,11 +111,11 @@ async function ownTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
   return topic && ownsTopic(topic, ctx.userEmail) ? topic : null
 }
 
-/** Your own topic, one someone shared, or (admins) anyone's. */
+/** Your own topic, one someone shared, or anyone's when you see every topic (team visibility, or an admin). */
 async function readableTopic(ctx: ServiceCtx, id: string): Promise<TopicRow | null> {
   if (!UUID.test(id)) return null
   const topic = await ctx.store.getTopic(id)
-  return topic && (ownsTopic(topic, ctx.userEmail) || topic.shared || isListeningAdmin(ctx.userEmail)) ? topic : null
+  return topic && (ownsTopic(topic, ctx.userEmail) || topic.shared || seesEveryTopic(ctx.userEmail)) ? topic : null
 }
 
 async function ownRun(ctx: ServiceCtx, runId: string) {
@@ -126,16 +126,16 @@ async function ownRun(ctx: ServiceCtx, runId: string) {
 }
 
 /**
- * Your topics, topics others shared, and for admins every other topic
- * (`team`, shared or private), so an admin sees every scan ever run.
+ * Your topics, topics others shared, and, for whoever sees every topic, every
+ * other topic (`team`, shared or private), so they see every scan ever run.
  */
 export async function listTopics(ctx: ServiceCtx): Promise<{ topics: TopicRow[]; shared: TopicRow[]; team?: TopicRow[] }> {
   await ctx.store.failStaleRuns(6 * 60 * 1000).catch(() => 0)
-  const admin = isListeningAdmin(ctx.userEmail)
+  const everything = seesEveryTopic(ctx.userEmail)
   const [topics, shared, team] = await Promise.all([
     ctx.store.listTopics(ctx.userEmail),
     ctx.store.listSharedTopics(ctx.userEmail),
-    admin ? ctx.store.listOthersTopics(ctx.userEmail) : Promise.resolve(undefined),
+    everything ? ctx.store.listOthersTopics(ctx.userEmail) : Promise.resolve(undefined),
   ])
   return team ? { topics, shared, team } : { topics, shared }
 }
@@ -161,7 +161,7 @@ export async function topicDetail(ctx: ServiceCtx, id: string): Promise<Result<u
     if (row) savedIdeas[idea.id] = row.id
   }
   const role = ownsTopic(topic, ctx.userEmail) ? "owner" : "viewer"
-  return { ok: true, body: { topic, role, items: itemViews(items, topic.report), runs, activeRun, savedIdeas } }
+  return { ok: true, body: { topic, role, visibility: listeningVisibility(), items: itemViews(items, topic.report), runs, activeRun, savedIdeas } }
 }
 
 /** One relevant source with its stored text (clipped at LIMITS.maxItemChars) and labels, for the sources export. */

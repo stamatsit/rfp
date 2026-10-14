@@ -25,6 +25,8 @@ export const TOPIC_IDEATION_ALLOW = [
   "joe.volk@stamats.com",
   "mariah.tang@stamats.com",
   "chris.rapozo@stamats.com",
+  "christopher.lott@stamats.com",
+  "leslie.schmidt@stamats.com",
 ] as const
 
 /** Case-insensitive membership test; tolerates a missing/loading user. */

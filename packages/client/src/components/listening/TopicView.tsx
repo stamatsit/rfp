@@ -499,8 +499,10 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
 
   const runsDone = detail!.runs.filter((r) => r.status === "complete").length
   const lastFailed = detail!.runs[0]?.status === "failed" ? detail!.runs[0] : null
-  // Someone else's shared topic: read, export and save ideas; no scans, refresh, sharing or delete.
+  // Someone else's topic: read, export and save ideas; no scans, refresh, sharing or delete.
   const viewer = detail!.role === "viewer"
+  // Everyone sees every topic, so there is nothing to share and nothing private.
+  const teamView = detail!.visibility === "team"
   const meta = report
     ? [
         sampleLabel(report),
@@ -519,7 +521,11 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
       <header id="top" className="scroll-mt-32 flex flex-col sm:flex-row sm:items-end justify-between gap-4 mt-3 mb-5">
         <div className="min-w-0">
           {viewer &&
-            (topic.shared ? (
+            (teamView ? (
+              <p className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[12px] font-medium text-slate-600 dark:text-slate-300 mb-2">
+                <Users size={13} /> {personName(topic.createdBy)}&apos;s topic · read only
+              </p>
+            ) : topic.shared ? (
               <p className="inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-500/10 px-2.5 py-1 text-[12px] font-medium text-sky-700 dark:text-sky-300 mb-2">
                 <Users size={13} /> Shared by {personName(topic.createdBy)} · read only
               </p>
@@ -533,7 +539,7 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
         </div>
         {report && (
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {!viewer && <ShareControl shared={!!topic.shared} onChange={setShared} />}
+            {!viewer && !teamView && <ShareControl shared={!!topic.shared} onChange={setShared} />}
             <ExportMenu input={() => ({ report, topic, items, runs: detail!.runs })} />
             {!viewer && (
               <>
@@ -557,7 +563,9 @@ export function TopicView({ topicId, scan, onNewSearch }: { topicId: string; sca
 
       {!report && viewer && (
         <Card className="p-7 max-w-2xl">
-          <p className="text-[15px] text-slate-700 dark:text-slate-200">This shared topic has no results yet. {personName(topic.createdBy)} can run its scan.</p>
+          <p className="text-[15px] text-slate-700 dark:text-slate-200">
+            This {teamView ? "" : "shared "}topic has no results yet. {personName(topic.createdBy)} can run its scan.
+          </p>
         </Card>
       )}
 

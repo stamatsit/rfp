@@ -1,6 +1,7 @@
 # Topic Ideation (social listening for content ideas)
 
-**Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: Eric only).
+**Status:** Shipped behind an allowlist (`LISTENING_ALLOWLIST`, default: the soft-launch list in
+`listening/access.ts`). Everyone on it sees every scan (team visibility, since 2026-10-14).
 Migrations 009, 010 and 011 are applied to rfp-prod. Internal planning notes (people, meeting notes, account
 details, keys) are kept outside this public repo.
 
@@ -48,16 +49,24 @@ Other rules from that audit:
 - Labels carry `v: 2`; older labels are relabeled on the next scan or Refresh analysis (no
   searches used). Version 1 reports show a banner offering that refresh.
 
-## Ownership and sharing
+## Ownership, visibility and sharing
 
-Topics belong to the person who created them (`listening_topics.created_by`, the session email,
+**Team visibility (the default since 2026-10-14).** Everyone with access can open, export and save
+ideas from every topic anyone has scanned, read only (`seesEveryTopic` in `listening/access.ts`).
+The home page lists them as "Everyone's topics" with each owner; nothing is labeled private or
+shared, and the Share button is hidden, since everyone already sees everything. Rescan, refresh,
+delete and cancel stay with the person who ran the scan, and each person's idea board stays their
+own. `access` and the topic detail return `visibility: "team"`. Setting
+`LISTENING_VISIBILITY=private` brings back the rules below without a code change.
+
+Under private visibility, topics belong to the person who created them (`listening_topics.created_by`, the session email,
 compared case-insensitively). `service.ts` scopes every call: the list shows only your topics, and
 opening, rescanning, refreshing, cancelling or deleting someone else's topic answers 404, so its
 existence never leaks. The Google daily allowance stays shared (one project-wide quota) and the
 search cache is shared (search results, no user data).
 
-Admins (`listening/access.ts`, default Eric, `LISTENING_ADMINS` overrides) can open and export
-every topic anyone has scanned, private ones included, and see who ran each scan; read only, like
+Under private visibility, admins (`listening/access.ts`, default Eric, `LISTENING_ADMINS` overrides)
+can open and export every topic anyone has scanned, private ones included, and see who ran each scan; read only, like
 a shared topic. The topic list returns them a `team` list (everyone else's topics) shown as
 "Everyone's topics" with each owner and whether it is shared. Deleted topics are hard deleted, so
 an admin does not see those.
@@ -178,16 +187,18 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 | `OPENAI_API_KEY` | Analysis (model from `lib/aiModels.ts`) |
 | `LISTENING_REDDIT_ARCHIVE` | `true` to read Reddit threads through Arctic Shift |
 | `LISTENING_SEARCH` | `auto` / `google` / `serper` |
-| `LISTENING_ALLOWLIST` | comma-separated emails; unset = Eric only |
+| `LISTENING_ALLOWLIST` | comma-separated emails; unset = the list in `listening/access.ts` |
+| `LISTENING_ADMINS` | comma-separated emails; unset = Eric |
+| `LISTENING_VISIBILITY` | `team` (default: everyone sees every topic) or `private` |
 | `LISTENING_DATABASE_URL` | local dev only: point just this tool at rfp-prod |
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 84 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 86 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 28 tests on fixtures,
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 29 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, and saving to and working the idea board.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.

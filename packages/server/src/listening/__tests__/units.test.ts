@@ -8,7 +8,7 @@ import { verifyQuestion, verifyQuote } from "../label.js"
 import { buildSearchJobs, MAX_SEARCH_CALLS_PER_RUN, pickThreads } from "../harvest.js"
 import { collectQuestions, collectQuotes, ideaCap, isPublicConversation, monthStats, sampleExclusions, sentimentOf, stripModelNumbers } from "../metrics.js"
 import { assemblePlan, entityOf, fallbackPlan } from "../plan.js"
-import { isListeningAdmin, listeningAllowed } from "../access.js"
+import { isListeningAdmin, listeningAllowed, listeningVisibility, seesEveryTopic } from "../access.js"
 import { noDashes } from "../report.js"
 import { cleanQuery, pacificMidnight } from "../service.js"
 import { HttpError } from "../util/http.js"
@@ -288,13 +288,30 @@ describe("access", () => {
   it("lets in Eric and Content Marketing by default, in any letter case, and no one else", () => {
     const saved = process.env["LISTENING_ALLOWLIST"]
     delete process.env["LISTENING_ALLOWLIST"]
-    for (const e of ["eric.yerke@stamats.com", "joe.volk@stamats.com", "Mariah.Tang@stamats.com", " joe.volk@stamats.com ", "Chris.Rapozo@stamats.com"]) expect(listeningAllowed(e), e).toBe(true)
+    for (const e of ["eric.yerke@stamats.com", "joe.volk@stamats.com", "Mariah.Tang@stamats.com", " joe.volk@stamats.com ", "Chris.Rapozo@stamats.com", "christopher.lott@stamats.com", "Leslie.Schmidt@stamats.com"]) expect(listeningAllowed(e), e).toBe(true)
     for (const e of ["laura.hynes@stamats.com", "joe.volk@gmail.com", "", null, undefined]) expect(listeningAllowed(e), String(e)).toBe(false)
     process.env["LISTENING_ALLOWLIST"] = "someone@stamats.com"
     expect(listeningAllowed("joe.volk@stamats.com")).toBe(false)
     expect(listeningAllowed("someone@stamats.com")).toBe(true)
     if (saved === undefined) delete process.env["LISTENING_ALLOWLIST"]
     else process.env["LISTENING_ALLOWLIST"] = saved
+  })
+  it("lets everyone with access see every topic by default; private visibility limits that to admins", () => {
+    const saved = process.env["LISTENING_VISIBILITY"]
+    delete process.env["LISTENING_VISIBILITY"]
+    expect(listeningVisibility()).toBe("team")
+    for (const e of ["joe.volk@stamats.com", "leslie.schmidt@stamats.com", "eric.yerke@stamats.com"]) expect(seesEveryTopic(e), e).toBe(true)
+    for (const e of ["laura.hynes@stamats.com", "", null, undefined]) expect(seesEveryTopic(e), String(e)).toBe(false)
+    for (const v of ["private", " Private "]) {
+      process.env["LISTENING_VISIBILITY"] = v
+      expect(listeningVisibility()).toBe("private")
+      expect(seesEveryTopic("joe.volk@stamats.com")).toBe(false)
+      expect(seesEveryTopic("eric.yerke@stamats.com")).toBe(true)
+    }
+    process.env["LISTENING_VISIBILITY"] = "anything else"
+    expect(listeningVisibility()).toBe("team")
+    if (saved === undefined) delete process.env["LISTENING_VISIBILITY"]
+    else process.env["LISTENING_VISIBILITY"] = saved
   })
   it("makes Eric the only admin by default, and never someone without access", () => {
     const saved = process.env["LISTENING_ADMINS"]

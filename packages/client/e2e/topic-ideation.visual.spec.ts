@@ -208,6 +208,26 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-17-export-menu.png` })
     })
 
+    test(`${vp.name} ${t} team view`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      const erics = buildDetail({ viewer: true, owner: "eric.yerke@stamats.com", shared: false })
+      await setup(page, {
+        visibility: "team",
+        topics: [{ ...buildDetail({ owner: "joe.volk@stamats.com" }).topic, id: "joe-1", query: "FAFSA changes" }],
+        team: [erics.topic, { ...buildDetail({ viewer: true }).topic, id: "t-m", query: "college enrollment trends" }],
+        detail: erics,
+      })
+      await page.goto("/listening")
+      await page.getByText("Every scan anyone on the team runs shows here", { exact: false }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-30-team-home.png`, fullPage: true })
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("Eric Yerke's topic · read only").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-31-team-topic.png` })
+    })
+
     test(`${vp.name} ${t} progress`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height })
       await theme(page, t)
