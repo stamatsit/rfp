@@ -558,12 +558,17 @@ describe("service: drafts from an idea", () => {
     const { store, eric, joe, topicId, idea } = await scanned()
     const mine = await draftIdea(eric, { topicId, ideaId: idea.id, kind: "headlines" })
     if (!mine.ok) throw new Error(mine.error)
-    // Joe cannot draft from Eric's saved idea, or from his private topic.
+    // Eric's saved idea is his: Joe can never draft from it, whoever sees the topic.
     expect(await draftIdea(joe, { savedId: mine.body.idea.id, kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
-    expect(await draftIdea(joe, { topicId, ideaId: idea.id, kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
-    expect((await listIdeas(joe)).drafts).toEqual({})
-    // Shared: Joe can draft, on his own board, without touching Eric's draft.
-    await shareTopic(eric, topicId, true)
+    // Under private visibility Joe cannot draft from Eric's private topic either.
+    process.env["LISTENING_VISIBILITY"] = "private"
+    try {
+      expect(await draftIdea(joe, { topicId, ideaId: idea.id, kind: "headlines" })).toMatchObject({ ok: false, status: 404 })
+      expect((await listIdeas(joe)).drafts).toEqual({})
+    } finally {
+      delete process.env["LISTENING_VISIBILITY"]
+    }
+    // By default everyone sees every topic: Joe drafts on his own board, without touching Eric's draft.
     const his = await draftIdea(joe, { topicId, ideaId: idea.id, kind: "headlines" })
     if (!his.ok) throw new Error(his.error)
     expect(his.body.idea.id).not.toBe(mine.body.idea.id)
@@ -643,9 +648,16 @@ describe("service: thumbs and more ideas", () => {
     for (const vote of [2, "1", null, undefined, true]) expect(await rateIdea(eric, { topicId, ideaId: "idea1", vote }), String(vote)).toMatchObject({ ok: false, status: 400, code: "bad_vote" })
     expect(await rateIdea(eric, { topicId, ideaId: "idea99", vote: 1 })).toMatchObject({ ok: false, status: 404, code: "idea_gone" })
     expect(await rateIdea(eric, { topicId: 5, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: false, status: 400 })
-    // Joe cannot vote on a private topic; on a shared one his vote is his own.
-    expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: false, status: 404 })
-    await shareTopic(eric, topicId, true)
+    // Under private visibility Joe cannot vote on Eric's private topic; once shared, or by default, his vote is his own.
+    process.env["LISTENING_VISIBILITY"] = "private"
+    try {
+      expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: false, status: 404 })
+      await shareTopic(eric, topicId, true)
+      expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: true })
+    } finally {
+      delete process.env["LISTENING_VISIBILITY"]
+    }
+    await shareTopic(eric, topicId, false)
     expect(await rateIdea(joe, { topicId, ideaId: "idea1", vote: 1 })).toMatchObject({ ok: true })
     expect(await votesOf(joe, topicId)).toEqual({ idea1: 1 })
     expect(await votesOf(eric, topicId)).toEqual({ idea2: -1 })

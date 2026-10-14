@@ -270,12 +270,12 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
 
 ## Verification
 
-- `cd packages/server && npx vitest run src/listening`: 102 tests (engine scenarios with fakes:
+- `cd packages/server && npx vitest run src/listening`: 104 tests (engine scenarios with fakes:
   rescan, cancel, partial failures, hung database, Google-to-Serper fallback, fabricated quotes,
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board, drafts and
   their checks, thumbs and taste, more ideas and its refusals, words to leave out).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 40 tests on fixtures,
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 41 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, saving to and working the idea board, and a library of 100 topics
   (tabs, filter, person, sort, paging, both views, phone width), each kind of draft, thumbs, and

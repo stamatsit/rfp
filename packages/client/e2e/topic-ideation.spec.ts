@@ -280,15 +280,18 @@ test.describe("Topic Ideation", () => {
       detail: erics,
     })
     await page.goto("/listening")
+    // His own topic carries no "shared" badge: everything is visible to the team anyway.
+    await expect(page.getByRole("list", { name: "Your topics" }).getByText("FAFSA changes")).toBeVisible()
+    await expect(page.getByText("Shared with your team")).toHaveCount(0)
     // Joe is not an admin, yet the list of everyone's scans is there, with no private or shared labels.
-    const section = page.getByRole("region", { name: /Everyone's topics/ })
+    await page.getByRole("tab", { name: /Everyone's topics/ }).click()
+    const section = page.getByRole("tabpanel", { name: /Everyone's topics/ })
     await expect(section.getByText("Every scan anyone on the team runs shows here. Open, export and save ideas from any of them; only the person who ran it can rescan.")).toBeVisible()
     await expect(section.getByText("Eric Yerke", { exact: true })).toBeVisible()
     await expect(section.getByText("Mariah Tang", { exact: true })).toBeVisible()
     await expect(page.getByText(/· private|· shared|admin/)).toHaveCount(0)
-    await expect(page.getByText("Shared with your team")).toHaveCount(0)
     // No second list of the same topics.
-    await expect(page.getByRole("heading", { name: /Shared with you/ })).toHaveCount(0)
+    await expect(page.getByRole("tab", { name: /Shared with you/ })).toHaveCount(0)
 
     // Eric's topic opens read only, says whose it is, and still exports and saves.
     await section.getByRole("link", { name: /online nursing degree/ }).click()

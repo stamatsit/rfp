@@ -221,6 +221,7 @@ for (const vp of VIEWPORTS) {
         detail: erics,
       })
       await page.goto("/listening")
+      await page.getByRole("tab", { name: /Everyone's topics/ }).click()
       await page.getByText("Every scan anyone on the team runs shows here", { exact: false }).waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-30-team-home.png`, fullPage: true })
