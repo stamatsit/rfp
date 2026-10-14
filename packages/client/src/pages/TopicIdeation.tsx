@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { Lock } from "lucide-react"
+import { BookmarkCheck, Lock, Radar } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { IdeaBoard } from "@/components/listening/IdeaBoard"
 import { ListeningHome } from "@/components/listening/ListeningHome"
@@ -16,10 +16,37 @@ import { TopicView } from "@/components/listening/TopicView"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
 import { useScan } from "@/hooks/useScan"
 import { listeningApi } from "@/lib/listeningApi"
+import { cn } from "@/lib/utils"
 import type { AccessInfo, TimeWindow, TopicRow } from "@/types/listening"
 
 /** Module-level because the app remounts pages on every path change. */
 let navigatedForRun: string | null = null
+
+/** The tool's two places: the topics and your idea board. */
+function ToolNav({ board, ideaCount }: { board: boolean; ideaCount: number | null }) {
+  const item = (on: boolean) =>
+    cn(
+      "inline-flex items-center gap-1.5 h-9 rounded-lg px-3.5 text-[13.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50",
+      on ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-[0_1px_2px_rgba(15,23,42,0.12)]" : "text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white",
+    )
+  return (
+    <nav aria-label="Topic Ideation" className="mb-6">
+      <ul className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/80 p-1">
+        <li>
+          <Link to="/listening" aria-current={board ? undefined : "page"} className={item(!board)}>
+            <Radar size={15} aria-hidden /> Topics
+          </Link>
+        </li>
+        <li>
+          <Link to="/listening/ideas" aria-current={board ? "page" : undefined} className={item(board)}>
+            <BookmarkCheck size={15} aria-hidden /> Idea board
+            {ideaCount !== null && <span className="tabular-nums text-[12.5px] text-slate-500 dark:text-slate-400">{ideaCount}</span>}
+          </Link>
+        </li>
+      </ul>
+    </nav>
+  )
+}
 
 export function TopicIdeation() {
   const { topicId: param } = useParams<{ topicId?: string }>()
@@ -100,21 +127,26 @@ export function TopicIdeation() {
             </Link>
           </div>
         ) : board ? (
-          <IdeaBoard />
+          <>
+            <ToolNav board ideaCount={ideaCount} />
+            <IdeaBoard />
+          </>
         ) : topicId ? (
           <TopicView
             key={topicId}
             topicId={topicId}
             scan={scan}
             onNewSearch={(q, leave) => navigate(`/listening?q=${encodeURIComponent(q)}${leave?.length ? `&x=${encodeURIComponent(leave.join(", "))}` : ""}`)}
+            budget={access && !access.sources.serper ? access.budget : null}
           />
         ) : (
+          <>
+          <ToolNav board={false} ideaCount={ideaCount} />
           <ListeningHome
             access={access}
             topics={topics}
             shared={shared}
             team={team}
-            ideaCount={ideaCount}
             loading={loading}
             starting={startingNew}
             startError={startError}
@@ -123,6 +155,7 @@ export function TopicIdeation() {
             onScan={startNew}
             onEdit={() => startError && scan.reset()}
           />
+          </>
         )}
       </main>
     </div>

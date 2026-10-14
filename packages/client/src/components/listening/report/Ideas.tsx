@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
-import { ArrowUpRight, Bookmark, BookmarkCheck, ChevronDown, Lightbulb, Loader2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react"
-import type { ContentIdea, IdeaDraft, IdeaVote, ItemView, Report, SavedIdea } from "@/types/listening"
-import { IdeaDrafts } from "../IdeaDrafts"
-import { AUDIENCE_LABEL, Card, CopyButton, ExternalLink, NewBadge, PlatformBadge, SectionHeading, SentimentDot, Tag } from "../ui"
+import { Bookmark, BookmarkCheck, FileText, Lightbulb, Loader2, MessageSquareText, Sparkles, ThumbsDown, ThumbsUp, Type } from "lucide-react"
+import type { Audience, ContentIdea, DraftKind, IdeaDraft, IdeaVote, ItemView, Report, SavedIdea } from "@/types/listening"
+import type { PanelIdea } from "../IdeaPanel"
+import { AUDIENCE_LABEL, Card, CopyButton, NewBadge, SectionHeading, Tag } from "../ui"
+import { Button, Chip, ring, tone } from "../primitives"
+import { cn } from "@/lib/utils"
 
 export interface IdeaSaving {
   /** Report idea id -> saved copy id. */
@@ -34,32 +36,73 @@ export interface IdeaAdding {
   onMore: () => void
 }
 
+/** A report idea in the shape the idea panel shows: its posts as quotes where one was kept, else their text. */
+export function toPanelIdea(idea: ContentIdea, items: Map<string, ItemView>, report: Report, fresh = false): PanelIdea {
+  const quotes = new Map(report.quotes.map((q) => [q.itemId, q.text]))
+  const sub = idea.subtopicId ? report.subtopics.find((s) => s.id === idea.subtopicId) : null
+  return {
+    key: idea.id,
+    headline: idea.headline,
+    angle: idea.angle,
+    whyNow: idea.whyNow || null,
+    outline: idea.outline,
+    format: idea.format,
+    audience: idea.audience,
+    subtopic: sub ? { id: sub.id, name: sub.name } : null,
+    isNew: fresh,
+    sources: idea.evidenceItemIds.flatMap((id) => {
+      const it = items.get(id)
+      if (!it) return []
+      const q = quotes.get(id)
+      return [{ url: it.url, platform: it.platform, text: q ?? (it.title && it.kind !== "comment" ? it.title : it.excerpt), quoted: !!q, sentiment: it.sentiment, publishedAt: it.publishedAt }]
+    }),
+  }
+}
+
+export function ideaText(idea: PanelIdea): string {
+  return [
+    idea.headline,
+    "",
+    idea.angle,
+    `Format: ${idea.format}. Audience: ${AUDIENCE_LABEL[idea.audience]}.`,
+    idea.whyNow ? `Why now: ${idea.whyNow}` : "",
+    "",
+    idea.outline.length ? "Outline:" : "",
+    ...idea.outline.map((o) => `- ${o}`),
+    "",
+    "Sources:",
+    ...idea.sources.map((s) => `- ${s.url}`),
+  ]
+    .filter((l, i, a) => !(l === "" && a[i - 1] === ""))
+    .join("\n")
+    .trim()
+}
+
 /** Thumbs steer the ideas written next; they change nothing already on the page. */
-function Thumbs({ ideaId, headline, s }: { ideaId: string; headline: string; s: IdeaSaving }) {
+export function Thumbs({ ideaId, headline, s, size = "iconSm" }: { ideaId: string; headline: string; s: IdeaSaving; size?: "iconSm" | "icon" }) {
   const mine = s.votes[ideaId] ?? 0
   const button = (vote: IdeaVote, Icon: typeof ThumbsUp, label: string, on: string) => (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size={size}
       onClick={() => s.onVote(ideaId, mine === vote ? 0 : vote)}
       aria-pressed={mine === vote}
       aria-label={`${label}: ${headline}`}
       title={mine === vote ? `${label}. Click to clear.` : label}
-      className={`w-8 h-8 inline-flex items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
-        mine === vote ? on : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-      }`}
+      className={mine === vote ? on : "text-slate-500 dark:text-slate-400"}
     >
-      <Icon size={15} />
-    </button>
+      <Icon size={size === "icon" ? 17 : 15} />
+    </Button>
   )
   return (
     <span className="inline-flex items-center" role="group" aria-label="Rate this idea">
-      {button(1, ThumbsUp, "More ideas like this", "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300")}
-      {button(-1, ThumbsDown, "Fewer ideas like this", "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300")}
+      {button(1, ThumbsUp, "More ideas like this", "!bg-emerald-50 !text-emerald-700 dark:!bg-emerald-500/15 dark:!text-emerald-300")}
+      {button(-1, ThumbsDown, "Fewer ideas like this", "!bg-rose-50 !text-rose-700 dark:!bg-rose-500/15 dark:!text-rose-300")}
     </span>
   )
 }
 
-function SaveButton({ ideaId, s }: { ideaId: string; s: IdeaSaving }) {
+export function SaveButton({ ideaId, s, size = "sm" }: { ideaId: string; s: IdeaSaving; size?: "sm" | "md" }) {
   const saved = !!s.saved[ideaId]
   const busy = s.busy === ideaId
   // Removing a saved idea deletes the drafts written from it, so that asks once.
@@ -77,174 +120,118 @@ function SaveButton({ ideaId, s }: { ideaId: string; s: IdeaSaving }) {
     s.onUnsave(ideaId)
   }
   return (
-    <button
-      type="button"
+    <Button
+      size={size}
+      variant={saved ? "brand" : size === "md" ? "secondary" : "ghost"}
       onClick={click}
       disabled={busy}
       aria-pressed={saved}
       title={saved ? (drafted ? "Saved to your idea board. Removing it deletes its drafts too." : "Saved to your idea board. Click to remove it.") : "Save to your idea board"}
-      className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 disabled:opacity-60 ${
-        saved
-          ? "bg-sky-50 text-sky-700 hover:bg-sky-100 dark:bg-sky-500/10 dark:text-sky-300 dark:hover:bg-sky-500/20"
-          : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-      }`}
     >
-      {busy ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : saved ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
-      {confirm ? "Remove, drafts too?" : saved ? "Saved" : "Save"}
-    </button>
+      {busy ? <Loader2 size={14} className="animate-spin motion-reduce:animate-none" /> : saved ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+      {confirm ? "Remove, drafts too?" : saved ? "Saved" : size === "md" ? "Save to idea board" : "Save"}
+    </Button>
   )
 }
 
-function ideaText(idea: ContentIdea, items: Map<string, ItemView>): string {
-  const sources = idea.evidenceItemIds.map((id) => items.get(id)?.url).filter(Boolean)
-  return [
-    idea.headline,
-    "",
-    idea.angle,
-    `Format: ${idea.format}. Audience: ${AUDIENCE_LABEL[idea.audience]}.`,
-    idea.whyNow ? `Why now: ${idea.whyNow}` : "",
-    "",
-    "Outline:",
-    ...idea.outline.map((o) => `- ${o}`),
-    "",
-    "Sources:",
-    ...sources.map((s) => `- ${s}`),
-  ]
-    .filter((l, i, a) => !(l === "" && a[i - 1] === ""))
-    .join("\n")
-}
+const DRAFT_ICON: Record<DraftKind, typeof FileText> = { blog_outline: FileText, linkedin_post: MessageSquareText, headlines: Type }
+const DRAFT_SHORT: Record<DraftKind, string> = { blog_outline: "outline", linkedin_post: "LinkedIn post", headlines: "headlines" }
 
-function Evidence({ ids, items, quotes }: { ids: string[]; items: Map<string, ItemView>; quotes: Map<string, string> }) {
-  return (
-    <ul className="mt-3 space-y-2.5">
-      {ids.map((id) => {
-        const it = items.get(id)
-        if (!it) return null
-        const text = quotes.get(id) ?? (it.title && it.kind !== "comment" ? it.title : it.excerpt)
-        return (
-          <li key={id}>
-            <ExternalLink href={it.url} className="group block rounded-xl border border-black/[0.06] dark:border-white/[0.08] p-3 hover:border-sky-300 dark:hover:border-sky-500/40 hover:bg-sky-50/40 dark:hover:bg-sky-500/[0.04] transition-colors">
-              <p className="text-[13.5px] leading-relaxed text-slate-700 dark:text-slate-200 line-clamp-3">{quotes.has(id) ? `“${text}”` : text}</p>
-              <span className="flex items-center gap-2 mt-2 text-[12px] text-slate-500">
-                <PlatformBadge platform={it.platform} />
-                {it.sentiment && <SentimentDot tone={it.sentiment} />}
-                <span className="ml-auto inline-flex items-center gap-0.5 text-sky-600 dark:text-sky-400 opacity-80 group-hover:opacity-100">
-                  Open <ArrowUpRight size={13} />
-                </span>
-              </span>
-            </ExternalLink>
-          </li>
-        )
-      })}
-    </ul>
-  )
-}
-
-function IdeaCard({ idea, index, items, quotes, subtopicName, onSubtopic, saving, fresh }: {
-  idea: ContentIdea
-  index: number
-  items: Map<string, ItemView>
-  quotes: Map<string, string>
-  subtopicName: string | null
-  onSubtopic: () => void
-  saving: IdeaSaving
-  /** Added by "More ideas" since the page opened. */
-  fresh: boolean
-}) {
-  const [open, setOpen] = useState(false)
+function IdeaRow({ idea, index, subtopicName, saving, fresh, onOpen }: { idea: ContentIdea; index: number; subtopicName: string | null; saving: IdeaSaving; fresh: boolean; onOpen: () => void }) {
   const savedId = saving.saved[idea.id]
+  const drafts = savedId ? saving.drafts[savedId] ?? [] : []
   return (
-    <Card id={`idea-${idea.id}`} className={`p-5 flex flex-col scroll-mt-36 ${fresh ? "ring-2 ring-sky-400/50" : ""}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-[12px] font-semibold text-slate-400 tabular-nums mr-1">{String(index + 1).padStart(2, "0")}</span>
+    <li
+      id={`idea-${idea.id}`}
+      className={cn(
+        "group relative grid grid-cols-[auto_minmax(0,1fr)] sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-2xl border bg-white dark:bg-slate-900 p-4 sm:p-5 transition-[border-color,box-shadow] scroll-mt-36",
+        "border-black/[0.07] dark:border-white/[0.08] hover:border-black/[0.14] dark:hover:border-white/[0.16] hover:shadow-[0_4px_18px_rgba(15,23,42,0.06)]",
+        fresh && "ring-2 ring-sky-400/50",
+      )}
+    >
+      <span aria-hidden className="pt-0.5 text-[13px] font-semibold tabular-nums text-slate-500 dark:text-slate-400 w-5">
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <div className="min-w-0">
+        <h3 className="text-[16.5px] font-semibold leading-snug tracking-[-0.01em] text-slate-900 dark:text-white text-balance">
+          <button
+            type="button"
+            onClick={onOpen}
+            className="text-left after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-sky-500/60 group-hover:text-sky-800 dark:group-hover:text-sky-300 transition-colors"
+          >
+            {idea.headline}
+          </button>
+        </h3>
+        <p className={`mt-1 text-[14px] leading-relaxed line-clamp-2 ${tone.body}`}>{idea.angle}</p>
+        <div className={`mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[12.5px] ${tone.muted}`}>
           {fresh && <NewBadge />}
           <Tag tone="teal">{idea.format}</Tag>
-          <Tag>For {AUDIENCE_LABEL[idea.audience].toLowerCase()}</Tag>
-        </div>
-        <div className="flex items-center gap-0.5 -mr-1.5 -mt-1 shrink-0">
-          <Thumbs ideaId={idea.id} headline={idea.headline} s={saving} />
-          <SaveButton ideaId={idea.id} s={saving} />
-          <CopyButton text={() => ideaText(idea, items)} label="" done="" ariaLabel="Copy this idea" className="!px-1.5" />
-        </div>
-      </div>
-      <h3 tabIndex={-1} className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-slate-900 dark:text-white mt-3 text-balance focus:outline-none">
-        {idea.headline}
-      </h3>
-      <p className="text-[14px] leading-relaxed text-slate-600 dark:text-slate-300 mt-2">{idea.angle}</p>
-      {idea.whyNow && (
-        <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-2.5">
-          <span className="font-medium text-slate-700 dark:text-slate-200">Why now: </span>
-          {idea.whyNow}
-        </p>
-      )}
-      <div className="mt-auto pt-4 flex items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          className="inline-flex items-center gap-1.5 text-[13px] font-medium text-sky-700 dark:text-sky-400 hover:text-sky-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 rounded"
-        >
-          Outline and {idea.evidenceItemIds.length} sources
-          <ChevronDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-        </button>
-        {subtopicName && (
-          <button type="button" onClick={onSubtopic} className="text-[12px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 truncate max-w-[45%]">
-            {subtopicName}
-          </button>
-        )}
-      </div>
-      {open && (
-        <div className="mt-4 pt-4 border-t border-black/[0.05] dark:border-white/[0.06]">
-          {idea.outline.length > 0 && (
-            <>
-              <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mb-2">Outline</p>
-              <ol className="space-y-1.5 text-[13.5px] text-slate-700 dark:text-slate-200 list-decimal pl-5 marker:text-slate-400">
-                {idea.outline.map((o) => (
-                  <li key={o}>{o}</li>
-                ))}
-              </ol>
-            </>
+          <span>For {AUDIENCE_LABEL[idea.audience].toLowerCase()}</span>
+          <span aria-hidden>·</span>
+          <span>{idea.evidenceItemIds.length} posts</span>
+          {subtopicName && (
+            <span className="hidden sm:inline-flex items-center gap-2.5 min-w-0">
+              <span aria-hidden>·</span>
+              <span className="truncate max-w-[16rem]">{subtopicName}</span>
+            </span>
           )}
-          <p className="text-[11px] font-medium uppercase tracking-[0.06em] text-slate-400 mt-4">Based on these posts</p>
-          <Evidence ids={idea.evidenceItemIds} items={items} quotes={quotes} />
+          {drafts.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400 font-medium">
+              <span aria-hidden className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              {drafts.map((d) => DRAFT_SHORT[d.kind]).join(", ")} written
+              <span className="inline-flex gap-0.5" aria-hidden>
+                {drafts.map((d) => {
+                  const Icon = DRAFT_ICON[d.kind]
+                  return <Icon key={d.kind} size={12} />
+                })}
+              </span>
+            </span>
+          )}
         </div>
-      )}
-      <IdeaDrafts
-        target={savedId ? { savedId } : { topicId: saving.topicId, ideaId: idea.id }}
-        drafts={savedId ? saving.drafts[savedId] ?? [] : []}
-        onDrafted={(saved, draft) => saving.onDrafted(idea.id, saved, draft)}
-      />
-    </Card>
+      </div>
+      <div className="relative z-10 col-start-2 sm:col-start-3 sm:row-start-1 flex items-center gap-0.5 -ml-2 sm:ml-0 sm:-mr-1.5 sm:-mt-1 self-start">
+        <Thumbs ideaId={idea.id} headline={idea.headline} s={saving} />
+        <SaveButton ideaId={idea.id} s={saving} />
+      </div>
+    </li>
   )
 }
 
-export function Ideas({ report, items, onSubtopic, saving, adding }: {
+export function Ideas({
+  report,
+  saving,
+  adding,
+  onOpen,
+}: {
   report: Report
-  items: Map<string, ItemView>
-  onSubtopic: (id: string) => void
   saving: IdeaSaving
   adding: IdeaAdding
+  onOpen: (ideaId: string) => void
 }) {
-  const quotes = new Map(report.quotes.map((q) => [q.itemId, q.text]))
   const subName = new Map(report.subtopics.map((s) => [s.id, s.name]))
   const savedHere = report.ideas.filter((i) => saving.saved[i.id]).length
+  const audiences = useMemo(() => {
+    const c = new Map<Audience, number>()
+    for (const i of report.ideas) c.set(i.audience, (c.get(i.audience) ?? 0) + 1)
+    return [...c.entries()].sort((a, b) => b[1] - a[1])
+  }, [report.ideas])
+  const [audience, setAudience] = useState<Audience | "all">("all")
+  const numbered = report.ideas.map((idea, index) => ({ idea, index }))
+  const shown = audience === "all" ? numbered : numbered.filter(({ idea }) => idea.audience === audience)
   return (
-    <section>
+    <section aria-labelledby="ideas-title">
       <SectionHeading
         id="ideas"
+        titleId="ideas-title"
         title="Content ideas"
         count={report.ideas.length}
-        hint="Each idea is backed by at least two real posts, checked a second time against them. Save the ones worth pursuing, or start a draft from one."
+        hint="Each one is backed by at least two real posts, checked a second time against them. Open one for its outline, its posts and drafts."
         action={
           report.ideas.length ? (
             <div className="flex items-center gap-1 shrink-0">
               {savedHere > 0 && (
-                <Link
-                  to="/listening/ideas"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-medium text-sky-700 dark:text-sky-400 hover:bg-sky-50 dark:hover:bg-sky-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-                >
-                  <BookmarkCheck size={14} /> Idea board
+                <Link to="/listening/ideas" className={`inline-flex items-center gap-1.5 h-8 rounded-lg px-2.5 text-[12.5px] font-medium text-sky-800 dark:text-sky-300 hover:bg-sky-50 dark:hover:bg-sky-500/10 ${ring}`}>
+                  <BookmarkCheck size={14} /> {savedHere} saved
                 </Link>
               )}
               <CopyButton text={() => report.ideas.map((i, n) => `${n + 1}. ${i.headline}\n   ${i.angle}`).join("\n\n")} label="Copy all" />
@@ -252,52 +239,80 @@ export function Ideas({ report, items, onSubtopic, saving, adding }: {
           ) : undefined
         }
       />
+      {audiences.length > 1 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-4" role="group" aria-label="Filter ideas by audience">
+          <Chip on={audience === "all"} onClick={() => setAudience("all")} count={report.ideas.length}>
+            All
+          </Chip>
+          {audiences.map(([a, n]) => (
+            <Chip key={a} on={audience === a} onClick={() => setAudience(audience === a ? "all" : a)} count={n}>
+              For {AUDIENCE_LABEL[a].toLowerCase()}
+            </Chip>
+          ))}
+        </div>
+      )}
       {report.ideas.length === 0 ? (
         <Card className="p-8 text-center">
-          <Lightbulb size={22} className="mx-auto text-slate-300" />
-          <p className="text-[14px] text-slate-600 dark:text-slate-300 mt-3 max-w-md mx-auto text-pretty">
+          <Lightbulb size={22} className="mx-auto text-slate-400" />
+          <p className={`text-[14px] mt-3 max-w-md mx-auto text-pretty ${tone.body}`}>
             {report.totals.relevant < 3
               ? "Not enough conversation yet to suggest ideas. Rescan or try a broader topic."
               : report.analysisSource === "llm"
                 ? "No idea had at least two posts that clearly back it up, so none are shown. Rescan to collect more conversation, or try a broader topic."
-                : "Ideas were not written for this scan. Use Refresh analysis in the menu to try again."}
+                : "Ideas were not written for this scan. Use Update, then Rewrite the analysis, to try again."}
           </p>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 items-start">
-          {report.ideas.map((idea, i) => (
-            <IdeaCard
+        <ul className="space-y-2.5" aria-label="Content ideas">
+          {shown.map(({ idea, index }) => (
+            <IdeaRow
               key={idea.id}
               idea={idea}
-              index={i}
-              items={items}
-              quotes={quotes}
+              index={index}
               subtopicName={idea.subtopicId ? subName.get(idea.subtopicId) ?? null : null}
-              onSubtopic={() => idea.subtopicId && onSubtopic(idea.subtopicId)}
               saving={saving}
               fresh={adding.fresh.has(idea.id)}
+              onOpen={() => onOpen(idea.id)}
             />
           ))}
-        </div>
+        </ul>
       )}
       {adding.allowed && report.totals.relevant >= 3 && report.analysisSource === "llm" && (
-        <div className="mt-6 flex flex-col items-center gap-2 text-center">
-          <button
-            type="button"
-            onClick={adding.onMore}
-            disabled={adding.busy}
-            className="inline-flex items-center gap-2 h-10 rounded-xl px-4 text-[14px] font-semibold text-slate-800 dark:text-slate-100 border border-black/[0.1] dark:border-white/[0.14] bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-          >
+        <div className="mt-6 rounded-2xl border border-dashed border-black/[0.12] dark:border-white/[0.14] px-5 py-6 flex flex-col items-center gap-2.5 text-center">
+          <Button onClick={adding.onMore} disabled={adding.busy}>
             {adding.busy ? <Loader2 size={16} className="animate-spin motion-reduce:animate-none text-sky-600" /> : <Sparkles size={16} className="text-sky-600 dark:text-sky-400" />}
             {adding.busy ? "Writing more ideas" : "More ideas"}
-          </button>
-          <p className="text-[12.5px] leading-relaxed text-slate-500 dark:text-slate-400 max-w-lg text-pretty" aria-live="polite">
+          </Button>
+          <p className={`text-[12.5px] leading-relaxed max-w-lg text-pretty ${tone.muted}`} aria-live="polite">
             {adding.busy
               ? "From the posts already collected, each checked against them. About 20 seconds, and no searches."
-              : adding.note ?? "Written from the posts already collected and checked against them, so it uses no searches. Your thumbs steer what comes next: more like the ideas you liked, fewer like the ones you passed on."}
+              : adding.note ?? "Written from the posts already collected and checked against them, so it uses no searches. Your thumbs steer what comes next."}
           </p>
         </div>
       )}
     </section>
+  )
+}
+
+/** The first few ideas, as one-line links into the idea panel, for the overview. */
+export function TopIdeas({ report, onOpen, limit = 3 }: { report: Report; onOpen: (ideaId: string) => void; limit?: number }) {
+  return (
+    <ol className="divide-y divide-black/[0.05] dark:divide-white/[0.06]">
+      {report.ideas.slice(0, limit).map((idea, i) => (
+        <li key={idea.id}>
+          <button type="button" onClick={() => onOpen(idea.id)} className={`group w-full text-left flex gap-3 py-3 first:pt-0 rounded-lg ${ring}`}>
+            <span aria-hidden className="text-[12.5px] font-semibold tabular-nums text-slate-500 dark:text-slate-400 w-5 pt-px">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[14.5px] font-semibold leading-snug text-slate-900 dark:text-white group-hover:text-sky-800 dark:group-hover:text-sky-300 transition-colors">{idea.headline}</span>
+              <span className={`block mt-0.5 text-[12.5px] ${tone.muted}`}>
+                {idea.format}, for {AUDIENCE_LABEL[idea.audience].toLowerCase()} · {idea.evidenceItemIds.length} posts
+              </span>
+            </span>
+          </button>
+        </li>
+      ))}
+    </ol>
   )
 }

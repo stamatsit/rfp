@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Link } from "react-router-dom"
-import { BookmarkCheck, LayoutGrid, List, ListFilter, Loader2, Lock, Users, X } from "lucide-react"
+import { LayoutGrid, List, ListFilter, Loader2, Lock, Users, X } from "lucide-react"
 import type { TopicRow } from "@/types/listening"
 import { Card, SentimentPill, personName, plural, timeAgo, windowLabel } from "./ui"
 
@@ -147,12 +147,12 @@ function TopicCard({ t, now, scope, teamView }: { t: TopicRow; now: number; scop
             </span>
           )}
           <h3 className="text-[15.5px] font-semibold leading-snug text-slate-900 dark:text-white line-clamp-2">{t.query}</h3>
-          <p className="text-[12px] text-slate-400 dark:text-slate-500 mt-1">
+          <p className="text-[12px] text-slate-500 dark:text-slate-400 mt-1">
             {rangeLabel(t)}
             {withoutLabel(t)}
           </p>
           <p className="text-[13px] leading-relaxed text-slate-500 dark:text-slate-400 mt-1.5 line-clamp-3">{summary}</p>
-          <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-slate-500">
+          <div className="mt-auto pt-4 flex items-center justify-between gap-3 text-[12px] text-slate-500 dark:text-slate-400">
             {running ? (
               <span className="inline-flex items-center gap-1.5 font-medium text-sky-600 dark:text-sky-400">
                 <Loader2 size={13} className="animate-spin motion-reduce:animate-none" /> Scanning
@@ -243,7 +243,6 @@ export function TopicLibrary({
   shared = [],
   team = null,
   teamView = false,
-  ideaCount = null,
   loading,
   now,
 }: {
@@ -254,8 +253,6 @@ export function TopicLibrary({
   team?: TopicRow[] | null
   /** Everyone sees every topic: no shared or private labels. */
   teamView?: boolean
-  /** Ideas on your board, or null if unknown. */
-  ideaCount?: number | null
   loading: boolean
   now: number
 }) {
@@ -362,35 +359,27 @@ export function TopicLibrary({
                     }`}
                   >
                     {s.label}
-                    <span className={`tabular-nums text-[12.5px] ${on ? "text-slate-500 dark:text-slate-400" : "text-slate-400 dark:text-slate-500"}`}>{s.list.length}</span>
+                    <span className={`tabular-nums text-[12.5px] ${on ? "text-slate-500 dark:text-slate-400" : "text-slate-500 dark:text-slate-400"}`}>{s.list.length}</span>
                   </button>
                 )
               })}
             </div>
           </>
         ) : (
-          <h2 id="topics-heading" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500">
-            Your topics {topics && topics.length > 0 && <span className="text-slate-400 tabular-nums">{topics.length}</span>}
+          <h2 id="topics-heading" className="text-[13px] font-medium uppercase tracking-[0.06em] text-slate-500 dark:text-slate-400">
+            Your topics {topics && topics.length > 0 && <span className="text-slate-500 dark:text-slate-400 tabular-nums">{topics.length}</span>}
           </h2>
         )}
-        <Link
-          to="/listening/ideas"
-          className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-medium text-slate-700 dark:text-slate-200 border border-black/[0.08] dark:border-white/[0.1] bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-        >
-          <BookmarkCheck size={15} className="text-sky-600 dark:text-sky-400" />
-          Idea board
-          {ideaCount !== null && <span className="tabular-nums text-slate-400">{ideaCount}</span>}
-        </Link>
       </div>
 
       <div id="topics-panel" {...(tabbed ? { role: "tabpanel", "aria-labelledby": `topics-tab-${active.id}` } : {})}>
-        {active.note && <p className="text-[12.5px] text-slate-400 mb-3">{active.note}</p>}
+        {active.note && <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mb-3">{active.note}</p>}
 
         {busy && (
           <div className="flex flex-col md:flex-row gap-2 mb-3">
             <label className="relative flex-1 min-w-0">
               <span className="sr-only">Filter topics</span>
-              <ListFilter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" aria-hidden />
+              <ListFilter size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" aria-hidden />
               <input
                 value={find}
                 onChange={(e) => {
@@ -416,7 +405,7 @@ export function TopicLibrary({
                     setShown(PAGE)
                   }}
                   aria-label="Clear the filter"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 inline-flex items-center justify-center rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
                 >
                   <X size={15} />
                 </button>
@@ -469,7 +458,7 @@ export function TopicLibrary({
                     aria-pressed={view === mode}
                     onClick={() => setViewChoice(mode)}
                     className={`w-9 h-[34px] inline-flex items-center justify-center rounded-[10px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
-                      view === mode ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                      view === mode ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
                     }`}
                   >
                     <Icon size={16} />
@@ -503,15 +492,15 @@ export function TopicLibrary({
           active.id === "mine" ? (
             <Card className="p-10 text-center">
               <p className="text-[14.5px] font-medium text-slate-700 dark:text-slate-200">Nothing scanned yet</p>
-              <p className="text-[13.5px] text-slate-500 mt-1.5 max-w-md mx-auto">Every topic you scan is saved here. Come back any time to read it again or rescan for newer posts.</p>
+              <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1.5 max-w-md mx-auto">Every topic you scan is saved here. Come back any time to read it again or rescan for newer posts.</p>
             </Card>
           ) : (
-            <Card className="p-8 text-center text-[13.5px] text-slate-500">No one else has run a scan yet.</Card>
+            <Card className="p-8 text-center text-[13.5px] text-slate-500 dark:text-slate-400">No one else has run a scan yet.</Card>
           )
         ) : matched.length === 0 ? (
           <Card className="p-10 text-center">
             <p className="text-[14.5px] font-medium text-slate-700 dark:text-slate-200">No topics match</p>
-            <p className="text-[13.5px] text-slate-500 mt-1.5">Try fewer words, or clear the filters to see all {active.list.length}.</p>
+            <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1.5">Try fewer words, or clear the filters to see all {active.list.length}.</p>
           </Card>
         ) : view === "list" ? (
           <Card className="overflow-hidden">

@@ -102,6 +102,47 @@ Filtering and sorting run in the browser over what `GET /topics` already returns
 no report). The server caps that at 200 of your own and 500 of other people's; past that the list
 needs server-side paging.
 
+## The page (redesign, 2026-10-14)
+
+Built for repeat use by a content team: type a topic, wait, read, pick ideas, draft, export.
+
+- **Home** (`ListeningHome.tsx`). A first visit gets the welcome, what the tool does and example
+  topics. Once anyone has scanned, the page leads with the search box, a meter of today's shared
+  allowance ("About 3 scans left today", amber at one, red at none) and the topic library. Scan
+  stays enabled with an empty box and says to type a topic, instead of looking broken.
+  "Topics" and "Idea board" are the tool's two places, as tabs at the top of both pages.
+- **Topic page** (`TopicView.tsx`). Tabs: Overview, Ideas, Questions, Quotes, Subtopics, Sources.
+  The tab and an open idea live in the address (`?tab=ideas&idea=idea3`), so a reload, a pasted
+  link or Back lands in the same place; a tab change always closes the idea panel. Overview is a
+  one-screen digest: the summary and feeling, the top three ideas, the top five questions, three
+  quotes (strongest feelings first), subtopic bars coloured by feeling, where the sample came
+  from, and the institution's own posts and the news, each with "See all" into its tab. On a real
+  124-post report the overview is about 3,500 px tall on a phone, against about 14,000 px for the
+  old single page.
+- **Header actions**: Export (the primary action, for everyone), Update (owner only: "Rescan for
+  new posts" with its cost in searches and the scans left today, "Rewrite the analysis" with no
+  searches, "Scan another time range") and More (Delete). Share appears only when topics are
+  private by default (`LISTENING_VISIBILITY=private`).
+- **Ideas** are a compact list (headline, angle, format, audience, posts, subtopic, drafts written)
+  with thumbs and Save on each row and audience filters. A row opens the **idea panel**
+  (`IdeaPanel.tsx`, a Radix Dialog side panel, full screen on a phone): angle, why now, Save,
+  thumbs, Copy idea, then tabs "Outline and posts", "Blog outline", "LinkedIn post", "Headlines".
+  Previous and next (and the Left and Right arrow keys) step through the list, and the tab stays
+  put, so writing headlines for every idea is one click each. Nothing is drafted until asked. A
+  draft being written keeps going if you step away and back (`IdeaDrafts.tsx`). The idea board
+  uses the same panel.
+- **Questions** and **Quotes** (`report/Questions.tsx`, `report/Quotes.tsx`) filter by who asked
+  and by feeling, and copy one or all (quotes with their links, for interview prep).
+- **Idea board** (`IdeaBoard.tsx`): a column per status on wide screens (New, Pitched, In progress,
+  Published; Dropped folded away below), a filtered list on narrow ones.
+- **Long scans**: when a scan ends while the tab is in the background, the tab title says
+  "Ready: <topic>" until you come back, and "Notify me when it's done" on the progress card turns on
+  a browser notification (remembered; hidden where the browser blocks notifications).
+- **Building blocks** (`primitives.tsx`): one button family, keyboard tabs (arrow keys, Home, End),
+  chips, the side panel, Radix menus (arrow keys, typeahead, Escape), and text tones that pass
+  WCAG AA contrast in both themes (secondary text is slate-500 in light, slate-400 in dark, never
+  lighter). The panel and menus sit above the app's assistant button (z-index 950 and up).
+
 ## Idea board
 
 `/listening/ideas`. Save on any idea card stores a frozen copy in `listening_saved_ideas`
@@ -118,8 +159,8 @@ carries `savedIdeas` (report idea id to saved id) so Save shows as Saved.
 All three use the analysis model only and never a search.
 
 **Drafts** (`listening/drafts.ts`, `components/listening/IdeaDrafts.tsx`, migration 012). From any
-idea, on the topic page or the board: a **blog outline**, a **LinkedIn post** or **headlines**,
-written in place from the idea and the posts saved with it. The content team writes its own
+idea, in the idea panel on the topic page or the board: a **blog outline**, a **LinkedIn post** or
+**headlines**, written from the idea and the posts saved with it. The content team writes its own
 articles, so a blog gets an outline (notes for a writer, with the posts each section answers) and
 never finished copy. Drafts hang off the saved copy of the idea (`listening_idea_drafts`, one per
 kind per saved idea, removed with it), so drafting from a topic also saves the idea to the board,
@@ -275,13 +316,21 @@ Client: `/listening/:topicId?`, `pages/TopicIdeation.tsx`, `components/listening
   passing mentions, an institution's own posts, unsupported ideas, relabeling old labels, one
   user never seeing or touching another's topics, sharing read only, the idea board, drafts and
   their checks, thumbs and taste, more ideas and its refusals, words to leave out).
-- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 41 tests on fixtures,
+- `cd packages/client && npx playwright test e2e/topic-ideation.spec.ts`: 47 tests on fixtures,
   including downloading the PDF and Word exports and checking their text and links, sharing, a
   teammate's read-only view, saving to and working the idea board, and a library of 100 topics
   (tabs, filter, person, sort, paging, both views, phone width), each kind of draft, thumbs, and
-  more ideas and words to leave out.
+  more ideas and words to leave out, the report tabs and the address, the idea panel (previous,
+  next, arrow keys, Back), question and quote filters and copy, the scan-done tab title and
+  notification, and the board at phone width.
   `KEEP_EXPORTS=<dir>` keeps the downloaded files for a visual check.
+- `npx playwright test e2e/topic-ideation.a11y.spec.ts`: axe-core, WCAG 2.0 to 2.2 A and AA, light
+  and dark: home, first visit, every report tab, the idea panel and each draft (offered and
+  written), the board empty and full. Fails on any violation.
 - `SHOTS=<dir> npx playwright test e2e/topic-ideation.visual.spec.ts`: desktop and phone, light and dark.
+- `REAL_DIR=<json dir> SHOTS=<dir> npx playwright test e2e/topic-ideation.real.spec.ts`: the same
+  pages rendered from topic details dumped from production (kept outside the repo), every tab and
+  the idea panel, for judging density on real reports.
 - Live: `npx tsx src/listening/cli.ts "<topic>" --rescan` runs the real engine against a memory
   store; `npx tsx src/listening/probe.ts` checks every source.
 

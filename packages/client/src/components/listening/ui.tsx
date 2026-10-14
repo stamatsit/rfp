@@ -278,15 +278,15 @@ export function Card({ children, className = "", id }: { children: ReactNode; cl
   )
 }
 
-export function SectionHeading({ id, title, hint, action, count }: { id: string; title: string; hint?: string; action?: ReactNode; count?: number }) {
+export function SectionHeading({ id, titleId, title, hint, action, count }: { id: string; titleId?: string; title: string; hint?: string; action?: ReactNode; count?: number }) {
   return (
     <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-x-4 gap-y-2 mb-4 scroll-mt-32" id={id}>
-      <div>
-        <h2 className="text-[20px] font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
+      <div className="min-w-0">
+        <h2 id={titleId} className="text-[20px] font-semibold tracking-[-0.01em] text-slate-900 dark:text-white">
           {title}
-          {count !== undefined && <span className="ml-2 text-[15px] font-medium text-slate-400 tabular-nums">{count}</span>}
+          {count !== undefined && <span className="ml-2 text-[15px] font-medium text-slate-500 dark:text-slate-400 tabular-nums">{count}</span>}
         </h2>
-        {hint && <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1">{hint}</p>}
+        {hint && <p className="text-[13.5px] text-slate-500 dark:text-slate-400 mt-1 max-w-3xl text-pretty">{hint}</p>}
       </div>
       {action}
     </div>

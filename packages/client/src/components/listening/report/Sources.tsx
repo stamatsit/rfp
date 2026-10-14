@@ -111,7 +111,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
         <div className="p-3 sm:p-4 flex flex-wrap items-center gap-2 border-b border-black/[0.05] dark:border-white/[0.06]">
           <label className="relative flex-1 min-w-[200px]">
             <span className="sr-only">Search sources</span>
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -136,7 +136,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
               aria-pressed={onlyNew}
               onClick={() => setOnlyNew((v) => !v)}
               className={`h-9 rounded-lg px-3 text-[13px] font-medium border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40 ${
-                onlyNew ? "bg-sky-500 border-sky-500 text-white" : "border-black/[0.08] dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+                onlyNew ? "bg-sky-700 border-sky-700 text-white" : "border-black/[0.08] dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
               }`}
             >
               New this scan · {newCount}
@@ -145,7 +145,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
         </div>
 
         {filtered.length === 0 ? (
-          <div className="p-10 text-center text-[14px] text-slate-500">
+          <div className="p-10 text-center text-[14px] text-slate-500 dark:text-slate-400">
             Nothing matches these filters.
             {anyFilter && (
               <button
@@ -176,7 +176,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
                   <div className="min-w-0 flex-1">
                     {it.title && it.kind !== "comment" && <p className="text-[14px] font-medium text-slate-800 dark:text-slate-100 leading-snug line-clamp-1 group-hover:text-sky-700 dark:group-hover:text-sky-400">{it.title}</p>}
                     <p className={`text-[13px] leading-relaxed text-slate-600 dark:text-slate-300 ${it.title && it.kind !== "comment" ? "mt-0.5 line-clamp-2" : "line-clamp-3"}`}>{it.excerpt}</p>
-                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[12px] text-slate-500">
+                    <p className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-[12px] text-slate-500 dark:text-slate-400">
                       <PlatformBadge platform={it.platform} />
                       {it.kind === "comment" && <span>comment</span>}
                       {it.sentiment && (
@@ -187,16 +187,16 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
                       )}
                       {it.subtopicId && subName.get(it.subtopicId) && <span className="truncate max-w-[220px]">{subName.get(it.subtopicId)}</span>}
                       {it.publishedAt && <span>{fmtDate(it.publishedAt)}</span>}
-                      {it.relevant === false && <span className="text-slate-400">judged off-topic</span>}
+                      {it.relevant === false && <span className="text-slate-500 dark:text-slate-400">judged off-topic</span>}
                       {left && (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-px text-[11.5px] text-slate-500 dark:text-slate-400" title="Not counted in the figures">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 dark:bg-slate-800 px-1.5 py-px text-[11.5px] text-slate-700 dark:text-slate-300" title="Not counted in the figures">
                           {left}
                         </span>
                       )}
                       {it.isNew && report.totals.runs > 1 && <NewBadge />}
                     </p>
                   </div>
-                  <ArrowUpRight size={16} className="shrink-0 text-slate-300 group-hover:text-sky-500 transition-colors mt-0.5" />
+                  <ArrowUpRight size={16} className="shrink-0 text-slate-500 dark:text-slate-400 group-hover:text-sky-500 transition-colors mt-0.5" />
                 </ExternalLink>
               </li>
               )
@@ -204,7 +204,7 @@ export function Sources({ report, items, filter, onClearFilter }: { report: Repo
           </ul>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-black/[0.05] dark:border-white/[0.06] text-[12.5px] text-slate-500">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 sm:px-5 py-3 border-t border-black/[0.05] dark:border-white/[0.06] text-[12.5px] text-slate-500 dark:text-slate-400">
           <span className="tabular-nums">
             Showing {Math.min(shown, filtered.length).toLocaleString()} of {plural(filtered.length, "source")}
             {subtopic !== "all" && (

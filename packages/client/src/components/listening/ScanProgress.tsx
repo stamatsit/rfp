@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { AlertTriangle, Check, Loader2, X } from "lucide-react"
+import { AlertTriangle, Bell, BellRing, Check, Loader2, X } from "lucide-react"
 import type { ScanState } from "@/hooks/useScan"
 import type { Stage } from "@/types/listening"
 import { Card, fmtDuration, plural } from "./ui"
+import { Button, tone } from "./primitives"
 
 type StepId = "plan" | "search" | "read" | "label" | "write"
 const STAGE_TO_STEP: Record<Stage, StepId> = { plan: "plan", search: "search", read: "read", label: "label", cluster: "write", write: "write", save: "write" }
@@ -49,7 +50,37 @@ function StepIcon({ status }: { status: "done" | "active" | "pending" | "warn" }
   return <span className="w-6 h-6 rounded-full border-2 border-slate-200 dark:border-slate-700 shrink-0" />
 }
 
-export function ScanProgress({ state, query, onCancel, compact = false }: { state: ScanState; query: string; onCancel: () => void; compact?: boolean }) {
+/** "Tell me when it's done": a browser notification when the scan ends while you are in another tab. Hidden where the browser cannot. */
+function NotifyToggle({ on, onChange }: { on: boolean; onChange: (on: boolean) => Promise<"on" | "off" | "blocked"> }) {
+  const [blocked, setBlocked] = useState(() => typeof Notification === "undefined" || Notification.permission === "denied")
+  if (blocked) return null
+  return (
+    <Button
+      size="sm"
+      variant={on ? "brand" : "ghost"}
+      aria-pressed={on}
+      onClick={() => void onChange(!on).then((r) => r === "blocked" && setBlocked(true))}
+      title={on ? "A notification will show when the scan ends while you are in another tab. Click to turn off." : "Show a browser notification when the scan ends while you are in another tab"}
+    >
+      {on ? <BellRing size={14} /> : <Bell size={14} />}
+      {on ? "We'll notify you" : "Notify me when it's done"}
+    </Button>
+  )
+}
+
+export function ScanProgress({
+  state,
+  query,
+  onCancel,
+  onNotify,
+  compact = false,
+}: {
+  state: ScanState
+  query: string
+  onCancel: () => void
+  onNotify?: (on: boolean) => Promise<"on" | "off" | "blocked">
+  compact?: boolean
+}) {
   const running = state.phase === "running" || state.phase === "starting"
   const now = useNow(running)
   const elapsed = state.startedAt ? now - state.startedAt : 0
@@ -105,7 +136,7 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
                   className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12.5px] tabular-nums ${
                     l.status === "ok"
                       ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
-                      : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                      : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
                   }`}
                 >
                   {l.status === "ok" && <Check size={12} strokeWidth={3} />}
@@ -127,7 +158,7 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
       )
     }
     if (id === "read" && state.toRead !== null) {
-      return <p className="text-[12.5px] text-slate-500 mt-1">{state.toRead ? `${plural(state.toRead, "thread")} about the topic, with their replies` : "No new threads about it to open"}</p>
+      return <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mt-1">{state.toRead ? `${plural(state.toRead, "thread")} about the topic, with their replies` : "No new threads about it to open"}</p>
     }
     if (id === "label" && state.toLabel) {
       const p = Math.min(100, Math.round((100 * state.labeled) / state.toLabel))
@@ -136,7 +167,7 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
           <div className="h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
             <div className="h-full rounded-full bg-sky-500 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${Math.max(p, 3)}%` }} />
           </div>
-          <p className="text-[12.5px] text-slate-500 mt-1.5 tabular-nums">
+          <p className="text-[12.5px] text-slate-500 dark:text-slate-400 mt-1.5 tabular-nums">
             {state.labeled.toLocaleString()} of {state.toLabel.toLocaleString()} posts
           </p>
         </div>
@@ -157,17 +188,19 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
           </p>
         </div>
         {running && (
-          <button
-            type="button"
-            disabled={cancelling}
-            onClick={() => {
-              setCancelling(true)
-              onCancel()
-            }}
-            className="shrink-0 rounded-lg px-3 py-1.5 text-[13px] font-medium text-slate-600 dark:text-slate-300 border border-black/[0.08] dark:border-white/[0.1] hover:bg-slate-50 dark:hover:bg-slate-800 disabled:opacity-60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/40"
-          >
-            {cancelling ? "Stopping..." : "Cancel"}
-          </button>
+          <span className="shrink-0 flex flex-wrap justify-end items-center gap-1.5">
+            {compact && onNotify && <NotifyToggle on={state.notify} onChange={onNotify} />}
+            <Button
+              size="sm"
+              disabled={cancelling}
+              onClick={() => {
+                setCancelling(true)
+                onCancel()
+              }}
+            >
+              {cancelling ? "Stopping..." : "Cancel"}
+            </Button>
+          </span>
         )}
       </div>
 
@@ -188,7 +221,7 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
                 <div className="min-w-0 pt-0.5">
                   <p
                     className={`text-[14.5px] leading-snug ${
-                      st === "pending" ? "text-slate-400 dark:text-slate-500" : "text-slate-800 dark:text-slate-100 font-medium"
+                      st === "pending" ? "text-slate-500 dark:text-slate-400" : "text-slate-800 dark:text-slate-100 font-medium"
                     }`}
                   >
                     {(isRescan && COPY[id].rescanTitle) || COPY[id].title}
@@ -202,9 +235,10 @@ export function ScanProgress({ state, query, onCancel, compact = false }: { stat
       )}
 
       {!compact && running && (
-        <p className="text-[12.5px] text-slate-400 mt-7 border-t border-black/[0.05] dark:border-white/[0.06] pt-4">
-          You can leave this page. The scan keeps going and saves itself when it finishes.
-        </p>
+        <div className="mt-7 border-t border-black/[0.05] dark:border-white/[0.06] pt-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <p className={`text-[12.5px] ${tone.muted}`}>You can leave this page. The scan keeps going and saves itself when it finishes.</p>
+          {onNotify && <NotifyToggle on={state.notify} onChange={onNotify} />}
+        </div>
       )}
     </Card>
   )

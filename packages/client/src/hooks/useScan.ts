@@ -31,6 +31,21 @@ export interface ScanState {
   detached: boolean
   error: string | null
   errorCode: string | null
+  /** The topic, for the tab title and the notification when the scan ends. */
+  label: string | null
+  /** Show a browser notification when this scan ends while the tab is in the background. */
+  notify: boolean
+}
+
+const NOTIFY_KEY = "ti-notify"
+
+/** Notifications are on when they were turned on before and the browser still allows them. */
+function notifyPreferred(): boolean {
+  try {
+    return typeof Notification !== "undefined" && Notification.permission === "granted" && window.localStorage.getItem(NOTIFY_KEY) === "1"
+  } catch {
+    return false
+  }
 }
 
 const initial: ScanState = {
@@ -50,6 +65,8 @@ const initial: ScanState = {
   detached: false,
   error: null,
   errorCode: null,
+  label: null,
+  notify: false,
 }
 
 export function reduce(s: ScanState, e: RunEvent): ScanState {
@@ -88,8 +105,39 @@ let streamAbort: AbortController | null = null
 let pollTimer: number | null = null
 
 function commit(next: ScanState | ((s: ScanState) => ScanState)) {
+  const before = current
   current = typeof next === "function" ? next(current) : next
+  if ((before.phase === "running" || before.phase === "starting") && before.runId === current.runId && (current.phase === "done" || current.phase === "failed")) signalEnd(current)
   listeners.forEach((l) => l())
+}
+
+/**
+ * A scan takes minutes, so people switch tabs. When it ends out of sight, the
+ * tab title says so until they come back, and a notification shows if they
+ * asked for one.
+ */
+function signalEnd(s: ScanState) {
+  if (typeof document === "undefined" || !document.hidden) return
+  const label = s.label ?? "your topic"
+  const ok = s.phase === "done"
+  const before = document.title
+  document.title = ok ? `Ready: ${label}` : `Scan stopped: ${label}`
+  const restore = () => {
+    if (document.hidden) return
+    if (document.title.startsWith("Ready: ") || document.title.startsWith("Scan stopped: ")) document.title = before
+    document.removeEventListener("visibilitychange", restore)
+  }
+  document.addEventListener("visibilitychange", restore)
+  if (!s.notify || typeof Notification === "undefined" || Notification.permission !== "granted") return
+  try {
+    const n = new Notification(ok ? "Your scan is ready" : "Your scan did not finish", { body: label, tag: s.runId ?? undefined })
+    n.onclick = () => {
+      window.focus()
+      n.close()
+    }
+  } catch {
+    // Some browsers only allow notifications from a service worker; the tab title still says it.
+  }
 }
 
 function subscribe(l: () => void) {
@@ -125,13 +173,13 @@ function poll(runId: string) {
   void tick()
 }
 
-async function start(req: ScanRequest): Promise<void> {
+async function start(req: ScanRequest, label?: string): Promise<void> {
   streamAbort?.abort()
   stopPolling()
   const ctrl = new AbortController()
   streamAbort = ctrl
   const trigger: RunTrigger = req.kind === "new" ? "initial" : req.kind
-  commit({ ...initial, phase: "starting", trigger, startedAt: Date.now(), topicId: req.kind === "new" ? null : req.topicId })
+  commit({ ...initial, phase: "starting", trigger, startedAt: Date.now(), topicId: req.kind === "new" ? null : req.topicId, label: label ?? (req.kind === "new" ? req.query : null), notify: notifyPreferred() })
   try {
     await streamScan(req, (e) => !ctrl.signal.aborted && commit((s) => reduce(s, e)), ctrl.signal)
   } catch (err) {
@@ -154,10 +202,10 @@ async function start(req: ScanRequest): Promise<void> {
 }
 
 /** Follow a run already in progress (page reload, second tab). */
-function attach(topicId: string, runId: string, startedAt: string, trigger: RunTrigger) {
+function attach(topicId: string, runId: string, startedAt: string, trigger: RunTrigger, label?: string) {
   if (current.runId === runId && (current.phase === "running" || current.phase === "starting")) return
   streamAbort?.abort()
-  commit({ ...initial, phase: "running", topicId, runId, trigger, startedAt: new Date(startedAt).getTime(), detached: true })
+  commit({ ...initial, phase: "running", topicId, runId, trigger, startedAt: new Date(startedAt).getTime(), detached: true, label: label ?? null, notify: notifyPreferred() })
   poll(runId)
 }
 
@@ -181,7 +229,35 @@ function reset() {
   commit(initial)
 }
 
-const actions = { start, attach, cancel, reset }
+/**
+ * Turn the notification for this scan (and later ones) on or off. Asks the
+ * browser the first time. Resolves to what actually happened.
+ */
+async function setNotify(on: boolean): Promise<"on" | "off" | "blocked"> {
+  if (!on || typeof Notification === "undefined") {
+    try {
+      window.localStorage.setItem(NOTIFY_KEY, "0")
+    } catch {
+      // storage blocked: the choice lasts for this scan only
+    }
+    commit((s) => ({ ...s, notify: false }))
+    return typeof Notification === "undefined" && on ? "blocked" : "off"
+  }
+  const permission = Notification.permission === "default" ? await Notification.requestPermission() : Notification.permission
+  if (permission !== "granted") {
+    commit((s) => ({ ...s, notify: false }))
+    return "blocked"
+  }
+  try {
+    window.localStorage.setItem(NOTIFY_KEY, "1")
+  } catch {
+    // as above
+  }
+  commit((s) => ({ ...s, notify: true }))
+  return "on"
+}
+
+const actions = { start, attach, cancel, reset, setNotify }
 
 export function useScan() {
   const state = useSyncExternalStore(subscribe, () => current)

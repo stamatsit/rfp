@@ -34,6 +34,8 @@ async function theme(page: Page, t: (typeof THEMES)[number]) {
 /** Let the page-transition fade finish so captures show final colours. */
 const settle = (page: Page) => page.waitForTimeout(600)
 
+const tab = (page: Page, name: string) => page.getByRole("tablist", { name: "Report sections" }).getByRole("tab", { name: new RegExp(`^${name}`) })
+
 /** Keeps a scan stream open mid-way so the live steps can be captured. */
 async function holdScanOpen(page: Page) {
   await page.addInitScript(
@@ -94,9 +96,17 @@ for (const vp of VIEWPORTS) {
       await page.getByText("People weigh flexibility").waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-3-report-top.png` })
-      await page.getByRole("button", { name: /Outline and 3 sources/ }).click()
-      await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-4-report-full.png`, fullPage: true })
+      for (const [n, name] of [["4a", "Ideas"], ["4b", "Questions"], ["4c", "Quotes"], ["4d", "Subtopics"], ["4e", "Sources"]] as const) {
+        await tab(page, name).click()
+        await settle(page)
+        await page.screenshot({ path: `${DIR}/${vp.name}-${t}-${n}-tab-${name.toLowerCase()}.png`, fullPage: true })
+      }
+      await tab(page, "Ideas").click()
+      await page.getByRole("list", { name: "Content ideas" }).getByRole("button").first().click()
+      await page.getByRole("dialog").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-4f-idea-panel.png` })
     })
 
     test(`${vp.name} ${t} institution`, async ({ page }) => {
@@ -109,7 +119,7 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-5-institution-top.png` })
       await page.locator("#own-voice").scrollIntoViewIfNeeded()
       await settle(page)
-      await page.locator("#own-voice").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-6-own-voice.png` })
+      await page.locator("#own-voice").locator("../..").screenshot({ path: `${DIR}/${vp.name}-${t}-6-own-voice.png` })
       await page.getByRole("button", { name: "See them" }).click()
       await settle(page)
       await page.locator("#sources").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-7-not-counted.png` })
@@ -145,6 +155,7 @@ for (const vp of VIEWPORTS) {
       await page.keyboard.press("Escape")
 
       // Save two ideas, then show the board with mixed statuses.
+      await tab(page, "Ideas").click()
       for (const n of [0, 1]) {
         await page.getByRole("button", { name: "Save", exact: true }).first().click()
         await page.getByRole("button", { name: "Saved", exact: true }).nth(n).waitFor()
@@ -156,9 +167,12 @@ for (const vp of VIEWPORTS) {
       await page.locator("#ideas").locator("..").screenshot({ path: `${DIR}/${vp.name}-${t}-11-ideas-saved.png` })
       await page.goto("/listening/ideas")
       await page.getByRole("heading", { level: 1, name: "Idea board" }).waitFor()
-      await page.getByRole("button", { name: /Outline and 3 sources/ }).first().click()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-12-board.png`, fullPage: true })
+      await page.getByRole("button", { name: "Who finds your clinical placement in an online program", exact: true }).filter({ visible: true }).first().click()
+      await page.getByRole("dialog").waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-12b-board-panel.png` })
 
       m.detail = theirs
       await page.goto(`/listening/${TOPIC_ID}`)
@@ -185,6 +199,7 @@ for (const vp of VIEWPORTS) {
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-14-admin-home.png`, fullPage: true })
       await page.goto(`/listening/${TOPIC_ID}`)
       await page.getByText("admin view, read only").waitFor()
+      await tab(page, "Sources").click()
       await page.getByRole("button", { name: /How this was made/ }).click()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-15-admin-topic.png` })
@@ -265,30 +280,35 @@ for (const vp of VIEWPORTS) {
       await setup(page)
       await page.goto(`/listening/${TOPIC_ID}`)
       await page.getByText("People weigh flexibility").waitFor()
-      // The whole ideas section, whatever its height, without the sticky header drawn over it.
-      const ideas = async (name: string) => {
-        await page.evaluate(() => window.scrollTo(0, 0))
+      const panel = page.getByRole("dialog")
+      const write = async (tabName: string, button: string, wait: string, name: string) => {
+        await panel.getByRole("tab", { name: new RegExp(`^${tabName}`) }).click()
+        await panel.getByRole("tabpanel", { name: new RegExp(`^${tabName}`) }).getByRole("button", { name: button }).click()
+        await panel.getByRole("tabpanel", { name: new RegExp(`^${tabName}`) }).getByText(wait).first().waitFor()
         await settle(page)
-        const box = (await page.locator("#ideas").locator("..").boundingBox())!
-        await page.screenshot({ path: `${DIR}/${vp.name}-${t}-${name}.png`, fullPage: true, clip: { x: Math.max(0, box.x - 16), y: box.y - 16, width: Math.min(vp.width, box.width + 32), height: box.height + 32 } })
+        await page.screenshot({ path: `${DIR}/${vp.name}-${t}-${name}.png` })
       }
-      await page.getByRole("button", { name: /^Blog outline/ }).first().click()
-      await page.getByRole("region", { name: "Blog outline" }).getByText("What students are asking").waitFor()
-      await ideas("23-draft-outline")
-      await page.getByRole("button", { name: /^LinkedIn post/ }).first().click()
-      await page.getByRole("region", { name: "LinkedIn post" }).getByText("#HigherEdMarketing").waitFor()
-      await ideas("24-draft-post")
-      await page.getByRole("button", { name: /^Headlines/ }).first().click()
-      await page.getByRole("region", { name: "Headlines" }).getByRole("listitem").first().waitFor()
-      await ideas("25-draft-headlines")
+      await tab(page, "Ideas").click()
+      await page.getByRole("list", { name: "Content ideas" }).getByRole("button").first().click()
+      await panel.waitFor()
+      const short = vp.width < 640
+      await panel.getByRole("tab", { name: short ? /^Blog/ : /^Blog outline/ }).click()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-23a-draft-offer.png` })
+      await write(short ? "Blog" : "Blog outline", "Write a blog outline", "What students are asking", "23-draft-outline")
+      await write(short ? "LinkedIn" : "LinkedIn post", "Write a LinkedIn post", "#HigherEdMarketing", "24-draft-post")
+      await write("Headlines", "Write headlines", "Before you enroll, ask who finds the site", "25-draft-headlines")
+      await page.keyboard.press("Escape")
+      await panel.waitFor({ state: "detached" })
       // Thumbs and More ideas: one liked, one passed on, two just added.
-      await page.getByRole("button", { name: /^Headlines/ }).first().click()
       await page.getByRole("button", { name: /^More ideas like this: Who finds/ }).click()
       await page.getByRole("button", { name: /^Fewer ideas like this: The real cost/ }).click()
       await page.getByRole("button", { name: "More ideas", exact: true }).click()
       await page.locator("#idea-idea4").waitFor()
       await page.getByText("2 ideas added").waitFor({ state: "hidden", timeout: 15000 }).catch(() => {})
-      await ideas("26-thumbs-more-ideas")
+      await page.evaluate(() => window.scrollTo(0, 0))
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-26-thumbs-more-ideas.png`, fullPage: true })
     })
 
     test(`${vp.name} ${t} leave out`, async ({ page }) => {
@@ -308,6 +328,39 @@ for (const vp of VIEWPORTS) {
       await page.getByText(/leaving out sports, rankings/).waitFor()
       await settle(page)
       await page.screenshot({ path: `${DIR}/${vp.name}-${t}-29-leave-out-topic.png` })
+    })
+
+    test(`${vp.name} ${t} update menu`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      await setup(page)
+      await page.goto(`/listening/${TOPIC_ID}`)
+      await page.getByText("People weigh flexibility").waitFor()
+      await page.getByRole("button", { name: /^Update/ }).click()
+      await page.getByRole("menuitem", { name: /Rescan for new posts/ }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-32-update-menu.png` })
+    })
+
+    test(`${vp.name} ${t} progress notify`, async ({ page }) => {
+      await page.setViewportSize({ width: vp.width, height: vp.height })
+      await theme(page, t)
+      // Headless Chromium has no Notification API (real browsers do), so stand one in.
+      await page.addInitScript(() => {
+        ;(window as unknown as { Notification: unknown }).Notification = class {
+          static permission = "default"
+          static requestPermission = async () => "granted"
+        }
+      })
+      await holdScanOpen(page)
+      await setup(page, { detail: buildDetail({ withReport: false }) })
+      await page.goto("/listening")
+      await page.getByPlaceholder("A topic, or a school or hospital by name").fill("online nursing degree")
+      await page.getByRole("button", { name: "Scan", exact: true }).click()
+      await page.getByText("150 of 260 posts").waitFor()
+      await page.getByRole("button", { name: "Notify me when it's done" }).waitFor()
+      await settle(page)
+      await page.screenshot({ path: `${DIR}/${vp.name}-${t}-33-progress-notify.png`, fullPage: true })
     })
 
     test(`${vp.name} ${t} progress`, async ({ page }) => {
