@@ -13,11 +13,13 @@ import {
   FileSpreadsheet,
   FolderOpen,
   LayoutGrid,
+  RefreshCw,
   Sparkles,
   Users,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { useDocumentTitle } from "@/hooks/useDocumentTitle"
+import { claimOutcome, startSync, useMigrationSync, type SyncState } from "@/hooks/useMigrationSync"
 import { toast } from "@/hooks/useToast"
 import {
   migrationApi,
@@ -120,6 +122,54 @@ function OpenLink({ href: rawHref, children, primary = false }: { href?: string;
       <ExternalLink size={13} /> {children}
     </a>
   )
+}
+
+/**
+ * "Sync now": read the spreadsheets right away instead of waiting for the
+ * 10-minute schedule. Disabled while a sync is in flight, so a double click
+ * starts one run, not two.
+ */
+function SyncNowButton({ sync }: { sync: SyncState }) {
+  const busy = sync.phase === "requesting" || sync.phase === "syncing"
+  return (
+    <button type="button" onClick={() => { void startSync() }} disabled={busy} aria-busy={busy}
+      className="inline-flex items-center gap-1.5 text-[12.5px] font-medium rounded-xl px-3 h-9 border transition text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border-black/[0.06] dark:border-white/[0.08] hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-wait disabled:hover:bg-white dark:disabled:hover:bg-slate-900">
+      <RefreshCw size={13} aria-hidden="true" className={busy ? "animate-spin motion-reduce:animate-none" : ""} />
+      {busy ? "Syncing" : "Sync now"}
+    </button>
+  )
+}
+
+/**
+ * What a sync is doing, or why it did not finish. Always rendered, so screen
+ * readers hear each change; the ticking seconds are hidden from them. A failure
+ * stops showing once a newer read of the spreadsheets has arrived anyway.
+ */
+function SyncNote({ sync, snapshotAt }: { sync: SyncState; snapshotAt?: string | null }) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (sync.phase !== "syncing") return
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [sync.phase])
+  const newer = (at: number) => !!snapshotAt && new Date(snapshotAt).getTime() > at
+  let text: React.ReactNode = null
+  let tone = "text-slate-500 dark:text-slate-400"
+  if (sync.phase === "requesting") text = "Starting the sync."
+  else if (sync.phase === "syncing") {
+    const secs = Math.max(0, Math.round((now - sync.startedAt) / 1000))
+    text = <>Reading the spreadsheets now. This usually takes under a minute, and the page updates itself when it is done.<span aria-hidden="true" className="tabular-nums"> ({secs}s)</span></>
+  } else if (sync.phase === "failed" && !newer(sync.at)) {
+    tone = "text-red-700 dark:text-red-300"
+    text = `The sync did not finish: ${sync.reason}. The numbers below are from the last good read.`
+  } else if (sync.phase === "timeout" && !newer(sync.at)) {
+    tone = "text-amber-700 dark:text-amber-300"
+    text = "No word back from the sync after 5 minutes. The scheduled sync still runs every 10 minutes on weekdays, so try again in a few minutes and tell Eric if this keeps happening."
+  } else if (sync.phase === "unavailable") {
+    tone = "text-amber-700 dark:text-amber-300"
+    text = `Sync now is not set up here: ${sync.note}.`
+  }
+  return <p role="status" aria-live="polite" className={`text-[12.5px] ${tone} ${text ? "mt-3" : ""}`}>{text}</p>
 }
 
 // ─── tiny shared pieces ──────────────────────────────────────────────────────
@@ -264,6 +314,18 @@ export function MigrationMatrix() {
     return () => { clearInterval(tick); clearInterval(refetch) }
   }, [load])
 
+  // "Sync now": reload when a sync lands, and say how each one ended, once
+  const sync = useMigrationSync()
+  useEffect(() => {
+    if (!("seq" in sync) || !claimOutcome(sync.seq)) return
+    if (sync.phase === "done") {
+      load()
+      toast.success(sync.outcome === "deduped" ? "Synced. Nothing has changed in the spreadsheets since the last read." : "Synced. The dashboard now matches the spreadsheets.")
+    } else if (sync.phase === "failed") toast.error(`The sync did not finish: ${sync.reason}`)
+    else if (sync.phase === "timeout") toast.error("No word back from the sync after 5 minutes")
+    else if (sync.phase === "unavailable") toast.error("Sync now is not set up here")
+  }, [sync, load])
+
   const selClient = searchParams.get("c")
   const selPerson = searchParams.get("p")
   const tab = searchParams.get("tab")
@@ -319,22 +381,31 @@ export function MigrationMatrix() {
   const chatContext = selPerson ? `person:${selPerson}` : selClient ? `client:${selClient}` : tab === "team" ? "team" : tab === "weekly" ? "weekly" : "overview"
 
   // ── shells ──
+  // One matrix: link it here. Several: each project page links its own, and
+  // the Spreadsheets tab lists them all, so a header link would pick one at random.
+  const onlyMatrix = data?.source_files?.matrices?.length === 1 ? data.source_files.matrices[0] : undefined
   const header = (
-    <div className="flex items-center gap-3 mb-6">
-      <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: GRADIENT }}>
-        <Activity size={20} strokeWidth={2.25} />
+    <div className="mb-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1 basis-72">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0" style={{ background: GRADIENT }}>
+            <Activity size={20} strokeWidth={2.25} />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
+            <p className="text-xs text-slate-400">
+              {data ? `${active.length} active projects · week of ${weekNow}` : "Migration Matrix"}
+              {ageSec != null && <> · reads the spreadsheets automatically · updated {fmtAge(ageSec, snap?.created_at)}</>}
+            </p>
+          </div>
+        </div>
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+          <SyncNowButton sync={sync} />
+          <OpenLink href={data?.source_files?.tracker?.web_url}>Open the tracker</OpenLink>
+          <OpenLink href={onlyMatrix?.web_url}>Open the matrix</OpenLink>
+        </div>
       </div>
-      <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight text-slate-900 dark:text-white">Web Page Builds</h1>
-        <p className="text-xs text-slate-400">
-          {data ? `${active.length} active projects · week of ${weekNow}` : "Migration Matrix"}
-          {ageSec != null && <> · reads the spreadsheets automatically · updated {fmtAge(ageSec, snap?.created_at)}</>}
-        </p>
-      </div>
-      <div className="ml-auto flex items-center gap-2">
-        <OpenLink href={data?.source_files?.tracker?.web_url}>Open the tracker</OpenLink>
-        <OpenLink href={data?.source_files?.matrices?.[0]?.web_url}>Open the matrix</OpenLink>
-      </div>
+      <SyncNote sync={sync} snapshotAt={snap?.created_at} />
     </div>
   )
 
@@ -710,8 +781,9 @@ function SourcesView({ back, links }: { back: () => void; links?: MmSnapshotData
         </div>
         <p className="text-[13px] text-slate-600 dark:text-slate-300">
           The dashboard reads each spreadsheet where its owner keeps it, through the link listed
-          next to it below. Edit your own file like always: there is nothing to upload and no
-          button to press. Changes show up here on the next run, normally within a few minutes.
+          next to it below. Edit your own file like always: there is nothing to upload. Changes
+          show up on the next scheduled read, every 10 minutes on weekdays, or right away when
+          you press Sync now at the top of the page.
         </p>
       </Card>
       <Card>

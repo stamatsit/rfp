@@ -14,15 +14,18 @@
  * - GET  /api/migration/history   — recent snapshot metadata
  * - POST /api/migration/archive   — toggle a project's archived state
  * - GET  /api/migration/stats     — ingest-log tail for status surfaces
+ * - POST /api/migration/sources/sync — "Sync now": dispatch the cloud sync
+ * - GET  /api/migration/sync-status  — has a run started after ?since= reported back
  */
 import { Router, type Request, type Response } from "express"
 import { timingSafeEqual } from "crypto"
-import { desc, eq, sql } from "drizzle-orm"
+import { asc, desc, eq, gte, sql } from "drizzle-orm"
 import { db } from "../db/index.js"
 import { mmSnapshots, mmProjects, mmIngestLog } from "../db/schema.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 import multer from "multer"
 import { supabaseAdmin } from "../db/index.js"
+import { parseSince, resolveSyncStatus, runTag, withRunTag } from "../services/migrationSync.js"
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 
@@ -101,9 +104,11 @@ export async function ingestHandler(req: Request, res: Response) {
     if (!body || typeof body !== "object") return res.status(400).json({ error: "JSON object body required" })
     if (JSON.stringify(body).length > MAX_BODY_BYTES)
       return res.status(400).json({ error: "Payload exceeds 2MB cap" })
+    // when the run that sent this started reading the spreadsheets ("Sync now" waits on it)
+    const tag = runTag(body.run_started_at)
 
     if (body.heartbeat === true) {
-      await db.insert(mmIngestLog).values({ outcome: "heartbeat", detail: String(body.detail || "") })
+      await db.insert(mmIngestLog).values({ outcome: "heartbeat", detail: withRunTag(String(body.detail || ""), tag) ?? "" })
       return res.json({ ok: true, heartbeat: true })
     }
 
@@ -111,7 +116,7 @@ export async function ingestHandler(req: Request, res: Response) {
     if (problems.length) {
       // invalid + dry_run short-circuits before ANY db access (db-pure)
       if (body.dry_run === true) return res.json({ ok: false, would: "rejected", problems })
-      await db.insert(mmIngestLog).values({ outcome: "rejected", detail: problems.join("; ").slice(0, 500) })
+      await db.insert(mmIngestLog).values({ outcome: "rejected", detail: withRunTag(problems.join("; "), tag) })
       return res.status(400).json({ error: "Invalid snapshot", problems })
     }
     const sourceHash = computeSourceHash(body)
@@ -128,7 +133,7 @@ export async function ingestHandler(req: Request, res: Response) {
       return res.json({ ok: true, would, problems: [] })
     }
     if (would === "deduped") {
-      await db.insert(mmIngestLog).values({ outcome: "deduped", snapshotId: latest!.id })
+      await db.insert(mmIngestLog).values({ outcome: "deduped", snapshotId: latest!.id, detail: withRunTag(null, tag) })
       return res.json({ ok: true, deduped: true })
     }
 
@@ -154,7 +159,7 @@ export async function ingestHandler(req: Request, res: Response) {
           console.error("mm_projects insert race (harmless):", e?.message))
       }
     }
-    await db.insert(mmIngestLog).values({ outcome: "stored", snapshotId: row.id })
+    await db.insert(mmIngestLog).values({ outcome: "stored", snapshotId: row.id, detail: withRunTag(null, tag) })
     return res.status(201).json({ ok: true, snapshot_id: row.id })
   } catch (error) {
     console.error("Migration ingest failed:", error)
@@ -364,9 +369,29 @@ router.post("/sources", upload.single("file"), async (req: Request, res: Respons
   }
 })
 
+// "Sync now". requested_at is taken before the dispatch, so the run it starts
+// begins after it; the page then polls /sync-status?since=requested_at.
 router.post("/sources/sync", async (_req: Request, res: Response) => {
+  const requested_at = new Date().toISOString()
   const triggered = await triggerCloudSync()
-  res.json({ triggered, note: triggered ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
+  res.json({ triggered, requested_at, note: triggered ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
+})
+
+// GET /api/migration/sync-status?since=<requested_at>
+router.get("/sync-status", async (req: Request, res: Response) => {
+  try {
+    if (!db) return res.status(503).json({ error: "Database unavailable" })
+    const since = parseSince(req.query.since)
+    if (since === null) return res.status(400).json({ error: "since must be an ISO time from the last hour" })
+    const rows = await db.select({ outcome: mmIngestLog.outcome, created_at: mmIngestLog.createdAt,
+      detail: mmIngestLog.detail, snapshot_id: mmIngestLog.snapshotId })
+      .from(mmIngestLog).where(gte(mmIngestLog.createdAt, new Date(since)))
+      .orderBy(asc(mmIngestLog.createdAt)).limit(50)
+    res.json(resolveSyncStatus(rows, since))
+  } catch (error) {
+    console.error("Migration sync status failed:", error)
+    res.status(500).json({ error: "Failed to check the sync" })
+  }
 })
 
 // GET /api/migration/stats

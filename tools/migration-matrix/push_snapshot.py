@@ -211,6 +211,9 @@ def main():
             sys.exit("no token: set MM_INGEST_TOKEN or ~/.mm-ingest-token")
         if "--dry-run" in args:
             snap["dry_run"] = True
+        started = os.environ.get("MM_RUN_STARTED_AT")
+        if started:   # when cloud_sync began reading; the dashboard's "Sync now" waits on it
+            snap["run_started_at"] = started
         code, out = post(url, snap, token)
         print(code, json.dumps(out)[:400])
         sys.exit(0 if code in (200, 201) else 1)

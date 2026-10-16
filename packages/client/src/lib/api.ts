@@ -2795,6 +2795,12 @@ export interface MmLatest {
   archive?: Array<{ name: string; archived: boolean; archived_by: string | null; archived_at: string | null }>
 }
 
+/** Where a "Sync now" stands: has a run that started after the click reported back. */
+export type MmSyncStatus =
+  | { state: "pending" }
+  | { state: "done"; at: string; outcome: "stored" | "deduped"; snapshot_id: string | null }
+  | { state: "failed"; at: string; reason: string }
+
 export const migrationApi = {
   getLatest: async (): Promise<MmLatest> => {
     const response = await fetchWithCredentials(`${API_BASE}/migration/latest`)
@@ -2826,9 +2832,13 @@ export const migrationApi = {
     const response = await fetchWithCredentials(`${API_BASE}/migration/sources?kind=${kind}${opts?.nosync ? "&nosync=1" : ""}`, { method: "POST", body: form })
     return handleResponse(response)
   },
-  syncNow: async (): Promise<{ triggered: boolean; note: string }> => {
+  syncNow: async (): Promise<{ triggered: boolean; requested_at?: string; note: string }> => {
     const response = await fetchWithCredentials(`${API_BASE}/migration/sources/sync`, { method: "POST" })
     return handleResponse(response)
+  },
+  getSyncStatus: async (since: string): Promise<MmSyncStatus> => {
+    const response = await fetchWithCredentials(`${API_BASE}/migration/sync-status?since=${encodeURIComponent(since)}`)
+    return handleResponse<MmSyncStatus>(response)
   },
   getReports: async (date?: string): Promise<{ date: string | null; reports: Array<{ audience: string; body: string; created_at: string }> }> => {
     const response = await fetchWithCredentials(`${API_BASE}/migration/reports${date ? `?date=${date}` : ""}`)

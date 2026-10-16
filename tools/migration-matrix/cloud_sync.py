@@ -18,11 +18,16 @@
      fed by uploads in the app. Last resort when neither of the above is set.
 Then: build_master -> make_present -> push_snapshot (source github-action).
 Redundant runs are harmless: the server dedupes on source hash + data.
+Every run is stamped with the moment it started reading (run_started_at, sent
+with the snapshot), and a run that fails reports "sync failed: <why>" as a
+heartbeat with the same stamp. The dashboard's "Sync now" button waits for the
+first run that started after the click and shows its result.
 Other env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MM_INGEST_TOKEN, MM_INGEST_URL.
 """
-import http.cookiejar, json, os, re, subprocess, sys, urllib.error, urllib.parse, urllib.request
+import datetime, http.cookiejar, json, os, re, subprocess, sys, urllib.error, urllib.parse, urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+INGEST_URL = os.environ.get("MM_INGEST_URL", "https://ai.stamats.com/api/migration/ingest")
 SB = os.environ["SUPABASE_URL"].rstrip("/")
 KEY = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 BUCKET = "mm-sources"
@@ -193,7 +198,9 @@ def share_fetch_sources():
             tracker = dest
         print(f"  share: {name} ({len(data)} bytes, modified {modified})")
 
-    for forced_name, share in _share_links():
+    # Messages name a link by its position, never by its URL: Actions logs on
+    # this public repo are public, and failure reasons reach the dashboard.
+    def read_one(forced_name, share, label):
         opener, landing = _guest_opener(share)
         parsed = urllib.parse.urlparse(landing)
         q = urllib.parse.parse_qs(parsed.query)
@@ -224,21 +231,60 @@ def share_fetch_sources():
                 meta = {}
             name = forced_name or meta.get("Name")
             if not name:
-                sys.exit(f"cannot tell what file {share[:60]}... is; write it as "
+                sys.exit(f"cannot tell what file spreadsheet {label} is; write it as "
                          f"'name.xlsx=link' in MM_SHARE_URLS")
             dl = share + ("&" if "?" in share else "?") + "download=1"
             with opener.open(urllib.request.Request(dl), timeout=180) as r:
                 data = r.read()
             keep(name, data, meta.get("TimeLastModified"), share)
         else:
-            sys.exit(f"share link did not resolve to a folder or a file; is it still "
-                     f"shared? ({landing[:90]})")
+            sys.exit(f"spreadsheet {label} did not open a folder or a file; check it is "
+                     f"still shared with 'Anyone with the link'")
+
+    links = _share_links()
+    for i, (forced_name, share) in enumerate(links, 1):
+        try:
+            read_one(forced_name, share, f"link {i} of {len(links)}")
+        except urllib.error.HTTPError as e:
+            # the usual cause: the owner stopped sharing the file, or moved it
+            sys.exit(f"spreadsheet link {i} of {len(links)} stopped working (HTTP {e.code}); "
+                     f"check the file is still shared with 'Anyone with the link'")
     os.makedirs(os.path.dirname(RUNTIME_URLMAP), exist_ok=True)
     json.dump(webmap, open(RUNTIME_URLMAP, "w"), indent=1)
     return tracker, n_mat
 
 
+def report_failure(reason, started):
+    """Tell the dashboard this run failed, so a "Sync now" click can say why
+    instead of waiting out its timeout. Best effort: a failure to report is
+    printed and otherwise ignored. Dry runs report nothing."""
+    token = os.environ.get("MM_INGEST_TOKEN")
+    if os.environ.get("MM_DRY_RUN") or not token:
+        return
+    reason = re.sub(r"https?://\S+", "[link]", str(reason))   # never store a share link
+    body = {"heartbeat": True, "detail": f"sync failed: {reason}"[:400], "run_started_at": started}
+    req = urllib.request.Request(INGEST_URL, data=json.dumps(body).encode(), method="POST",
+                                 headers={"Content-Type": "application/json", "x-mm-ingest-token": token})
+    try:
+        urllib.request.urlopen(req, timeout=30).close()
+    except Exception as e:
+        print("could not report the failure to the dashboard:", str(e)[:120])
+
+
 def main():
+    started = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    try:
+        run(started)
+    except SystemExit as e:
+        if e.code not in (None, 0):
+            report_failure(e.code if isinstance(e.code, str) else f"exit code {e.code}", started)
+        raise
+    except Exception as e:
+        report_failure(f"{type(e).__name__}: {e}", started)
+        raise
+
+
+def run(started):
     os.makedirs(os.path.join(OUT, "tracker"), exist_ok=True)
     os.makedirs(os.path.join(OUT, "matrices"), exist_ok=True)
     if os.environ.get("MS_CLIENT_ID"):
@@ -262,20 +308,23 @@ def main():
             sb_download(f"matrices/{name}", os.path.join(OUT, "matrices", name))
         tracker, n_mat, origin = os.path.join(OUT, "tracker", sorted(trackers)[-1]), len(mats), "storage"
     env = dict(os.environ, MM_SOURCE=tracker, MM_MATRIX_DIR=os.path.join(OUT, "matrices"),
-               MM_SOURCE_NAME="github-action")
+               MM_SOURCE_NAME="github-action", MM_RUN_STARTED_AT=started)
     print(f"sources ({origin}): {os.path.basename(tracker)} + {n_mat} matrices")
     for script in ("build_master.py", "make_present.py"):
         r = subprocess.run([sys.executable, os.path.join(HERE, script)], cwd=HERE, env=env,
                            capture_output=True, text=True, timeout=300)
         if r.returncode != 0:
-            print(r.stdout[-2000:], r.stderr[-2000:]); sys.exit(f"{script} failed")
+            print(r.stdout[-2000:], r.stderr[-2000:])
+            last = (r.stderr.strip() or r.stdout.strip() or "no output").splitlines()[-1]
+            sys.exit(f"{script} failed ({last[:200]})")
         print(f"ok {script}")
-    url = os.environ.get("MM_INGEST_URL", "https://ai.stamats.com/api/migration/ingest")
     mode = "--dry-run" if os.environ.get("MM_DRY_RUN") else "--post"   # dry run: validate, store nothing
-    r = subprocess.run([sys.executable, os.path.join(HERE, "push_snapshot.py"), mode, url],
+    r = subprocess.run([sys.executable, os.path.join(HERE, "push_snapshot.py"), mode, INGEST_URL],
                        cwd=HERE, env=env, capture_output=True, text=True, timeout=180)
     print(r.stdout.strip()[-400:], r.stderr.strip()[-400:])
-    sys.exit(r.returncode)
+    if r.returncode != 0:
+        last = (r.stdout.strip() or r.stderr.strip() or "no output").splitlines()[-1]
+        sys.exit(f"sending the snapshot failed ({last[:200]})")
 
 
 if __name__ == "__main__":

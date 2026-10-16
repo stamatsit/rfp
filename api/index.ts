@@ -1654,8 +1654,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(400).json({ error: "JSON object body required" })
       if (JSON.stringify(mmBody).length > 2 * 1024 * 1024)
         return res.status(400).json({ error: "Payload exceeds 2MB cap" })
+      // when the run that sent this started reading the spreadsheets ("Sync now" waits on it)
+      const { runTag: mmRunTag, withRunTag: mmWithRunTag } = await import("../packages/server/src/services/migrationSync.js")
+      const mmTag = mmRunTag(mmBody.run_started_at)
       if (mmBody.heartbeat === true) {
-        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('heartbeat', ${String(mmBody.detail || "")})`
+        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('heartbeat', ${mmWithRunTag(String(mmBody.detail || ""), mmTag) ?? ""})`
         return res.json({ ok: true, heartbeat: true })
       }
       const mmProblems: string[] = []
@@ -1673,7 +1676,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (mmProblems.length) {
         // invalid + dry_run short-circuits before ANY db access (db-pure)
         if (mmBody.dry_run === true) return res.json({ ok: false, would: "rejected", problems: mmProblems })
-        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('rejected', ${mmProblems.join("; ").slice(0, 500)})`
+        await queryClient`INSERT INTO mm_ingest_log (outcome, detail) VALUES ('rejected', ${mmWithRunTag(mmProblems.join("; "), mmTag)})`
         return res.status(400).json({ error: "Invalid snapshot", problems: mmProblems })
       }
       const mmHash = [mmSf!.tracker!.sha256 || "", ...(mmSf!.matrices || []).map((m) => m.sha256 || "").sort()].join("|")
@@ -1686,7 +1689,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const mmWould = mmLatest?.source_hash === mmHash && mmSameData ? "deduped" : "stored"
       if (mmBody.dry_run === true) return res.json({ ok: true, would: mmWould, problems: [] })
       if (mmWould === "deduped") {
-        await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id) VALUES ('deduped', ${mmLatest!.id})`
+        await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id, detail) VALUES ('deduped', ${mmLatest!.id}, ${mmWithRunTag(null, mmTag)})`
         return res.json({ ok: true, deduped: true })
       }
       const mmInserted = await queryClient`
@@ -1702,7 +1705,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           try { await queryClient`INSERT INTO mm_projects (name) VALUES (${mmName})` } catch { /* race, harmless */ }
         }
       }
-      await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id) VALUES ('stored', ${mmInserted[0]!.id})`
+      await queryClient`INSERT INTO mm_ingest_log (outcome, snapshot_id, detail) VALUES ('stored', ${mmInserted[0]!.id}, ${mmWithRunTag(null, mmTag)})`
       return res.status(201).json({ ok: true, snapshot_id: mmInserted[0]!.id })
     }
 
@@ -9453,7 +9456,10 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
         return res.status(201).json({ ok: true, kind: mmKind, name: mmName, size: mmFile.buffer.length, by: session?.userName || "unknown", triggered: mmTriggered,
           note: mmTriggered ? "sync started, the dashboard updates in about 2 minutes" : "picked up by the next scheduled sync (within 10 minutes on weekdays)" })
       }
+      // "Sync now". requested_at is taken before the dispatch, so the run it
+      // starts begins after it; the page polls /migration/sync-status with it.
       if (path === "/migration/sources/sync" && method === "POST") {
+        const mmRequestedAt = new Date().toISOString()
         let mmT = false
         if (process.env.GH_DISPATCH_TOKEN) {
           try {
@@ -9463,7 +9469,15 @@ ${JSON.stringify(mmParse(mmFactRows[0]!.facts))}`
             mmT = gh.status === 204
           } catch { mmT = false }
         }
-        return res.json({ triggered: mmT, note: mmT ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
+        return res.json({ triggered: mmT, requested_at: mmRequestedAt, note: mmT ? "sync started" : "manual trigger not configured; the schedule runs every 10 minutes on weekdays" })
+      }
+      if (path === "/migration/sync-status" && method === "GET") {
+        const { parseSince, resolveSyncStatus } = await import("../packages/server/src/services/migrationSync.js")
+        const mmSince = parseSince((req.query as any)?.since)
+        if (mmSince === null) return res.status(400).json({ error: "since must be an ISO time from the last hour" })
+        const mmRows = await queryClient`SELECT outcome, created_at, detail, snapshot_id FROM mm_ingest_log
+          WHERE created_at >= ${new Date(mmSince)} ORDER BY created_at ASC LIMIT 50`
+        return res.json(resolveSyncStatus(mmRows as any, mmSince))
       }
       if (path === "/migration/stats" && method === "GET") {
         const log = await queryClient`SELECT * FROM mm_ingest_log ORDER BY created_at DESC LIMIT 20`

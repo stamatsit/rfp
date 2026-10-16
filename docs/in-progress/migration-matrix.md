@@ -145,3 +145,47 @@ Decided with Eric by multiple choice:
 First run on Washtenaw: 697 Stamats pages, delivered 19 (3%), in QA 206 of
 which 201 have no QA initials, building 228 (Chris J 150, Debbie 42,
 Brian 27, Katie 9), ready 227, not started 9.
+
+## Sync now (2026-10-16)
+A button in the dashboard header reads the spreadsheets right away, on top of
+the 10-minute schedule (Eric: "a sync button in addition to 10min intervals").
+- Click: `POST /api/migration/sources/sync` fires the same repository_dispatch
+  as the Vercel cron tick and returns `requested_at` (server clock, taken
+  before the dispatch).
+- Every run of `cloud_sync.py` stamps the moment it started reading
+  (`run_started_at`, sent with the snapshot via `MM_RUN_STARTED_AT`). The
+  ingest keeps it in `mm_ingest_log.detail` as `run_started_at=<iso>` on
+  stored, deduped, rejected and heartbeat rows. No migration: the outcome
+  CHECK constraint is unchanged.
+- A failed run posts a heartbeat `sync failed: <reason>` with the same stamp
+  (never on dry runs). Reasons are written for people: a revoked share link
+  reads "spreadsheet link 2 of 3 stopped working (HTTP 404); check the file is
+  still shared with 'Anyone with the link'". Messages name a link by position,
+  never by URL (Actions logs on this public repo are public), and the report
+  replaces any URL with `[link]` as a backstop.
+- `GET /api/migration/sync-status?since=<requested_at>`: done once ANY run that
+  started at or after the click stored or deduped (the dispatched run or a
+  scheduled one that beat it; both read the sheets after the click), failed for
+  a tagged failure or rejection, otherwise pending. A success wins over a
+  failure. Runs already under way at the click, and untagged rows, never count.
+  Logic: `packages/server/src/services/migrationSync.ts`, shared by both twins.
+- Client: `hooks/useMigrationSync.ts`, a module-level store (survives the
+  pathname-keyed remounts and resumes after a reload via sessionStorage). Polls
+  every 4s, gives up after 5 minutes with advice, reports each outcome once
+  (StrictMode-safe), reloads the snapshot on success. A failure shows at once
+  but keeps listening until the timeout: a run queued behind the failed one
+  (the workflow's concurrency group queues runs) can still succeed, and then
+  the page turns to "Synced". The note under the header (`p[role=status]`)
+  explains anything but success and clears once a newer read arrives (compared
+  on server timestamps).
+- Header: "Open the matrix" shows only when exactly one matrix feeds the
+  dashboard; with several, each project page links its own and the Spreadsheets
+  tab lists them all.
+- Tests: `migrationSync.test.ts` (19), `e2e/migration-matrix.sync.spec.ts` (13:
+  happy path, nothing new, failure announced once and cleared by a later read,
+  failure recovered by a queued run, timeout, not configured, JSON and non-JSON
+  server errors, keyboard and double press, reload resume, axe light and dark).
+- Known gap, unchanged here: ingest dedupe never fires (it compares JSON from
+  jsonb, which reorders keys), so every run stores a snapshot. If that is fixed,
+  the header's "updated N min ago" must count from the last successful read,
+  not the last stored snapshot, or a no-change sync will look stale.
