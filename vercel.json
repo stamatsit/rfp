@@ -67,7 +67,7 @@
       "destination": "/api"
     },
     {
-      "source": "/((?!api|assets|reports|social-pulse|favicon\\.ico|robots\\.txt).*)",
+      "source": "/((?!api|assets|reports|social-pulse|client-wins|favicon\\.ico|robots\\.txt).*)",
       "destination": "/"
     }
   ]
