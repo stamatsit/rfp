@@ -467,6 +467,12 @@ const helpArticles: HelpArticle[] = [
     answer: "Yes — drop or select multiple images and they appear in a filmstrip below the preview. Click any thumbnail to select it. You can download all images at once as a ZIP file. Drag thumbnails to reorder them. Use the batch rename feature to give all images a consistent naming pattern with a custom prefix, separator, and numbering.",
   },
   {
+    id: "img-9",
+    category: "Image Toolkit",
+    question: "How do I add a white border or drop shadow?",
+    answer: "Open the Border & Shadow card and turn on White border, Drop shadow, or both. The preview updates as you move the controls, and the downloaded file matches it. Use Hold to compare to see the image without the effect, and Preview on to check it against a white, gray or dark page. Grow canvas adds the effect outside your image, while Keep size holds the exact file dimensions and shrinks the image inside. A shadow needs a WebP or PNG file to stay transparent, and JPEG files get a white background. The effect is never burned into your image, so you can turn it off at any time before you download.",
+  },
+  {
     id: "img-8",
     category: "Image Toolkit",
     question: "Does the Image Toolkit save my work?",

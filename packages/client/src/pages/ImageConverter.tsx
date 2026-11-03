@@ -43,10 +43,29 @@ import {
   ChevronDown,
   Copy,
   Save,
+  Square,
 } from "lucide-react"
 import { AppHeader } from "@/components/AppHeader"
 import { SitemapCaptureModal } from "@/components/SitemapCaptureModal"
 import { useToolkitApi, takeToolkitFiles, TOOLKIT_QUEUE_EVENT } from "@/lib/toolkitApi"
+import { BorderShadowCard } from "@/components/image-toolkit/BorderShadowCard"
+import {
+  BACKDROP_COLORS,
+  FramedPreview,
+  PreviewControls,
+  type PreviewBackdrop,
+} from "@/components/image-toolkit/FramedPreview"
+import {
+  DEFAULT_FRAME,
+  computeFrameLayout,
+  isFrameActive,
+  loadLastFrame,
+  measureEdgeBright,
+  normalizeFrame,
+  renderFrameToBlob,
+  saveLastFrame,
+  type FrameSettings,
+} from "@/lib/imageFrame"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -262,6 +281,8 @@ async function loadSessionAsync(): Promise<{ images: ImageItem[]; selectedId: nu
       preEnhanceSrc: null,
       altText: "",
       ...img,
+      fixedSize: img.fixedSize ?? false,
+      frame: normalizeFrame(img.frame),
     }))
     return data
   } catch {
@@ -325,6 +346,12 @@ interface ImageItem {
   enhanceLabel?: string
   altText: string
   altTextGenerating?: boolean
+  /** White border and drop shadow. A setting, never part of `src`. */
+  frame: FrameSettings
+  /** Sized by a preset, so the border and shadow default to keeping that size. */
+  fixedSize: boolean
+  /** Snapshot of `fixedSize` before enhancement, for undo */
+  preEnhanceFixedSize?: boolean
 }
 
 type Mode = "convert" | "crop" | "erase"
@@ -400,6 +427,84 @@ export function ImageConverter() {
     []
   )
 
+  // ---- Border and shadow ----
+
+  const [previewBackdrop, setPreviewBackdrop] = useState<PreviewBackdrop>("gray")
+  const [previewActualSize, setPreviewActualSize] = useState(false)
+  const [comparingFrame, setComparingFrame] = useState(false)
+  const [edgeBright, setEdgeBright] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const leaveActualSize = useCallback(() => setPreviewActualSize(false), [])
+
+  const reportExportError = (err: unknown) => {
+    const message = err instanceof Error ? err.message : ""
+    setExportError(
+      message === "toBlob failed"
+        ? "This file is too large for this browser to create. Try smaller output dimensions."
+        : message || "The export failed. Please try again."
+    )
+  }
+
+  const updateFrame = (patch: Partial<FrameSettings>) => {
+    if (!selected) return
+    const frame = { ...selected.frame, ...patch }
+    updateImage(selected.id, { frame, converted: false })
+    saveLastFrame(frame)
+  }
+
+  const resetFrame = () => {
+    if (!selected) return
+    const { borderOn, shadowOn } = selected.frame
+    const frame = { ...DEFAULT_FRAME, borderOn, shadowOn }
+    updateImage(selected.id, { frame, converted: false })
+    saveLastFrame(frame)
+  }
+
+  const applyFrameToAll = () => {
+    if (!selected) return
+    const { frame } = selected
+    setImages((prev) => prev.map((img) => ({ ...img, frame: { ...frame }, converted: false })))
+  }
+
+  const frameLayoutOf = (img: ImageItem) => computeFrameLayout({
+    sourceWidth: img.naturalWidth,
+    sourceHeight: img.naturalHeight,
+    outputWidth: img.outputWidth,
+    outputHeight: img.outputHeight,
+    settings: img.frame,
+    fixedSize: img.fixedSize,
+    format: outputFormat,
+  })
+
+  const selectedFrameLayout = selected && isFrameActive(selected.frame) ? frameLayoutOf(selected) : null
+  // Crop and erase work on the clean picture, so the effect steps aside for them.
+  const frameToolsAvailable = selected !== null && mode !== "erase" && !(mode === "crop" && !selected.cropApplied)
+  const showFramedPreview = frameToolsAvailable && selectedFrameLayout !== null
+
+  // An export error describes the settings that caused it, so it goes when they change.
+  const selectedFrame = selected?.frame
+  const selectedOutputWidth = selected?.outputWidth
+  const selectedOutputHeight = selected?.outputHeight
+  useEffect(() => {
+    setExportError(null)
+  }, [selectedId, selectedFrame, selectedOutputWidth, selectedOutputHeight, outputFormat])
+
+  const selectedSrc = selected?.src
+  const selectedBorderOn = selected?.frame.borderOn ?? false
+  const selectedIsCutout = selected?.bgRemoved ?? false
+
+  useEffect(() => {
+    if (!selectedSrc || !selectedBorderOn || selectedIsCutout) {
+      setEdgeBright(false)
+      return
+    }
+    let alive = true
+    measureEdgeBright(selectedSrc)
+      .then((bright) => { if (alive) setEdgeBright(bright) })
+      .catch(() => { if (alive) setEdgeBright(false) })
+    return () => { alive = false }
+  }, [selectedSrc, selectedBorderOn, selectedIsCutout])
+
   // ---- File loading ----
 
   const addFiles = useCallback(
@@ -462,6 +567,8 @@ export function ImageConverter() {
                   enhanced: false,
                   preEnhanceSrc: null,
                   altText: "",
+                  frame: loadLastFrame(),
+                  fixedSize: false,
                 }
                 setImages((prev) => [...prev, item])
                 // Auto-select the first new image
@@ -530,6 +637,7 @@ export function ImageConverter() {
   const selectImage = (id: number) => {
     setSelectedId(id)
     setMode("convert")
+    setPreviewActualSize(false)
     resetCropState()
   }
 
@@ -590,6 +698,7 @@ export function ImageConverter() {
         outputWidth: img.naturalWidth,
         outputHeight: img.naturalHeight,
         converted: false,
+        fixedSize: false,
       })
       setMode("crop")
       resetCropState()
@@ -606,6 +715,7 @@ export function ImageConverter() {
                 outputWidth: p.width,
                 outputHeight: p.height,
                 converted: false,
+                fixedSize: true,
               })
               setAspect(p.width / p.height)
               return
@@ -627,6 +737,7 @@ export function ImageConverter() {
       updateImage(selected.id, {
         outputWidth: selected.naturalWidth,
         outputHeight: selected.naturalHeight,
+        fixedSize: false,
       })
       return
     }
@@ -636,6 +747,7 @@ export function ImageConverter() {
           updateImage(selected.id, {
             outputWidth: p.width,
             outputHeight: p.height,
+            fixedSize: true,
           })
           setAspect(p.width / p.height)
           setMode("crop")
@@ -710,6 +822,32 @@ export function ImageConverter() {
     return resizeImage(src, width, height, mimeMap[format])
   }
 
+  /**
+   * Every download and save goes through here. With no border or shadow it is
+   * the original export, unchanged. A `size` is a promised file size, used by
+   * multi-size export, so the effect fits inside it.
+   */
+  const exportItem = (
+    img: ImageItem,
+    format: "webp" | "png" | "jpeg",
+    q: number,
+    size?: { w: number; h: number }
+  ): Promise<Blob> => {
+    if (!isFrameActive(img.frame)) {
+      return exportImage(img.src, size?.w ?? img.outputWidth, size?.h ?? img.outputHeight, format, q)
+    }
+    return renderFrameToBlob({
+      src: img.src,
+      outputWidth: size?.w ?? img.outputWidth,
+      outputHeight: size?.h ?? img.outputHeight,
+      settings: img.frame,
+      fixedSize: img.fixedSize,
+      forceExact: size !== undefined,
+      format,
+      quality: q,
+    })
+  }
+
   const formatExt = { webp: "webp", png: "png", jpeg: "jpg" } as const
 
   // ---- Download single ----
@@ -717,12 +855,14 @@ export function ImageConverter() {
   const handleDownloadSingle = async () => {
     if (!selected) return
     setConverting(true)
+    setExportError(null)
     try {
-      const blob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
+      const blob = await exportItem(selected, outputFormat, quality)
       saveAs(blob, `${stripExtension(selected.fileName)}.${formatExt[outputFormat]}`)
       updateImage(selected.id, { converted: true, convertedSize: blob.size })
     } catch (err) {
       console.error("Conversion failed:", err)
+      reportExportError(err)
     } finally {
       setConverting(false)
     }
@@ -734,7 +874,7 @@ export function ImageConverter() {
     if (!selected || !toolkit.saveToLibrary) return
     setSavingToLibrary(true)
     try {
-      const blob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
+      const blob = await exportItem(selected, outputFormat, quality)
       const name = `${stripExtension(selected.fileName)}.${formatExt[outputFormat]}`
       await toolkit.saveToLibrary(new File([blob], name, { type: blob.type || `image/${outputFormat}` }))
       updateImage(selected.id, { converted: true, convertedSize: blob.size })
@@ -753,7 +893,7 @@ export function ImageConverter() {
     try {
       for (let i = 0; i < images.length; i++) {
         const img = images[i]!
-        const blob = await exportImage(img.src, img.outputWidth, img.outputHeight, outputFormat, quality)
+        const blob = await exportItem(img, outputFormat, quality)
         const name = `${stripExtension(img.fileName)}.${formatExt[outputFormat]}`
         await toolkit.saveToLibrary(new File([blob], name, { type: blob.type || `image/${outputFormat}` }))
         updateImage(img.id, { converted: true, convertedSize: blob.size })
@@ -773,11 +913,12 @@ export function ImageConverter() {
   const handleDownloadAll = async () => {
     setConverting(true)
     setConvertProgress(0)
+    setExportError(null)
     try {
       const zip = new JSZip()
       for (let i = 0; i < images.length; i++) {
         const img = images[i]!
-        const blob = await exportImage(img.src, img.outputWidth, img.outputHeight, outputFormat, quality)
+        const blob = await exportItem(img, outputFormat, quality)
         zip.file(`${stripExtension(img.fileName)}.${formatExt[outputFormat]}`, blob)
         updateImage(img.id, { converted: true, convertedSize: blob.size })
         setConvertProgress(i + 1)
@@ -789,7 +930,9 @@ export function ImageConverter() {
         for (const img of images) {
           const fn = `${stripExtension(img.fileName)}.${formatExt[outputFormat]}`
           const escaped = img.altText.replace(/"/g, '""')
-          csvRows.push(`"${fn}","${escaped}",${img.outputWidth},${img.outputHeight},${outputFormat.toUpperCase()}`)
+          // The real file size, which a border and shadow can make larger.
+          const framed = isFrameActive(img.frame) ? frameLayoutOf(img) : null
+          csvRows.push(`"${fn}","${escaped}",${framed?.fileWidth ?? img.outputWidth},${framed?.fileHeight ?? img.outputHeight},${outputFormat.toUpperCase()}`)
         }
         zip.file("metadata.csv", csvRows.join("\n"))
       }
@@ -797,6 +940,7 @@ export function ImageConverter() {
       saveAs(zipBlob, `converted-images-${outputFormat}.zip`)
     } catch (err) {
       console.error("Batch conversion failed:", err)
+      reportExportError(err)
     } finally {
       setConverting(false)
       setConvertProgress(0)
@@ -993,6 +1137,9 @@ export function ImageConverter() {
 
     updateImage(selected.id, {
       preEnhanceSrc: selected.src,
+      // Enhancing changes the dimensions, so the preset's size no longer applies.
+      preEnhanceFixedSize: selected.fixedSize,
+      fixedSize: false,
       src: result,
       enhanced: true,
       enhanceLabel: op.label,
@@ -1015,6 +1162,7 @@ export function ImageConverter() {
         src: prev,
         enhanced: false,
         preEnhanceSrc: null,
+        fixedSize: selected.preEnhanceFixedSize ?? false,
         enhanceLabel: undefined,
         naturalWidth: img.naturalWidth,
         naturalHeight: img.naturalHeight,
@@ -1470,20 +1618,23 @@ export function ImageConverter() {
     if (!selected || exportSizes.length === 0) return
     setConverting(true)
     setConvertProgress(0)
+    setExportError(null)
     try {
       const zip = new JSZip()
       const baseName = stripExtension(selected.fileName)
       const ext = formatExt[outputFormat]
 
       // First: include the current output size
-      const mainBlob = await exportImage(selected.src, selected.outputWidth, selected.outputHeight, outputFormat, quality)
-      zip.file(`${baseName}-${selected.outputWidth}x${selected.outputHeight}.${ext}`, mainBlob)
+      const mainBlob = await exportItem(selected, outputFormat, quality)
+      const mainWidth = selectedFrameLayout?.fileWidth ?? selected.outputWidth
+      const mainHeight = selectedFrameLayout?.fileHeight ?? selected.outputHeight
+      zip.file(`${baseName}-${mainWidth}x${mainHeight}.${ext}`, mainBlob)
       setConvertProgress(1)
 
       // Then: each additional size
       for (let i = 0; i < exportSizes.length; i++) {
-        const s = exportSizes[i]
-        const blob = await exportImage(selected.src, s.w, s.h, outputFormat, quality)
+        const s = exportSizes[i]!
+        const blob = await exportItem(selected, outputFormat, quality, { w: s.w, h: s.h })
         zip.file(`${baseName}-${s.w}x${s.h}.${ext}`, blob)
         setConvertProgress(i + 2)
       }
@@ -1493,6 +1644,7 @@ export function ImageConverter() {
       updateImage(selected.id, { converted: true })
     } catch (err) {
       console.error("Multi-size export failed:", err)
+      reportExportError(err)
     } finally {
       setConverting(false)
       setConvertProgress(0)
@@ -1534,7 +1686,7 @@ export function ImageConverter() {
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start">
             {/* LEFT — Preview / Drop zone + Filmstrip */}
-            <div>
+            <div className={`min-w-0 ${showFramedPreview ? "lg:sticky lg:top-20 lg:self-start" : ""}`}>
               <div className="bg-white dark:bg-slate-900 rounded-2xl border border-black/[0.06] dark:border-white/[0.08] shadow-sm overflow-hidden transition-all duration-300">
                 {selected ? (
                   <>
@@ -1670,13 +1822,29 @@ export function ImageConverter() {
                     ) : (
                       <div
                         className="relative flex items-center justify-center"
-                        style={selected.bgRemoved ? {
+                        style={showFramedPreview ? {
+                          backgroundColor: BACKDROP_COLORS[previewBackdrop],
+                        } : selected.bgRemoved ? {
                           backgroundImage: "repeating-conic-gradient(#e2e8f0 0% 25%, #fff 0% 50%)",
                           backgroundSize: "16px 16px",
                         } : {
                           backgroundColor: "#f0f0f0",
                         }}
                       >
+                        {showFramedPreview ? (
+                          <FramedPreview
+                            src={selected.src}
+                            alt={selected.altText || selected.fileName}
+                            outputWidth={selected.outputWidth}
+                            outputHeight={selected.outputHeight}
+                            settings={selected.frame}
+                            fixedSize={selected.fixedSize}
+                            format={outputFormat}
+                            actualSize={previewActualSize}
+                            comparing={comparingFrame}
+                            onActualSizeUnavailable={leaveActualSize}
+                          />
+                        ) : (
                         <img
                           src={selected.src}
                           alt="Preview"
@@ -1688,6 +1856,7 @@ export function ImageConverter() {
                             } : {}),
                           }}
                         />
+                        )}
                         {/* Enhance processing overlay */}
                         {enhancing && (
                           <div className="absolute inset-0 z-[2] overflow-hidden rounded-lg" style={{ isolation: "isolate" }}>
@@ -1769,6 +1938,17 @@ export function ImageConverter() {
                           </div>
                         )}
                       </div>
+                    )}
+
+                    {showFramedPreview && (
+                      <PreviewControls
+                        backdrop={previewBackdrop}
+                        onBackdropChange={setPreviewBackdrop}
+                        actualSize={previewActualSize}
+                        onActualSizeChange={setPreviewActualSize}
+                        comparing={comparingFrame}
+                        onComparingChange={setComparingFrame}
+                      />
                     )}
 
                     {/* Bottom bar: zoom + apply crop */}
@@ -1894,6 +2074,14 @@ export function ImageConverter() {
                           >
                             <X size={10} className="text-white" />
                           </button>
+                          {isFrameActive(img.frame) && (
+                            <div
+                              title="Border or shadow on"
+                              className="absolute bottom-[18px] right-1 w-4 h-4 rounded-full bg-emerald-500 flex items-center justify-center"
+                            >
+                              <Square size={9} className="text-white" strokeWidth={3} />
+                            </div>
+                          )}
                           {img.fileName.includes("-mobile") && (
                             <div className="absolute bottom-[18px] left-1 px-1 py-px rounded bg-blue-500/80 text-[7px] font-bold text-white leading-tight">
                               M
@@ -2124,6 +2312,7 @@ export function ImageConverter() {
                             updateImage(selected.id, {
                               outputWidth: selected.naturalWidth,
                               outputHeight: selected.naturalHeight,
+                              fixedSize: false,
                             })
                           }}
                           className={`flex items-center justify-center gap-1.5 flex-1 py-2 rounded-lg text-[13px] font-medium transition-all
@@ -2340,6 +2529,27 @@ export function ImageConverter() {
                     </div>
                     </>)}
 
+                    {/* Border and shadow */}
+                    {frameToolsAvailable ? (
+                      <BorderShadowCard
+                        frame={selected.frame}
+                        layout={selectedFrameLayout}
+                        outputWidth={selected.outputWidth}
+                        outputHeight={selected.outputHeight}
+                        format={outputFormat}
+                        imageCount={images.length}
+                        isCutout={selected.bgRemoved}
+                        edgeBright={edgeBright}
+                        onChange={updateFrame}
+                        onReset={resetFrame}
+                        onApplyToAll={applyFrameToAll}
+                      />
+                    ) : selectedFrameLayout && (
+                      <p className="px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 text-[12px] text-slate-500 dark:text-slate-400">
+                        Border and shadow are hidden while you work on the image. They come back when you finish.
+                      </p>
+                    )}
+
                     {/* Eraser controls (shown in erase mode) */}
                     {mode === "erase" && (
                       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-pink-200 dark:border-pink-800/50 shadow-sm p-4 space-y-3">
@@ -2494,6 +2704,13 @@ export function ImageConverter() {
                           />
                         </div>
                       </div>
+                      {showFramedPreview && selectedFrameLayout && (
+                        <p className="text-[11px] leading-snug text-slate-500 dark:text-slate-400 mt-2">
+                          {selectedFrameLayout.fit === "grow"
+                            ? `Image size. With the border and shadow, the final file is ${selectedFrameLayout.fileWidth}×${selectedFrameLayout.fileHeight}.`
+                            : "The final file stays this size, and the image shrinks inside it."}
+                        </p>
+                      )}
                     </div>
 
                     {/* Output Format */}
@@ -2629,7 +2846,7 @@ export function ImageConverter() {
                         </span>
                         <span className="text-slate-400 dark:text-slate-500">Output dims</span>
                         <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
-                          {selected.outputWidth}×{selected.outputHeight}
+                          {selectedFrameLayout?.fileWidth ?? selected.outputWidth}×{selectedFrameLayout?.fileHeight ?? selected.outputHeight}
                         </span>
                         <span className="text-slate-400 dark:text-slate-500">Output format</span>
                         <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
@@ -2641,9 +2858,14 @@ export function ImageConverter() {
                             <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
                               {formatBytes(selected.convertedSize)}
                             </span>
-                            <span className="text-slate-400 dark:text-slate-500">Savings</span>
+                            {/* A border and shadow can make the file bigger than the original. */}
+                            <span className="text-slate-400 dark:text-slate-500">
+                              {selected.convertedSize > selected.originalSize ? "File size" : "Savings"}
+                            </span>
                             <span className="text-emerald-600 dark:text-emerald-400 text-right font-mono font-medium">
-                              {Math.round((1 - selected.convertedSize / selected.originalSize) * 100)}% smaller
+                              {selected.convertedSize > selected.originalSize
+                                ? `${Math.round((selected.convertedSize / selected.originalSize - 1) * 100)}% larger`
+                                : `${Math.round((1 - selected.convertedSize / selected.originalSize) * 100)}% smaller`}
                             </span>
                           </>
                         )}
@@ -2669,6 +2891,12 @@ export function ImageConverter() {
                           </span>
                         )}
                       </Button>
+                      {exportError && (
+                        <p role="alert" className="text-[12px] leading-snug text-red-600 dark:text-red-400 flex items-start gap-1.5">
+                          <AlertCircle size={13} className="flex-shrink-0 mt-0.5" />
+                          <span>{exportError}</span>
+                        </p>
+                      )}
                       {isPortal && (
                         <Button
                           onClick={handleSaveToLibrary}
@@ -2854,6 +3082,7 @@ export function ImageConverter() {
                     { icon: <Wand2 size={16} />, color: "text-blue-500", title: "AI Enhance", desc: "Upscale, denoise, deblur & retouch — all local" },
                     { icon: <Eraser size={16} />, color: "text-pink-500", title: "Magic Eraser", desc: "AI-powered object removal — paint to erase" },
                     { icon: <Sparkles size={16} />, color: "text-purple-500", title: "Remove Background", desc: "One-click, runs locally — no API cost" },
+                    { icon: <Square size={16} />, color: "text-teal-500", title: "Border & Shadow", desc: "White border and drop shadow, previewed live" },
                     { icon: <Layers size={16} />, color: "text-emerald-500", title: "Batch Export", desc: "Convert all images at once as ZIP" },
                     { icon: <TextCursorInput size={16} />, color: "text-sky-500", title: "Batch Rename", desc: "Pattern-based naming with live preview" },
                   ].filter((f) => !isPortal || !PORTAL_HIDDEN_FEATURES.has(f.title)).map((f) => (
