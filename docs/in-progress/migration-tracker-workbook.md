@@ -119,9 +119,14 @@ fix still holds (rechecked in desktop Excel: a cut goal keeps its hours, a cut n
 value in the workbook is unchanged. Retested in Excel on the web: new person, new line, status OK, Still to assign
 updates, real sync accepts it. The real file has this build as version 29.
 
-Still to do, in order:
-1. Cutover (Eric said go 11/6): point MM_SHARE_URLS at the new file, run a production sync, check it.
-2. Laura and Crystal's requests from the Basecamp post.
+Cutover done 11/6, 17:09 UTC: MM_SHARE_URLS now holds the new tracker plus the Morehead and Washtenaw matrices; the
+old value is kept privately for rollback. A production sync read the new file, stored contract 1.4 with the same team
+numbers, and "Open the tracker" now opens the new file.
+
+Still to do:
+1. Laura and Crystal's requests from the Basecamp post.
+2. Coe's matrix link from Crystal, typed on the Projects tab.
+3. Tighten the tracker's anonymous edit link once nothing reads it anonymously.
 4. DONE differently (11/4, 3pm): Laura's blank stayed locked by a stuck guest session, so Eric chose to use his own
    copy. The real tracker is now `Migration Tracker.xlsx` in Eric's OneDrive folder "Migration Tracking Test", at the
    same share link as the old test copy (link kept in private notes, never here). The final build is on it; Excel
