@@ -108,8 +108,19 @@ Done 11/6 (Still to assign, see the decisions above):
 - Uploaded to the real file (version 25 to 26, read back identical) after checking nobody had typed in it since
   11/5. Backups of both versions are in Dropbox From Bot, dated 11/6. Laura has not seen this version yet.
 
+Found and fixed 11/6, in a full loop through Excel on the web on a test copy: Excel for the web does not
+reliably recalculate a formula that uses an INDEX(...):INDEX(...) range and reads a helper cell. A new line for a
+new person showed "Person?" and counted 0 pages, so the dashboard would have refused the file. Desktop Excel and
+LibreOffice calculated it correctly, which is why nothing caught it before. Isolated with two small diagnostic
+workbooks typed into in Excel on the web. The builder no longer builds any range with INDEX: lists run from their
+locked header to the locked row after the table (item i is at position i + HEAD), and goal rows run from the locked
+gap column to the locked column after the last week. Neither end of any range can be cut, so the 11/4 cut-and-paste
+fix still holds (rechecked in desktop Excel: a cut goal keeps its hours, a cut name leaves the lookups whole). Every
+value in the workbook is unchanged. Retested in Excel on the web: new person, new line, status OK, Still to assign
+updates, real sync accepts it. The real file has this build as version 29.
+
 Still to do, in order:
-1. One full loop through Excel on the web with real saves (the 11/4 loop predates the box).
+1. Cutover (Eric said go 11/6): point MM_SHARE_URLS at the new file, run a production sync, check it.
 2. Laura and Crystal's requests from the Basecamp post.
 4. DONE differently (11/4, 3pm): Laura's blank stayed locked by a stuck guest session, so Eric chose to use his own
    copy. The real tracker is now `Migration Tracker.xlsx` in Eric's OneDrive folder "Migration Tracking Test", at the

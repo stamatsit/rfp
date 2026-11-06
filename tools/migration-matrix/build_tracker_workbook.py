@@ -317,13 +317,19 @@ def absrange(sheet, r1, c1, r2, c2):
     return f"{name}!{rc(r1, c1, True, True)}:{rc(r2, c2, True, True)}"
 
 
-# Cut and paste makes Excel rewire any formula pointing at the moved cell, which
-# silently left hours under the wrong week. So no formula refers to a typed cell
-# directly: typed values are looked up by row and column, or read through _calc.
+# Cut and paste makes Excel rewire any reference to the moved cell, which silently
+# left hours under the wrong week (found in Excel, 11/4). So no reference is a typed
+# cell, and no range starts or ends on one: a typed cell is read by its position in
+# its whole row, and a range runs between locked cells, which can't be cut.
+# Ranges are never built as INDEX(...):INDEX(...): Excel for the web does not
+# recalculate those reliably, so a new line showed "Person?" (found 11/6).
+HEAD = 1  # every safe_col range starts on its locked header, so item i is at position i + HEAD
+
+
 def safe_col(sheet, r1, r2, c):
-    """A column of typed cells, as a range no cut can redirect."""
-    whole = f"{sheet}!${cn(c)}:${cn(c)}"
-    return f"INDEX({whole},{r1 + 1}):INDEX({whole},{r2 + 1})"
+    """Typed rows r1..r2 of column c, from the locked header above to the locked row below."""
+    col = cn(c)
+    return f"{sheet}!${col}${r1}:${col}${r2 + 2}"
 
 
 def row_cell(row, col, sheet=None):
@@ -341,8 +347,8 @@ T_NAMES = safe_col("Team", T_FIRST, T_LAST, T_NAME)
 T_INITS = safe_col("Team", T_FIRST, T_LAST, T_INIT)
 T_ROLES = safe_col("Team", T_FIRST, T_LAST, T_ROLE)
 T_STATUSES = safe_col("Team", T_FIRST, T_LAST, T_STATUS)
-_T_ROWS = f"Team!${T_FIRST + 1}:${T_LAST + 1}"
-T_GRID = f"INDEX({_T_ROWS},1,{T_WK + 1}):INDEX({_T_ROWS},{TEAM_ROWS},{T_END + 1})"
+# The hours grid, from the locked gap column before the weeks to the locked column after them
+T_GRID = absrange("Team", T_FIRST, T_GAP, T_LAST, T_END + 1)
 P_NAMES = safe_col("Projects", P_FIRST, P_LAST, P_NAME)
 P_STATUSES = safe_col("Projects", P_FIRST, P_LAST, P_STATUS)
 P_CLIENTS = safe_col("Projects", P_FIRST, P_LAST, P_CLIENT)
@@ -356,8 +362,8 @@ def p_job(pridx, jidx, field):
 
 
 def p_col(c):
-    """A whole Projects column for the project rows."""
-    return f"INDEX({P_ROWS},0,{c + 1})"
+    """A Projects column for the project rows, lined up with P_NAMES and P_STATUSES."""
+    return safe_col("Projects", P_FIRST, P_LAST, c)
 C_GRID = absrange("Capacity", C_FIRST, C_WK, C_LAST, C_END)
 C_WEEKS = absrange("Capacity", C_HEAD, C_WK, C_HEAD, C_END)
 H_HOURS_FIRST = goal_col(0) + 1
@@ -381,15 +387,15 @@ def build_lists(book, ws):
                         "box_active_n", "box_planned_n", "box_rank"] + [f"left:{k}" for k in JOB_KEYS] + ["box_state"])
     for i in range(TEAM_ROWS):
         r = i + 1
-        name, status = f"INDEX({T_NAMES},{i + 1})", f"INDEX({T_STATUSES},{i + 1})"
+        name, status = f"INDEX({T_NAMES},{i + 1 + HEAD})", f"INDEX({T_STATUSES},{i + 1 + HEAD})"
         book.formula(ws, r, 1, f'=IF(AND({name}<>"",{status}="Active"),MAX(B$1:B{r})+1,"")')
-        book.formula(ws, r, 0, f'=IFERROR(INDEX({T_NAMES},MATCH({i + 1},$B$2:$B${TEAM_ROWS + 1},0)),"")')
+        book.formula(ws, r, 0, f'=IFERROR(INDEX({T_NAMES},MATCH({i + 1},$B$2:$B${TEAM_ROWS + 1},0)+{HEAD}),"")')
     for i in range(PROJECT_ROWS):
         r = i + 1
-        name, status = f"INDEX({P_NAMES},{i + 1})", f"INDEX({P_STATUSES},{i + 1})"
+        name, status = f"INDEX({P_NAMES},{i + 1 + HEAD})", f"INDEX({P_STATUSES},{i + 1 + HEAD})"
         book.formula(ws, r, 3, f'=IF(AND({name}<>"",OR({status}="Active",{status}="Planned")),'
                                f'MAX(D$1:D{r})+1,"")')
-        book.formula(ws, r, 2, f'=IFERROR(INDEX({P_NAMES},MATCH({i + 1},$D$2:$D${PROJECT_ROWS + 1},0)),"")')
+        book.formula(ws, r, 2, f'=IFERROR(INDEX({P_NAMES},MATCH({i + 1},$D$2:$D${PROJECT_ROWS + 1},0)+{HEAD}),"")')
         # Still to assign. Pages left per job, for projects in the dropdown with pages for that job.
         live = f'AND({name}<>"",OR({status}="Active",{status}="Planned"))'
         for j in range(len(JOBS)):
@@ -432,16 +438,17 @@ def build_calc(book, ws):
     book.formula(ws, 1, 1, f'=IF(AND(B1>={first},B1<={first + 7 * (N_WEEKS - 1)}),(B1-{first})/7+1,"")')
     book.wb.define_name("ThisWeek", "=_calc!$B$1")
     book.wb.define_name("ThisWeekIdx", "=_calc!$B$2")
-    keys = f"Assignments!{rc(R_KEYS, A_WK, True, True)}:{rc(R_KEYS, A_END, True, True)}"
+    # Goal rows run from the locked gap column to the locked column after the last week
+    keys = absrange("Assignments", R_KEYS, A_GAP, R_KEYS, A_END + 1)
     for r in range(A_FIRST, A_LAST + 1):
         person, project, job = (rc(r, c, False, True) for c in (K_PERSON, K_PROJECT, K_JOB))
         for c, typed in ((K_PERSON, A_PERSON), (K_PROJECT, A_PROJECT), (K_JOB, A_JOB)):
             cell = row_cell(r, typed, "Assignments")
             book.formula(ws, r, c, f'=IF({cell}="","",{cell})')
-        cells = f"{row_cell(r, A_WK, 'Assignments')}:{row_cell(r, A_END, 'Assignments')}"
+        cells = absrange("Assignments", r, A_GAP, r, A_END + 1)
         pridx, jidx = rc(r, K_PRIDX, False, True), rc(r, K_JIDX, False, True)
-        book.formula(ws, r, K_PIDX, f'=IF({person}="","",IFERROR(MATCH({person},{T_NAMES},0),""))')
-        book.formula(ws, r, K_PRIDX, f'=IF({project}="","",IFERROR(MATCH({project},{P_NAMES},0),""))')
+        book.formula(ws, r, K_PIDX, f'=IF({person}="","",IFERROR(MATCH({person},{T_NAMES},0)-{HEAD},""))')
+        book.formula(ws, r, K_PRIDX, f'=IF({project}="","",IFERROR(MATCH({project},{P_NAMES},0)-{HEAD},""))')
         book.formula(ws, r, K_JIDX, f'=IF({job}="","",IFERROR(MATCH({job},JobList,0),""))')
         book.formula(ws, r, K_RATE, f'=IF(OR({pridx}="",{jidx}=""),"",{p_job(pridx, jidx, 3)})')
         # A line with no person, project or job has been cleared, so goals left in it count for nothing.
@@ -470,8 +477,8 @@ def build_contract(book, ws, team_keys, project_keys, asg_keys):
         ("goals_total", f"=SUM({K_SUMS})"),
         ("hours_assigned_total", f"=SUM({absrange('_cap', T_FIRST + CAP_ASG_OFFSET, 0, T_LAST + CAP_ASG_OFFSET, N_WEEKS - 1)})"),
         ("assignment_rows", f'=COUNTIF({A_STATUSES},"?*")'),
-        ("team_count", f'=COUNTIF({T_NAMES},"?*")'),
-        ("project_count", f'=COUNTIF({P_NAMES},"?*")'),
+        ("team_count", f'=COUNTIF({T_NAMES},"?*")-{HEAD}'),
+        ("project_count", f'=COUNTIF({P_NAMES},"?*")-{HEAD}'),
         ("errors", "=ErrCount"), ("warnings", "=WarnCount"),
         ("week_count", N_WEEKS), ("first_week", FIRST_WEEK.isoformat()),
         ("team_key_count", len(team_keys)), ("project_key_count", len(project_keys)),
@@ -553,7 +560,7 @@ def build_team(book, ws, team, password):
 
     first = rc(T_FIRST, T_NAME, False, True)
     ws.conditional_format(T_FIRST, T_NAME, T_LAST, T_USUAL, {
-        "type": "formula", "criteria": f'=AND({first}="",ROW()={T_FIRST + 1}+COUNTIF(TeamNames,"?*"))', "format": book.rule(bg_color=TINT)})
+        "type": "formula", "criteria": f'=AND({first}="",ROW()={T_FIRST + 1 - HEAD}+COUNTIF(TeamNames,"?*"))', "format": book.rule(bg_color=TINT)})
     ws.conditional_format(T_FIRST, T_INIT, T_LAST, T_INIT, {
         "type": "formula", "criteria": f'=AND({first}<>"",{cell}="",{rc(T_FIRST, T_STATUS, False, True)}="Active")',
         "format": book.rule(bg_color=AMBER_BG)})
@@ -665,7 +672,7 @@ def build_projects(book, ws, projects, links, password):
             "error_title": "Minutes per page", "error_message": "Minutes per page are a number above 0."})
     first = rc(P_FIRST, P_NAME, False, True)
     ws.conditional_format(P_FIRST, P_NAME, P_LAST, P_STATUS, {
-        "type": "formula", "criteria": f'=AND({first}="",ROW()={P_FIRST + 1}+COUNTIF(ProjectNames,"?*"))', "format": book.rule(bg_color=TINT)})
+        "type": "formula", "criteria": f'=AND({first}="",ROW()={P_FIRST + 1 - HEAD}+COUNTIF(ProjectNames,"?*"))', "format": book.rule(bg_color=TINT)})
     st = rc(P_FIRST, P_STATUS, False, True)
     ws.conditional_format(P_FIRST, P_LINK, P_LAST, P_LINK, {
         "type": "formula", "criteria": f'=AND({st}="Active",{cell}="")', "format": book.rule(bg_color=AMBER_BG)})
@@ -704,7 +711,7 @@ def still_to_assign(book, ws):
         # The stripe holds the project's number, colored like its rows below; the gap holds its state
         book.formula(ws, r, A_STRIPE, f'=IF({count}>{BOX_N},"",{hit})' if overflow else f"={hit}", invisible)
         book.formula(ws, r, A_GAP, f'=IF({s}="","",INDEX({L_STATES},{s}))', invisible)
-        name = f'IF({s}="","",INDEX({P_NAMES},{s}))'
+        name = f'IF({s}="","",INDEX({P_NAMES},{s}+{HEAD}))'
         if overflow:
             name = f'IF({count}>{BOX_N},"+"&({count}-{BOX_N - 1})&" more projects not shown",{name})'
         ws.merge_range(r, A_PERSON, r, A_PROJECT, "", name_fmt)
@@ -925,9 +932,9 @@ def build_capacity(book, ws, team_n, password):
     for i in range(TEAM_ROWS):
         r = C_FIRST + i
         t = T_FIRST + i
-        name = f"INDEX({T_NAMES},{i + 1})"
+        name = f"INDEX({T_NAMES},{i + 1 + HEAD})"
         book.formula(ws, r, C_NAME, f'=IF({name}="","",{name})', name_fmt)
-        role = f"INDEX({T_ROLES},{i + 1})"
+        role = f"INDEX({T_ROLES},{i + 1 + HEAD})"
         book.formula(ws, r, C_ROLE, f'=IF({role}="","",{role})', role_fmt)
         row_rng = f"{rc(r, C_WK, False, True)}:{rc(r, C_END, False, True)}"
         book.formula(ws, r, C_NOW, f'=IF(ThisWeekIdx="","",INDEX({row_rng},ThisWeekIdx))', now_fmt)
