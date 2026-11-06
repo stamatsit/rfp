@@ -163,6 +163,30 @@ def _rest_json(opener, url):
         return json.load(r)
 
 
+MATRIX_REFUSAL = "Client matrix needs attention:"
+# The tracker can be edited by anyone with its link, so only ever follow links
+# into SharePoint, never to wherever a typed address points.
+SHAREPOINT_LINK = re.compile(r"^https://[a-z0-9-]+\.sharepoint\.com/", re.I)
+
+
+def project_matrix_links(tracker_path):
+    """[(project, link)] from a Migration Tracker's Projects tab; empty for an
+    older tracker. A link that is not SharePoint stops the run."""
+    if not tracker_path:
+        return []
+    import openpyxl
+    import tracker_v1
+    wb = openpyxl.load_workbook(tracker_path, data_only=True)
+    if not tracker_v1.is_workbook(wb):
+        return []
+    links = tracker_v1.matrix_links(wb)
+    for project, link in links:
+        if not SHAREPOINT_LINK.match(link):
+            sys.exit(f"{MATRIX_REFUSAL} the matrix link for {project} is not a SharePoint share link. "
+                     f"The dashboard keeps its last good numbers.")
+    return links
+
+
 def share_fetch_sources():
     """Read every share link in MM_SHARE_URLS; returns (tracker_path, n_matrices).
 
@@ -175,6 +199,7 @@ def share_fetch_sources():
     so the dashboard's buttons open the owner's file.
     """
     tracker, n_mat, webmap = None, 0, {}
+    seen_docs = {}   # a file reached through two links must only count once
 
     def keep(name, data, modified, link):
         nonlocal tracker, n_mat
@@ -200,12 +225,17 @@ def share_fetch_sources():
 
     # Messages name a link by its position, never by its URL: Actions logs on
     # this public repo are public, and failure reasons reach the dashboard.
-    def read_one(forced_name, share, label):
+    def read_one(forced_name, share, label, project=None):
         opener, landing = _guest_opener(share)
         parsed = urllib.parse.urlparse(landing)
         q = urllib.parse.parse_qs(parsed.query)
         rel = (q.get("id") or [None])[0]
         doc = (q.get("sourcedoc") or [None])[0]
+        if project and not doc:
+            sys.exit(f"{MATRIX_REFUSAL} the matrix link for {project} does not open a single file. "
+                     f"The dashboard keeps its last good numbers.")
+        if doc and doc.strip("{}").lower() in seen_docs:
+            return seen_docs[doc.strip("{}").lower()]
         if rel:                                   # a folder
             site = "https://" + parsed.netloc + re.sub(r"^(/personal/[^/]+).*", r"\1", rel)
             api = (f"{site}/_api/web/GetFolderByServerRelativeUrl('{urllib.parse.quote(rel)}')"
@@ -230,6 +260,9 @@ def share_fetch_sources():
                 print(f"  share: could not read the file's name ({str(e)[:80]})")
                 meta = {}
             name = forced_name or meta.get("Name")
+            if project and "content-matrix" not in (name or "").lower():
+                # A Projects tab link is a matrix whatever the file is called
+                name = "content-matrix-" + re.sub(r"[^a-z0-9]+", "-", project.lower()).strip("-") + ".xlsx"
             if not name:
                 sys.exit(f"cannot tell what file spreadsheet {label} is; write it as "
                          f"'name.xlsx=link' in MM_SHARE_URLS")
@@ -237,6 +270,8 @@ def share_fetch_sources():
             with opener.open(urllib.request.Request(dl), timeout=180) as r:
                 data = r.read()
             keep(name, data, meta.get("TimeLastModified"), share)
+            seen_docs[guid.lower()] = name
+            return name
         else:
             sys.exit(f"spreadsheet {label} did not open a folder or a file; check it is "
                      f"still shared with 'Anyone with the link'")
@@ -249,6 +284,17 @@ def share_fetch_sources():
             # the usual cause: the owner stopped sharing the file, or moved it
             sys.exit(f"spreadsheet link {i} of {len(links)} stopped working (HTTP {e.code}); "
                      f"check the file is still shared with 'Anyone with the link'")
+    # The Migration Tracker's Projects tab names each client's matrix, which also
+    # settles which project it belongs to. Nothing to guess from a file name.
+    linked = {}
+    for project, link in project_matrix_links(tracker):
+        try:
+            name = read_one(None, link, f"the matrix link for {project}", project=project)
+        except urllib.error.HTTPError as e:
+            sys.exit(f"{MATRIX_REFUSAL} the matrix link for {project} stopped working (HTTP {e.code}). Check it is "
+                     f"still shared with Anyone with the link. The dashboard keeps its last good numbers.")
+        linked[os.path.splitext(name)[0]] = project
+    json.dump(linked, open(os.path.join(OUT, "matrix-links.json"), "w"))
     os.makedirs(os.path.dirname(RUNTIME_URLMAP), exist_ok=True)
     json.dump(webmap, open(RUNTIME_URLMAP, "w"), indent=1)
     return tracker, n_mat
@@ -308,6 +354,7 @@ def run(started):
             sb_download(f"matrices/{name}", os.path.join(OUT, "matrices", name))
         tracker, n_mat, origin = os.path.join(OUT, "tracker", sorted(trackers)[-1]), len(mats), "storage"
     env = dict(os.environ, MM_SOURCE=tracker, MM_MATRIX_DIR=os.path.join(OUT, "matrices"),
+               MM_MATRIX_LINKS=os.path.join(OUT, "matrix-links.json"),
                MM_SOURCE_NAME="github-action", MM_RUN_STARTED_AT=started)
     print(f"sources ({origin}): {os.path.basename(tracker)} + {n_mat} matrices")
     for script in ("build_master.py", "make_present.py"):
@@ -316,7 +363,9 @@ def run(started):
         if r.returncode != 0:
             print(r.stdout[-2000:], r.stderr[-2000:])
             last = (r.stderr.strip() or r.stdout.strip() or "no output").splitlines()[-1]
-            sys.exit(f"{script} failed ({last[:200]})")
+            # Refusals are written for the team to read as they are
+            sys.exit(last[:380] if last.startswith(("Migration Tracker needs attention:", MATRIX_REFUSAL))
+                     else f"{script} failed ({last[:200]})")
         print(f"ok {script}")
     mode = "--dry-run" if os.environ.get("MM_DRY_RUN") else "--post"   # dry run: validate, store nothing
     r = subprocess.run([sys.executable, os.path.join(HERE, "push_snapshot.py"), mode, INGEST_URL],

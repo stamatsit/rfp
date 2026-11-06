@@ -25,7 +25,7 @@ import { mmSnapshots, mmProjects, mmIngestLog } from "../db/schema.js"
 import { getCurrentUserName } from "../middleware/getCurrentUser.js"
 import multer from "multer"
 import { supabaseAdmin } from "../db/index.js"
-import { parseSince, resolveSyncStatus, runTag, withRunTag } from "../services/migrationSync.js"
+import { parseSince, resolveSyncStatus, runTag, syncProblem, withRunTag } from "../services/migrationSync.js"
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024
 
@@ -219,8 +219,8 @@ router.get("/latest", async (_req: Request, res: Response) => {
     const latest = rows[0]
     if (!latest) return res.json({ empty: true })
     const prev = rows.find((r) => r.sourceHash !== latest.sourceHash)
-    const [hb] = await db.select({ createdAt: mmIngestLog.createdAt }).from(mmIngestLog)
-      .orderBy(desc(mmIngestLog.createdAt)).limit(1)
+    const [hb] = await db.select({ createdAt: mmIngestLog.createdAt, outcome: mmIngestLog.outcome, detail: mmIngestLog.detail })
+      .from(mmIngestLog).orderBy(desc(mmIngestLog.createdAt)).limit(1)
     const archive = await db.select().from(mmProjects)
     res.json({
       snapshot: { id: latest.id, created_at: latest.createdAt, contract: latest.contract,
@@ -228,6 +228,7 @@ router.get("/latest", async (_req: Request, res: Response) => {
         facts: latest.facts, findings: latest.findings },
       seconds_old: Math.round((Date.now() - new Date(latest.createdAt as any).getTime()) / 1000),
       last_heartbeat_seconds: hb ? Math.round((Date.now() - new Date(hb.createdAt as any).getTime()) / 1000) : null,
+      sync_problem: syncProblem(hb),
       diff: prev ? computeDiff(prev.data, latest.data) : [],
       archive: archive.map((p) => ({ name: p.name, archived: p.archived,
         archived_by: p.archivedBy, archived_at: p.archivedAt })),

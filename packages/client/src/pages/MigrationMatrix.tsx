@@ -448,6 +448,14 @@ export function MigrationMatrix() {
     )
   })()
 
+  // A refused or failed sync leaves the last good numbers on screen. Say so on
+  // every load, not only to someone waiting on a "Sync now" click.
+  const syncProblemBanner = latest?.sync_problem ? (
+    <div role="alert" className="border rounded-xl px-4 py-2.5 text-[13px] mb-5 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 border-red-200 dark:border-red-900">
+      <span className="font-semibold">These numbers may be out of date.</span> {latest.sync_problem}
+    </div>
+  ) : null
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-slate-50/80 dark:from-slate-950 dark:to-slate-900">
@@ -468,6 +476,7 @@ export function MigrationMatrix() {
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 py-6 pb-24">
         {header}
         {tabBar}
+        {syncProblemBanner}
         {staleBanner}
         {body}
       </div>
@@ -1016,7 +1025,7 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
             className="h-9 w-9 flex items-center justify-center text-slate-500 hover:text-slate-900 dark:hover:text-white disabled:opacity-30"><ChevronRight size={16} /></button>
         </div>
         <p className="text-[12.5px] text-slate-500 max-w-2xl">
-          Assigned is what Laura's tracker planned for the week. Done is pages delivered to the client (matrix column BB) in that week, credited to the migrator who built them and the QA who passed them; projects without a matrix use the tracker.
+          Assigned is what Laura's tracker planned for the week. Done is the migrator's completion date (column AP) and the QA completion date (column AS), credited by role; projects without a matrix use the tracker.
           {behind && isCurrent ? ` This is the tracker's latest staffed week; today is the week of ${isoLbl(weekly.calendar_week!)}.` : ""}
         </p>
       </div>
@@ -1031,8 +1040,8 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
             </tr>
             <tr className="text-[10.5px] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
               <th />
-              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">done</th>
-              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">done</th><th className="px-3 pb-2 text-right font-normal">of assigned</th>
+              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">completed</th>
+              <th className="px-3 pb-2 text-right font-normal">assigned</th><th className="px-3 pb-2 text-right font-normal">completed</th><th className="px-3 pb-2 text-right font-normal">of assigned</th>
               <th className="px-5 pb-2 text-right font-normal">planned / available</th>
             </tr>
           </thead>
@@ -1116,10 +1125,11 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
 function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () => void; openPerson: (n: string) => void }) {
   const [q, setQ] = useState("")
   const [sort, setSort] = useState<"done" | "left" | "week" | "hours" | "qa">("done")
-  const leftOfT = (t: MmTeamMember) => t.left ?? Math.max(t.assigned - t.done, 0)
+  const completedOf = (t: MmTeamMember) => (t.migration_complete ?? 0) + (t.qa_complete ?? 0)
+  const leftOfT = (t: MmTeamMember) => t.left ?? Math.max(t.assigned - completedOf(t), 0)
   const rows = useMemo(() => {
     const f = team.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) || t.role.toLowerCase().includes(q.toLowerCase()))
-    const key = (t: MmTeamMember) => sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : sort === "qa" ? (t.in_qa ?? 0) : t[sort]
+    const key = (t: MmTeamMember) => sort === "done" ? completedOf(t) : sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : sort === "qa" ? (t.in_qa ?? 0) : t[sort]
     return [...f].sort((a, b) => key(b) - key(a) || a.name.localeCompare(b.name))
   }, [team, q, sort])
   return (
@@ -1133,7 +1143,7 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
         {(["done", "left", "qa", "week", "hours"] as const).map((s) => (
           <button key={s} onClick={() => setSort(s)}
             className={`h-9 px-3 text-[12.5px] font-medium rounded-xl border ${sort === s ? "border-[#C41230] text-[#C41230] dark:text-rose-300" : "border-black/[0.06] dark:border-white/[0.08] text-slate-500"}`}>
-            by {s === "week" ? "assigned this week" : s === "left" ? "remaining" : s === "qa" ? "QA to finish" : s}
+            by {s === "week" ? "assigned this week" : s === "left" ? "remaining" : s === "qa" ? "QA to finish" : s === "done" ? "completed" : s}
           </button>
         ))}
       </div>
@@ -1142,12 +1152,15 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
               <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
-              <th className="px-3 py-3 font-medium text-right">Assigned</th><th className="px-3 py-3 font-medium text-right">Done</th>
+              <th className="px-3 py-3 font-medium text-right">Assigned</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages this person migrated with a completion date (column AP)">Mig. complete</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages this person QA'd with a completion date (column AS)">QA complete</th>
               <th className="px-3 py-3 font-medium text-right">Remaining</th>
-              <th className="px-3 py-3 font-medium text-right" title="pages sitting with this person for QA right now, from the client matrix">In QA</th>
-              <th className="px-3 py-3 font-medium text-right" title="pages with this person's initials in the matrix and no build date yet">Building</th>
-              <th className="px-3 py-3 font-medium text-right" title="pages assigned and done in the current tracker week">This week</th>
-              <th className="px-3 py-3 font-medium text-right" title="pages assigned and done the week before">Last week</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages sitting with this person for QA right now, from the client matrix">In QA</th>
+              <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600" title="Pages delivered to the client (column BB). Informational; does not drive calculations.">Done</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages a migrator has put their initials on but has not marked complete yet">Building</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages assigned and completed in the current tracker week">This week</th>
+              <th className="px-3 py-3 font-medium text-right" title="Pages assigned and completed the week before">Last week</th>
               <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th>
               <th className="px-5 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Pages/hr</th>
             </tr>
@@ -1159,9 +1172,11 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
                 <td className="px-5 py-2.5 font-medium text-slate-900 dark:text-white">{t.name}</td>
                 <td className="px-3 py-2.5 text-slate-500">{t.role}</td>
                 <td className={NUM}>{n(t.assigned)}</td>
-                <td className={`${NUM} font-semibold`}>{n(t.done)} <span className="text-slate-400 font-normal text-[11px]">{t.comp}%</span></td>
+                <td className={`${NUM} font-semibold`}>{n(t.migration_complete ?? 0)}</td>
+                <td className={`${NUM} font-semibold`}>{n(t.qa_complete ?? 0)}</td>
                 <td className={`${NUM} ${leftOfT(t) > 0 ? "text-[#C41230] dark:text-rose-300 font-semibold" : ""}`}>{n(leftOfT(t))}</td>
                 <td className={`${NUM} ${(t.in_qa ?? 0) > 0 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-400"}`}>{n(t.in_qa ?? 0)}</td>
+                <td className={`${NUM} text-slate-400`}>{n(t.done)}</td>
                 <td className={`${NUM} text-slate-500`}>{n(t.building ?? 0)}</td>
                 <td className={NUM}>{t.this_week ? <>{n(t.this_week.assigned)} <span className="text-slate-400">→</span> {n(t.this_week.done)}</> : ""}</td>
                 <td className={`${NUM} text-slate-500`}>{t.last_week ? <>{n(t.last_week.assigned)} <span className="text-slate-400">→</span> {n(t.last_week.done)}</> : ""}</td>
@@ -1178,7 +1193,8 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
 
 function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?: MmWeekly; back: () => void; openProject: (n: string) => void }) {
   const room = (t.avail ?? 0) - t.wk_hours
-  const left = t.left ?? Math.max(t.assigned - t.done, 0)
+  const completed = (t.migration_complete ?? 0) + (t.qa_complete ?? 0)
+  const left = t.left ?? Math.max(t.assigned - completed, 0)
   const wp = weekly?.people.find((p) => p.name === t.name)
   const curIdx = weekly ? weekly.weeks.indexOf(weekly.current) : -1
   const weekRows = wp && weekly
@@ -1204,15 +1220,15 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
       <div className="grid md:grid-cols-2 gap-3">
         <Card>
           <Label>Pages · all weeks on the tracker</Label>
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {([[n(t.assigned), "assigned"], [n(t.done), "done"], [n(left), "remaining"]] as Array<[string, string]>).map(([v, k]) => (
+          <div className="grid grid-cols-4 gap-3 text-center">
+            {([[n(t.assigned), "assigned"], [n(t.migration_complete ?? 0), "mig. complete"], [n(t.qa_complete ?? 0), "QA complete"], [n(left), "remaining"]] as Array<[string, string]>).map(([v, k]) => (
               <div key={k}>
                 <p className={`text-2xl font-bold tabular-nums ${k === "remaining" ? "text-[#C41230] dark:text-rose-300" : "text-slate-900 dark:text-white"}`}>{v}</p>
                 <p className="text-[11px] text-slate-400 mt-0.5">{k}</p>
               </div>
             ))}
           </div>
-          <p className="text-[12px] text-slate-400 mt-3 text-center">{t.comp}% of assigned done · {t.hours} hours logged · {t.vel != null ? `${t.vel} pages per hour` : "no rate yet"}</p>
+          <p className="text-[12px] text-slate-400 mt-3 text-center">{t.comp}% of assigned complete · {t.hours} hours logged · {t.vel != null ? `${t.vel} pages per hour` : "no rate yet"}{t.done ? ` · ${n(t.done)} delivered to client` : ""}</p>
         </Card>
         <Card>
           <Label>This week vs last week</Label>
@@ -1220,7 +1236,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
             {([["this week", t.this_week], ["last week", t.last_week]] as Array<[string, MmTeamMember["this_week"]]>).map(([k, v]) => (
               <div key={k}>
                 <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{v ? <>{n(v.done)}<span className="text-slate-300 dark:text-slate-600 font-normal"> / {n(v.assigned)}</span></> : "n/a"}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">{k} · done / assigned</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{k} · completed / assigned</p>
               </div>
             ))}
           </div>
@@ -1228,7 +1244,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
         </Card>
       </div>
       <Card>
-        <Label>Pages per week · track = assigned, fill = done (delivered)</Label>
+        <Label>Pages per week · track = assigned, fill = completed (migrated or QA)</Label>
         <ThroughputChart series={series} weekNow={weekly?.labels[curIdx] ?? ""} />
       </Card>
       {weekRows.length > 0 && (
@@ -1236,7 +1252,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
           <Label>Week by week</Label>
           <div className="overflow-x-auto">
             <table className="w-full text-[13px] min-w-[520px]">
-              <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Week</th><th className="py-2 px-3 font-medium text-right">Assigned</th><th className="py-2 px-3 font-medium text-right">Done</th><th className="py-2 px-3 font-medium text-right">Of assigned</th><th className="py-2 px-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th><th className="py-2 pl-3 font-medium">Projects</th></tr></thead>
+              <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Week</th><th className="py-2 px-3 font-medium text-right">Assigned</th><th className="py-2 px-3 font-medium text-right">Completed</th><th className="py-2 px-3 font-medium text-right">Of assigned</th><th className="py-2 px-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th><th className="py-2 pl-3 font-medium">Projects</th></tr></thead>
               <tbody>
                 {weekRows.map((r) => (
                   <tr key={r.w.week} className={`border-t border-black/[0.04] dark:border-white/[0.05] ${r.i === curIdx ? "bg-slate-50/70 dark:bg-slate-800/40" : ""}`}>
@@ -1261,7 +1277,7 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
       <Card>
         <Label>Projects</Label>
         <table className="w-full text-[13px]">
-          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Done</th><th className="py-2 font-medium text-right">Remaining</th><th className="py-2 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th></tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400"><th className="py-2 font-medium">Project</th><th className="py-2 font-medium text-right">Assigned</th><th className="py-2 font-medium text-right">Completed</th><th className="py-2 font-medium text-right">Remaining</th><th className="py-2 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th></tr></thead>
           <tbody>
             {t.projects.map(([pr, h, x, d]) => (
               <tr key={pr} className="border-t border-black/[0.04] dark:border-white/[0.05]">

@@ -34,6 +34,18 @@ export function withRunTag(detail: string | null | undefined, tag: string): stri
   return d ? `${d} | ${tag}` : tag
 }
 
+/**
+ * Why the newest run failed, in the words it reported, for the page to show on
+ * every load. Pass the newest log row: once a later run succeeds, that row is
+ * no longer a failed heartbeat and this returns null, so the message clears.
+ */
+export function syncProblem(row: { outcome?: string | null; detail?: string | null } | null | undefined): string | null {
+  if (!row || row.outcome !== "heartbeat") return null
+  const detail = stripRunTag(row.detail)
+  if (!detail.startsWith(FAILED_PREFIX)) return null
+  return detail.slice(FAILED_PREFIX.length).trim() || "The last sync failed."
+}
+
 /** When the run behind a log row started, or null for rows without the tag. */
 export function runStartedAt(detail: string | null | undefined): number | null {
   const m = /run_started_at=(\S+)/.exec(detail || "")

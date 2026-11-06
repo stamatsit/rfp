@@ -1,183 +1,59 @@
 {
- "contract": "1.2",
- "generated_at": "2026-10-12T14:02:50Z",
- "source": "manual",
+ "contract": "1.4",
+ "generated_at": "2026-11-04T16:19:49Z",
+ "source": "mac-agent",
  "source_files": {
   "tracker": {
-   "name": "migrator-assignment-tracker.xlsx",
-   "sha256": "d4befa770de488ecc6891553090816cbeaaf6325f2d161edc62ccd628503f815",
-   "mtime": "2026-10-12T14:00:18Z",
-   "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/migrator-assignment-tracker.xlsx?web=1"
+   "name": "tracker.xlsx",
+   "sha256": "8d9307e73897f8fdfe94317bb3aa98b790b95e1b89b3a8dfe015020ebf78fff7",
+   "mtime": "2026-11-04T15:56:59Z",
+   "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/tracker.xlsx?web=1"
   },
   "matrices": [
    {
     "name": "content-matrix-morehead.xlsx",
-    "sha256": "bd0c44a0b69403213a462413be4375e1646008a3735fd55691f078a8feb4c584",
-    "mtime": "2026-10-12T14:00:19Z",
+    "sha256": "18c0ff7d2460e22b560d4ee6f2b007b8bb705445c559565134d3b1d59f6330ee",
+    "mtime": "2026-11-04T16:07:39Z",
     "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/content-matrix-morehead.xlsx?web=1"
+   },
+   {
+    "name": "content-matrix-washtenaw.xlsx",
+    "sha256": "d14d6036a63b4ca02aec4e173fa72bf4ad0f01a646558ea20b137c88bb0347b6",
+    "mtime": "2026-11-04T16:08:13Z",
+    "web_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix/content-matrix-washtenaw.xlsx?web=1"
    }
   ],
   "folder_url": "https://stamats-my.sharepoint.com/personal/eric_yerke_stamats_com/Documents/Migration%20Matrix"
  },
- "week": "2026-10-12",
- "week_lbl": "10/12",
+ "week": "2026-11-02",
+ "week_lbl": "11/2",
  "data": {
   "changes": [],
-  "generated": "2026-10-12",
-  "week": "2026-10-12",
-  "week_lbl": "10/12",
-  "wk_hrs": 140.0,
+  "generated": "2026-11-04",
+  "week": "2026-11-02",
+  "week_lbl": "11/2",
+  "wk_hrs": 163.0,
   "logo": "assets/stamats-logo.svg",
   "clients": [
-   {
-    "name": "Washtenaw Community College",
-    "type": "AS IS 761, OPTIMIZE 41",
-    "total": 802.0,
-    "done": 0,
-    "remaining": 578,
-    "pct": 0,
-    "deadline": "2026-01-01",
-    "projected": "2026-11-08",
-    "hours_left": 331,
-    "verdict": "284 days overdue",
-    "tone": "crit",
-    "status": "active",
-    "crew": [
-     {
-      "name": "Brian",
-      "hours": 29.0
-     }
-    ],
-    "moves": [
-     "412 pages of QA backlog: Katie (30h free) could take it this week."
-    ],
-    "archived": false,
-    "series": [
-     [
-      "9/28",
-      332.0,
-      0
-     ],
-     [
-      "10/12",
-      58.0,
-      0
-     ]
-    ],
-    "actual_pace": 0,
-    "required_pace": null,
-    "days_left": -284,
-    "plan_rate": 1.9501519756838905,
-    "actual_rate": null,
-    "qa_remaining": 412,
-    "detail": {
-     "weeks": [
-      "9/28",
-      "10/12"
-     ],
-     "rows": [
-      {
-       "name": "Brian",
-       "cells": [
-        [
-         58,
-         29.0,
-         0
-        ],
-        [
-         58,
-         29.0,
-         0
-        ]
-       ]
-      },
-      {
-       "name": "Debbie",
-       "cells": [
-        [
-         56,
-         28.0,
-         0
-        ],
-        null
-       ]
-      },
-      {
-       "name": "Chris J",
-       "cells": [
-        [
-         52,
-         26.0,
-         0
-        ],
-        null
-       ]
-      },
-      {
-       "name": "Katie",
-       "cells": [
-        [
-         166,
-         13.8,
-         0
-        ],
-        null
-       ]
-      }
-     ]
-    },
-    "done_source": "tracker",
-    "matrix": null,
-    "list": "active",
-    "assigned": 224,
-    "left": 802,
-    "qa_done": 0,
-    "min_per_page": 30.8,
-    "qa_min_per_page": 5.0,
-    "hours_to_finish": 478,
-    "rate_set": true,
-    "priority": null,
-    "start_date": "2026-09-21",
-    "mig_deadline": "2026-10-23",
-    "page_types": {
-     "as is": {
-      "pages": 761.0,
-      "min_per_page": 30.0,
-      "rate": 2.0,
-      "hours": 380.5
-     },
-     "optimize": {
-      "pages": 41.0,
-      "min_per_page": 45.0,
-      "rate": 1.3333333333333333,
-      "hours": 30.75
-     },
-     "qa": {
-      "pages": 802.0,
-      "min_per_page": 5.0,
-      "rate": 12.0,
-      "hours": 66.83
-     }
-    },
-    "qa_pages": 802.0
-   },
    {
     "name": "HM Publishing \"On Health\"",
     "type": "PUBLISH 786",
     "total": 786.0,
+    "planned_total": 786.0,
     "done": 0,
+    "built": 0,
+    "left_to_build": 786,
     "remaining": 138,
     "pct": 0,
     "deadline": null,
-    "projected": "2026-11-08",
+    "projected": "2026-11-15",
     "hours_left": 12,
     "verdict": "on track",
     "tone": "ok",
     "status": "active",
     "crew": [],
     "moves": [
-     "Only about 11.5 hrs of work: Chris J (30h free) could clear it alone.",
-     "138 pages of QA backlog: Katie (30h free) could take it this week."
+     "Only about 11.5 hrs of work: Jeff (21.7h free) could clear it alone."
     ],
     "archived": false,
     "series": [
@@ -245,10 +121,76 @@
     "qa_pages": null
    },
    {
+    "name": "HM Physicians",
+    "type": "AS IS 20",
+    "total": 20.0,
+    "planned_total": 20.0,
+    "done": 0,
+    "built": 0,
+    "left_to_build": 20,
+    "remaining": 20,
+    "pct": 0,
+    "deadline": null,
+    "projected": "2026-11-15",
+    "hours_left": 10,
+    "verdict": "on track",
+    "tone": "ok",
+    "status": "planned",
+    "crew": [],
+    "moves": [
+     "Only about 10 hrs of work: Jeff (21.7h free) could clear it alone."
+    ],
+    "archived": false,
+    "series": [
+     [
+      "11/2",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": null,
+    "plan_rate": 2.0,
+    "actual_rate": null,
+    "qa_remaining": 20,
+    "detail": {
+     "weeks": [
+      "11/2"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 20,
+    "qa_done": 0,
+    "min_per_page": 30.0,
+    "qa_min_per_page": null,
+    "hours_to_finish": 10,
+    "rate_set": true,
+    "priority": null,
+    "start_date": "2026-11-01",
+    "mig_deadline": null,
+    "page_types": {
+     "as is": {
+      "pages": 20.0,
+      "min_per_page": 30.0,
+      "rate": 2.0,
+      "hours": 10.0
+     }
+    },
+    "qa_pages": null
+   },
+   {
     "name": "NMC Migration Test",
     "type": "AS IS 20",
     "total": 20.0,
+    "planned_total": 20.0,
     "done": 0,
+    "built": 0,
+    "left_to_build": 20,
     "remaining": 20,
     "pct": 0,
     "deadline": null,
@@ -264,7 +206,7 @@
     "archived": false,
     "series": [
      [
-      "10/12",
+      "11/2",
       0,
       0
      ]
@@ -277,7 +219,7 @@
     "qa_remaining": 20,
     "detail": {
      "weeks": [
-      "10/12"
+      "11/2"
      ],
      "rows": []
     },
@@ -305,825 +247,520 @@
     "qa_pages": null
    },
    {
-    "name": "Coe",
-    "type": null,
-    "total": 0,
-    "done": 0,
+    "name": "Washtenaw Community College",
+    "type": "AS IS 761, OPTIMIZE 41",
+    "total": 734,
+    "planned_total": 802.0,
+    "done": 165,
+    "built": 544,
+    "left_to_build": 190,
     "remaining": 0,
-    "pct": 0,
-    "deadline": "2026-11-30",
-    "projected": null,
-    "hours_left": 0,
-    "verdict": "no page count yet",
-    "tone": "warn",
-    "status": "planned",
-    "crew": [],
+    "pct": 22,
+    "deadline": "2027-01-01",
+    "projected": "2026-11-15",
+    "hours_left": 24,
+    "verdict": "fully assigned",
+    "tone": "ok",
+    "status": "active",
+    "crew": [
+     {
+      "name": "Kelly OF",
+      "hours": 25.0
+     }
+    ],
     "moves": [],
     "archived": false,
     "series": [
      [
-      "10/12",
+      "9/21",
       0,
-      0
-     ]
-    ],
-    "actual_pace": 0,
-    "required_pace": null,
-    "days_left": 49,
-    "plan_rate": null,
-    "actual_rate": null,
-    "qa_remaining": 0,
-    "detail": {
-     "weeks": [
-      "10/12"
-     ],
-     "rows": []
-    },
-    "done_source": "tracker",
-    "matrix": null,
-    "list": "planned",
-    "assigned": 0,
-    "left": 0,
-    "qa_done": 0,
-    "min_per_page": null,
-    "qa_min_per_page": null,
-    "hours_to_finish": null,
-    "rate_set": false,
-    "priority": null,
-    "start_date": "2026-10-26",
-    "mig_deadline": null,
-    "page_types": null,
-    "qa_pages": null
-   },
-   {
-    "name": "HM Physicians",
-    "type": null,
-    "total": 0,
-    "done": 0,
-    "remaining": 0,
-    "pct": 0,
-    "deadline": null,
-    "projected": null,
-    "hours_left": 0,
-    "verdict": "no page count yet",
-    "tone": "warn",
-    "status": "planned",
-    "crew": [],
-    "moves": [],
-    "archived": false,
-    "series": [
-     [
-      "10/12",
-      0,
-      0
-     ]
-    ],
-    "actual_pace": 0,
-    "required_pace": null,
-    "days_left": null,
-    "plan_rate": null,
-    "actual_rate": null,
-    "qa_remaining": 0,
-    "detail": {
-     "weeks": [
-      "10/12"
-     ],
-     "rows": []
-    },
-    "done_source": "tracker",
-    "matrix": null,
-    "list": "planned",
-    "assigned": 0,
-    "left": 0,
-    "qa_done": 0,
-    "min_per_page": null,
-    "qa_min_per_page": null,
-    "hours_to_finish": null,
-    "rate_set": false,
-    "priority": null,
-    "start_date": "2026-11-01",
-    "mig_deadline": null,
-    "page_types": null,
-    "qa_pages": null
-   }
-  ],
-  "team": [
-   {
-    "name": "Brian",
-    "role": "Senior migrator",
-    "hours": 58.0,
-    "assigned": 116,
-    "done": 0,
-    "left": 116,
-    "comp": 0,
-    "vel": 0.0,
-    "avail": 32.0,
-    "wk_hours": 29.0,
-    "this_week": {
-     "assigned": 58,
-     "done": 0,
-     "hours": 29.0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "weekly": [
-     [
-      "9/28",
-      29.0,
-      0
+      7
      ],
      [
-      "10/12",
-      29.0,
-      0
-     ]
-    ],
-    "projects": [
-     [
-      "Washtenaw Community College",
-      58.0,
-      116,
-      0
-     ]
-    ]
-   },
-   {
-    "name": "Debbie",
-    "role": "Senior migrator",
-    "hours": 28.0,
-    "assigned": 56,
-    "done": 0,
-    "left": 56,
-    "comp": 0,
-    "vel": 0.0,
-    "avail": 29.0,
-    "wk_hours": 0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "weekly": [
-     [
       "9/28",
-      28.0,
-      0
-     ]
-    ],
-    "projects": [
-     [
-      "Washtenaw Community College",
-      28.0,
-      56,
-      0
-     ]
-    ]
-   },
-   {
-    "name": "Chris J",
-    "role": "Senior migrator/Proofer",
-    "hours": 26.0,
-    "assigned": 52,
-    "done": 0,
-    "left": 52,
-    "comp": 0,
-    "vel": 0.0,
-    "avail": 30.0,
-    "wk_hours": 0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "weekly": [
-     [
-      "9/28",
-      26.0,
-      0
-     ]
-    ],
-    "projects": [
-     [
-      "Washtenaw Community College",
-      26.0,
-      52,
-      0
-     ]
-    ]
-   },
-   {
-    "name": "Katie",
-    "role": "Q/A/Senior migrator",
-    "hours": 13.8,
-    "assigned": 166,
-    "done": 0,
-    "left": 166,
-    "comp": 0,
-    "vel": 0.0,
-    "avail": 30.0,
-    "wk_hours": 0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "weekly": [
-     [
-      "9/28",
-      13.8,
-      0
-     ]
-    ],
-    "projects": [
-     [
-      "Washtenaw Community College",
-      13.8,
-      166,
-      0
-     ]
-    ]
-   },
-   {
-    "name": "Amanda",
-    "role": "Q/A/Senior migrator",
-    "hours": 54.0,
-    "assigned": 648,
-    "done": 0,
-    "left": 648,
-    "comp": 0,
-    "vel": 0.0,
-    "avail": 0,
-    "wk_hours": 0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 216,
-     "done": 0,
-     "hours": 18.0
-    },
-    "weekly": [
-     [
-      "9/28",
-      36.0,
-      0
+      332.0,
+      84
      ],
      [
       "10/5",
+      0,
+      131
+     ],
+     [
+      "10/12",
+      180.0,
+      139
+     ],
+     [
+      "10/19",
+      581.0,
+      230
+     ],
+     [
+      "10/26",
+      250.0,
+      239
+     ],
+     [
+      "11/2",
+      50.0,
+      9
+     ],
+     [
+      "11/9",
       18.0,
       0
      ]
     ],
-    "projects": [
-     [
-      "HM Publishing \"On Health\"",
-      54.0,
-      648,
-      0
-     ]
-    ]
-   }
-  ],
-  "weekly": {
-   "weeks": [
-    "2026-09-28",
-    "2026-10-05",
-    "2026-10-12"
-   ],
-   "labels": [
-    "9/28",
-    "10/5",
-    "10/12"
-   ],
-   "current": "2026-10-12",
-   "calendar_week": "2026-10-12",
-   "people": [
-    {
-     "name": "Brian",
-     "role": "Senior migrator",
-     "avail": [
-      31.0,
-      31.0,
-      32.0
-     ],
+    "actual_pace": 105,
+    "required_pace": 69,
+    "days_left": 58,
+    "plan_rate": 1.9501519756838905,
+    "actual_rate": 1.89,
+    "qa_remaining": 0,
+    "detail": {
      "weeks": [
+      "9/21",
+      "9/28",
+      "10/5",
+      "10/12",
+      "10/19",
+      "10/26",
+      "11/2",
+      "11/9"
+     ],
+     "rows": [
       {
-       "week": "2026-09-28",
-       "assigned": 58,
-       "hours": 29.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "Washtenaw Community College",
-         "assigned": 58,
-         "hours": 29.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
+       "name": "Brian",
+       "cells": [
+        [
+         0,
+         0,
+         3
+        ],
+        [
+         58,
+         29.0,
+         32
+        ],
+        [
+         0,
+         0,
+         58
+        ],
+        [
+         64,
+         32.0,
+         40
+        ],
+        [
+         66,
+         33.0,
+         58
+        ],
+        [
+         0,
+         0,
+         19
+        ],
+        [
+         0,
+         0.0,
+         0
+        ],
+        null
        ]
       },
       {
-       "week": "2026-10-05",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
+       "name": "Chris J",
+       "cells": [
+        [
+         0,
+         0,
+         1
+        ],
+        [
+         52,
+         26.0,
+         12
+        ],
+        [
+         0,
+         0,
+         14
+        ],
+        [
+         60,
+         30.0,
+         46
+        ],
+        [
+         68,
+         34.0,
+         52
+        ],
+        [
+         0,
+         0,
+         51
+        ],
+        null,
+        null
+       ]
       },
       {
-       "week": "2026-10-12",
-       "assigned": 58,
-       "hours": 29.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "Washtenaw Community College",
-         "assigned": 58,
-         "hours": 29.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
+       "name": "Debbie",
+       "cells": [
+        [
+         0,
+         0,
+         3
+        ],
+        [
+         56,
+         28.0,
+         27
+        ],
+        [
+         0,
+         0,
+         39
+        ],
+        [
+         56,
+         28.0,
+         26
+        ],
+        [
+         67,
+         33.5,
+         43
+        ],
+        [
+         0,
+         0,
+         29
+        ],
+        null,
+        null
+       ]
+      },
+      {
+       "name": "Kelly OF",
+       "cells": [
+        null,
+        null,
+        null,
+        null,
+        [
+         50,
+         25.0,
+         0
+        ],
+        [
+         50,
+         25.0,
+         0
+        ],
+        [
+         50,
+         25.0,
+         0
+        ],
+        [
+         18,
+         9.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Katie",
+       "cells": [
+        null,
+        [
+         166,
+         13.8,
+         13
+        ],
+        [
+         0,
+         0,
+         20
+        ],
+        [
+         0,
+         0.0,
+         15
+        ],
+        [
+         94,
+         21.2,
+         6
+        ],
+        [
+         0,
+         0,
+         36
+        ],
+        null,
+        null
+       ]
+      },
+      {
+       "name": "Amanda",
+       "cells": [
+        null,
+        null,
+        null,
+        [
+         0,
+         0,
+         9
+        ],
+        [
+         215,
+         17.9,
+         71
+        ],
+        [
+         200,
+         16.7,
+         72
+        ],
+        null,
+        null
+       ]
+      },
+      {
+       "name": "Kelly O",
+       "cells": [
+        null,
+        null,
+        null,
+        null,
+        [
+         21,
+         15.8,
+         0
+        ],
+        [
+         0,
+         0,
+         16
+        ],
+        [
+         0,
+         0,
+         8
+        ],
+        null
+       ]
+      },
+      {
+       "name": "Crystal",
+       "cells": [
+        null,
+        null,
+        null,
+        [
+         0,
+         0,
+         3
+        ],
+        null,
+        [
+         0,
+         0,
+         16
+        ],
+        [
+         0,
+         0,
+         1
+        ],
+        null
        ]
       }
      ]
     },
-    {
-     "name": "Debbie",
-     "role": "Senior migrator",
-     "avail": [
-      30.0,
-      29.0,
-      29.0
+    "done_source": "client matrix",
+    "matrix": {
+     "name": "content-matrix-washtenaw",
+     "total": 734,
+     "funnel": [
+      [
+       "Draft delivered",
+       232
+      ],
+      [
+       "Writing review done",
+       92
+      ],
+      [
+       "Migrated",
+       544
+      ],
+      [
+       "QA passed",
+       295
+      ],
+      [
+       "Delivered to client",
+       165
+      ],
+      [
+       "Client final review",
+       0
+      ]
      ],
-     "weeks": [
+     "sections": "1-Stamats, 2-Programs, 3-WCC",
+     "skipped_tabs": "For-Reuse-Delete",
+     "client_owned": 532,
+     "pipeline": {
+      "delivered": 165,
+      "in QA": 318,
+      "QA done, not delivered": 55,
+      "building": 93,
+      "ready to build": 63,
+      "not started": 40
+     },
+     "queues": [
       {
-       "week": "2026-09-28",
-       "assigned": 56,
-       "hours": 28.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "Washtenaw Community College",
-         "assigned": 56,
-         "hours": 28.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
-       ]
+       "initials": "",
+       "person": "unassigned",
+       "role": "QA",
+       "pages": 283,
+       "unassigned": true
       },
       {
-       "week": "2026-10-05",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
+       "initials": "KOF",
+       "person": "Kelly OF",
+       "role": "Migration",
+       "pages": 72,
+       "unassigned": false
       },
       {
-       "week": "2026-10-12",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
+       "initials": "AG",
+       "person": "Amanda",
+       "role": "QA",
+       "pages": 30,
+       "unassigned": false
+      },
+      {
+       "initials": "KO",
+       "person": "Kelly O",
+       "role": "Migration",
+       "pages": 15,
+       "unassigned": false
+      },
+      {
+       "initials": "KE",
+       "person": "Katie",
+       "role": "QA",
+       "pages": 4,
+       "unassigned": false
+      },
+      {
+       "initials": "CJ",
+       "person": "Chris J",
+       "role": "Migration",
+       "pages": 3,
+       "unassigned": false
+      },
+      {
+       "initials": "KE",
+       "person": "Katie",
+       "role": "Migration",
+       "pages": 3,
+       "unassigned": false
+      },
+      {
+       "initials": "CJ",
+       "person": "Chris J",
+       "role": "QA",
+       "pages": 1,
+       "unassigned": false
       }
+     ],
+     "delivered": 165,
+     "migrated": 544,
+     "qa_done": 295,
+     "cycle_med": 42,
+     "cycle_min": 24,
+     "cycle_max": 74,
+     "rework": 94,
+     "rework_pct": 13,
+     "weekly_deliveries": [
+      [
+       "9/28",
+       3
+      ],
+      [
+       "10/5",
+       14
+      ],
+      [
+       "10/12",
+       2
+      ],
+      [
+       "10/19",
+       25
+      ],
+      [
+       "10/26",
+       120
+      ],
+      [
+       "11/2",
+       1
+      ]
+     ],
+     "migrators": [
+      [
+       "BM",
+       210,
+       6
+      ],
+      [
+       "DS",
+       167,
+       49
+      ],
+      [
+       "CJ",
+       127,
+       34
+      ],
+      [
+       "KOF",
+       72,
+       0
+      ],
+      [
+       "KO",
+       39,
+       1
+      ],
+      [
+       "KE",
+       16,
+       4
+      ]
      ]
     },
-    {
-     "name": "Chris J",
-     "role": "Senior migrator/Proofer",
-     "avail": [
-      28.0,
-      32.0,
-      30.0
-     ],
-     "weeks": [
-      {
-       "week": "2026-09-28",
-       "assigned": 52,
-       "hours": 26.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "Washtenaw Community College",
-         "assigned": 52,
-         "hours": 26.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
-       ]
-      },
-      {
-       "week": "2026-10-05",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      },
-      {
-       "week": "2026-10-12",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      }
-     ]
-    },
-    {
-     "name": "Kelly H",
-     "role": "Senior migrator/Writer",
-     "avail": [
-      0.0,
-      0.0,
-      0
-     ],
-     "weeks": [
-      {
-       "week": "2026-09-28",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      },
-      {
-       "week": "2026-10-05",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      },
-      {
-       "week": "2026-10-12",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      }
-     ]
-    },
-    {
-     "name": "Amanda",
-     "role": "Q/A/Senior migrator",
-     "avail": [
-      37.0,
-      18.0,
-      0
-     ],
-     "weeks": [
-      {
-       "week": "2026-09-28",
-       "assigned": 432,
-       "hours": 36.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "HM Publishing \"On Health\"",
-         "assigned": 432,
-         "hours": 36.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
-       ]
-      },
-      {
-       "week": "2026-10-05",
-       "assigned": 216,
-       "hours": 18.0,
-       "done": 0,
-       "projects": [
-        {
-         "project": "HM Publishing \"On Health\"",
-         "assigned": 216,
-         "hours": 18.0,
-         "done": 0,
-         "done_source": "tracker"
-        }
-       ]
-      },
-      {
-       "week": "2026-10-12",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      }
-     ]
-    },
-    {
-     "name": "Katie",
-     "role": "Q/A/Senior migrator",
-     "avail": [
-      20.0,
-      30.0,
-      30.0
-     ],
-     "weeks": [
-      {
-       "week": "2026-09-28",
-       "assigned": 166,
-       "hours": 13.8,
-       "done": 0,
-       "projects": [
-        {
-         "project": "Washtenaw Community College",
-         "assigned": 166,
-         "hours": 13.8,
-         "done": 0,
-         "done_source": "tracker"
-        }
-       ]
-      },
-      {
-       "week": "2026-10-05",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      },
-      {
-       "week": "2026-10-12",
-       "assigned": 0,
-       "hours": 0,
-       "done": 0,
-       "projects": []
-      }
-     ]
-    }
-   ],
-   "unmatched": [],
-   "initials": {}
-  },
-  "overview": {
-   "avail": 121.0,
-   "assigned": 29.0,
-   "over": [],
-   "active": 5,
-   "archived": 0
-  }
- },
- "facts": {
-  "as_of": "2026-10-12",
-  "current_week": "2026-10-12",
-  "typical_team_hours_per_week": 140.0,
-  "queue_hours_total": 342,
-  "forecast": [
-   {
-    "name": "Washtenaw Community College",
-    "deadline": "2026-01-01",
-    "hours": 330.7,
-    "finish": "2026-11-08",
-    "slip": 311,
-    "pages_remaining": 578,
-    "status": "active"
-   },
-   {
-    "name": "HM Publishing \"On Health\"",
-    "deadline": null,
-    "hours": 11.5,
-    "finish": "2026-11-08",
-    "slip": null,
-    "pages_remaining": 138,
-    "status": "active"
-   },
-   {
-    "name": "NMC Migration Test",
-    "deadline": null,
-    "hours": 0,
-    "finish": null,
-    "slip": null,
-    "pages_remaining": 20,
-    "status": "planned"
-   }
-  ],
-  "capacity_this_week": [
-   {
-    "person": "Brian",
-    "available": 32.0,
-    "assigned": 29.0
-   },
-   {
-    "person": "Chris J",
-    "available": 30.0,
-    "assigned": 0
-   },
-   {
-    "person": "Debbie",
-    "available": 29.0,
-    "assigned": 0
-   },
-   {
-    "person": "Katie",
-    "available": 30.0,
-    "assigned": 0
-   }
-  ],
-  "high_findings": [
-   "'Washtenaw Community College': client deadline 2026-01-01 is earlier than its start date 2026-09-21, probably the wrong year. Until it is fixed the dashboard shows this project as overdue."
-  ],
-  "weeks_with_no_roster_hours": [
-   "2026-10-19",
-   "2026-10-26",
-   "2026-11-02",
-   "2026-11-09",
-   "2026-11-16",
-   "2026-11-23",
-   "2026-11-30",
-   "2026-12-07",
-   "2026-12-14",
-   "2026-12-21",
-   "2026-12-28"
-  ],
-  "crew_this_week": {
-   "Washtenaw Community College": [
-    "Brian 29.0h"
-   ]
-  },
-  "team_performance": [
-   {
-    "person": "Brian",
-    "role": "Senior migrator",
-    "hours": 58.0,
-    "pages_assigned": 116,
-    "pages_done": 0,
-    "pages_left": 116,
-    "done_pct_of_assigned": 0,
-    "pages_per_hour": 0.0,
-    "this_week": {
-     "assigned": 58,
-     "done": 0,
-     "hours": 29.0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    }
-   },
-   {
-    "person": "Debbie",
-    "role": "Senior migrator",
-    "hours": 28.0,
-    "pages_assigned": 56,
-    "pages_done": 0,
-    "pages_left": 56,
-    "done_pct_of_assigned": 0,
-    "pages_per_hour": 0.0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    }
-   },
-   {
-    "person": "Chris J",
-    "role": "Senior migrator/Proofer",
-    "hours": 26.0,
-    "pages_assigned": 52,
-    "pages_done": 0,
-    "pages_left": 52,
-    "done_pct_of_assigned": 0,
-    "pages_per_hour": 0.0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    }
-   },
-   {
-    "person": "Katie",
-    "role": "Q/A/Senior migrator",
-    "hours": 13.8,
-    "pages_assigned": 166,
-    "pages_done": 0,
-    "pages_left": 166,
-    "done_pct_of_assigned": 0,
-    "pages_per_hour": 0.0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    }
-   },
-   {
-    "person": "Amanda",
-    "role": "Q/A/Senior migrator",
-    "hours": 54.0,
-    "pages_assigned": 648,
-    "pages_done": 0,
-    "pages_left": 648,
-    "done_pct_of_assigned": 0,
-    "pages_per_hour": 0.0,
-    "this_week": {
-     "assigned": 0,
-     "done": 0,
-     "hours": 0
-    },
-    "last_week": {
-     "assigned": 216,
-     "done": 0,
-     "hours": 18.0
-    }
-   }
-  ],
-  "person_by_project": [
-   {
-    "person": "Brian",
-    "project": "Washtenaw Community College",
-    "hours": 58.0,
-    "pages_done": 0
-   },
-   {
-    "person": "Debbie",
-    "project": "Washtenaw Community College",
-    "hours": 28.0,
-    "pages_done": 0
-   },
-   {
-    "person": "Chris J",
-    "project": "Washtenaw Community College",
-    "hours": 26.0,
-    "pages_done": 0
-   },
-   {
-    "person": "Katie",
-    "project": "Washtenaw Community College",
-    "hours": 13.8,
-    "pages_done": 0
-   },
-   {
-    "person": "Amanda",
-    "project": "HM Publishing \"On Health\"",
-    "hours": 54.0,
-    "pages_done": 0
-   }
-  ],
-  "project_velocity": [
-   {
-    "project": "Washtenaw Community College",
-    "plan_pages_per_hour": 1.9501519756838905,
-    "actual_pages_per_hour": 0.0
-   },
-   {
-    "project": "HM Publishing \"On Health\"",
-    "plan_pages_per_hour": 12.0,
-    "actual_pages_per_hour": 0.0
-   }
-  ],
-  "client_matrices": [
-   {
-    "name": "content-matrix-morehead",
-    "pages": 157,
-    "migrated": 84,
-    "qa": 49,
-    "delivered": 46
-   }
-  ],
-  "projects_table": [
-   {
-    "project": "Washtenaw Community College",
     "list": "active",
-    "status": "active",
-    "total_pages": 802.0,
-    "assigned": 224,
-    "done": 0,
-    "left_to_build": 802,
-    "unassigned": 578,
-    "hours_to_finish": 478,
-    "build_minutes_per_page": 30.8,
-    "client_deadline": "2026-01-01",
-    "done_source": "tracker",
+    "assigned": 756,
+    "left": 569,
+    "qa_done": 295,
+    "min_per_page": 30.8,
+    "qa_min_per_page": 5.0,
+    "hours_to_finish": 134,
+    "rate_set": true,
+    "priority": null,
+    "start_date": "2026-09-21",
+    "mig_deadline": "2026-10-23",
     "page_types": {
      "as is": {
       "pages": 761.0,
@@ -1143,21 +780,3491 @@
       "rate": 12.0,
       "hours": 66.83
      }
-    }
+    },
+    "qa_pages": 802.0
    },
+   {
+    "name": "Coe",
+    "type": "AS IS 390, OPTIMIZE 82",
+    "total": 472.0,
+    "planned_total": 472.0,
+    "done": 0,
+    "built": 0,
+    "left_to_build": 472,
+    "remaining": 0,
+    "pct": 0,
+    "deadline": "2026-11-30",
+    "projected": null,
+    "hours_left": 0,
+    "verdict": "fully assigned",
+    "tone": "ok",
+    "status": "active",
+    "crew": [
+     {
+      "name": "Brian",
+      "hours": 30.0
+     },
+     {
+      "name": "Debbie",
+      "hours": 30.0
+     },
+     {
+      "name": "Chris J",
+      "hours": 30.0
+     },
+     {
+      "name": "Kelly H",
+      "hours": 30.0
+     },
+     {
+      "name": "Katie",
+      "hours": 25.8
+     },
+     {
+      "name": "Jeff",
+      "hours": 13.3
+     },
+     {
+      "name": "Crystal",
+      "hours": 5.0
+     }
+    ],
+    "moves": [],
+    "archived": false,
+    "series": [
+     [
+      "11/2",
+      370.0,
+      0
+     ],
+     [
+      "11/9",
+      415.0,
+      0
+     ],
+     [
+      "11/16",
+      159.0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": 127,
+    "days_left": 26,
+    "plan_rate": 1.3801169590643274,
+    "actual_rate": null,
+    "qa_remaining": 0,
+    "detail": {
+     "weeks": [
+      "11/2",
+      "11/9",
+      "11/16"
+     ],
+     "rows": [
+      {
+       "name": "Kelly H",
+       "cells": [
+        [
+         30,
+         30.0,
+         0
+        ],
+        [
+         40,
+         40.0,
+         0
+        ],
+        [
+         12,
+         12.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Brian",
+       "cells": [
+        [
+         45,
+         30.0,
+         0
+        ],
+        [
+         50,
+         33.3,
+         0
+        ],
+        [
+         15,
+         10.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Chris J",
+       "cells": [
+        [
+         45,
+         30.0,
+         0
+        ],
+        [
+         50,
+         33.3,
+         0
+        ],
+        [
+         15,
+         10.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Debbie",
+       "cells": [
+        [
+         45,
+         30.0,
+         0
+        ],
+        [
+         35,
+         23.3,
+         0
+        ],
+        [
+         30,
+         20.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Katie",
+       "cells": [
+        [
+         155,
+         25.8,
+         0
+        ],
+        [
+         175,
+         29.2,
+         0
+        ],
+        [
+         60,
+         10.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Jeff",
+       "cells": [
+        [
+         20,
+         13.3,
+         0
+        ],
+        [
+         25,
+         16.7,
+         0
+        ],
+        [
+         15,
+         10.0,
+         0
+        ]
+       ]
+      },
+      {
+       "name": "Crystal",
+       "cells": [
+        [
+         30,
+         5.0,
+         0
+        ],
+        [
+         40,
+         6.7,
+         0
+        ],
+        [
+         12,
+         2.0,
+         0
+        ]
+       ]
+      }
+     ]
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "active",
+    "assigned": 472,
+    "left": 472,
+    "qa_done": 0,
+    "min_per_page": 43.5,
+    "qa_min_per_page": 10.0,
+    "hours_to_finish": 421,
+    "rate_set": true,
+    "priority": null,
+    "start_date": "2026-10-26",
+    "mig_deadline": null,
+    "page_types": {
+     "as is": {
+      "pages": 390.0,
+      "min_per_page": 40.0,
+      "rate": 1.5,
+      "hours": 260.0
+     },
+     "optimize": {
+      "pages": 82.0,
+      "min_per_page": 60.0,
+      "rate": 1.0,
+      "hours": 82.0
+     },
+     "qa": {
+      "pages": 472.0,
+      "min_per_page": 10.0,
+      "rate": 6.0,
+      "hours": 78.67
+     }
+    },
+    "qa_pages": 472.0
+   },
+   {
+    "name": "HM Graduate Medical Education (GME)",
+    "type": null,
+    "total": 0,
+    "planned_total": 0,
+    "done": 0,
+    "built": 0,
+    "left_to_build": 0,
+    "remaining": 0,
+    "pct": 0,
+    "deadline": "2026-12-31",
+    "projected": null,
+    "hours_left": 0,
+    "verdict": "no page count yet",
+    "tone": "warn",
+    "status": "planned",
+    "crew": [],
+    "moves": [],
+    "archived": false,
+    "series": [
+     [
+      "11/2",
+      0,
+      0
+     ]
+    ],
+    "actual_pace": 0,
+    "required_pace": null,
+    "days_left": 57,
+    "plan_rate": null,
+    "actual_rate": null,
+    "qa_remaining": 0,
+    "detail": {
+     "weeks": [
+      "11/2"
+     ],
+     "rows": []
+    },
+    "done_source": "tracker",
+    "matrix": null,
+    "list": "planned",
+    "assigned": 0,
+    "left": 0,
+    "qa_done": 0,
+    "min_per_page": null,
+    "qa_min_per_page": null,
+    "hours_to_finish": null,
+    "rate_set": false,
+    "priority": null,
+    "start_date": null,
+    "mig_deadline": null,
+    "page_types": null,
+    "qa_pages": null
+   }
+  ],
+  "team": [
+   {
+    "name": "Brian",
+    "role": "Senior migrator",
+    "hours": 167.3,
+    "assigned": 298,
+    "migration_complete": 210,
+    "qa_complete": 0,
+    "done": 46,
+    "left": 88,
+    "comp": 70,
+    "vel": 1.25,
+    "avail": 0,
+    "wk_hours": 30.0,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 19,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 0,
+    "weekly": [
+     [
+      "9/21",
+      0,
+      3
+     ],
+     [
+      "9/28",
+      29.0,
+      32
+     ],
+     [
+      "10/5",
+      0,
+      58
+     ],
+     [
+      "10/12",
+      32.0,
+      40
+     ],
+     [
+      "10/19",
+      33.0,
+      58
+     ],
+     [
+      "10/26",
+      0,
+      19
+     ],
+     [
+      "11/2",
+      30.0,
+      0
+     ],
+     [
+      "11/9",
+      33.3,
+      0
+     ],
+     [
+      "11/16",
+      10.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Washtenaw Community College",
+      94.0,
+      188,
+      210
+     ],
+     [
+      "Coe",
+      73.3,
+      110,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Chris J",
+    "role": "Senior migrator/Proofer",
+    "hours": 163.3,
+    "assigned": 290,
+    "migration_complete": 127,
+    "qa_complete": 49,
+    "done": 49,
+    "left": 114,
+    "comp": 61,
+    "vel": 1.08,
+    "avail": 35.0,
+    "wk_hours": 30.0,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 51,
+     "hours": 0
+    },
+    "in_qa": 1,
+    "building": 3,
+    "weekly": [
+     [
+      "9/21",
+      0,
+      1
+     ],
+     [
+      "9/28",
+      26.0,
+      12
+     ],
+     [
+      "10/5",
+      0,
+      14
+     ],
+     [
+      "10/12",
+      30.0,
+      46
+     ],
+     [
+      "10/19",
+      34.0,
+      52
+     ],
+     [
+      "10/26",
+      0,
+      51
+     ],
+     [
+      "11/2",
+      30.0,
+      0
+     ],
+     [
+      "11/9",
+      33.3,
+      0
+     ],
+     [
+      "11/16",
+      10.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Washtenaw Community College",
+      90.0,
+      180,
+      176
+     ],
+     [
+      "Coe",
+      73.3,
+      110,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Debbie",
+    "role": "Senior migrator",
+    "hours": 162.8,
+    "assigned": 289,
+    "migration_complete": 167,
+    "qa_complete": 0,
+    "done": 51,
+    "left": 122,
+    "comp": 58,
+    "vel": 1.03,
+    "avail": 30.0,
+    "wk_hours": 30.0,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 29,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 0,
+    "weekly": [
+     [
+      "9/21",
+      0,
+      3
+     ],
+     [
+      "9/28",
+      28.0,
+      27
+     ],
+     [
+      "10/5",
+      0,
+      39
+     ],
+     [
+      "10/12",
+      28.0,
+      26
+     ],
+     [
+      "10/19",
+      33.5,
+      43
+     ],
+     [
+      "10/26",
+      0,
+      29
+     ],
+     [
+      "11/2",
+      30.0,
+      0
+     ],
+     [
+      "11/9",
+      23.3,
+      0
+     ],
+     [
+      "11/16",
+      20.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Washtenaw Community College",
+      89.5,
+      179,
+      167
+     ],
+     [
+      "Coe",
+      73.3,
+      110,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Amanda",
+    "role": "Q/A/Senior migrator",
+    "hours": 88.6,
+    "assigned": 1063,
+    "migration_complete": 0,
+    "qa_complete": 152,
+    "done": 0,
+    "left": 911,
+    "comp": 14,
+    "vel": 1.72,
+    "avail": 0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 200,
+     "done": 72,
+     "hours": 16.7
+    },
+    "in_qa": 30,
+    "building": 0,
+    "weekly": [
+     [
+      "9/28",
+      36.0,
+      0
+     ],
+     [
+      "10/5",
+      18.0,
+      0
+     ],
+     [
+      "10/12",
+      0,
+      9
+     ],
+     [
+      "10/19",
+      17.9,
+      71
+     ],
+     [
+      "10/26",
+      16.7,
+      72
+     ]
+    ],
+    "projects": [
+     [
+      "HM Publishing \"On Health\"",
+      54.0,
+      648,
+      0
+     ],
+     [
+      "Washtenaw Community College",
+      34.6,
+      415,
+      152
+     ]
+    ]
+   },
+   {
+    "name": "Katie",
+    "role": "Q/A/Senior migrator",
+    "hours": 100.0,
+    "assigned": 650,
+    "migration_complete": 16,
+    "qa_complete": 74,
+    "done": 3,
+    "left": 560,
+    "comp": 14,
+    "vel": 0.9,
+    "avail": 0,
+    "wk_hours": 25.8,
+    "this_week": {
+     "assigned": 155,
+     "done": 0,
+     "hours": 25.8
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 36,
+     "hours": 0
+    },
+    "in_qa": 4,
+    "building": 3,
+    "weekly": [
+     [
+      "9/28",
+      13.8,
+      13
+     ],
+     [
+      "10/5",
+      0,
+      20
+     ],
+     [
+      "10/12",
+      0.0,
+      15
+     ],
+     [
+      "10/19",
+      21.2,
+      6
+     ],
+     [
+      "10/26",
+      0,
+      36
+     ],
+     [
+      "11/2",
+      25.8,
+      0
+     ],
+     [
+      "11/9",
+      29.2,
+      0
+     ],
+     [
+      "11/16",
+      10.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Coe",
+      65.0,
+      390,
+      0
+     ],
+     [
+      "Washtenaw Community College",
+      35.0,
+      260,
+      90
+     ]
+    ]
+   },
+   {
+    "name": "Kelly O",
+    "role": "Senior migrator",
+    "hours": 15.8,
+    "assigned": 21,
+    "migration_complete": 24,
+    "qa_complete": 0,
+    "done": 16,
+    "left": 0,
+    "comp": 114,
+    "vel": 1.52,
+    "avail": 0,
+    "wk_hours": 0,
+    "this_week": {
+     "assigned": 0,
+     "done": 8,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 16,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 15,
+    "weekly": [
+     [
+      "10/19",
+      15.8,
+      0
+     ],
+     [
+      "10/26",
+      0,
+      16
+     ],
+     [
+      "11/2",
+      0,
+      8
+     ]
+    ],
+    "projects": [
+     [
+      "Washtenaw Community College",
+      15.8,
+      21,
+      24
+     ]
+    ]
+   },
+   {
+    "name": "Crystal",
+    "role": "Director",
+    "hours": 13.7,
+    "assigned": 82,
+    "migration_complete": 0,
+    "qa_complete": 20,
+    "done": 0,
+    "left": 62,
+    "comp": 24,
+    "vel": 1.46,
+    "avail": 0,
+    "wk_hours": 5.0,
+    "this_week": {
+     "assigned": 30,
+     "done": 1,
+     "hours": 5.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 16,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 0,
+    "weekly": [
+     [
+      "10/12",
+      0,
+      3
+     ],
+     [
+      "10/26",
+      0,
+      16
+     ],
+     [
+      "11/2",
+      5.0,
+      1
+     ],
+     [
+      "11/9",
+      6.7,
+      0
+     ],
+     [
+      "11/16",
+      2.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Coe",
+      13.7,
+      82,
+      0
+     ],
+     [
+      "Washtenaw Community College",
+      0,
+      0,
+      20
+     ]
+    ]
+   },
+   {
+    "name": "Kelly OF",
+    "role": "Senior migrator",
+    "hours": 84.0,
+    "assigned": 168,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "done": 0,
+    "left": 168,
+    "comp": 0,
+    "vel": 0.0,
+    "avail": 25.0,
+    "wk_hours": 25.0,
+    "this_week": {
+     "assigned": 50,
+     "done": 0,
+     "hours": 25.0
+    },
+    "last_week": {
+     "assigned": 50,
+     "done": 0,
+     "hours": 25.0
+    },
+    "in_qa": 0,
+    "building": 72,
+    "weekly": [
+     [
+      "10/19",
+      25.0,
+      0
+     ],
+     [
+      "10/26",
+      25.0,
+      0
+     ],
+     [
+      "11/2",
+      25.0,
+      0
+     ],
+     [
+      "11/9",
+      9.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Washtenaw Community College",
+      84.0,
+      168,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Jeff",
+    "role": "Senior migrator",
+    "hours": 40.0,
+    "assigned": 60,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "done": 0,
+    "left": 60,
+    "comp": 0,
+    "vel": 0.0,
+    "avail": 35.0,
+    "wk_hours": 13.3,
+    "this_week": {
+     "assigned": 20,
+     "done": 0,
+     "hours": 13.3
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 0,
+    "weekly": [
+     [
+      "11/2",
+      13.3,
+      0
+     ],
+     [
+      "11/9",
+      16.7,
+      0
+     ],
+     [
+      "11/16",
+      10.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Coe",
+      40.0,
+      60,
+      0
+     ]
+    ]
+   },
+   {
+    "name": "Kelly H",
+    "role": "Senior migrator/Writer",
+    "hours": 82.0,
+    "assigned": 82,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "done": 0,
+    "left": 82,
+    "comp": 0,
+    "vel": 0.0,
+    "avail": 35.0,
+    "wk_hours": 30.0,
+    "this_week": {
+     "assigned": 30,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "in_qa": 0,
+    "building": 0,
+    "weekly": [
+     [
+      "11/2",
+      30.0,
+      0
+     ],
+     [
+      "11/9",
+      40.0,
+      0
+     ],
+     [
+      "11/16",
+      12.0,
+      0
+     ]
+    ],
+    "projects": [
+     [
+      "Coe",
+      82.0,
+      82,
+      0
+     ]
+    ]
+   }
+  ],
+  "weekly": {
+   "weeks": [
+    "2026-09-21",
+    "2026-09-28",
+    "2026-10-05",
+    "2026-10-12",
+    "2026-10-19",
+    "2026-10-26",
+    "2026-11-02",
+    "2026-11-09",
+    "2026-11-16"
+   ],
+   "labels": [
+    "9/21",
+    "9/28",
+    "10/5",
+    "10/12",
+    "10/19",
+    "10/26",
+    "11/2",
+    "11/9",
+    "11/16"
+   ],
+   "current": "2026-11-02",
+   "calendar_week": "2026-11-02",
+   "people": [
+    {
+     "name": "Brian",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      31.0,
+      31.0,
+      32.0,
+      34.0,
+      34.0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 3,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 3,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-24",
+         1
+        ],
+        [
+         "2026-09-25",
+         2
+        ]
+       ]
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 58,
+       "hours": 29.0,
+       "done": 32,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 58,
+         "hours": 29.0,
+         "done": 32,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-28",
+         6
+        ],
+        [
+         "2026-09-29",
+         3
+        ],
+        [
+         "2026-09-30",
+         8
+        ],
+        [
+         "2026-10-01",
+         8
+        ],
+        [
+         "2026-10-02",
+         7
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 58,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 58,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-05",
+         14
+        ],
+        [
+         "2026-10-06",
+         12
+        ],
+        [
+         "2026-10-07",
+         10
+        ],
+        [
+         "2026-10-08",
+         12
+        ],
+        [
+         "2026-10-09",
+         10
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 64,
+       "hours": 32.0,
+       "done": 40,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 64,
+         "hours": 32.0,
+         "done": 40,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-12",
+         16
+        ],
+        [
+         "2026-10-13",
+         12
+        ],
+        [
+         "2026-10-14",
+         7
+        ],
+        [
+         "2026-10-16",
+         5
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 66,
+       "hours": 33.0,
+       "done": 58,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 66,
+         "hours": 33.0,
+         "done": 58,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-19",
+         6
+        ],
+        [
+         "2026-10-20",
+         7
+        ],
+        [
+         "2026-10-21",
+         13
+        ],
+        [
+         "2026-10-22",
+         23
+        ],
+        [
+         "2026-10-23",
+         9
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 19,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 19,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         5
+        ],
+        [
+         "2026-10-27",
+         7
+        ],
+        [
+         "2026-10-28",
+         5
+        ],
+        [
+         "2026-10-29",
+         2
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 45,
+       "hours": 30.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 45,
+         "hours": 30.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 50,
+       "hours": 33.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 50,
+         "hours": 33.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 15,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 15,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Debbie",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      30.0,
+      29.0,
+      29.0,
+      30.0,
+      30.0,
+      30.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 3,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 3,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-24",
+         2
+        ],
+        [
+         "2026-09-25",
+         1
+        ]
+       ]
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 56,
+       "hours": 28.0,
+       "done": 27,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 56,
+         "hours": 28.0,
+         "done": 27,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-28",
+         7
+        ],
+        [
+         "2026-09-29",
+         7
+        ],
+        [
+         "2026-09-30",
+         7
+        ],
+        [
+         "2026-10-01",
+         6
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 39,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 39,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-05",
+         10
+        ],
+        [
+         "2026-10-06",
+         6
+        ],
+        [
+         "2026-10-07",
+         12
+        ],
+        [
+         "2026-10-08",
+         11
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 56,
+       "hours": 28.0,
+       "done": 26,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 56,
+         "hours": 28.0,
+         "done": 26,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-13",
+         5
+        ],
+        [
+         "2026-10-14",
+         10
+        ],
+        [
+         "2026-10-15",
+         9
+        ],
+        [
+         "2026-10-16",
+         2
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 67,
+       "hours": 33.5,
+       "done": 43,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 67,
+         "hours": 33.5,
+         "done": 43,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-19",
+         6
+        ],
+        [
+         "2026-10-20",
+         9
+        ],
+        [
+         "2026-10-21",
+         9
+        ],
+        [
+         "2026-10-22",
+         13
+        ],
+        [
+         "2026-10-23",
+         6
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 29,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 29,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         10
+        ],
+        [
+         "2026-10-27",
+         3
+        ],
+        [
+         "2026-10-28",
+         6
+        ],
+        [
+         "2026-10-29",
+         10
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 45,
+       "hours": 30.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 45,
+         "hours": 30.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 35,
+       "hours": 23.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 35,
+         "hours": 23.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 30,
+       "hours": 20.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 30,
+         "hours": 20.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Chris J",
+     "role": "Senior migrator/Proofer",
+     "avail": [
+      0,
+      28.0,
+      32.0,
+      30.0,
+      32.0,
+      35.0,
+      35.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 1,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 1,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-23",
+         1
+        ]
+       ]
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 52,
+       "hours": 26.0,
+       "done": 12,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 52,
+         "hours": 26.0,
+         "done": 12,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-28",
+         4
+        ],
+        [
+         "2026-09-29",
+         1
+        ],
+        [
+         "2026-09-30",
+         7
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 14,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 14,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-05",
+         4
+        ],
+        [
+         "2026-10-06",
+         6
+        ],
+        [
+         "2026-10-07",
+         1
+        ],
+        [
+         "2026-10-08",
+         3
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 60,
+       "hours": 30.0,
+       "done": 46,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 60,
+         "hours": 30.0,
+         "done": 46,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-12",
+         5
+        ],
+        [
+         "2026-10-13",
+         7
+        ],
+        [
+         "2026-10-14",
+         15
+        ],
+        [
+         "2026-10-15",
+         9
+        ],
+        [
+         "2026-10-16",
+         4
+        ],
+        [
+         "2026-10-17",
+         2
+        ],
+        [
+         "2026-10-18",
+         4
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 68,
+       "hours": 34.0,
+       "done": 52,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 68,
+         "hours": 34.0,
+         "done": 52,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-19",
+         15
+        ],
+        [
+         "2026-10-20",
+         7
+        ],
+        [
+         "2026-10-21",
+         10
+        ],
+        [
+         "2026-10-22",
+         9
+        ],
+        [
+         "2026-10-23",
+         3
+        ],
+        [
+         "2026-10-24",
+         2
+        ],
+        [
+         "2026-10-25",
+         6
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 51,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 51,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         19
+        ],
+        [
+         "2026-10-27",
+         21
+        ],
+        [
+         "2026-10-28",
+         10
+        ],
+        [
+         "2026-10-29",
+         1
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 45,
+       "hours": 30.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 45,
+         "hours": 30.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 50,
+       "hours": 33.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 50,
+         "hours": 33.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 15,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 15,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Kelly H",
+     "role": "Senior migrator/Writer",
+     "avail": [
+      0,
+      0.0,
+      0.0,
+      0.0,
+      25.0,
+      32.0,
+      35.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 30,
+       "hours": 30.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 30,
+         "hours": 30.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 40,
+       "hours": 40.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 40,
+         "hours": 40.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 12,
+       "hours": 12.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 12,
+         "hours": 12.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Amanda",
+     "role": "Q/A/Senior migrator",
+     "avail": [
+      0,
+      37.0,
+      18.0,
+      18.0,
+      35.0,
+      18.0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 432,
+       "hours": 36.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "HM Publishing \"On Health\"",
+         "assigned": 432,
+         "hours": 36.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 216,
+       "hours": 18.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "HM Publishing \"On Health\"",
+         "assigned": 216,
+         "hours": 18.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 9,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 9,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-14",
+         1
+        ],
+        [
+         "2026-10-15",
+         1
+        ],
+        [
+         "2026-10-16",
+         7
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 215,
+       "hours": 17.9,
+       "done": 71,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 215,
+         "hours": 17.9,
+         "done": 71,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-19",
+         23
+        ],
+        [
+         "2026-10-20",
+         12
+        ],
+        [
+         "2026-10-22",
+         5
+        ],
+        [
+         "2026-10-23",
+         31
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 200,
+       "hours": 16.7,
+       "done": 72,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 200,
+         "hours": 16.7,
+         "done": 72,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         3
+        ],
+        [
+         "2026-10-27",
+         23
+        ],
+        [
+         "2026-10-28",
+         12
+        ],
+        [
+         "2026-10-29",
+         34
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Katie",
+     "role": "Q/A/Senior migrator",
+     "avail": [
+      0,
+      20.0,
+      30.0,
+      30.0,
+      30.0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 166,
+       "hours": 13.8,
+       "done": 13,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 166,
+         "hours": 13.8,
+         "done": 13,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-09-28",
+         4
+        ],
+        [
+         "2026-09-30",
+         2
+        ],
+        [
+         "2026-10-01",
+         2
+        ],
+        [
+         "2026-10-02",
+         5
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 20,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 20,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-05",
+         17
+        ],
+        [
+         "2026-10-06",
+         3
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 15,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 15,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-12",
+         3
+        ],
+        [
+         "2026-10-13",
+         3
+        ],
+        [
+         "2026-10-14",
+         1
+        ],
+        [
+         "2026-10-15",
+         8
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 94,
+       "hours": 21.2,
+       "done": 6,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 94,
+         "hours": 21.2,
+         "done": 6,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-22",
+         6
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 36,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 36,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         11
+        ],
+        [
+         "2026-10-27",
+         21
+        ],
+        [
+         "2026-10-29",
+         1
+        ],
+        [
+         "2026-10-30",
+         3
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 155,
+       "hours": 25.8,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 155,
+         "hours": 25.8,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 175,
+       "hours": 29.2,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 175,
+         "hours": 29.2,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 60,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 60,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Kelly O",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 21,
+       "hours": 15.8,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 21,
+         "hours": 15.8,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 16,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 16,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-26",
+         1
+        ],
+        [
+         "2026-10-27",
+         6
+        ],
+        [
+         "2026-10-28",
+         4
+        ],
+        [
+         "2026-10-29",
+         3
+        ],
+        [
+         "2026-10-30",
+         2
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 8,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 8,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-11-02",
+         1
+        ],
+        [
+         "2026-11-03",
+         7
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Kelly OF",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      0,
+      0,
+      0,
+      25.0,
+      35.0,
+      25.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 50,
+       "hours": 25.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 50,
+         "hours": 25.0,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 50,
+       "hours": 25.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 50,
+         "hours": 25.0,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 50,
+       "hours": 25.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 50,
+         "hours": 25.0,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 18,
+       "hours": 9.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 18,
+         "hours": 9.0,
+         "done": 0,
+         "done_source": "matrix"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Jeff",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      35.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 20,
+       "hours": 13.3,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 20,
+         "hours": 13.3,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 25,
+       "hours": 16.7,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 25,
+         "hours": 16.7,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 15,
+       "hours": 10.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 15,
+         "hours": 10.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Crystal",
+     "role": "Director",
+     "avail": [
+      0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 3,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 3,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-13",
+         3
+        ]
+       ]
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0.0,
+       "done": 16,
+       "projects": [
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 16,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-10-28",
+         10
+        ],
+        [
+         "2026-10-30",
+         6
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 30,
+       "hours": 5.0,
+       "done": 1,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 30,
+         "hours": 5.0,
+         "done": 0,
+         "done_source": "tracker"
+        },
+        {
+         "project": "Washtenaw Community College",
+         "assigned": 0,
+         "hours": 0.0,
+         "done": 1,
+         "done_source": "matrix"
+        }
+       ],
+       "days": [
+        [
+         "2026-11-02",
+         1
+        ]
+       ]
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 40,
+       "hours": 6.7,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 40,
+         "hours": 6.7,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 12,
+       "hours": 2.0,
+       "done": 0,
+       "projects": [
+        {
+         "project": "Coe",
+         "assigned": 12,
+         "hours": 2.0,
+         "done": 0,
+         "done_source": "tracker"
+        }
+       ],
+       "days": []
+      }
+     ]
+    },
+    {
+     "name": "Leslie",
+     "role": "Senior migrator",
+     "avail": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20.0,
+      0,
+      0
+     ],
+     "weeks": [
+      {
+       "week": "2026-09-21",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-09-28",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-05",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-12",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-19",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-10-26",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-02",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-09",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      },
+      {
+       "week": "2026-11-16",
+       "assigned": 0,
+       "hours": 0,
+       "done": 0,
+       "projects": [],
+       "days": []
+      }
+     ]
+    }
+   ],
+   "unmatched": [],
+   "initials": {
+    "BM": "Brian",
+    "DS": "Debbie",
+    "CJ": "Chris J",
+    "KE": "Katie",
+    "KO": "Kelly O",
+    "AG": "Amanda",
+    "CW": "Crystal"
+   }
+  },
+  "overview": {
+   "avail": 180.0,
+   "assigned": 189.2,
+   "over": [
+    "Brian",
+    "Crystal",
+    "Katie"
+   ],
+   "qa_unassigned": 283,
+   "active": 6,
+   "archived": 0
+  }
+ },
+ "facts": {
+  "as_of": "2026-11-04",
+  "current_week": "2026-11-02",
+  "typical_team_hours_per_week": 163.0,
+  "queue_hours_total": 45,
+  "forecast": [
+   {
+    "name": "Washtenaw Community College",
+    "deadline": "2027-01-01",
+    "hours": 23.6,
+    "finish": "2026-11-15",
+    "slip": -47,
+    "pages_remaining": 46,
+    "status": "active"
+   },
+   {
+    "name": "HM Publishing \"On Health\"",
+    "deadline": null,
+    "hours": 11.5,
+    "finish": "2026-11-15",
+    "slip": null,
+    "pages_remaining": 138,
+    "status": "active"
+   },
+   {
+    "name": "HM Physicians",
+    "deadline": null,
+    "hours": 10.0,
+    "finish": "2026-11-15",
+    "slip": null,
+    "pages_remaining": 20,
+    "status": "planned"
+   },
+   {
+    "name": "NMC Migration Test",
+    "deadline": null,
+    "hours": 0,
+    "finish": null,
+    "slip": null,
+    "pages_remaining": 20,
+    "status": "planned"
+   }
+  ],
+  "capacity_this_week": [
+   {
+    "person": "Brian",
+    "available": 0,
+    "assigned": 30.0
+   },
+   {
+    "person": "Chris J",
+    "available": 35.0,
+    "assigned": 30.0
+   },
+   {
+    "person": "Crystal",
+    "available": 0,
+    "assigned": 5.0
+   },
+   {
+    "person": "Debbie",
+    "available": 30.0,
+    "assigned": 30.0
+   },
+   {
+    "person": "Jeff",
+    "available": 35.0,
+    "assigned": 13.3
+   },
+   {
+    "person": "Katie",
+    "available": 0,
+    "assigned": 25.8
+   },
+   {
+    "person": "Kelly H",
+    "available": 35.0,
+    "assigned": 30.0
+   },
+   {
+    "person": "Kelly OF",
+    "available": 25.0,
+    "assigned": 25.0
+   },
+   {
+    "person": "Leslie",
+    "available": 20.0,
+    "assigned": 0
+   }
+  ],
+  "high_findings": [],
+  "weeks_with_no_roster_hours": [
+   "2026-11-09",
+   "2026-11-16",
+   "2026-11-23",
+   "2026-11-30",
+   "2026-12-07",
+   "2026-12-14",
+   "2026-12-21",
+   "2026-12-28"
+  ],
+  "crew_this_week": {
+   "Washtenaw Community College": [
+    "Kelly OF 25.0h"
+   ],
+   "Coe": [
+    "Brian 30.0h",
+    "Debbie 30.0h",
+    "Chris J 30.0h",
+    "Jeff 13.3h",
+    "Katie 25.8h",
+    "Kelly H 30.0h",
+    "Crystal 5.0h"
+   ]
+  },
+  "team_performance": [
+   {
+    "person": "Brian",
+    "role": "Senior migrator",
+    "hours": 167.3,
+    "pages_assigned": 298,
+    "migration_complete": 210,
+    "qa_complete": 0,
+    "pages_done_delivered": 46,
+    "pages_left": 88,
+    "done_pct_of_assigned": 70,
+    "pages_per_hour": 1.25,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 19,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 0
+   },
+   {
+    "person": "Chris J",
+    "role": "Senior migrator/Proofer",
+    "hours": 163.3,
+    "pages_assigned": 290,
+    "migration_complete": 127,
+    "qa_complete": 49,
+    "pages_done_delivered": 49,
+    "pages_left": 114,
+    "done_pct_of_assigned": 61,
+    "pages_per_hour": 1.08,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 51,
+     "hours": 0
+    },
+    "pages_in_qa_now": 1,
+    "pages_building_now": 3
+   },
+   {
+    "person": "Debbie",
+    "role": "Senior migrator",
+    "hours": 162.8,
+    "pages_assigned": 289,
+    "migration_complete": 167,
+    "qa_complete": 0,
+    "pages_done_delivered": 51,
+    "pages_left": 122,
+    "done_pct_of_assigned": 58,
+    "pages_per_hour": 1.03,
+    "this_week": {
+     "assigned": 45,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 29,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 0
+   },
+   {
+    "person": "Amanda",
+    "role": "Q/A/Senior migrator",
+    "hours": 88.6,
+    "pages_assigned": 1063,
+    "migration_complete": 0,
+    "qa_complete": 152,
+    "pages_done_delivered": 0,
+    "pages_left": 911,
+    "done_pct_of_assigned": 14,
+    "pages_per_hour": 1.72,
+    "this_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 200,
+     "done": 72,
+     "hours": 16.7
+    },
+    "pages_in_qa_now": 30,
+    "pages_building_now": 0
+   },
+   {
+    "person": "Katie",
+    "role": "Q/A/Senior migrator",
+    "hours": 100.0,
+    "pages_assigned": 650,
+    "migration_complete": 16,
+    "qa_complete": 74,
+    "pages_done_delivered": 3,
+    "pages_left": 560,
+    "done_pct_of_assigned": 14,
+    "pages_per_hour": 0.9,
+    "this_week": {
+     "assigned": 155,
+     "done": 0,
+     "hours": 25.8
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 36,
+     "hours": 0
+    },
+    "pages_in_qa_now": 4,
+    "pages_building_now": 3
+   },
+   {
+    "person": "Kelly O",
+    "role": "Senior migrator",
+    "hours": 15.8,
+    "pages_assigned": 21,
+    "migration_complete": 24,
+    "qa_complete": 0,
+    "pages_done_delivered": 16,
+    "pages_left": 0,
+    "done_pct_of_assigned": 114,
+    "pages_per_hour": 1.52,
+    "this_week": {
+     "assigned": 0,
+     "done": 8,
+     "hours": 0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 16,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 15
+   },
+   {
+    "person": "Crystal",
+    "role": "Director",
+    "hours": 13.7,
+    "pages_assigned": 82,
+    "migration_complete": 0,
+    "qa_complete": 20,
+    "pages_done_delivered": 0,
+    "pages_left": 62,
+    "done_pct_of_assigned": 24,
+    "pages_per_hour": 1.46,
+    "this_week": {
+     "assigned": 30,
+     "done": 1,
+     "hours": 5.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 16,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 0
+   },
+   {
+    "person": "Kelly OF",
+    "role": "Senior migrator",
+    "hours": 84.0,
+    "pages_assigned": 168,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "pages_done_delivered": 0,
+    "pages_left": 168,
+    "done_pct_of_assigned": 0,
+    "pages_per_hour": 0.0,
+    "this_week": {
+     "assigned": 50,
+     "done": 0,
+     "hours": 25.0
+    },
+    "last_week": {
+     "assigned": 50,
+     "done": 0,
+     "hours": 25.0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 72
+   },
+   {
+    "person": "Jeff",
+    "role": "Senior migrator",
+    "hours": 40.0,
+    "pages_assigned": 60,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "pages_done_delivered": 0,
+    "pages_left": 60,
+    "done_pct_of_assigned": 0,
+    "pages_per_hour": 0.0,
+    "this_week": {
+     "assigned": 20,
+     "done": 0,
+     "hours": 13.3
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 0
+   },
+   {
+    "person": "Kelly H",
+    "role": "Senior migrator/Writer",
+    "hours": 82.0,
+    "pages_assigned": 82,
+    "migration_complete": 0,
+    "qa_complete": 0,
+    "pages_done_delivered": 0,
+    "pages_left": 82,
+    "done_pct_of_assigned": 0,
+    "pages_per_hour": 0.0,
+    "this_week": {
+     "assigned": 30,
+     "done": 0,
+     "hours": 30.0
+    },
+    "last_week": {
+     "assigned": 0,
+     "done": 0,
+     "hours": 0
+    },
+    "pages_in_qa_now": 0,
+    "pages_building_now": 0
+   }
+  ],
+  "person_by_project": [
+   {
+    "person": "Brian",
+    "project": "Washtenaw Community College",
+    "hours": 94.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Debbie",
+    "project": "Washtenaw Community College",
+    "hours": 89.5,
+    "pages_done": 0
+   },
+   {
+    "person": "Chris J",
+    "project": "Washtenaw Community College",
+    "hours": 90.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Katie",
+    "project": "Washtenaw Community College",
+    "hours": 35.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Amanda",
+    "project": "HM Publishing \"On Health\"",
+    "hours": 54.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Kelly OF",
+    "project": "Washtenaw Community College",
+    "hours": 84.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Amanda",
+    "project": "Washtenaw Community College",
+    "hours": 34.6,
+    "pages_done": 0
+   },
+   {
+    "person": "Kelly O",
+    "project": "Washtenaw Community College",
+    "hours": 15.8,
+    "pages_done": 0
+   },
+   {
+    "person": "Brian",
+    "project": "Coe",
+    "hours": 73.3,
+    "pages_done": 0
+   },
+   {
+    "person": "Debbie",
+    "project": "Coe",
+    "hours": 73.3,
+    "pages_done": 0
+   },
+   {
+    "person": "Chris J",
+    "project": "Coe",
+    "hours": 73.3,
+    "pages_done": 0
+   },
+   {
+    "person": "Jeff",
+    "project": "Coe",
+    "hours": 40.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Katie",
+    "project": "Coe",
+    "hours": 65.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Kelly H",
+    "project": "Coe",
+    "hours": 82.0,
+    "pages_done": 0
+   },
+   {
+    "person": "Crystal",
+    "project": "Coe",
+    "hours": 13.7,
+    "pages_done": 0
+   }
+  ],
+  "project_velocity": [
+   {
+    "project": "Washtenaw Community College",
+    "plan_pages_per_hour": 1.9501519756838905,
+    "actual_pages_per_hour": 0.0
+   },
+   {
+    "project": "HM Publishing \"On Health\"",
+    "plan_pages_per_hour": 12.0,
+    "actual_pages_per_hour": 0.0
+   },
+   {
+    "project": "Coe",
+    "plan_pages_per_hour": 1.3801169590643274,
+    "actual_pages_per_hour": 0.0
+   }
+  ],
+  "matrix_quality": {
+   "median_cycle_days_draft_to_delivered": 42,
+   "cycle_range_days": [
+    24,
+    74
+   ],
+   "pages_needing_rework_round2plus": 105,
+   "rework_pct": 12
+  },
+  "client_matrices": [
+   {
+    "name": "content-matrix-morehead",
+    "pages": 164,
+    "migrated": 105,
+    "qa": 105,
+    "delivered": 105
+   },
+   {
+    "name": "content-matrix-washtenaw",
+    "pages": 734,
+    "migrated": 544,
+    "qa": 295,
+    "delivered": 165
+   }
+  ],
+  "projects_table": [
    {
     "project": "HM Publishing \"On Health\"",
     "list": "active",
     "status": "active",
     "total_pages": 786.0,
     "assigned": 648,
+    "built": 0,
     "done": 0,
     "left_to_build": 786,
+    "not_delivered": 786,
     "unassigned": 138,
     "hours_to_finish": 66,
     "build_minutes_per_page": 5.0,
     "client_deadline": null,
     "done_source": "tracker",
+    "planned_total_on_tracker": 786.0,
     "page_types": {
      "publish": {
       "pages": 786.0,
@@ -1165,7 +4272,36 @@
       "rate": 12.0,
       "hours": 65.5
      }
-    }
+    },
+    "pipeline": null,
+    "waiting_on": null
+   },
+   {
+    "project": "HM Physicians",
+    "list": "planned",
+    "status": "planned",
+    "total_pages": 20.0,
+    "assigned": 0,
+    "built": 0,
+    "done": 0,
+    "left_to_build": 20,
+    "not_delivered": 20,
+    "unassigned": 20,
+    "hours_to_finish": 10,
+    "build_minutes_per_page": 30.0,
+    "client_deadline": null,
+    "done_source": "tracker",
+    "planned_total_on_tracker": 20.0,
+    "page_types": {
+     "as is": {
+      "pages": 20.0,
+      "min_per_page": 30.0,
+      "rate": 2.0,
+      "hours": 10.0
+     }
+    },
+    "pipeline": null,
+    "waiting_on": null
    },
    {
     "project": "NMC Migration Test",
@@ -1173,13 +4309,16 @@
     "status": "planned",
     "total_pages": 20.0,
     "assigned": 0,
+    "built": 0,
     "done": 0,
     "left_to_build": 20,
+    "not_delivered": 20,
     "unassigned": 20,
     "hours_to_finish": null,
     "build_minutes_per_page": null,
     "client_deadline": null,
     "done_source": "tracker",
+    "planned_total_on_tracker": 20.0,
     "page_types": {
      "as is": {
       "pages": 20.0,
@@ -1187,37 +4326,171 @@
       "rate": null,
       "hours": null
      }
-    }
+    },
+    "pipeline": null,
+    "waiting_on": null
+   },
+   {
+    "project": "Washtenaw Community College",
+    "list": "active",
+    "status": "active",
+    "total_pages": 734,
+    "assigned": 756,
+    "built": 544,
+    "done": 165,
+    "left_to_build": 190,
+    "not_delivered": 569,
+    "unassigned": 0,
+    "hours_to_finish": 134,
+    "build_minutes_per_page": 30.8,
+    "client_deadline": "2027-01-01",
+    "done_source": "client matrix",
+    "planned_total_on_tracker": 802.0,
+    "page_types": {
+     "as is": {
+      "pages": 761.0,
+      "min_per_page": 30.0,
+      "rate": 2.0,
+      "hours": 380.5
+     },
+     "optimize": {
+      "pages": 41.0,
+      "min_per_page": 45.0,
+      "rate": 1.3333333333333333,
+      "hours": 30.75
+     },
+     "qa": {
+      "pages": 802.0,
+      "min_per_page": 5.0,
+      "rate": 12.0,
+      "hours": 66.83
+     }
+    },
+    "pipeline": {
+     "delivered": 165,
+     "in QA": 318,
+     "QA done, not delivered": 55,
+     "building": 93,
+     "ready to build": 63,
+     "not started": 40
+    },
+    "waiting_on": [
+     {
+      "initials": "",
+      "person": "unassigned",
+      "role": "QA",
+      "pages": 283,
+      "unassigned": true
+     },
+     {
+      "initials": "KOF",
+      "person": "Kelly OF",
+      "role": "Migration",
+      "pages": 72,
+      "unassigned": false
+     },
+     {
+      "initials": "AG",
+      "person": "Amanda",
+      "role": "QA",
+      "pages": 30,
+      "unassigned": false
+     },
+     {
+      "initials": "KO",
+      "person": "Kelly O",
+      "role": "Migration",
+      "pages": 15,
+      "unassigned": false
+     },
+     {
+      "initials": "KE",
+      "person": "Katie",
+      "role": "QA",
+      "pages": 4,
+      "unassigned": false
+     },
+     {
+      "initials": "CJ",
+      "person": "Chris J",
+      "role": "Migration",
+      "pages": 3,
+      "unassigned": false
+     },
+     {
+      "initials": "KE",
+      "person": "Katie",
+      "role": "Migration",
+      "pages": 3,
+      "unassigned": false
+     },
+     {
+      "initials": "CJ",
+      "person": "Chris J",
+      "role": "QA",
+      "pages": 1,
+      "unassigned": false
+     }
+    ]
    },
    {
     "project": "Coe",
-    "list": "planned",
-    "status": "planned",
-    "total_pages": 0,
-    "assigned": 0,
+    "list": "active",
+    "status": "active",
+    "total_pages": 472.0,
+    "assigned": 472,
+    "built": 0,
     "done": 0,
-    "left_to_build": 0,
+    "left_to_build": 472,
+    "not_delivered": 472,
     "unassigned": 0,
-    "hours_to_finish": null,
-    "build_minutes_per_page": null,
+    "hours_to_finish": 421,
+    "build_minutes_per_page": 43.5,
     "client_deadline": "2026-11-30",
     "done_source": "tracker",
-    "page_types": null
+    "planned_total_on_tracker": 472.0,
+    "page_types": {
+     "as is": {
+      "pages": 390.0,
+      "min_per_page": 40.0,
+      "rate": 1.5,
+      "hours": 260.0
+     },
+     "optimize": {
+      "pages": 82.0,
+      "min_per_page": 60.0,
+      "rate": 1.0,
+      "hours": 82.0
+     },
+     "qa": {
+      "pages": 472.0,
+      "min_per_page": 10.0,
+      "rate": 6.0,
+      "hours": 78.67
+     }
+    },
+    "pipeline": null,
+    "waiting_on": null
    },
    {
-    "project": "HM Physicians",
+    "project": "HM Graduate Medical Education (GME)",
     "list": "planned",
     "status": "planned",
     "total_pages": 0,
     "assigned": 0,
+    "built": 0,
     "done": 0,
     "left_to_build": 0,
+    "not_delivered": 0,
     "unassigned": 0,
     "hours_to_finish": null,
     "build_minutes_per_page": null,
-    "client_deadline": null,
+    "client_deadline": "2026-12-31",
     "done_source": "tracker",
-    "page_types": null
+    "planned_total_on_tracker": 0,
+    "page_types": null,
+    "pipeline": null,
+    "waiting_on": null
    }
   ],
   "weekly_by_person": [
@@ -1225,34 +4498,81 @@
     "person": "Brian",
     "weeks": [
      {
-      "week_of": "9/28",
-      "pages_assigned": 58,
-      "pages_done": 0,
-      "hours": 29.0,
+      "week_of": "10/19",
+      "pages_assigned": 66,
+      "pages_done": 58,
+      "delivered_by_day": [
+       [
+        "2026-10-19",
+        6
+       ],
+       [
+        "2026-10-20",
+        7
+       ],
+       [
+        "2026-10-21",
+        13
+       ],
+       [
+        "2026-10-22",
+        23
+       ],
+       [
+        "2026-10-23",
+        9
+       ]
+      ],
+      "hours": 33.0,
       "projects": [
        {
         "project": "Washtenaw Community College",
-        "assigned": 58,
-        "done": 0
+        "assigned": 66,
+        "done": 58
        }
       ]
      },
      {
-      "week_of": "10/5",
+      "week_of": "10/26",
       "pages_assigned": 0,
-      "pages_done": 0,
-      "hours": 0,
-      "projects": []
-     },
-     {
-      "week_of": "10/12",
-      "pages_assigned": 58,
-      "pages_done": 0,
-      "hours": 29.0,
+      "pages_done": 19,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        5
+       ],
+       [
+        "2026-10-27",
+        7
+       ],
+       [
+        "2026-10-28",
+        5
+       ],
+       [
+        "2026-10-29",
+        2
+       ]
+      ],
+      "hours": 0.0,
       "projects": [
        {
         "project": "Washtenaw Community College",
-        "assigned": 58,
+        "assigned": 0,
+        "done": 19
+       }
+      ]
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 45,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 30.0,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 45,
         "done": 0
        }
       ]
@@ -1263,31 +4583,84 @@
     "person": "Debbie",
     "weeks": [
      {
-      "week_of": "9/28",
-      "pages_assigned": 56,
-      "pages_done": 0,
-      "hours": 28.0,
+      "week_of": "10/19",
+      "pages_assigned": 67,
+      "pages_done": 43,
+      "delivered_by_day": [
+       [
+        "2026-10-19",
+        6
+       ],
+       [
+        "2026-10-20",
+        9
+       ],
+       [
+        "2026-10-21",
+        9
+       ],
+       [
+        "2026-10-22",
+        13
+       ],
+       [
+        "2026-10-23",
+        6
+       ]
+      ],
+      "hours": 33.5,
       "projects": [
        {
         "project": "Washtenaw Community College",
-        "assigned": 56,
-        "done": 0
+        "assigned": 67,
+        "done": 43
        }
       ]
      },
      {
-      "week_of": "10/5",
+      "week_of": "10/26",
       "pages_assigned": 0,
-      "pages_done": 0,
-      "hours": 0,
-      "projects": []
+      "pages_done": 29,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        10
+       ],
+       [
+        "2026-10-27",
+        3
+       ],
+       [
+        "2026-10-28",
+        6
+       ],
+       [
+        "2026-10-29",
+        10
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 29
+       }
+      ]
      },
      {
-      "week_of": "10/12",
-      "pages_assigned": 0,
+      "week_of": "11/2",
+      "pages_assigned": 45,
       "pages_done": 0,
-      "hours": 0,
-      "projects": []
+      "delivered_by_day": [],
+      "hours": 30.0,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 45,
+        "done": 0
+       }
+      ]
      }
     ]
    },
@@ -1295,31 +4668,92 @@
     "person": "Chris J",
     "weeks": [
      {
-      "week_of": "9/28",
-      "pages_assigned": 52,
-      "pages_done": 0,
-      "hours": 26.0,
+      "week_of": "10/19",
+      "pages_assigned": 68,
+      "pages_done": 52,
+      "delivered_by_day": [
+       [
+        "2026-10-19",
+        15
+       ],
+       [
+        "2026-10-20",
+        7
+       ],
+       [
+        "2026-10-21",
+        10
+       ],
+       [
+        "2026-10-22",
+        9
+       ],
+       [
+        "2026-10-23",
+        3
+       ],
+       [
+        "2026-10-24",
+        2
+       ],
+       [
+        "2026-10-25",
+        6
+       ]
+      ],
+      "hours": 34.0,
       "projects": [
        {
         "project": "Washtenaw Community College",
-        "assigned": 52,
-        "done": 0
+        "assigned": 68,
+        "done": 52
        }
       ]
      },
      {
-      "week_of": "10/5",
+      "week_of": "10/26",
       "pages_assigned": 0,
-      "pages_done": 0,
-      "hours": 0,
-      "projects": []
+      "pages_done": 51,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        19
+       ],
+       [
+        "2026-10-27",
+        21
+       ],
+       [
+        "2026-10-28",
+        10
+       ],
+       [
+        "2026-10-29",
+        1
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 51
+       }
+      ]
      },
      {
-      "week_of": "10/12",
-      "pages_assigned": 0,
+      "week_of": "11/2",
+      "pages_assigned": 45,
       "pages_done": 0,
-      "hours": 0,
-      "projects": []
+      "delivered_by_day": [],
+      "hours": 30.0,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 45,
+        "done": 0
+       }
+      ]
      }
     ]
    },
@@ -1327,25 +4761,34 @@
     "person": "Kelly H",
     "weeks": [
      {
-      "week_of": "9/28",
+      "week_of": "10/19",
       "pages_assigned": 0,
       "pages_done": 0,
+      "delivered_by_day": [],
       "hours": 0,
       "projects": []
      },
      {
-      "week_of": "10/5",
+      "week_of": "10/26",
       "pages_assigned": 0,
       "pages_done": 0,
+      "delivered_by_day": [],
       "hours": 0,
       "projects": []
      },
      {
-      "week_of": "10/12",
-      "pages_assigned": 0,
+      "week_of": "11/2",
+      "pages_assigned": 30,
       "pages_done": 0,
-      "hours": 0,
-      "projects": []
+      "delivered_by_day": [],
+      "hours": 30.0,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 30,
+        "done": 0
+       }
+      ]
      }
     ]
    },
@@ -1353,35 +4796,72 @@
     "person": "Amanda",
     "weeks": [
      {
-      "week_of": "9/28",
-      "pages_assigned": 432,
-      "pages_done": 0,
-      "hours": 36.0,
+      "week_of": "10/19",
+      "pages_assigned": 215,
+      "pages_done": 71,
+      "delivered_by_day": [
+       [
+        "2026-10-19",
+        23
+       ],
+       [
+        "2026-10-20",
+        12
+       ],
+       [
+        "2026-10-22",
+        5
+       ],
+       [
+        "2026-10-23",
+        31
+       ]
+      ],
+      "hours": 17.9,
       "projects": [
        {
-        "project": "HM Publishing \"On Health\"",
-        "assigned": 432,
-        "done": 0
+        "project": "Washtenaw Community College",
+        "assigned": 215,
+        "done": 71
        }
       ]
      },
      {
-      "week_of": "10/5",
-      "pages_assigned": 216,
-      "pages_done": 0,
-      "hours": 18.0,
+      "week_of": "10/26",
+      "pages_assigned": 200,
+      "pages_done": 72,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        3
+       ],
+       [
+        "2026-10-27",
+        23
+       ],
+       [
+        "2026-10-28",
+        12
+       ],
+       [
+        "2026-10-29",
+        34
+       ]
+      ],
+      "hours": 16.7,
       "projects": [
        {
-        "project": "HM Publishing \"On Health\"",
-        "assigned": 216,
-        "done": 0
+        "project": "Washtenaw Community College",
+        "assigned": 200,
+        "done": 72
        }
       ]
      },
      {
-      "week_of": "10/12",
+      "week_of": "11/2",
       "pages_assigned": 0,
       "pages_done": 0,
+      "delivered_by_day": [],
       "hours": 0,
       "projects": []
      }
@@ -1391,29 +4871,314 @@
     "person": "Katie",
     "weeks": [
      {
-      "week_of": "9/28",
-      "pages_assigned": 166,
-      "pages_done": 0,
-      "hours": 13.8,
+      "week_of": "10/19",
+      "pages_assigned": 94,
+      "pages_done": 6,
+      "delivered_by_day": [
+       [
+        "2026-10-22",
+        6
+       ]
+      ],
+      "hours": 21.2,
       "projects": [
        {
         "project": "Washtenaw Community College",
-        "assigned": 166,
+        "assigned": 94,
+        "done": 6
+       }
+      ]
+     },
+     {
+      "week_of": "10/26",
+      "pages_assigned": 0,
+      "pages_done": 36,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        11
+       ],
+       [
+        "2026-10-27",
+        21
+       ],
+       [
+        "2026-10-29",
+        1
+       ],
+       [
+        "2026-10-30",
+        3
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 36
+       }
+      ]
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 155,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 25.8,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 155,
+        "done": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Kelly O",
+    "weeks": [
+     {
+      "week_of": "10/19",
+      "pages_assigned": 21,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 15.8,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 21,
         "done": 0
        }
       ]
      },
      {
-      "week_of": "10/5",
+      "week_of": "10/26",
+      "pages_assigned": 0,
+      "pages_done": 16,
+      "delivered_by_day": [
+       [
+        "2026-10-26",
+        1
+       ],
+       [
+        "2026-10-27",
+        6
+       ],
+       [
+        "2026-10-28",
+        4
+       ],
+       [
+        "2026-10-29",
+        3
+       ],
+       [
+        "2026-10-30",
+        2
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 16
+       }
+      ]
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 0,
+      "pages_done": 8,
+      "delivered_by_day": [
+       [
+        "2026-11-02",
+        1
+       ],
+       [
+        "2026-11-03",
+        7
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 8
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Kelly OF",
+    "weeks": [
+     {
+      "week_of": "10/19",
+      "pages_assigned": 50,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 25.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 50,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "10/26",
+      "pages_assigned": 50,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 25.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 50,
+        "done": 0
+       }
+      ]
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 50,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 25.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 50,
+        "done": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Jeff",
+    "weeks": [
+     {
+      "week_of": "10/19",
       "pages_assigned": 0,
       "pages_done": 0,
+      "delivered_by_day": [],
       "hours": 0,
       "projects": []
      },
      {
-      "week_of": "10/12",
+      "week_of": "10/26",
       "pages_assigned": 0,
       "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 20,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 13.3,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 20,
+        "done": 0
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Crystal",
+    "weeks": [
+     {
+      "week_of": "10/19",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "10/26",
+      "pages_assigned": 0,
+      "pages_done": 16,
+      "delivered_by_day": [
+       [
+        "2026-10-28",
+        10
+       ],
+       [
+        "2026-10-30",
+        6
+       ]
+      ],
+      "hours": 0.0,
+      "projects": [
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 16
+       }
+      ]
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 30,
+      "pages_done": 1,
+      "delivered_by_day": [
+       [
+        "2026-11-02",
+        1
+       ]
+      ],
+      "hours": 5.0,
+      "projects": [
+       {
+        "project": "Coe",
+        "assigned": 30,
+        "done": 0
+       },
+       {
+        "project": "Washtenaw Community College",
+        "assigned": 0,
+        "done": 1
+       }
+      ]
+     }
+    ]
+   },
+   {
+    "person": "Leslie",
+    "weeks": [
+     {
+      "week_of": "10/19",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "10/26",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "delivered_by_day": [],
+      "hours": 0,
+      "projects": []
+     },
+     {
+      "week_of": "11/2",
+      "pages_assigned": 0,
+      "pages_done": 0,
+      "delivered_by_day": [],
       "hours": 0,
       "projects": []
      }
@@ -1441,15 +5206,63 @@
    "location": ""
   },
   {
-   "severity": "high",
-   "code": "deadline-before-start",
-   "message": "'Washtenaw Community College': client deadline 2026-01-01 is earlier than its start date 2026-09-21, probably the wrong year. Until it is fixed the dashboard shows this project as overdue.",
+   "severity": "medium",
+   "code": "hours-cell-stale",
+   "message": "'Coe': the OPTIMIZE hours cell says 60 but 82 pages at 1 pages/hour is 82 hours. The dashboard uses the computed hours; fix the cell's formula.",
+   "location": ""
+  },
+  {
+   "severity": "medium",
+   "code": "no-capacity-entered",
+   "message": "Week 2026-11-09 has assigned hours but no availability entered on the roster.",
+   "location": ""
+  },
+  {
+   "severity": "medium",
+   "code": "no-capacity-entered",
+   "message": "Week 2026-11-16 has assigned hours but no availability entered on the roster.",
    "location": ""
   },
   {
    "severity": "high",
    "code": "matrix-dashboard-rot",
    "message": "Client matrix 'content-matrix-morehead': its own DASHBOARD sheet has 2 #REF! errors, so the manual rollup is broken. The master now computes these rollups instead.",
+   "location": ""
+  },
+  {
+   "severity": "high",
+   "code": "matrix-dashboard-rot",
+   "message": "Client matrix 'content-matrix-washtenaw': its own DASHBOARD sheet has 2 #REF! errors, so the manual rollup is broken. The master now computes these rollups instead.",
+   "location": ""
+  },
+  {
+   "severity": "medium",
+   "code": "pages-no-disposition",
+   "message": "Client matrix 'content-matrix-washtenaw': 4 of 734 pages have no disposition marked (Write New / Revise / etc.).",
+   "location": ""
+  },
+  {
+   "severity": "low",
+   "code": "matrix-project-link",
+   "message": "Client matrix 'content-matrix-washtenaw' (734 pages, section(s) 1-Stamats, 2-Programs, 3-WCC) maps to tracker project 'Washtenaw Community College' (802 pages total) via reviewer 'Washtenaw'.",
+   "location": ""
+  },
+  {
+   "severity": "low",
+   "code": "matrix-tabs-skipped",
+   "message": "Client matrix 'content-matrix-washtenaw': tab(s) For-Reuse-Delete look like page lists but are not numbered section tabs (1-Stamats, 2-Programs...), so they were not counted.",
+   "location": ""
+  },
+  {
+   "severity": "low",
+   "code": "matrix-client-owned",
+   "message": "Client matrix 'content-matrix-washtenaw': 532 pages are assigned to the client, not Stamats, so they are left out of the team's totals.",
+   "location": ""
+  },
+  {
+   "severity": "medium",
+   "code": "matrix-tracker-pages-differ",
+   "message": "'Washtenaw Community College': the tracker sizes it at 802 pages but the client matrix lists 734 Stamats pages. Percent done is matrix pages built over the tracker total until the two agree.",
    "location": ""
   }
  ]

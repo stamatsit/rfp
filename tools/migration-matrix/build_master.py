@@ -23,6 +23,8 @@ from openpyxl.chart import BarChart, Reference
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+import tracker_v1
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -94,6 +96,9 @@ def _derive_weeks(path):
     """Union of the roster's week columns; the constant is the fallback."""
     try:
         wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+        if tracker_v1.is_workbook(wb):
+            wb.close()
+            return tracker_v1.weeks_in_use(openpyxl.load_workbook(path, data_only=True)) or list(FALLBACK_WEEKS)
         ws = wb["USE THIS for weekly schedule"]
         # read_only sheets need a materialised row for cell access
         hdr = next(ws.iter_rows(min_row=4, max_row=4, values_only=True))
@@ -534,10 +539,18 @@ def parse_assignments(wb, sheet, source, rates=None):
     hdr5 = _headers(ws, 5)
     rebuilt = ("hours left" in hdr5.values()
                and not any("complet" in h or h == "done" for h in hdr5.values()))
-    first_pa = next((c for c, h in sorted(hdr5.items()) if h == "pages assigned"), 6)
+    first_pa = next((c for c, h in sorted(hdr5.items())
+                      if h in ("pages assigned", "page goal")), None)
+    if first_pa is None:
+        if rebuilt:
+            raise SystemExit(
+                f"Sheet '{sheet}': row 5 has neither 'Pages Assigned' nor "
+                f"'Page Goal' header; cannot parse assignments")
+        first_pa = 6  # legacy layout defaults to column 6
     weeks = _header_weeks(ws, 4, first_pa if rebuilt else 6, 3)
     if not weeks:  # header unreadable: fall back to the fixed 3-col grid
-        weeks = [(6 + 3 * w, wk) for w, wk in enumerate(WEEKS)]
+        start = first_pa if rebuilt else 6
+        weeks = [(start + 3 * w, wk) for w, wk in enumerate(WEEKS)]
     seen_roles = set()
     for r in range(6, ws.max_row + 1):
         person = to_text(ws.cell(r, 1).value)
@@ -1334,30 +1347,40 @@ def write_morning_report(db, projects, findings):
 
 def main():
     wb = openpyxl.load_workbook(SRC, data_only=True)
-    people, capacity = parse_roster(wb)
-    projects = parse_projects(wb)
-    rates = {}
-    for pr in projects:
-        if pr.get("mig_rate"):
-            rates[(pr["name"].lower(), "Migration")] = pr["mig_rate"]
-        if pr.get("qa_rate"):
-            rates[(pr["name"].lower(), "QA")] = pr["qa_rate"]
-    if "Active Projects" in wb.sheetnames and "Projects" in wb.sheetnames:
-        for pr in _parse_project_sheet(wb["Projects"], "legacy"):
-            if pr.get("mig_rate"):
-                LEGACY_RATES.setdefault((pr["name"].lower(), "Migration"), pr["mig_rate"])
-            if pr.get("qa_rate"):
-                LEGACY_RATES.setdefault((pr["name"].lower(), "QA"), pr["qa_rate"])
-    a_main, o_main = parse_assignments(wb, "Assignments", "Assignments", rates)
-    if "Assignments On Health" in wb.sheetnames:  # optional fork tab
-        a_oh, o_oh = parse_assignments(wb, "Assignments On Health",
-                                       "Assignments On Health", rates)
+    team_initials = {}
+    if tracker_v1.is_workbook(wb):
+        got = tracker_v1.read(wb, normalize_role, BUILD_ROLES)
+        people, capacity, projects = got["people"], got["capacity"], got["projects"]
+        a_main, o_main, a_oh, o_oh, reported = got["assigns"], got["orphans"], [], [], []
+        team_initials = got["initials"]
     else:
-        a_oh, o_oh = [], []
-    reported = parse_reported_capacity(wb)
+        people, capacity = parse_roster(wb)
+        projects = parse_projects(wb)
+        rates = {}
+        for pr in projects:
+            if pr.get("mig_rate"):
+                rates[(pr["name"].lower(), "Migration")] = pr["mig_rate"]
+            if pr.get("qa_rate"):
+                rates[(pr["name"].lower(), "QA")] = pr["qa_rate"]
+        if "Active Projects" in wb.sheetnames and "Projects" in wb.sheetnames:
+            for pr in _parse_project_sheet(wb["Projects"], "legacy"):
+                if pr.get("mig_rate"):
+                    LEGACY_RATES.setdefault((pr["name"].lower(), "Migration"), pr["mig_rate"])
+                if pr.get("qa_rate"):
+                    LEGACY_RATES.setdefault((pr["name"].lower(), "QA"), pr["qa_rate"])
+        a_main, o_main = parse_assignments(wb, "Assignments", "Assignments", rates)
+        if "Assignments On Health" in wb.sheetnames:  # optional fork tab
+            a_oh, o_oh = parse_assignments(wb, "Assignments On Health",
+                                           "Assignments On Health", rates)
+        else:
+            a_oh, o_oh = [], []
+        reported = parse_reported_capacity(wb)
 
     db = build_db(people, capacity, projects, a_main + a_oh, o_main + o_oh,
                   reported)
+    db.execute("CREATE TABLE IF NOT EXISTS team_initials (initials TEXT PRIMARY KEY, name TEXT)")
+    db.executemany("INSERT OR REPLACE INTO team_initials VALUES (?, ?)", team_initials.items())
+    db.commit()
     findings = validate(db, projects)
 
     # Reconciliation guardrail: our recomputed rollups vs the tracker's own

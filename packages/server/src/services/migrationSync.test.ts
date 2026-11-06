@@ -5,6 +5,7 @@ import {
   runStartedAt,
   runTag,
   stripRunTag,
+  syncProblem,
   withRunTag,
   type SyncLogRow,
 } from "./migrationSync.js"
@@ -119,5 +120,27 @@ describe("parseSince", () => {
     expect(parseSince(at(5 * 60), now)).toBeNull()
     expect(parseSince(at(-2 * 60 * 60), now)).toBeNull()
     expect(parseSince(["a"], now)).toBeNull()
+  })
+})
+
+describe("syncProblem", () => {
+  it("returns the reason from the newest failed run, without its run tag", () => {
+    const detail = withRunTag("sync failed: Migration Tracker needs attention: it has 1 item to fix.", runTag("2026-11-04T16:00:00.000Z"))
+    expect(syncProblem({ outcome: "heartbeat", detail })).toBe("Migration Tracker needs attention: it has 1 item to fix.")
+  })
+
+  it("is null once a later run succeeded, so the message clears", () => {
+    expect(syncProblem({ outcome: "stored", detail: null })).toBeNull()
+    expect(syncProblem({ outcome: "deduped", detail: "sync failed: an old reason" })).toBeNull()
+  })
+
+  it("is null for a heartbeat that is not a failure, and when there is no row", () => {
+    expect(syncProblem({ outcome: "heartbeat", detail: "alive" })).toBeNull()
+    expect(syncProblem(null)).toBeNull()
+    expect(syncProblem(undefined)).toBeNull()
+  })
+
+  it("still reports a failure that gave no reason", () => {
+    expect(syncProblem({ outcome: "heartbeat", detail: "sync failed:" })).toBe("The last sync failed.")
   })
 })

@@ -2742,6 +2742,9 @@ export interface MmTeamMember {
   // 1.3: pages sitting with this person right now (client matrix)
   in_qa?: number
   building?: number
+  // 1.4: role-appropriate completion (migrated_date / qa_date)
+  migration_complete?: number
+  qa_complete?: number
 }
 
 export interface MmWeeklyProject { project: string; assigned: number; hours: number; done: number; done_source: "matrix" | "tracker" }
@@ -2791,6 +2794,8 @@ export interface MmLatest {
   }
   seconds_old?: number
   last_heartbeat_seconds?: number | null
+  /** Why the newest sync failed; null or absent when it did not. */
+  sync_problem?: string | null
   diff?: Array<{ kind: string; text: string }>
   archive?: Array<{ name: string; archived: boolean; archived_by: string | null; archived_at: string | null }>
 }

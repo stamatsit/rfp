@@ -86,16 +86,15 @@ def resolve_initials(initials, roster, overrides):
 
 
 def matrix_completions(db, matrix_name, roster, overrides):
-    """Pages delivered to the client, per (person, role, week). Deliver to
-    Client (column BB) is the one source of truth for completion (Eric,
-    2026-10-13); a delivered page counts for the migrator who built it
-    (column AO) and the QA who passed it (column AR) in the week of its BB
-    date. Returns (counts, unmatched, resolved): counts {(person, role,
-    week): n}, unmatched {(initials, role): {week: n}}, resolved
+    """Per-person role-appropriate completion, per (person, role, week).
+    Migration complete = migrator initials (AO) with a date in AP
+    (migrated_date). QA complete = QA initials (AR) with a date in AS
+    (qa_date). Returns (counts, unmatched, resolved): counts {(person,
+    role, week): n}, unmatched {(initials, role): {week: n}}, resolved
     {initials: name|None}."""
     counts, unmatched, resolved = {}, {}, {}
-    for col_ini, col_date, role in (("migrator", "delivered_date", "Migration"),
-                                    ("qa", "delivered_date", "QA")):
+    for col_ini, col_date, role in (("migrator", "migrated_date", "Migration"),
+                                    ("qa", "qa_date", "QA")):
         for ini, d in db.execute(
                 f"SELECT {col_ini}, {col_date} FROM client_pages "
                 f"WHERE matrix=? AND {col_date} IS NOT NULL", (matrix_name,)):
@@ -111,16 +110,32 @@ def matrix_completions(db, matrix_name, roster, overrides):
     return counts, unmatched, resolved
 
 
-def delivered_days(db, matrix_by_project, roster, overrides):
-    """{(person, week): {day: n}}: pages delivered per working day, credited
-    the same way as matrix_completions (migrator and QA), for the per day
-    breakdown inside each week on the Weekly tab (contract 1.3)."""
+def delivered_per_person(db, matrix_by_project, roster, overrides):
+    """Per-person count of pages delivered to the client (column BB,
+    delivered_date). Used only for the informational Done column on the
+    team table; it drives no calculation."""
     out = {}
     for mx in matrix_by_project.values():
-        for col in ("migrator", "qa"):
+        for ini, d in db.execute(
+                "SELECT migrator, delivered_date FROM client_pages "
+                "WHERE matrix=? AND delivered_date IS NOT NULL", (mx["name"],)):
+            person = resolve_initials(ini, roster, overrides)
+            if person:
+                out[person] = out.get(person, 0) + 1
+    return out
+
+
+def delivered_days(db, matrix_by_project, roster, overrides):
+    """{(person, week): {day: n}}: pages completed per working day, by
+    role (migrated_date for migrator, qa_date for QA), for the per-day
+    breakdown inside each week on the Weekly tab."""
+    out = {}
+    for mx in matrix_by_project.values():
+        for col_ini, col_date in (("migrator", "migrated_date"),
+                                  ("qa", "qa_date")):
             for ini, d in db.execute(
-                    f"SELECT {col}, delivered_date FROM client_pages "
-                    f"WHERE matrix=? AND delivered_date IS NOT NULL", (mx["name"],)):
+                    f"SELECT {col_ini}, {col_date} FROM client_pages "
+                    f"WHERE matrix=? AND {col_date} IS NOT NULL", (mx["name"],)):
                 person = resolve_initials(ini, roster, overrides)
                 if not person:
                     continue
@@ -213,6 +228,8 @@ def main():
     people_roles = dict(db.execute("SELECT name, role FROM people"))
     roster = list(people_roles)
     overrides = load_initials_overrides()
+    # The Migration Tracker's Team tab names each person's initials, and wins
+    overrides.update({i.upper(): n for i, n in db.execute("SELECT initials, name FROM team_initials")})
 
     # matrices: attach each to its linked project
     import client_matrix as cm
@@ -471,11 +488,21 @@ def main():
                         for qrow in mx.get("queues", [])
                         if qrow["unassigned"] and qrow["role"] == "QA")
 
-    # team table
+    # per-person delivered (BB) count, informational only
+    person_delivered = delivered_per_person(db, matrix_by_project, roster, overrides)
+
+    # team table: completed is now role-appropriate (migrated_date for
+    # migrators, qa_date for QA). Track migration vs QA separately.
     totals, breakdown, pweek = {}, {}, {}
+    role_complete = {}  # {person: {"Migration": n, "QA": n}}
     for r in rows:
         t = totals.setdefault(r["person"], [0, 0, 0])
         t[0] += r["hours"]; t[1] += r["pages"]; t[2] += r["completed"]
+        rc = role_complete.setdefault(r["person"], {"Migration": 0, "QA": 0})
+        if r.get("role") in ("Migration", "QA"):
+            rc[r["role"]] += r["completed"]
+        else:
+            rc["Migration"] += r["completed"]
         b = breakdown.setdefault(r["person"], {})
         pb = b.setdefault(r["project"], [0, 0, 0])
         pb[0] += r["hours"]; pb[1] += r["pages"]; pb[2] += r["completed"]
@@ -489,12 +516,18 @@ def main():
                          if pp == p and any(pweek[(pp, w)]))
         tw = pweek.get((p, bm.CUR_WEEK), [0, 0, 0])
         lw = pweek.get((p, last_week), [0, 0, 0])
+        rc = role_complete.get(p, {"Migration": 0, "QA": 0})
+        mig_c = round(rc["Migration"])
+        qa_c = round(rc["QA"])
+        delivered = person_delivered.get(p, 0)
         team.append({
             "name": p, "role": people_roles.get(p) or "n/a",
-            "hours": round(h, 1), "assigned": round(a), "done": round(c),
-            "left": max(round(a - c), 0),
-            "comp": round(100 * c / a) if a else 0,
-            "vel": round(c / h, 2) if h > 2 else None,
+            "hours": round(h, 1), "assigned": round(a),
+            "migration_complete": mig_c, "qa_complete": qa_c,
+            "done": delivered,
+            "left": max(round(a - (mig_c + qa_c)), 0),
+            "comp": round(100 * (mig_c + qa_c) / a) if a else 0,
+            "vel": round((mig_c + qa_c) / h, 2) if h > 2 else None,
             "avail": cap.get((p, bm.CUR_WEEK), 0),
             "wk_hours": round(tw[0], 1),
             "this_week": {"assigned": round(tw[2]), "done": round(tw[1]), "hours": round(tw[0], 1)},

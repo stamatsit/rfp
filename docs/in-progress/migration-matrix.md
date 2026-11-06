@@ -189,3 +189,23 @@ the 10-minute schedule (Eric: "a sync button in addition to 10min intervals").
   jsonb, which reorders keys), so every run stores a snapshot. If that is fixed,
   the header's "updated N min ago" must count from the last successful read,
   not the last stored snapshot, or a no-change sync will look stale.
+
+## Per-person completion columns (contract 1.4, Laura request 2026-11-04)
+Laura asked to compare what migrators are assigned with what they have finished
+migrating, rather than what is fully delivered to the client:
+- Team tab column order: Assigned | Migration complete | QA complete | Remaining
+  | In QA | Done | Building | This week | Last week | Hours | Pages/hr.
+- `migration_complete` = pages with this person as migrator (column AO) and a
+  date in AP (migrated_date). `qa_complete` = pages with this person as QA
+  (column AR) and a date in AS (qa_date). Both fields in the team snapshot.
+- Remaining = Assigned minus (migration_complete + qa_complete), floored at 0.
+  Pages/hr uses the same completion total.
+- Done = pages this person migrated that have a Deliver to Client date (column
+  BB). Informational; drives no calculation.
+- Project-level done/built/left stays on BB. Only per-person credit changed.
+- build_master.py: "Page Goal" accepted alongside "Pages Assigned" as the
+  rebuilt tracker header. The old fallback to column 6 read hours as pages.
+- contract/initials-map.json: CJ, KO, KOF overrides added (Crystal to confirm).
+- Building tooltip: "Pages a migrator has put their initials on but has not
+  marked complete yet."
+- Deploy order: pipeline before server is safe (additive fields, 1.x contract).

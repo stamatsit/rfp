@@ -139,7 +139,10 @@ def facts_blob():
             facts["team_performance"] = [
                 {"person": t["name"], "role": t.get("role"),
                  "hours": t["hours"], "pages_assigned": t["assigned"],
-                 "pages_done": t["done"], "pages_left": t.get("left"),
+                 "migration_complete": t.get("migration_complete", 0),
+                 "qa_complete": t.get("qa_complete", 0),
+                 "pages_done_delivered": t["done"],
+                 "pages_left": t.get("left"),
                  "done_pct_of_assigned": t["comp"], "pages_per_hour": t.get("vel"),
                  "this_week": t.get("this_week"), "last_week": t.get("last_week"),
                  "pages_in_qa_now": t.get("in_qa"), "pages_building_now": t.get("building")}

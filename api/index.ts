@@ -9298,15 +9298,17 @@ Only include quotes where the client is clearly saying something positive or not
         const latest = rows[0]
         if (!latest) return res.json({ empty: true })
         const prev = rows.find((r) => r.source_hash !== latest.source_hash)
-        const hb = await queryClient`SELECT created_at FROM mm_ingest_log ORDER BY created_at DESC LIMIT 1`
+        const hb = await queryClient`SELECT created_at, outcome, detail FROM mm_ingest_log ORDER BY created_at DESC LIMIT 1`
         const archive = await queryClient`SELECT name, archived, archived_by, archived_at FROM mm_projects`
         const latestData = mmParse(latest.data)
+        const { syncProblem: mmSyncProblem } = await import("../packages/server/src/services/migrationSync.js")
         return res.json({
           snapshot: { id: latest.id, created_at: latest.created_at, contract: latest.contract,
             source: latest.source, week_label: latest.week_label, data: latestData,
             facts: mmParse(latest.facts), findings: mmParse(latest.findings) },
           seconds_old: Math.round((Date.now() - new Date(latest.created_at).getTime()) / 1000),
           last_heartbeat_seconds: hb[0] ? Math.round((Date.now() - new Date(hb[0].created_at).getTime()) / 1000) : null,
+          sync_problem: mmSyncProblem(hb[0]),
           diff: prev ? mmComputeDiff(mmParse(prev.data), latestData) : [],
           archive: archive.map((p) => ({ name: p.name, archived: p.archived,
             archived_by: p.archived_by, archived_at: p.archived_at })),
@@ -9353,7 +9355,7 @@ Only include quotes where the client is clearly saying something positive or not
           return res.end()
         }
         const mmCtx = typeof mmChatBody.context === "string" ? mmChatBody.context : "overview"
-        let mmSystem = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Pages come first: projects_table has total, assigned, done, left_to_build and hours_to_finish per project; weekly_by_person has each person's pages assigned vs done for the last three weeks, with delivered_by_day inside each week. Done means delivered to the client (the matrix's Deliver to Client date), nothing else counts as complete; built is the migrator's own completion and is listed separately. projects_table.pipeline puts every page in exactly one stage (delivered, in QA, QA done not delivered, building, ready to build, not started) and waiting_on lists who holds pages in QA or still to build, with unassigned meaning nobody's initials are on them; team_performance has pages_in_qa_now and pages_building_now per person. Hours matter only for capacity questions. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
+        let mmSystem = `You are the Migration Matrix assistant for Stamats' content migration team (they call the work "web page builds"). Answer questions about projects, people, capacity, deadlines, and forecasts USING ONLY the fact sheet below. Pages come first: projects_table has total, assigned, done, left_to_build and hours_to_finish per project; weekly_by_person has each person's pages assigned vs completed for the last three weeks. Per-person completion uses the migrator's completion date (column AP) for Migration and the QA completion date (column AS) for QA; team_performance has migration_complete and qa_complete per person. Done (delivered to the client, column BB) is a separate informational field and does not drive remaining, pages/hr, or any other calculation. projects_table.pipeline puts every page in exactly one stage (delivered, in QA, QA done not delivered, building, ready to build, not started) and waiting_on lists who holds pages in QA or still to build, with unassigned meaning nobody's initials are on them; team_performance has pages_in_qa_now and pages_building_now per person. Hours matter only for capacity questions. Every number you state must appear in, or be directly computed from, the fact sheet. If the facts do not cover a question, say so plainly and point to the dashboard or Crystal. Be concise: one to three short sentences or a tight list. Use **bold** for key numbers. Never use em dashes or en dashes anywhere; use a comma, period, or colon instead.
 
 At the end, include 2-3 follow-ups:
 FOLLOW_UP_PROMPTS: ["Question 1?", "Question 2?"]

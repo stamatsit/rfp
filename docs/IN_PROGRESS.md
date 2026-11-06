@@ -8,6 +8,13 @@ Living index of features currently being designed, built, or recently shipped (b
 
 ## Active
 
+### Migration Tracker workbook
+A purpose-built replacement for the tracker spreadsheet, built by script and read by the
+Migration Matrix dashboard. Laura approved Eric taking it over on 2026-11-04. Client matrices
+stay with Crystal, unchanged. App changes stay local until Eric approves them after end-to-end testing.
+
+- **Detail doc:** [in-progress/migration-tracker-workbook.md](in-progress/migration-tracker-workbook.md)
+
 ### Topic Ideation (social listening for content ideas)
 Search any topic or institution, see sentiment, subtopics, verbatim questions and quotes, and
 ranked content ideas, a link on everything; rescan to add data. Shipped behind an allowlist

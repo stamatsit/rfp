@@ -8,6 +8,7 @@ matrix, prove it, add more: this module globs for *content-matrix*.xlsx
 files in the parent folder and ingests every one it finds."""
 
 import glob
+import json
 import re
 import os
 
@@ -15,18 +16,97 @@ import openpyxl
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# page-lifecycle sheet layout (1-indexed columns; headers on rows 2-3, data from row 4 on, detected by content)
-COL = {
-    "url": 1, "assigned_to": 2, "page_id": 3, "title": 4, "new_url": 5,
-    "disp_delete": 6, "disp_reuse": 7, "disp_write_new": 8, "disp_revise": 9,
-    "disp_optimize": 10, "disp_as_is": 11, "disp_import": 12,
-    "writer": 22, "draft_delivered": 27, "reviewer": 28, "r1_review": 29,
-    "r1_updates": 30,
-    "mig_assigned_to": 37, "mig_r1_by": 41, "mig_r1_done": 42,
-    "qa_r1_by": 44, "qa_r1_done": 45, "mig_r2_done": 47, "qa_r2_done": 49,
-    "delivered": 54, "client_final": 61, "mig_r3_done": 51, "qa_r3_done": 53,
-    "ready_date": 40, "mig_r2_by": 46, "qa_r2_by": 48, "mig_r3_by": 50, "qa_r3_by": 52,
+# Columns are found by their header, never by position. Tabs in the same matrix
+# do not line up: 1-Stamats has a "URL to CMS Page" column the others lack, which
+# once shifted everything after it by one. Matching ignores case, spacing and
+# punctuation, so small wording edits are fine. Each key lists accepted labels,
+# with the name to use if it has to tell someone the column is missing.
+HEADERS = {
+    "url": ("Old/Legacy URL", ("oldlegacyurl", "legacyurl", "oldurl")),
+    "assigned_to": ("Assigned To", ("assignedto",)),
+    "page_id": ("Page ID", ("pageid",)),
+    "title": ("Navigation Title", ("navigationtitle",)),
+    "new_url": ("New URL", ("newurl",)),
+    "disp_delete": ("Delete", ("delete",)),
+    "disp_reuse": ("Reuse", ("reuse",)),
+    "disp_write_new": ("Write New", ("writenew",)),
+    "disp_revise": ("Revise", ("revise",)),
+    "disp_optimize": ("Optimize", ("optimize",)),
+    "disp_as_is": ("As Is", ("asis",)),
+    "disp_import": ("Import", ("import",)),
+    "writer": ("Assigned Writer", ("assignedwriter",)),
+    "draft_delivered": ("Draft Delivered", ("draftdelivered",)),
+    "reviewer": ("Assigned Reviewer", ("assignedreviewer",)),
+    "r1_review": ("Round 1 Review Complete (Date)", ("round1reviewcompletedate",)),
+    "r1_updates": ("Round 1 Updates Complete (Date)", ("round1updatescompletedate",)),
+    "mig_assigned_to": ("Assigned to (Migration)", ()),  # same words as Assigned To, told apart by its group
+    "ready_date": ("Ready for Content Build (Date)", ("readyforcontentbuilddate",)),
+    "mig_r1_by": ("Migrator (Initials)(Round 1)", ("migratorinitialsround1", "migratorinitials")),
+    "mig_r1_done": ("Completion (Date)", ("completiondate", "completiondateround1", "migrationcompletiondate",
+                                          "migrationcompletiondateround1")),
+    "qa_r1_by": ("QA (Initials)", ("qainitials", "qainitialsround1")),
+    "qa_r1_done": ("Complete (Date)", ("completedate", "completedateround1", "qacompletedate")),
+    "mig_r2_by": ("Migrator (Initials) (Round 2)", ("migratorinitialsround2",)),
+    "mig_r2_done": ("Migration Completion (Date) (Round 2)", ("migrationcompletiondateround2", "completiondateround2")),
+    "qa_r2_by": ("QA Initials (Round 2)", ("qainitialsround2",)),
+    "qa_r2_done": ("Complete (Date) (Round 2)", ("completedateround2",)),
+    "mig_r3_by": ("Migrator Initials (Round 3)", ("migratorinitialsround3",)),
+    "mig_r3_done": ("Completion (Date) (Round 3)", ("completiondateround3", "migrationcompletiondateround3")),
+    "qa_r3_by": ("QA Initials (Round 3)", ("qainitialsround3",)),
+    "qa_r3_done": ("Complete (Date) (Round 3)", ("completedateround3",)),
+    "delivered": ("Deliver to Client (Date)", ("delivertoclientdate",)),
+    "client_final": ("Final Review Complete (Date)", ("finalreviewcompletedate",)),
 }
+# Every number on the dashboard depends on these. Without one, the run stops
+# instead of guessing, and the dashboard keeps its last good numbers. The rest
+# only fill in details, so a missing one is reported and left blank.
+REQUIRED = ("url", "assigned_to", "title", "new_url", "ready_date", "mig_r1_by", "mig_r1_done", "qa_r1_by", "qa_r1_done",
+            "mig_r2_by", "mig_r2_done", "qa_r2_by", "qa_r2_done", "mig_r3_by", "mig_r3_done", "qa_r3_by", "qa_r3_done",
+            "delivered")
+MIN_HEADER_MATCHES = 8
+
+
+def refuse(reason):
+    raise SystemExit(f"Client matrix needs attention: {reason} The dashboard keeps its last good numbers.")
+
+
+def _norm(v):
+    return re.sub(r"[^a-z0-9]", "", str(v or "").lower())
+
+
+def _label_key(label, group):
+    """The key a header belongs to, or None."""
+    if label == "assignedto":
+        return "mig_assigned_to" if group == "migration" else "assigned_to"
+    for key, (_, labels) in HEADERS.items():
+        if label in labels or (key == "url" and label.startswith(labels)):
+            return key
+    return None
+
+
+def find_columns(ws):
+    """(header row, {key: column}, [problems]) from a section tab, or None when
+    the tab has no recognizable header row."""
+    best = None
+    for r in range(1, min(ws.max_row, 6) + 1):
+        hits = sum(1 for c in range(1, ws.max_column + 1)
+                   if _label_key(_norm(ws.cell(r, c).value), "") is not None)
+        if hits >= MIN_HEADER_MATCHES and (best is None or hits > best[1]):
+            best = (r, hits)
+    if best is None:
+        return None
+    row = best[0]
+    cols, repeated = {}, []
+    for c in range(1, ws.max_column + 1):
+        group = _norm(ws.cell(row - 1, c).value) if row > 1 else ""
+        key = _label_key(_norm(ws.cell(row, c).value), group)
+        if key is None:
+            continue
+        if key in cols:
+            repeated.append(key)
+        else:
+            cols[key] = c
+    return row, cols, repeated
 # One stage per page, decided from the latest round with any entry. Deliver
 # to Client (column BB) is the only completion; QA pass or fail is never
 # inferred (Eric, 2026-10-13). A built page sits "in QA" with whoever's
@@ -81,8 +161,9 @@ def _is_page(url, title, new_url):
     return not all(v.replace(".", "").replace(",", "").isdigit() for v in vals)
 
 
-def _val(ws, r, key):
-    v = ws.cell(r, COL[key]).value
+def _val(ws, r, cols, key):
+    c = cols.get(key)
+    v = ws.cell(r, c).value if c else None
     if v is None:
         return None
     s = str(v).strip()
@@ -118,7 +199,7 @@ def parse_matrix(path):
     wb = openpyxl.load_workbook(path, data_only=True)
     name = os.path.basename(path).replace(".xlsx", "")
     out = {"name": name, "sections": [], "pages": [], "broken_refs": 0,
-           "skipped": [], "client_owned": 0}
+           "skipped": [], "client_owned": 0, "missing_optional": []}
     numbered = [ws.title for ws in wb.worksheets if SECTION_TAB.match(ws.title.strip())]
     # their own DASHBOARD rollup, if present, and whether it has rotted
     for ws in wb.worksheets:
@@ -137,17 +218,31 @@ def parse_matrix(path):
                 continue
         elif ws.max_column < 60:  # not a page-lifecycle sheet
             continue
+        found = find_columns(ws)
+        if found is None:
+            if ws.max_column >= 60:   # looks like a page list, so it can't be ignored
+                refuse(f"'{name}', tab '{ws.title}': its column headers can't be found.")
+            out["skipped"].append(ws.title)   # a numbered tab that is not a page list
+            continue
+        header_row, cols, repeated = found
+        missing = [k for k in REQUIRED if k not in cols]
+        if missing:
+            refuse(f"'{name}', tab '{ws.title}': can't find the column "
+                   f"'{HEADERS[missing[0]][0]}'. It may have been renamed or removed.")
+        twice = [k for k in repeated if k in REQUIRED]
+        if twice:
+            refuse(f"'{name}', tab '{ws.title}': there are two columns called '{HEADERS[twice[0]][0]}'.")
+        out["missing_optional"] += [f"{ws.title}: {HEADERS[k][0]}" for k in HEADERS if k not in cols]
         out["sections"].append(ws.title)
         # A page row has a legacy URL, a title or a new URL (write-new pages
-        # have no legacy URL). Crystal's live file starts data on row 5;
-        # the counts row (row 4) is all numbers and is skipped by content,
-        # not by position.
+        # have no legacy URL). The counts row under the headers is all numbers
+        # and is skipped by content, not by position.
         raw_pages = []
-        for r in range(4, ws.max_row + 1):
-            if not _is_page(_val(ws, r, "url"), _val(ws, r, "title"),
-                            _val(ws, r, "new_url")):
+        for r in range(header_row + 1, ws.max_row + 1):
+            if not _is_page(_val(ws, r, cols, "url"), _val(ws, r, cols, "title"),
+                            _val(ws, r, cols, "new_url")):
                 continue
-            raw_pages.append({k: _val(ws, r, k) for k in COL})
+            raw_pages.append({k: _val(ws, r, cols, k) for k in HEADERS})
         # A blank Assigned To inherits the tab's majority owner: on a tab the
         # client works (3-WCC) a blank row is theirs, not a Stamats page.
         owners = [p["assigned_to"].strip() for p in raw_pages if p["assigned_to"]]
@@ -193,6 +288,7 @@ def summarize(m):
         "no_disposition": disp.get("(none)", 0),
         "broken_refs": m["broken_refs"],
         "skipped": m["skipped"], "client_owned": m["client_owned"],
+        "missing_optional": m["missing_optional"],
     }
 
 
@@ -234,9 +330,18 @@ def ingest(db):
 
 
 def link_to_project(db, summary):
-    """Best-effort link: the matrix's dominant client word (from its
+    """The Projects tab says which project a matrix belongs to when it can.
+    Otherwise best-effort: the matrix's dominant client word (from its
     Assigned Reviewer column) vs tracker project names — e.g. reviewer
     'Washtenaw' -> project 'Washtenaw Community College'."""
+    try:
+        named = json.load(open(os.environ["MM_MATRIX_LINKS"])).get(summary["name"])
+    except (KeyError, OSError, ValueError):
+        named = None
+    if named:
+        row = db.execute("SELECT total_pages FROM projects WHERE name = ?", (named,)).fetchone()
+        if row:
+            return {"project": named, "hint": "Projects tab", "total_pages": row[0]}
     row = db.execute("""
         SELECT reviewer, COUNT(*) FROM client_pages
         WHERE matrix=? AND reviewer IS NOT NULL AND reviewer != 'Stamats'
