@@ -508,8 +508,22 @@ def main():
         pb[0] += r["hours"]; pb[1] += r["pages"]; pb[2] += r["completed"]
         wv = pweek.setdefault((r["person"], r["week"]), [0, 0, 0])
         wv[0] += r["hours"]; wv[1] += r["completed"]; wv[2] += r["pages"]
+    # Finished pages are only counted from a client matrix. A week's goal on a
+    # project with no matrix can never show as finished, so name those projects
+    # rather than let the page read 0 as "nothing got done".
+    not_counted, not_counted_pages = {}, {}
+    for r in rows:
+        if r["pages"] and r["project"] not in matrix_by_project:
+            key = (r["person"], r["week"])
+            not_counted.setdefault(key, set()).add(r["project"])
+            not_counted_pages[key] = not_counted_pages.get(key, 0) + r["pages"]
     last_week = (datetime.date.fromisoformat(bm.CUR_WEEK)
                  - datetime.timedelta(days=7)).isoformat()
+
+    def week_totals(p, w, v):
+        return {"assigned": round(v[2]), "done": round(v[1]), "hours": round(v[0], 1),
+                "not_counted": sorted(not_counted.get((p, w), ())),
+                "not_counted_pages": round(not_counted_pages.get((p, w), 0))}
     team = []
     for p, (h, a, c) in sorted(totals.items(), key=lambda t: -t[1][2]):
         weeks_p = sorted(w for (pp, w) in pweek
@@ -530,8 +544,8 @@ def main():
             "vel": round((mig_c + qa_c) / h, 2) if h > 2 else None,
             "avail": cap.get((p, bm.CUR_WEEK), 0),
             "wk_hours": round(tw[0], 1),
-            "this_week": {"assigned": round(tw[2]), "done": round(tw[1]), "hours": round(tw[0], 1)},
-            "last_week": {"assigned": round(lw[2]), "done": round(lw[1]), "hours": round(lw[0], 1)},
+            "this_week": week_totals(p, bm.CUR_WEEK, tw),
+            "last_week": week_totals(p, last_week, lw),
             "in_qa": holding.get(p, {}).get("in_qa", 0),
             "building": holding.get(p, {}).get("building", 0),
             "weekly": [[wk_lbl(w), round(pweek[(p, w)][0], 1),

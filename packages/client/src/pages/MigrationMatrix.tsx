@@ -27,6 +27,7 @@ import {
   type MmLatest,
   type MmSnapshotData,
   type MmTeamMember,
+  type MmWeekTotals,
   type MmWeekly,
 } from "@/lib/api"
 import { MigrationAIChat } from "@/components/migration-matrix/MigrationAIChat"
@@ -687,7 +688,7 @@ export function MigrationMatrix() {
   if (tab === "reports") return shell(<ReportsView back={() => setView({ tab: null })} />)
 
   // ── team view ──
-  if (tab === "team") return shell(<TeamView team={data.team} back={() => setView({ tab: null })} openPerson={(name) => setView({ tab: null, p: name })} />)
+  if (tab === "team") return shell(<TeamView team={data.team} weekLbl={data.week_lbl} back={() => setView({ tab: null })} openPerson={(name) => setView({ tab: null, p: name })} />)
 
   // ── weekly view ──
   if (tab === "weekly") return shell(<WeeklyView weekly={weekly} openPerson={(name) => setView({ tab: null, p: name })} openProject={(name) => setView({ tab: null, c: name })} />)
@@ -1122,16 +1123,43 @@ function WeeklyView({ weekly, openPerson, openProject }: { weekly?: MmWeekly; op
 
 // ─── team + person subviews ──────────────────────────────────────────────────
 
-function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () => void; openPerson: (n: string) => void }) {
+// Finished pages for one week. Finished is only counted from a client matrix, so a goal on a
+// project with no matrix says "not counted" rather than a 0 that reads as "nothing got done".
+function FinishedCell({ v }: { v?: MmWeekTotals }) {
+  if (!v) return null
+  const nc = v.not_counted ?? []
+  if (!nc.length) return <>{n(v.done)}</>
+  const names = nc.join(", ")
+  if (!v.done && (v.not_counted_pages ?? 0) >= v.assigned) {
+    return (
+      <span className="inline-flex flex-col items-end leading-tight text-slate-400">
+        <span>not counted</span>
+        <span className="text-[11px] whitespace-nowrap">no {names} matrix</span>
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex flex-col items-end leading-tight">
+      <span>{n(v.done)}</span>
+      <span className="text-[11px] text-slate-400 whitespace-nowrap">{names} not counted</span>
+    </span>
+  )
+}
+
+function TeamView({ team, weekLbl, back, openPerson }: { team: MmTeamMember[]; weekLbl: string; back: () => void; openPerson: (n: string) => void }) {
   const [q, setQ] = useState("")
   const [sort, setSort] = useState<"done" | "left" | "week" | "hours" | "qa">("done")
+  const week = sort === "week"
   const completedOf = (t: MmTeamMember) => (t.migration_complete ?? 0) + (t.qa_complete ?? 0)
   const leftOfT = (t: MmTeamMember) => t.left ?? Math.max(t.assigned - completedOf(t), 0)
   const rows = useMemo(() => {
     const f = team.filter((t) => t.name.toLowerCase().includes(q.toLowerCase()) || t.role.toLowerCase().includes(q.toLowerCase()))
-    const key = (t: MmTeamMember) => sort === "done" ? completedOf(t) : sort === "week" ? (t.this_week?.assigned ?? 0) + (t.this_week?.done ?? 0) : sort === "left" ? leftOfT(t) : sort === "qa" ? (t.in_qa ?? 0) : t[sort]
-    return [...f].sort((a, b) => key(b) - key(a) || a.name.localeCompare(b.name))
+    const key = (t: MmTeamMember) => sort === "done" ? completedOf(t) : sort === "week" ? t.this_week?.assigned ?? 0 : sort === "left" ? leftOfT(t) : sort === "qa" ? (t.in_qa ?? 0) : t[sort]
+    const tie = (t: MmTeamMember) => sort === "week" ? t.this_week?.done ?? 0 : 0
+    return [...f].sort((a, b) => key(b) - key(a) || tie(b) - tie(a) || a.name.localeCompare(b.name))
   }, [team, q, sort])
+  const uncounted = [...new Set(team.flatMap((t) => [...(t.this_week?.not_counted ?? []), ...(t.last_week?.not_counted ?? [])]))].sort()
+  const TH = "px-3 py-3 font-medium text-right"
   return (
     <div className="space-y-4">
       <button onClick={back} className="inline-flex items-center gap-1.5 text-[12.5px] font-medium text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">
@@ -1147,20 +1175,51 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
           </button>
         ))}
       </div>
+      <p className="text-[12.5px] text-slate-500 dark:text-slate-400 -mt-1">
+        {week
+          ? <>Week of {weekLbl} only. <b className="font-semibold text-slate-700 dark:text-slate-200">Assigned</b> is each person's page goal for the week on the tracker's Assignments tab. <b className="font-semibold text-slate-700 dark:text-slate-200">Finished</b> is pages marked Migration complete or QA complete in the client matrix that week.{uncounted.length ? ` ${uncounted.join(", ")} ${uncounted.length > 1 ? "have" : "has"} no matrix connected, so finished pages there are not counted.` : ""}</>
+          : <>Totals for all weeks on the tracker. For one week, use <b className="font-semibold text-slate-700 dark:text-slate-200">by assigned this week</b>.</>}
+      </p>
       <div className="bg-white dark:bg-slate-900 border border-black/[0.06] dark:border-white/[0.08] rounded-2xl overflow-x-auto">
+        {week ? (
+        <table className="w-full text-[13px] min-w-[640px]">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
+              <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
+              <th className={`${TH} text-[#C41230] dark:text-rose-300`} title="Page goal for this week on the tracker's Assignments tab">Assigned this week</th>
+              <th className={TH} title="Pages marked Migration complete (column AP) or QA complete (column AS) this week in the client matrix">Finished this week</th>
+              <th className={TH} title="Hours the tracker plans for this person this week">Hours planned</th>
+              <th className={`${TH} border-l border-black/[0.06] dark:border-white/[0.08]`} title="Page goal for last week">Assigned last week</th>
+              <th className={`${TH} pr-5`} title="Pages finished last week">Finished last week</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((t) => (
+              <tr key={t.name} onClick={() => openPerson(t.name)}
+                className="border-b border-black/[0.04] dark:border-white/[0.05] last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer">
+                <td className="px-5 py-2.5 font-medium text-slate-900 dark:text-white">{t.name}</td>
+                <td className="px-3 py-2.5 text-slate-500">{t.role}</td>
+                <td className={`${NUM} font-semibold text-slate-900 dark:text-white`}>{n(t.this_week?.assigned ?? 0)}</td>
+                <td className={`${NUM} font-semibold`}><FinishedCell v={t.this_week} /></td>
+                <td className={`${NUM} text-slate-500`}>{t.this_week?.hours ?? 0}</td>
+                <td className={`${NUM} text-slate-500 border-l border-black/[0.06] dark:border-white/[0.08]`}>{n(t.last_week?.assigned ?? 0)}</td>
+                <td className={`${NUM} pr-5 text-slate-500`}><FinishedCell v={t.last_week} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        ) : (
         <table className="w-full text-[13px] min-w-[760px]">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-[0.05em] text-slate-400 border-b border-black/[0.06] dark:border-white/[0.08]">
               <th className="px-5 py-3 font-medium">Person</th><th className="px-3 py-3 font-medium">Role</th>
-              <th className="px-3 py-3 font-medium text-right">Assigned</th>
+              <th className="px-3 py-3 font-medium text-right" title="Page goals across every week on the tracker">Assigned, all weeks</th>
               <th className="px-3 py-3 font-medium text-right" title="Pages this person migrated with a completion date (column AP)">Mig. complete</th>
               <th className="px-3 py-3 font-medium text-right" title="Pages this person QA'd with a completion date (column AS)">QA complete</th>
               <th className="px-3 py-3 font-medium text-right">Remaining</th>
               <th className="px-3 py-3 font-medium text-right" title="Pages sitting with this person for QA right now, from the client matrix">In QA</th>
               <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600" title="Pages delivered to the client (column BB). Informational; does not drive calculations.">Done</th>
               <th className="px-3 py-3 font-medium text-right" title="Pages a migrator has put their initials on but has not marked complete yet">Building</th>
-              <th className="px-3 py-3 font-medium text-right" title="Pages assigned and completed in the current tracker week">This week</th>
-              <th className="px-3 py-3 font-medium text-right" title="Pages assigned and completed the week before">Last week</th>
               <th className="px-3 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Hours</th>
               <th className="px-5 py-3 font-medium text-right text-slate-300 dark:text-slate-600">Pages/hr</th>
             </tr>
@@ -1178,14 +1237,13 @@ function TeamView({ team, back, openPerson }: { team: MmTeamMember[]; back: () =
                 <td className={`${NUM} ${(t.in_qa ?? 0) > 0 ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-slate-400"}`}>{n(t.in_qa ?? 0)}</td>
                 <td className={`${NUM} text-slate-400`}>{n(t.done)}</td>
                 <td className={`${NUM} text-slate-500`}>{n(t.building ?? 0)}</td>
-                <td className={NUM}>{t.this_week ? <>{n(t.this_week.assigned)} <span className="text-slate-400">→</span> {n(t.this_week.done)}</> : ""}</td>
-                <td className={`${NUM} text-slate-500`}>{t.last_week ? <>{n(t.last_week.assigned)} <span className="text-slate-400">→</span> {n(t.last_week.done)}</> : ""}</td>
                 <td className={`${NUM} text-slate-400`}>{t.hours}</td>
                 <td className="px-5 py-2.5 text-right tabular-nums text-slate-400">{t.vel ?? "n/a"}</td>
               </tr>
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   )
@@ -1236,7 +1294,8 @@ function PersonView({ t, weekly, back, openProject }: { t: MmTeamMember; weekly?
             {([["this week", t.this_week], ["last week", t.last_week]] as Array<[string, MmTeamMember["this_week"]]>).map(([k, v]) => (
               <div key={k}>
                 <p className="text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{v ? <>{n(v.done)}<span className="text-slate-300 dark:text-slate-600 font-normal"> / {n(v.assigned)}</span></> : "n/a"}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">{k} · completed / assigned</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">{k} · finished / assigned</p>
+                {v?.not_counted?.length ? <p className="text-[11px] text-slate-400">{v.not_counted.join(", ")} not counted: no matrix</p> : null}
               </div>
             ))}
           </div>

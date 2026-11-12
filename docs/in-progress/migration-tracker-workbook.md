@@ -123,6 +123,12 @@ Cutover done 11/6, 17:09 UTC: MM_SHARE_URLS now holds the new tracker plus the M
 old value is kept privately for rollback. A production sync read the new file, stored contract 1.4 with the same team
 numbers, and "Open the tracker" now opens the new file.
 
+11/12, Laura's feedback on the Team tab ("by assigned this week" looked like totals): the button only re-sorted, so
+she read the all-weeks Assigned column as the week. The week button now switches the table to week columns only
+(assigned, finished, hours planned, then last week), with a line saying where each number comes from. Finished is
+only counted from a client matrix, and Eric says Coe will not have one for now, so a goal on a project with no matrix
+shows "not counted" instead of 0 (`not_counted` and `not_counted_pages` on each week in the snapshot, additive).
+
 Still to do:
 1. Laura and Crystal's requests from the Basecamp post.
 2. Coe's matrix link from Crystal, typed on the Projects tab.

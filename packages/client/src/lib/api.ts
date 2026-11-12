@@ -2721,7 +2721,9 @@ export interface MmClient {
   mig_deadline?: string | null
 }
 
-export interface MmWeekTotals { assigned: number; done: number; hours: number }
+// not_counted (1.4, additive): projects with goal pages that week but no client matrix,
+// so their finished pages cannot be counted; not_counted_pages is how many goal pages that is
+export interface MmWeekTotals { assigned: number; done: number; hours: number; not_counted?: string[]; not_counted_pages?: number }
 
 export interface MmTeamMember {
   name: string
