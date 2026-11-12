@@ -67,14 +67,18 @@ def resolve_initials(initials, roster, overrides):
     """'DS' -> 'Debbie' when exactly one roster name fits: first letters
     match and, when the roster name carries a surname initial ('Kelly H'),
     that matches the second letter too. Anything ambiguous stays unmatched
-    (surfaced on the dashboard) rather than guessed."""
+    (surfaced on the dashboard) rather than guessed. Someone whose initials are
+    written down (Team tab or initials-map.json) is matched by those only."""
     ini = (initials or "").strip().upper()
     if not ini:
         return None
     if ini in overrides:
         return overrides[ini]
+    known = set(overrides.values())
     hits = []
     for name in roster:
+        if name in known:
+            continue
         parts = name.split()
         if not parts or not parts[0] or parts[0][0].upper() != ini[0]:
             continue
@@ -248,7 +252,7 @@ def main():
         cycles = sorted(r[0] for r in q(
             "SELECT CAST(julianday(delivered_date)-julianday(draft_date) AS INT) "
             "FROM client_pages WHERE matrix=? AND draft_date AND delivered_date",
-            mname))
+            mname) if r[0] is not None)   # a date SQLite can't read must not stop the run
         rework = q("SELECT SUM(rework) FROM client_pages WHERE matrix=?",
                    mname)[0][0] or 0
         wk_del = Counter()

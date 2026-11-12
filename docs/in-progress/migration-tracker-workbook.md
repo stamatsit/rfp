@@ -129,6 +129,14 @@ she read the all-weeks Assigned column as the week. The week button now switches
 only counted from a client matrix, and Eric says Coe will not have one for now, so a goal on a project with no matrix
 shows "not counted" instead of 0 (`not_counted` and `not_counted_pages` on each week in the snapshot, additive).
 
+Later 11/12, Coe IS wanted (Laura: "the one we are most actively working on"). Laura's old tracker linked Crystal's Coe
+matrix from the project name cell (a cell hyperlink, Projects A11). The 11/6 build only carried links the sync already
+used, so it was dropped. Before it can go back on the Projects tab, two fixes, both tested on today's real files: dates
+typed as text in a matrix ("11/9/26") are read as dates (they were silently dropped from Migration and QA complete, and
+text in Deliver to Client crashed make_present), and initials only guess at people whose initials are not written on
+the Team tab (KH was ambiguous with Katie; AD was wrongly guessed as Amanda, who is AG). With Washtenaw alone the
+snapshot is identical to before.
+
 Still to do:
 1. Laura and Crystal's requests from the Basecamp post.
 2. Coe's matrix link from Crystal, typed on the Projects tab.

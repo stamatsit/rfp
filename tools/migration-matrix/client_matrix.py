@@ -7,6 +7,7 @@ review) feeds the same master database as Laura's tracker. Start with one
 matrix, prove it, add more: this module globs for *content-matrix*.xlsx
 files in the parent folder and ingests every one it finds."""
 
+import datetime
 import glob
 import json
 import re
@@ -149,9 +150,20 @@ FUNNEL = [
 
 
 def _iso(v):
-    """'2026-09-03 00:00:00' / datetime -> '2026-09-03'; free text -> None."""
-    s = str(v or "").strip()[:10]
-    return s if re.match(r"^\d{4}-\d{2}-\d{2}$", s) else None
+    """'2026-09-03 00:00:00' / datetime -> '2026-09-03'. A date typed or pasted as text,
+    '11/9/26' or '11/9/2026' (US order, as the team types them), -> '2026-11-09'.
+    Anything else, a typo included, -> None."""
+    s = str(v or "").strip()
+    if re.match(r"^\d{4}-\d{2}-\d{2}", s):
+        return s[:10]
+    m = re.match(r"^(\d{1,2})/(\d{1,2})/(\d{2}|\d{4})$", s)
+    if not m:
+        return None
+    month, day, year = int(m[1]), int(m[2]), int(m[3])
+    try:
+        return datetime.date(year + 2000 if year < 100 else year, month, day).isoformat()
+    except ValueError:
+        return None
 
 
 def _is_page(url, title, new_url):
@@ -261,8 +273,8 @@ def parse_matrix(path):
                 "reviewer": page["reviewer"],
                 "migrator": page["mig_r1_by"], "qa": page["qa_r1_by"],
                 "stage": stage, "holder": holder, "holder_role": holder_role,
-                "draft_date": (page["draft_delivered"] or "")[:10] or None,
-                "delivered_date": (page["delivered"] or "")[:10] or None,
+                "draft_date": _iso(page["draft_delivered"]),
+                "delivered_date": _iso(page["delivered"]),
                 # migration / QA completion dates (Round 1) drive the weekly
                 # done-per-person view; initials in migrator / qa say who
                 "migrated_date": _iso(page["mig_r1_done"]),

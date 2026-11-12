@@ -37,7 +37,7 @@ EXPECTED = [("Built and passed", "delivered", "BM", "2026-10-05", "2026-10-06", 
             ("Being built", "building", "KO", None, None, False)]
 
 
-def build(path, columns=None, rename=None, tab="1-Stamats", pad=70):
+def build(path, columns=None, rename=None, tab="1-Stamats", pad=70, pages=None):
     columns = list(columns or COLUMNS)
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -48,7 +48,7 @@ def build(path, columns=None, rename=None, tab="1-Stamats", pad=70):
     ws.cell(3, pad).value = "padding"     # section tabs are wide
     for i, _ in enumerate(columns, 1):
         ws.cell(4, i).value = 5           # the counts row under the headers
-    for r, page in enumerate(PAGES, 5):
+    for r, page in enumerate(pages or PAGES, 5):
         for i, (_, label) in enumerate(columns, 1):
             if label in page:
                 ws.cell(r, i).value = page[label]
@@ -102,6 +102,21 @@ def main():
 
     build(p, rename={"Completion (Date)": "  completion  (date) ", "Deliver to Client (Date)": "DELIVER TO CLIENT (DATE)"})
     check("small wording changes are fine", summary(p)[0], EXPECTED)
+
+    # Dates typed or pasted as text (seen in the Coe matrix, 11/12) are real dates, not blanks:
+    # dropping them undercounted finished pages, and text in Deliver to Client crashed the run.
+    import datetime
+    text_dates = [dict(PAGES[0], **{"Completion (Date)": "11/9/26\n", "Complete (Date)": " 11/10/2026",
+                                    "Deliver to Client (Date)": "11/12/26", "Draft Delivered": "10/1/26"}),
+                  dict(PAGES[1], **{"Completion (Date)": datetime.datetime(2026, 10, 12)}),
+                  dict(PAGES[2], **{"Deliver to Client (Date)": "11/112/2026"})]
+    build(p, pages=text_dates)
+    m = cm.parse_matrix(p)
+    got = [(x["title"], x["migrated_date"], x["qa_date"], x["delivered_date"], x["draft_date"]) for x in m["pages"]]
+    check("dates typed as text are read as dates; a real date is unchanged; a typo is left out", got, [
+        ("Built and passed", "2026-11-09", "2026-11-10", "2026-11-12", "2026-10-01"),
+        ("Waiting on QA", "2026-10-12", None, None, None),
+        ("Being built", None, None, None, None)])
 
     build(p, columns=COLUMNS[:1] + [("", "Extra")] + COLUMNS[1:])
     check("the MIGRATION Assigned to is not mistaken for Assigned To", cm.find_columns(openpyxl.load_workbook(p).active)[1]["assigned_to"], 3)
