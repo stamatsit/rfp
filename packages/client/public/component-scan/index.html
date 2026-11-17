@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
 <title>stamats.com Component Scan</title>
 <meta name="claude:viewport-fit-sides" content="cover">
@@ -9,49 +10,32 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Mulish:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-/* Layout: a redlined spec sheet. Real screenshots and to-scale rulers, marked up in Stamats red on cool drafting paper. */
+/* v5 light, with section navigation. Layout: a redlined spec sheet. Real screenshots and to-scale rulers, marked up in Stamats red on cool drafting paper. */
 :root {
-  --paper: #F3F5F8;
+  color-scheme: light;
+  --paper: #F6F7F9;
   --sheet: #FFFFFF;
-  --ink: #0E1C30;
-  --muted: #566275;
-  --rule: #D3DAE3;
-  --faint: #E6EBF1;
+  --ink: #14202E;
+  --muted: #4B5768;
+  --rule: #DCE2E9;
+  --faint: #ECEFF3;
   --heading: #002242;
   --band: #002242;
   --on-band: #E8F0F8;
   --red: #CC0102;
   --red-fill: #CC0102;
-  --red-tint: rgba(204, 1, 2, .10);
+  --red-tint: rgba(204, 1, 2, .08);
   --on-red: #FFFFFF;
-  --teal: #0091A5;
-  --teal-tint: rgba(0, 145, 165, .16);
+  --teal: #007F91;
+  --teal-tint: rgba(0, 145, 165, .14);
   --lime: #E7FDA1;
   --on-lime: #1F2B05;
-  --grid: rgba(0, 34, 66, .05);
-  --shadow: 0 1px 2px rgba(14, 28, 48, .06), 0 8px 24px rgba(14, 28, 48, .07);
+  --grid: rgba(0, 34, 66, .045);
+  --shadow: 0 1px 2px rgba(14, 28, 48, .05), 0 6px 20px rgba(14, 28, 48, .06);
 
-  --display: Georgia, "Times New Roman", serif;
+  --display: "Mulish", "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
   --body: "Mulish", "Avenir Next", Avenir, "Segoe UI", system-ui, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --paper: #08111F; --sheet: #0F1B2F; --ink: #E4EAF2; --muted: #95A2B5; --rule: #24344C; --faint: #17263C;
-    --heading: #C3D9F2; --band: #143559; --on-band: #E4EEF8;
-    --red: #FF6A60; --red-fill: #C42A20; --red-tint: rgba(255, 106, 96, .14); --on-red: #FFFFFF;
-    --teal: #45C6D8; --teal-tint: rgba(69, 198, 216, .18); --lime: #E7FDA1; --on-lime: #1F2B05;
-    --grid: rgba(195, 217, 242, .045); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .3);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --paper: #08111F; --sheet: #0F1B2F; --ink: #E4EAF2; --muted: #95A2B5; --rule: #24344C; --faint: #17263C;
-  --heading: #C3D9F2; --band: #143559; --on-band: #E4EEF8;
-  --red: #FF6A60; --red-fill: #C42A20; --red-tint: rgba(255, 106, 96, .14); --on-red: #FFFFFF;
-  --teal: #45C6D8; --teal-tint: rgba(69, 198, 216, .18); --lime: #E7FDA1; --on-lime: #1F2B05;
-  --grid: rgba(195, 217, 242, .045); --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .3);
-  color-scheme: dark;
 }
 
 * { box-sizing: border-box; }
@@ -583,9 +567,179 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
   .pagebar-brackets { font-size: .72rem; }
 }
 .bug .where { overflow-wrap: anywhere; }
-</style>
 
-<header class="masthead">
+/* ================= v5: reading and navigation ================= */
+html { font-size: 112.5%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body { margin: 0; font-size: 1rem; line-height: 1.65; background: var(--paper); }
+h1, h2 { font-weight: 800; letter-spacing: -.015em; }
+h3, h4 { font-weight: 700; letter-spacing: -.005em; }
+.shot-tag .tpl, .step h4, .reason h4, .pstep h4, .option h4, .phase-main h3, .cause h3, .bug h3, .comp h3, .decision h3, .panel h3, .ruler-card h3, .rail-head h3, .proofline .copy h3, .sub-h, .bp-head h3, .fine h3 { font-weight: 700; }
+.ty-sample { font-weight: 700; }
+.ty-sample.sans { font-weight: 400; }
+.lede { font-size: 1.05rem; line-height: 1.6; }
+.section-head { gap: 14px; }
+.section-head h2 { font-size: clamp(1.75rem, 3vw, 2.35rem); line-height: 1.15; }
+.sub-h { font-size: clamp(1.25rem, 2vw, 1.5rem); }
+.eyebrow { font-size: .72rem; display: flex; align-items: center; gap: 10px; }
+.eyebrow .no { display: inline-grid; place-items: center; min-width: 30px; height: 22px; padding: 0 6px; border-radius: 4px; background: var(--red-fill); color: var(--on-red); letter-spacing: .04em; }
+.section { padding-block: clamp(48px, 6vw, 80px); }
+.cause p, .bug p, .comp-note, .option p, .reason p, .pstep p, .need p, .rail li span, .phase-main ul, .assembly-copy p, .decision > p, .proofline .copy p { font-size: .92rem; line-height: 1.6; }
+.groups { font-size: .9rem; }
+
+/* page frame */
+.layout { display: grid; grid-template-columns: 252px minmax(0, 1fr); max-width: 1560px; margin: 0 auto; background: var(--paper); }
+main { min-width: 0; }
+main .wrap {
+  max-width: 1100px;
+  padding-left: max(clamp(16px, 4vw, 56px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 4vw, 56px), env(safe-area-inset-right, 0px));
+}
+section[id], .partband, .masthead { scroll-margin-top: 12px; }
+
+/* reading progress */
+.progress { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; height: 3px; z-index: 30; pointer-events: none; }
+.progress i { display: block; height: 100%; background: var(--red-fill); transform-origin: 0 50%; transform: scaleX(0); }
+
+/* sidebar */
+.toc {
+  position: sticky; top: 0; align-self: start; height: 100vh; height: 100dvh; overflow-y: auto;
+  padding: 28px 16px 28px max(16px, env(safe-area-inset-left, 0px));
+  background: var(--sheet); border-right: 1px solid var(--rule); font-size: .82rem;
+  display: flex; flex-direction: column;
+}
+.toc-brand { display: grid; gap: 2px; text-decoration: none; padding: 0 10px 20px; border-bottom: 1px solid var(--rule); }
+.toc-brand small { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--red); font-weight: 600; }
+.toc-brand b { font-size: 1.12rem; font-weight: 800; color: var(--heading); line-height: 1.2; }
+.toc-brand span { font-size: .76rem; color: var(--muted); }
+.toc-part { display: block; margin: 20px 10px 6px; font-family: var(--mono); font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; text-decoration: none; }
+.toc-part:hover { color: var(--heading); }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.toc a.lk { display: grid; grid-template-columns: 1.9rem minmax(0, 1fr); align-items: baseline; padding: 6px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; line-height: 1.3; }
+.toc a.lk span { font-family: var(--mono); font-size: .7rem; color: var(--muted); }
+.toc a.lk:hover { background: var(--faint); }
+.toc a.lk[aria-current="true"] { background: var(--red-tint); color: var(--red); font-weight: 700; }
+.toc a.lk[aria-current="true"] span { color: var(--red); }
+.toc a:focus-visible { outline: 2px solid var(--red); outline-offset: 1px; }
+.toc-top { margin-top: auto; padding: 18px 10px 0; font-size: .78rem; color: var(--muted); text-decoration: none; }
+.toc-top:hover { color: var(--red); }
+
+/* part bands */
+.partband { background: var(--band); color: var(--on-band); }
+.partband .wrap { padding-block: clamp(36px, 5vw, 60px); display: grid; gap: 10px; }
+.partband .pn { font-family: var(--mono); font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--lime); font-weight: 600; }
+.partband h2 { color: #FFFFFF; font-size: clamp(1.9rem, 4vw, 2.7rem); line-height: 1.1; }
+.partband p { color: var(--on-band); max-width: 60ch; font-size: 1.02rem; }
+.partband p a { color: var(--lime); }
+.partband + .section, .partband + .compare { border-top: 0; }
+
+/* masthead */
+.masthead h1 { font-size: clamp(2.1rem, 5vw, 3.5rem); line-height: 1.06; max-width: 21ch; }
+.masthead .wrap { padding-block: clamp(36px, 6vw, 72px) clamp(32px, 5vw, 56px); }
+.facts { font-size: .74rem; }
+.glance { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 10px; }
+.g {
+  display: grid; gap: 6px; align-content: start; padding: 18px 20px 16px;
+  background: var(--sheet); border: 1px solid var(--rule); border-top: 3px solid var(--heading); border-radius: 8px;
+  text-decoration: none; color: var(--ink); box-shadow: var(--shadow); transition: border-color .15s ease;
+}
+.g.hot { border-top-color: var(--red-fill); }
+.g:hover { border-color: var(--red); border-top-color: var(--red); }
+.g-k { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--red); font-weight: 600; }
+.g b { font-size: 1.12rem; line-height: 1.3; color: var(--heading); font-weight: 800; }
+.g .t { font-size: .9rem; color: var(--muted); line-height: 1.55; }
+.g .go { font-size: .8rem; font-weight: 700; color: var(--red); margin-top: 4px; }
+
+/* nothing a reader has to read runs under 15px */
+main .unit, main .where, main .guard, main .sub, main .ruler-foot, main .footnote, main .sc-use, main .ty-today,
+main .pass td, main .facts, main .sample span, main .colophon, main .pagebar-note, main .compare-note, main .wd-list span,
+main .kind, main .bignum span, main .row .lab small, main .strip-row .lab small, main .groups td small, main .comp-meta .mono,
+main .shot-tag .where, main .bp-stats, main .bp-head p, main .comp-usage .count, main .pagebar-key, main .minor li span,
+main .pagebar-brackets span, main .phase-id .pages small, main .pass .ok, main .pass .today, main .off .guard { font-size: .84rem !important; }
+main .where { line-height: 1.45; }
+
+/* decisions as numbered cards */
+.decisions { counter-reset: decision; gap: 20px; }
+.decision { counter-increment: decision; background: var(--sheet); border: 1px solid var(--rule); border-left: 4px solid var(--red-fill); border-radius: 8px; padding: clamp(18px, 3vw, 28px); box-shadow: var(--shadow); }
+.decision::before { content: "Decision " counter(decision); display: block; margin-bottom: 6px; font-family: var(--mono); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; color: var(--red); font-weight: 600; }
+.decision .option { background: var(--paper); box-shadow: none; }
+.decision .page-stack { box-shadow: none; }
+
+/* inline links in copy */
+.lede a, .need p a, .decision p a { color: var(--red); font-weight: 600; }
+
+/* group table: cards on phones */
+@media (max-width: 720px) {
+  .groups { min-width: 0; }
+  .groups thead { display: none; }
+  .groups tbody { display: block; }
+  .groups tr { display: flex; flex-wrap: wrap; gap: 8px 18px; padding: 14px 16px; border-bottom: 1px solid var(--faint); }
+  .groups tbody tr:last-child { border-bottom: 0; }
+  .groups td { flex: 1 1 100%; padding: 0; border: 0; order: 3; }
+  .groups td:first-child { order: 0; font-size: 1.02rem; }
+  .groups td.n { flex: 0 0 auto; order: 1; }
+  .groups td.ph { flex: 0 0 auto; order: 2; }
+  .groups td[data-label]::before { content: attr(data-label); display: block; font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+  .groups tr.band { padding: 0; }
+  .groups tr.band td { padding: 8px 16px; }
+  .groups-wrap { overflow-x: visible; }
+}
+
+/* phones and tablets: sidebar becomes a sticky bar */
+@media (max-width: 1179px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 25; background: var(--sheet); }
+  .toc {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; height: auto;
+    flex-direction: row; align-items: stretch; gap: 0; overflow-x: auto; overflow-y: hidden;
+    padding: 0 max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));
+    border-right: 0; border-bottom: 1px solid var(--rule); box-shadow: 0 2px 10px rgba(14, 28, 48, .05);
+    scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  .toc::-webkit-scrollbar { display: none; }
+  .toc-brand, .toc-part, .toc-top { display: none; }
+  .toc-group, .toc ol, .toc li { display: contents; }
+  .toc a.lk { display: flex; gap: 6px; align-items: baseline; white-space: nowrap; padding: 13px 10px 12px; border-radius: 0; font-size: .8rem; box-shadow: inset 0 -2px 0 transparent; }
+  .toc a.lk:last-child { margin-right: 40px; }
+  .toc a.lk[aria-current="true"] { background: none; box-shadow: inset 0 -3px 0 var(--red-fill); }
+  section[id], .partband, .masthead { scroll-margin-top: 58px; }
+}
+@media (max-width: 640px) {
+  .glance { grid-template-columns: 1fr; }
+  .facts { gap: 6px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div class="progress" aria-hidden="true"><i></i></div>
+<div class="layout">
+<nav class="toc" aria-label="Sections">
+  <a class="toc-brand" href="#top"><small>stamats.com</small><b>Site plan</b><span>Nov 13, 2026 scan</span></a>
+  <div class="toc-group"><a class="toc-part" href="#part-plan">Part 1 · The plan</a><ol>
+    <li><a class="lk" href="#guardrails"><span>01</span>Guardrails</a></li>
+    <li><a class="lk" href="#plan"><span>02</span>The five phases</a></li>
+    <li><a class="lk" href="#decide"><span>03</span>Decisions for Nov 20</a></li>
+    <li><a class="lk" href="#needs"><span>04</span>What's needed</a></li>
+    <li><a class="lk" href="#ready"><span>05</span>Why it will work</a></li>
+  </ol></div>
+  <div class="toc-group"><a class="toc-part" href="#part-evidence">Part 2 · The evidence</a><ol>
+    <li><a class="lk" href="#found"><span>06</span>What we measured</a></li>
+    <li><a class="lk" href="#why"><span>07</span>Why margins drift</a></li>
+    <li><a class="lk" href="#measured"><span>08</span>Where text starts</a></li>
+    <li><a class="lk" href="#live"><span>09</span>Broken right now</a></li>
+  </ol></div>
+  <div class="toc-group"><a class="toc-part" href="#part-spec">Part 3 · The spec</a><ol>
+    <li><a class="lk" href="#numbers"><span>10</span>One set of numbers</a></li>
+    <li><a class="lk" href="#components"><span>11</span>15 components</a></li>
+  </ol></div>
+  <div class="toc-group"><a class="toc-part" href="#fine">Appendix</a><ol>
+    <li><a class="lk" href="#fine"><span>12</span>Scope and sample</a></li>
+  </ol></div>
+  <a class="toc-top" href="#top">↑ Back to top</a>
+</nav>
+<main>
+<header class="masthead" id="top">
   <div class="wrap">
     <p class="eyebrow">stamats.com · Site plan · Nov 13, 2026</p>
     <h1>Anyone builds a page. <em>It comes out the same.</em></h1>
@@ -598,13 +752,28 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
       <span><b>5</b> phases</span>
       <span>Read only. Nothing on the site changed.</span>
     </div>
+
+    <div class="glance">
+      <a class="g hot" href="#found"><span class="g-k">The problem</span><b>Pages built by hand drift.</b><span class="t">Pages built from a template already come out the same. Pages built by hand don't: 10 different start lines on desktop, 191 spacer blocks and 388 hand-set spacing values.</span><span class="go">See what we measured →</span></a>
+      <a class="g" href="#guardrails"><span class="g-k">The fix</span><b>Guardrails in the editor.</b><span class="t">7 page templates and 15 locked components, all on one set of numbers. Editors change words, images and links, not layout.</span><span class="go">See the guardrails →</span></a>
+      <a class="g" href="#plan"><span class="g-k">The plan</span><b>Five phases, new pages first.</b><span class="t">Build the guardrails and prove them on the 10 coming case studies. Then move 96 group pages by template and rebuild the 27 one-offs.</span><span class="go">See the phases →</span></a>
+      <a class="g hot" href="#decide"><span class="g-k">For the Nov 20 review</span><b>Three decisions.</b><span class="t">Confirm the starting numbers, choose new pages only or the full plan, and build the case study template first.</span><span class="go">See the decisions →</span></a>
+    </div>
   </div>
 </header>
+
+<div class="partband" id="part-plan">
+  <div class="wrap">
+    <span class="pn">Part 1</span>
+    <h2>The plan</h2>
+    <p>What we build, in what order, and what has to happen first.</p>
+  </div>
+</div>
 
 <section class="section" id="guardrails">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">The guardrails</p>
+      <p class="eyebrow"><span class="no">01</span>The guardrails</p>
       <h2>What an editor can and can't do</h2>
       <p class="lede">Editors keep full control of the words, images and links. The layout decisions that make pages drift move out of their hands and into the theme. Each rule is a standard WordPress setting.</p>
     </div>
@@ -652,7 +821,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="plan">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">The plan</p>
+      <p class="eyebrow"><span class="no">02</span>The plan</p>
       <h2>Five phases, every page accounted for</h2>
       <p class="lede">Build the guardrails, prove them with real pages, then move the existing pages onto them. 96 of the 123 pages are already built the same way inside their group, so one template moves the whole group. The other 27 are one-offs that get rebuilt from components.</p>
     </div>
@@ -763,10 +932,62 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
   </div>
 </section>
 
+<section class="section" id="decide">
+  <div class="wrap">
+    <div class="section-head">
+      <p class="eyebrow"><span class="no">03</span>For review</p>
+      <h2>Three decisions before Sam builds</h2>
+    </div>
+    <div class="decisions">
+      <div class="decision">
+        <h3>Confirm the starting numbers</h3>
+        <p>Ariel and Sam confirm or adjust the values in "<a href="#numbers">One set of numbers</a>" below. Any of them can change before Sam builds. The goal is one list that the editor holds everyone to.</p>
+      </div>
+      <div class="decision">
+        <h3>How far to go now</h3>
+        <p>The Nov 11 call scoped the work to new pages. The scan gives two reasons to go further: 16 pages are broken on phones today, and 96 pages can move by group once the templates exist.</p>
+        <div class="options">
+          <div class="option">
+            <span class="tag">Option A</span>
+            <h4>New pages only, as agreed</h4>
+            <p>Phases 0 to 2. Existing pages stay as they are, broken spots included, until a later decision.</p>
+          </div>
+          <div class="option">
+            <span class="tag">Option B</span>
+            <h4>The full plan</h4>
+            <p>Phases 0 to 2, the fixes alongside, then Phases 3 and 4. Every page ends up inside the guardrails, and custom.css gets cleaned out.</p>
+          </div>
+        </div>
+        <p class="both">Either way, Phases 0 to 2 come first and don't change.</p>
+      </div>
+      <div class="decision">
+        <h3>Case studies come next</h3>
+        <div class="assembly">
+          <div class="page-stack" aria-label="The case study template: a locked banner at the top, five components to pick from in the middle, and locked related case studies and resource cards at the bottom">
+            <div class="slab banner"><span class="n">3</span>Page banner · locked</div>
+            <div class="slab content"><span class="n">1</span>Content section · pick</div>
+            <div class="slab stats"><span class="n">9</span>Media · pick</div>
+            <div class="slab stats"><span class="n">5</span>Stats row · pick</div>
+            <div class="slab cta"><span class="n">11</span>CTA band · pick</div>
+            <div class="slab testi"><span class="n">2</span>Testimonial band · pick</div>
+            <div class="slab related"><span class="n">7</span>Related case studies · locked</div>
+            <div class="slab cards"><span class="n">4</span>Resource cards · locked</div>
+          </div>
+          <div class="assembly-copy">
+            <span class="count">10</span>
+            <p>case studies are on the way. All 17 we measured open with the same banner and close with the same related case studies and resource cards. In between, every round of the scan found a new combination.</p>
+            <p>So the template locks the top and bottom and offers five components for the middle. Build it first and the 10 new case studies become the first real test of the guardrails.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="section" id="needs">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">What's needed</p>
+      <p class="eyebrow"><span class="no">04</span>What's needed</p>
       <h2>Eight things to start</h2>
       <p class="lede">The first three unlock Phase 0. The sign-offs can all happen in the Nov 20 review.</p>
     </div>
@@ -774,7 +995,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
       <li class="need"><span class="box"></span><h4>Access to the theme files</h4><span class="chip asked">Asked on Nov 11 call</span><p>SFTP or Git on WP Engine for the child theme, to add the numbers, components and templates. Who: whoever holds the WP Engine account.</p></li>
       <li class="need"><span class="box"></span><h4>Editor access in wp-admin</h4><span class="chip todo">Not requested yet</span><p>To answer the open questions: how the HTML sections are built, where the templates are stored, and whether synced patterns exist.</p></li>
       <li class="need"><span class="box"></span><h4>A staging copy of the site</h4><span class="chip todo">Not requested yet</span><p>Refreshed from live, so everything is built and tested without touching stamats.com.</p></li>
-      <li class="need"><span class="box"></span><h4>Sign-off on the starting numbers</h4><span class="chip review">Nov 20 review</span><p>Ariel and Sam confirm or adjust the values in "One set of numbers", in the same review where the components get picked.</p></li>
+      <li class="need"><span class="box"></span><h4>Sign-off on the starting numbers</h4><span class="chip review">Nov 20 review</span><p>Ariel and Sam confirm or adjust the values in "<a href="#numbers">One set of numbers</a>", in the same review where the components get picked.</p></li>
       <li class="need"><span class="box"></span><h4>Sign-off on changing existing pages</h4><span class="chip review">Nov 20 review</span><p>The fixes and Phases 3 and 4 go past the Nov 11 scope of new pages only.</p></li>
       <li class="need"><span class="box"></span><h4>Time on Sam's schedule</h4><span class="chip todo">To plan</span><p>15 components and 7 templates. Start with the content section, the testimonial band and the case study template, since 10 case studies are coming.</p></li>
       <li class="need"><span class="box"></span><h4>An editor for the test</h4><span class="chip todo">To plan</span><p>Debbie, or anyone who didn't build the system, to make real pages in Phase 2.</p></li>
@@ -786,7 +1007,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="ready">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">Readiness</p>
+      <p class="eyebrow"><span class="no">05</span>Readiness</p>
       <h2>We can do this</h2>
       <p class="lede">None of this needs a redesign, a new plugin or a new theme. It uses settings WordPress already has and patterns the site already proves.</p>
     </div>
@@ -834,10 +1055,18 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
   </div>
 </section>
 
+<div class="partband" id="part-evidence">
+  <div class="wrap">
+    <span class="pn">Part 2</span>
+    <h2>The evidence</h2>
+    <p>What the scan found on 87 live pages, with screenshots and measurements.</p>
+  </div>
+</div>
+
 <section class="section" id="found">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">What we found</p>
+      <p class="eyebrow"><span class="no">06</span>What we found</p>
       <h2>Every page group, measured</h2>
       <p class="lede">We measured every one-off page. For groups that repeat, we measured 5 at a time and stopped once a round turned up nothing new. Case studies were the exception: each round found a new middle section, which is itself the finding.</p>
     </div>
@@ -846,22 +1075,22 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
         <thead><tr><th>Group</th><th>Pages</th><th>Measured</th><th>Built the same way?</th><th>Problems found</th><th>Becomes</th><th>Phase</th></tr></thead>
         <tbody>
           <tr class="band"><td colspan="7">Groups that move together</td></tr>
-          <tr><td>Team bios</td><td class="n">29</td><td class="n">11</td><td><span class="same yes">Yes, all 11 identical</span></td><td class="prob">None in the layout</td><td>Team bio template</td><td class="ph">3</td></tr>
-          <tr><td>Case studies</td><td class="n">29</td><td class="n">17</td><td><span class="same part">Same frame, free middle</span></td><td class="prob">CTA band on the edge (Belhaven, Owens). A results section at 0px (UW Parkside). Each round found a new middle section.</td><td>Case study template</td><td class="ph">3</td></tr>
-          <tr><td>Webinars</td><td class="n">21</td><td class="n">7</td><td><span class="same yes">Yes, all 7 identical</span></td><td class="prob">6 to 10 hand-set spacing values in every header</td><td>Webinar template</td><td class="ph">3</td></tr>
-          <tr><td>Solutions</td><td class="n">8</td><td class="n">8</td><td><span class="same yes">7 of 8 share a layout</span></td><td class="prob">Print and Video scrolls sideways 115px. CTA band on the edge (SEO and AI Discoverability).</td><td>Solution template</td><td class="ph">3</td></tr>
-          <tr><td>On-demand webinars</td><td class="n">5</td><td class="n">5</td><td><span class="same yes">Yes, all 5</span></td><td class="prob">Speaker text at 0px on phones, on all 5</td><td>On-demand template</td><td class="ph">3</td></tr>
-          <tr><td>White papers</td><td class="n">4</td><td class="n">4</td><td><span class="same yes">Yes, all 4</span></td><td class="prob">3 spacer blocks on each</td><td>White paper template</td><td class="ph">3</td></tr>
+          <tr><td>Team bios</td><td data-label="Pages" class="n">29</td><td data-label="Measured" class="n">11</td><td data-label="Built the same way?"><span class="same yes">Yes, all 11 identical</span></td><td data-label="Problems found" class="prob">None in the layout</td><td data-label="Becomes">Team bio template</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>Case studies</td><td data-label="Pages" class="n">29</td><td data-label="Measured" class="n">17</td><td data-label="Built the same way?"><span class="same part">Same frame, free middle</span></td><td data-label="Problems found" class="prob">CTA band on the edge (Belhaven, Owens). A results section at 0px (UW Parkside). Each round found a new middle section.</td><td data-label="Becomes">Case study template</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>Webinars</td><td data-label="Pages" class="n">21</td><td data-label="Measured" class="n">7</td><td data-label="Built the same way?"><span class="same yes">Yes, all 7 identical</span></td><td data-label="Problems found" class="prob">6 to 10 hand-set spacing values in every header</td><td data-label="Becomes">Webinar template</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>Solutions</td><td data-label="Pages" class="n">8</td><td data-label="Measured" class="n">8</td><td data-label="Built the same way?"><span class="same yes">7 of 8 share a layout</span></td><td data-label="Problems found" class="prob">Print and Video scrolls sideways 115px. CTA band on the edge (SEO and AI Discoverability).</td><td data-label="Becomes">Solution template</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>On-demand webinars</td><td data-label="Pages" class="n">5</td><td data-label="Measured" class="n">5</td><td data-label="Built the same way?"><span class="same yes">Yes, all 5</span></td><td data-label="Problems found" class="prob">Speaker text at 0px on phones, on all 5</td><td data-label="Becomes">On-demand template</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>White papers</td><td data-label="Pages" class="n">4</td><td data-label="Measured" class="n">4</td><td data-label="Built the same way?"><span class="same yes">Yes, all 4</span></td><td data-label="Problems found" class="prob">3 spacer blocks on each</td><td data-label="Becomes">White paper template</td><td data-label="Phase" class="ph">3</td></tr>
           <tr class="band"><td colspan="7">One-off pages</td></tr>
-          <tr><td>Core<small>Home, About, Solutions, Our Work, Insights, Contact, Our Team, Careers, Culture</small></td><td class="n">9</td><td class="n">9</td><td><span class="same no">No, each by hand</span></td><td class="prob">FAQ at 0px (Solutions). Our Team at 10px, with 36 spacer blocks. 4 on Hero Cyan.</td><td>Standard template</td><td class="ph">4</td></tr>
-          <tr><td>Partner pages</td><td class="n">5</td><td class="n">5</td><td><span class="same no">No</span></td><td class="prob">FAQ at 0px (Modern Campus). CTA band on the edge and 75 hand-set values in the logo grid (Partnerships).</td><td>Standard template</td><td class="ph">4</td></tr>
-          <tr><td>Campaign pages</td><td class="n">5</td><td class="n">5</td><td><span class="same no">No</span></td><td class="prob">FAQ at 0px (HHS 504). 3 on Hero Cyan.</td><td>Standard template</td><td class="ph">4</td></tr>
-          <tr><td>Listing pages</td><td class="n">5</td><td class="n">5</td><td><span class="same part">3 of 5 are a post list</span></td><td class="prob">None</td><td>Standard template</td><td class="ph">4</td></tr>
-          <tr><td>Utility<small>404, Submit your RFP, Tagline submission</small></td><td class="n">3</td><td class="n">3</td><td><span class="same no">No</span></td><td class="prob">None</td><td>Standard template</td><td class="ph">4</td></tr>
+          <tr><td>Core<small>Home, About, Solutions, Our Work, Insights, Contact, Our Team, Careers, Culture</small></td><td data-label="Pages" class="n">9</td><td data-label="Measured" class="n">9</td><td data-label="Built the same way?"><span class="same no">No, each by hand</span></td><td data-label="Problems found" class="prob">FAQ at 0px (Solutions). Our Team at 10px, with 36 spacer blocks. 4 on Hero Cyan.</td><td data-label="Becomes">Standard template</td><td data-label="Phase" class="ph">4</td></tr>
+          <tr><td>Partner pages</td><td data-label="Pages" class="n">5</td><td data-label="Measured" class="n">5</td><td data-label="Built the same way?"><span class="same no">No</span></td><td data-label="Problems found" class="prob">FAQ at 0px (Modern Campus). CTA band on the edge and 75 hand-set values in the logo grid (Partnerships).</td><td data-label="Becomes">Standard template</td><td data-label="Phase" class="ph">4</td></tr>
+          <tr><td>Campaign pages</td><td data-label="Pages" class="n">5</td><td data-label="Measured" class="n">5</td><td data-label="Built the same way?"><span class="same no">No</span></td><td data-label="Problems found" class="prob">FAQ at 0px (HHS 504). 3 on Hero Cyan.</td><td data-label="Becomes">Standard template</td><td data-label="Phase" class="ph">4</td></tr>
+          <tr><td>Listing pages</td><td data-label="Pages" class="n">5</td><td data-label="Measured" class="n">5</td><td data-label="Built the same way?"><span class="same part">3 of 5 are a post list</span></td><td data-label="Problems found" class="prob">None</td><td data-label="Becomes">Standard template</td><td data-label="Phase" class="ph">4</td></tr>
+          <tr><td>Utility<small>404, Submit your RFP, Tagline submission</small></td><td data-label="Pages" class="n">3</td><td data-label="Measured" class="n">3</td><td data-label="Built the same way?"><span class="same no">No</span></td><td data-label="Problems found" class="prob">None</td><td data-label="Becomes">Standard template</td><td data-label="Phase" class="ph">4</td></tr>
           <tr class="band"><td colspan="7">Built by the theme or a plugin</td></tr>
-          <tr><td>Blog posts</td><td class="n">345</td><td class="n">2</td><td><span class="same yes">Yes, post template</span></td><td class="prob">10px sideways scroll from the template</td><td>Theme styles</td><td class="ph">Fix now</td></tr>
-          <tr><td>Archive pages</td><td class="n">10</td><td class="n">4</td><td><span class="same yes">Yes, all 4 identical</span></td><td class="prob">None</td><td>Theme styles</td><td class="ph">3</td></tr>
-          <tr><td>Event pages</td><td class="n">4</td><td class="n">3</td><td><span class="same yes">Yes, plugin template</span></td><td class="prob">Own margins (120px desktop, 20px phone). 2 to 6px sideways scroll on phones.</td><td>Plugin styles</td><td class="ph">3</td></tr>
+          <tr><td>Blog posts</td><td data-label="Pages" class="n">345</td><td data-label="Measured" class="n">2</td><td data-label="Built the same way?"><span class="same yes">Yes, post template</span></td><td data-label="Problems found" class="prob">10px sideways scroll from the template</td><td data-label="Becomes">Theme styles</td><td data-label="Phase" class="ph">Fix now</td></tr>
+          <tr><td>Archive pages</td><td data-label="Pages" class="n">10</td><td data-label="Measured" class="n">4</td><td data-label="Built the same way?"><span class="same yes">Yes, all 4 identical</span></td><td data-label="Problems found" class="prob">None</td><td data-label="Becomes">Theme styles</td><td data-label="Phase" class="ph">3</td></tr>
+          <tr><td>Event pages</td><td data-label="Pages" class="n">4</td><td data-label="Measured" class="n">3</td><td data-label="Built the same way?"><span class="same yes">Yes, plugin template</span></td><td data-label="Problems found" class="prob">Own margins (120px desktop, 20px phone). 2 to 6px sideways scroll on phones.</td><td data-label="Becomes">Plugin styles</td><td data-label="Phase" class="ph">3</td></tr>
         </tbody>
       </table>
     </div>
@@ -912,7 +1141,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="why">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">Cause</p>
+      <p class="eyebrow"><span class="no">07</span>Cause</p>
       <h2>Why the margins drift</h2>
       <p class="lede">Three things stack up. Any one of them would make pages inconsistent. Together they make it hard to build a page that matches the last one.</p>
     </div>
@@ -1004,7 +1233,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="measured">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">Measurement</p>
+      <p class="eyebrow"><span class="no">08</span>Measurement</p>
       <h2>Where the body text starts</h2>
       <p class="lede">Distance from the left edge of the screen to the first letter of body text, measured on the live site. A consistent site would put every row on the same line.</p>
     </div>
@@ -1051,7 +1280,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="live">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">Live bugs</p>
+      <p class="eyebrow"><span class="no">09</span>Live bugs</p>
       <h2>Broken on the site right now</h2>
       <p class="lede">Each one was measured, then checked with a screenshot or by measuring the text itself. These don't wait for the rebuild: they're the Alongside fixes in the plan.</p>
     </div>
@@ -1137,10 +1366,18 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
   </div>
 </section>
 
+<div class="partband" id="part-spec">
+  <div class="wrap">
+    <span class="pn">Part 3</span>
+    <h2>The spec</h2>
+    <p>The numbers and components Sam builds from.</p>
+  </div>
+</div>
+
 <section class="section" id="numbers">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">The foundation</p>
+      <p class="eyebrow"><span class="no">10</span>The foundation</p>
       <h2>One set of numbers</h2>
       <p class="lede">Every component and template takes its spacing, widths and type sizes from one short list, and editors pick from that list instead of typing their own. These are starting values for Ariel and Sam to confirm. Each one comes from something the scan measured.</p>
     </div>
@@ -1261,7 +1498,7 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
 <section class="section" id="components">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">Proposal</p>
+      <p class="eyebrow"><span class="no">11</span>Proposal</p>
       <h2>15 components to build</h2>
       <p class="lede">Ordered by how many of the 79 editor-built pages we measured use each one. Repeat groups were sampled, so real counts run higher: all 29 team bios use the Person block, for one. Each component takes its spacing, width and type from the numbers above, so nobody sets them by hand again.</p>
       <div class="legend">
@@ -1416,60 +1653,13 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
   </div>
 </section>
 
-<section class="section" id="decide">
+<section class="section" id="fine">
   <div class="wrap">
     <div class="section-head">
-      <p class="eyebrow">For review</p>
-      <h2>Three decisions before Sam builds</h2>
+      <p class="eyebrow"><span class="no">12</span>Appendix</p>
+      <h2>What the scan covered</h2>
     </div>
-    <div class="decisions">
-      <div class="decision">
-        <h3>Confirm the starting numbers</h3>
-        <p>Ariel and Sam confirm or adjust the values in "One set of numbers" below. Any of them can change before Sam builds. The goal is one list that the editor holds everyone to.</p>
-      </div>
-      <div class="decision">
-        <h3>How far to go now</h3>
-        <p>The Nov 11 call scoped the work to new pages. The scan gives two reasons to go further: 16 pages are broken on phones today, and 96 pages can move by group once the templates exist.</p>
-        <div class="options">
-          <div class="option">
-            <span class="tag">Option A</span>
-            <h4>New pages only, as agreed</h4>
-            <p>Phases 0 to 2. Existing pages stay as they are, broken spots included, until a later decision.</p>
-          </div>
-          <div class="option">
-            <span class="tag">Option B</span>
-            <h4>The full plan</h4>
-            <p>Phases 0 to 2, the fixes alongside, then Phases 3 and 4. Every page ends up inside the guardrails, and custom.css gets cleaned out.</p>
-          </div>
-        </div>
-        <p class="both">Either way, Phases 0 to 2 come first and don't change.</p>
-      </div>
-      <div class="decision">
-        <h3>Case studies come next</h3>
-        <div class="assembly">
-          <div class="page-stack" aria-label="The case study template: a locked banner at the top, five components to pick from in the middle, and locked related case studies and resource cards at the bottom">
-            <div class="slab banner"><span class="n">3</span>Page banner · locked</div>
-            <div class="slab content"><span class="n">1</span>Content section · pick</div>
-            <div class="slab stats"><span class="n">9</span>Media · pick</div>
-            <div class="slab stats"><span class="n">5</span>Stats row · pick</div>
-            <div class="slab cta"><span class="n">11</span>CTA band · pick</div>
-            <div class="slab testi"><span class="n">2</span>Testimonial band · pick</div>
-            <div class="slab related"><span class="n">7</span>Related case studies · locked</div>
-            <div class="slab cards"><span class="n">4</span>Resource cards · locked</div>
-          </div>
-          <div class="assembly-copy">
-            <span class="count">10</span>
-            <p>case studies are on the way. All 17 we measured open with the same banner and close with the same related case studies and resource cards. In between, every round of the scan found a new combination.</p>
-            <p>So the template locks the top and bottom and offers five components for the middle. Build it first and the 10 new case studies become the first real test of the guardrails.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section" id="fine">
-  <div class="wrap fine">
+    <div class="fine">
     <div>
       <h3>What this scan could not see</h3>
       <ul>
@@ -1492,9 +1682,52 @@ code { background: var(--faint); color: var(--ink); padding: .1em .4em; border-r
       </div>
     </div>
   </div>
+  </div>
 </section>
 
 <footer class="wrap colophon">
   <span>Measured Nov 13, 2026 in a headless browser at 1440px and 390px: 22 pages in the afternoon, 65 more that night in rounds. Read only.</span>
   <a href="https://app.basecamp.com/3126662/buckets/11417056/todos/10508340384">Basecamp to-do: Run AI scan of pages to create component list</a>
 </footer>
+</main>
+</div>
+<script>
+(function () {
+  var links = Array.prototype.slice.call(document.querySelectorAll('.toc a.lk'));
+  var map = {};
+  links.forEach(function (a) { map[a.getAttribute('href').slice(1)] = a; });
+  var secs = Object.keys(map).map(function (id) { return document.getElementById(id); }).filter(Boolean);
+  var nav = document.querySelector('.toc');
+  var bar = document.querySelector('.progress i');
+  var current = null, ticking = false;
+  function setActive(id) {
+    if (id === current) return;
+    current = id;
+    links.forEach(function (a) { a.removeAttribute('aria-current'); });
+    var a = id && map[id];
+    if (!a) return;
+    a.setAttribute('aria-current', 'true');
+    if (nav.scrollWidth > nav.clientWidth + 4) {
+      nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: 'smooth' });
+    }
+  }
+  function update() {
+    ticking = false;
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - window.innerHeight;
+    if (bar) bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, window.scrollY / max) : 0) + ')';
+    var line = window.innerHeight * 0.3, id = null;
+    for (var i = 0; i < secs.length; i++) {
+      if (secs[i].getBoundingClientRect().top - line <= 0) id = secs[i].id;
+    }
+    if (max > 0 && window.scrollY >= max - 2) id = secs[secs.length - 1].id;
+    setActive(id);
+  }
+  function onScroll() { if (!ticking) { ticking = true; requestAnimationFrame(update); } }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  update();
+})();
+</script>
+</body>
+</html>
