@@ -7,6 +7,10 @@
  * through `computeFrameLayout` and `drawFrame`, so the file matches the preview.
  */
 
+import { canvasCanDraw, shrinkSource } from "./downscale"
+
+export { canvasCanDraw }
+
 export type BorderUnit = "percent" | "px"
 export type FrameFit = "auto" | "grow" | "exact"
 export type FrameBackground = "auto" | "transparent" | "white"
@@ -344,27 +348,6 @@ const FORMAT_MIME: Record<FrameOutputFormat, string> = {
   jpeg: "image/jpeg",
 }
 
-/**
- * Browsers cap canvas size, and iPhones cap it low. Past the cap many of them
- * stop drawing without raising any error, which would export a blank file, so
- * prove the far corner can be drawn before relying on the canvas.
- */
-export function canvasCanDraw(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): boolean {
-  const x = canvas.width - 1
-  const y = canvas.height - 1
-  try {
-    ctx.save()
-    ctx.fillStyle = "#000000"
-    ctx.fillRect(x, y, 1, 1)
-    ctx.restore()
-    const alpha = ctx.getImageData(x, y, 1, 1).data[3]
-    ctx.clearRect(x, y, 1, 1)
-    return alpha === 255
-  } catch {
-    return false
-  }
-}
-
 function tooLargeMessage(width: number, height: number): string {
   return `This file would be ${width}×${height}, which is too large for this browser to create. Try smaller output dimensions, or a smaller border or shadow.`
 }
@@ -400,7 +383,13 @@ export async function renderFrameToBlob(options: RenderFrameOptions): Promise<Bl
   if (!ctx || !canvasCanDraw(canvas, ctx)) {
     throw new Error(tooLargeMessage(layout.fileWidth, layout.fileHeight))
   }
-  drawFrame(ctx, image, layout)
+  // A large photo is stepped down first, so the framed export is as clean as the plain one.
+  const shrunk = shrinkSource(image, layout.source, layout.image.width, layout.image.height)
+  drawFrame(ctx, shrunk.image, {
+    ...layout,
+    source: { x: shrunk.x, y: shrunk.y, width: shrunk.width, height: shrunk.height },
+  })
+  shrunk.release()
   const quality = options.format === "webp"
     ? options.quality / 100
     : options.format === "jpeg" ? JPEG_QUALITY : undefined

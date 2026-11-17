@@ -66,6 +66,7 @@ import {
   saveLastFrame,
   type FrameSettings,
 } from "@/lib/imageFrame"
+import { drawDownscaled } from "@/lib/downscale"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -189,12 +190,28 @@ async function cropToDataURL(
   canvas.width = outputWidth
   canvas.height = outputHeight
   const ctx = canvas.getContext("2d")!
-  ctx.drawImage(
-    image,
-    pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
-    0, 0, outputWidth, outputHeight
-  )
+  drawDownscaled(ctx, image, pixelCrop, { x: 0, y: 0, width: outputWidth, height: outputHeight })
   return canvas.toDataURL("image/png")
+}
+
+/** Draws the whole picture at the output size, stepping down so a large photo stays clean. */
+function drawWholeImage(
+  ctx: CanvasRenderingContext2D,
+  image: HTMLImageElement,
+  outputWidth: number,
+  outputHeight: number
+) {
+  // A picture with no size of its own, such as some SVGs, has nothing to step down from.
+  if (image.naturalWidth <= 0 || image.naturalHeight <= 0) {
+    ctx.drawImage(image, 0, 0, outputWidth, outputHeight)
+    return
+  }
+  drawDownscaled(
+    ctx,
+    image,
+    { x: 0, y: 0, width: image.naturalWidth, height: image.naturalHeight },
+    { x: 0, y: 0, width: outputWidth, height: outputHeight }
+  )
 }
 
 async function resizeImage(
@@ -208,7 +225,7 @@ async function resizeImage(
   canvas.width = outputWidth
   canvas.height = outputHeight
   const ctx = canvas.getContext("2d")!
-  ctx.drawImage(image, 0, 0, outputWidth, outputHeight)
+  drawWholeImage(ctx, image, outputWidth, outputHeight)
   const mimeType = format === "JPEG" || format === "JPG" ? "image/jpeg"
     : format === "PNG" ? "image/png"
     : format === "GIF" ? "image/gif"
@@ -234,7 +251,7 @@ async function convertToWebP(
   canvas.width = outputWidth
   canvas.height = outputHeight
   const ctx = canvas.getContext("2d")!
-  ctx.drawImage(image, 0, 0, outputWidth, outputHeight)
+  drawWholeImage(ctx, image, outputWidth, outputHeight)
   return new Promise((resolve, reject) => {
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("toBlob failed"))),
