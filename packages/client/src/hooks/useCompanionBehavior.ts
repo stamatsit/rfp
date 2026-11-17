@@ -198,7 +198,7 @@ export function useCompanionBehavior() {
   useEffect(() => {
     const path = location.pathname
     if (path === lastPathRef.current) return
-    if (path === "/login" || path === "/change-password") return
+    if (["/login", "/change-password", "/forgot-password", "/reset-password"].includes(path)) return
     lastPathRef.current = path
 
     const events = loadEvents()

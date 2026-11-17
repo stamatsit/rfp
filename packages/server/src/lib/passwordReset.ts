@@ -10,7 +10,8 @@
 import crypto from "node:crypto"
 
 const RESET_TTL_MS = 60 * 60 * 1000 // 1 hour
-const RESET_SENDER = process.env.RESET_EMAIL_FROM || "Stamats Lab <ai@stamats.com>"
+// PORTAL_EMAIL_FROM is the sender already proven on production (client portal invites).
+const RESET_SENDER = process.env.RESET_EMAIL_FROM || process.env.PORTAL_EMAIL_FROM || "Stamats <noreply@stamats.com>"
 
 function secret(): string {
   const s = process.env.SESSION_SECRET || process.env.APP_PASSWORD
@@ -95,7 +96,7 @@ export async function sendResetEmail(to: string, name: string, resetUrl: string)
       <p style="margin:24px 0">
         <a href="${resetUrl}" style="background:#0891b2;color:#fff;text-decoration:none;padding:11px 20px;border-radius:10px;font-size:14px;font-weight:600;display:inline-block">Reset password</a>
       </p>
-      <p style="font-size:12px;color:#94a3b8;line-height:1.6">If you didn't request this, you can safely ignore this email — your password won't change.</p>
+      <p style="font-size:12px;color:#94a3b8;line-height:1.6">If you didn't request this, you can safely ignore this email. Your password won't change.</p>
       <p style="font-size:12px;color:#94a3b8;word-break:break-all">Or paste this link into your browser:<br>${resetUrl}</p>
     </div>`.trim()
   const text = `Hi ${firstName},\n\nReset your Stamats Lab password with this link (expires in 1 hour):\n${resetUrl}\n\nIf you didn't request this, ignore this email.`

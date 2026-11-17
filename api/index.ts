@@ -1512,6 +1512,20 @@ function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {
   return { allowed: true, remaining: RATE_LIMIT_MAX_REQUESTS - entry.count }
 }
 
+// Keyed limiter for the password reset routes (in-memory, per instance), so the
+// public forgot-password form cannot be used to flood someone's inbox.
+const resetLimitMap = new Map<string, { count: number; resetTime: number }>()
+function resetLimited(key: string, max: number, windowMs = 15 * 60 * 1000): boolean {
+  const now = Date.now()
+  const entry = resetLimitMap.get(key)
+  if (!entry || now > entry.resetTime) {
+    resetLimitMap.set(key, { count: 1, resetTime: now + windowMs })
+    return false
+  }
+  entry.count++
+  return entry.count > max
+}
+
 // ── CSRF Protection ──
 const CSRF_COOKIE_NAME = "csrf-token"
 const CSRF_HEADER_NAME = "x-csrf-token"
@@ -1910,12 +1924,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         try {
           const email = String(req.body?.email || "").trim().toLowerCase()
           if (!email) return res.status(400).json({ error: "Email is required" })
+          if (resetLimited(`forgot-ip:${ip}`, 5) || resetLimited(`forgot-email:${email}`, 3)) {
+            return res.status(429).json({ error: "Too many reset requests. Please try again later." })
+          }
           if (db) {
             const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1)
             if (user) {
               const { signResetToken, sendResetEmail } = await import("../packages/server/src/lib/passwordReset.js")
               const token = signResetToken(user.id, user.passwordHash)
-              const base = process.env.APP_URL || "https://app.stamats.com"
+              // ai.stamats.com is production. Never fall back to app.stamats.com:
+              // it redirects to the retired app on the legacy database.
+              const base = process.env.APP_URL || "https://ai.stamats.com"
               const resetUrl = `${base}/reset-password?token=${encodeURIComponent(token)}`
               await sendResetEmail(user.email, user.name, resetUrl)
             }
@@ -1930,6 +1949,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Reset password — verifies the signed token against the CURRENT hash so a
       // used/stale link is rejected, then sets the new password.
       if (path === "/auth/reset-password" && method === "POST") {
+        if (resetLimited(`reset-ip:${ip}`, 10)) {
+          return res.status(429).json({ error: "Too many attempts. Please try again later." })
+        }
         const { token, password } = req.body || {}
         if (!token || typeof token !== "string") return res.status(400).json({ error: "Reset token is required" })
         if (!password || typeof password !== "string" || password.length < 8) {

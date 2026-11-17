@@ -4,6 +4,8 @@ import { HomePage } from "./pages"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 import ChangePassword from "./pages/ChangePassword"
+import ForgotPassword from "./pages/ForgotPassword"
+import ResetPassword from "./pages/ResetPassword"
 import { AuthProvider } from "./contexts/AuthContext"
 import { ThemeProvider } from "./contexts/ThemeContext"
 import { ProtectedRoute } from "./components/ProtectedRoute"
@@ -67,7 +69,7 @@ function applyFontSize(fontSize: string) {
 
 function AppRoutes() {
   const location = useLocation()
-  const isAuthPage = ["/login", "/register", "/change-password"].includes(location.pathname)
+  const isAuthPage = ["/login", "/register", "/change-password", "/forgot-password", "/reset-password"].includes(location.pathname)
   // Client portal: its own auth, its own shell. No rail, palette, shortcuts, entry panel or companion.
   const isPortalRoute = /^\/portal(\/|$)/.test(location.pathname)
   const [showNewEntry, setShowNewEntry] = useState(false)
@@ -130,6 +132,8 @@ function AppRoutes() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
             <Route path="/import" element={<ProtectedRoute><ImportWizard /></ProtectedRoute>} />
             <Route path="/photos" element={<ProtectedRoute><PhotoUpload /></ProtectedRoute>} />

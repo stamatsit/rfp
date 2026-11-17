@@ -3,6 +3,9 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { accountApi } from "@/lib/api"
 import { clearCsrfToken } from "@/lib/csrfToken"
 
+// Pages a signed-out visitor may stay on without being sent to /login.
+const PUBLIC_AUTH_PATHS = ["/login", "/register", "/forgot-password", "/reset-password"]
+
 export interface User {
   id: string
   email: string
@@ -67,7 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.user || null)
       setMustChangePassword(data.mustChangePassword || false)
 
-      if (!data.authenticated && location.pathname !== "/login" && location.pathname !== "/register") {
+      if (!data.authenticated && !PUBLIC_AUTH_PATHS.includes(location.pathname)) {
         navigate("/login", { replace: true })
       } else if (data.authenticated && data.mustChangePassword && location.pathname !== "/change-password") {
         navigate("/change-password", { replace: true })
@@ -76,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAuthenticated(false)
       setUser(null)
       setMustChangePassword(false)
-      if (location.pathname !== "/login" && location.pathname !== "/register") {
+      if (!PUBLIC_AUTH_PATHS.includes(location.pathname)) {
         navigate("/login", { replace: true })
       }
     } finally {

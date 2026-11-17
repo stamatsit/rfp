@@ -200,6 +200,12 @@ export default function Login() {
               />
             </div>
 
+            <div className="flex justify-end -mt-1">
+              <Link to="/forgot-password" className="text-[13px] text-blue-600 dark:text-blue-400 hover:underline font-medium rounded focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/15">
+                Forgot password?
+              </Link>
+            </div>
+
             {error && (
               <p className="text-[13px] text-red-600 text-center animate-fade-in-up">
                 {error}

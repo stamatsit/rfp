@@ -375,7 +375,7 @@ export function AICompanion() {
   if (!isAuthenticated || !enabled) return null
 
   // Don't show on login/change-password
-  if (location.pathname === "/login" || location.pathname === "/change-password") return null
+  if (["/login", "/change-password", "/forgot-password", "/reset-password"].includes(location.pathname)) return null
 
   const hasNotification = !!suggestion && !suggestionDismissed && !isOpen && chat.messages.length === 0
 
